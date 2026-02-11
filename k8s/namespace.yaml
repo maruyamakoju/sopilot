@@ -1,0 +1,57 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sopilot
+  labels:
+    name: sopilot
+    app: sopilot
+    environment: production
+
+---
+# Resource quotas (optional, adjust per cluster capacity)
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: sopilot-quota
+  namespace: sopilot
+spec:
+  hard:
+    requests.cpu: "40"
+    requests.memory: 100Gi
+    requests.nvidia.com/gpu: "4"
+    limits.cpu: "80"
+    limits.memory: 200Gi
+    limits.nvidia.com/gpu: "4"
+    persistentvolumeclaims: "10"
+    services.loadbalancers: "1"
+
+---
+# Limit ranges (prevent runaway pods)
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: sopilot-limits
+  namespace: sopilot
+spec:
+  limits:
+  - max:
+      cpu: "16"
+      memory: 64Gi
+    min:
+      cpu: "100m"
+      memory: 128Mi
+    default:
+      cpu: "1"
+      memory: 2Gi
+    defaultRequest:
+      cpu: "500m"
+      memory: 1Gi
+    type: Container
+
+  - max:
+      cpu: "32"
+      memory: 128Gi
+    min:
+      cpu: "200m"
+      memory: 256Mi
+    type: Pod

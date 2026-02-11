@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sopilot-redis
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: redis
+spec:
+  serviceName: sopilot-redis-headless
+  replicas: 1  # Single instance (no clustering for simplicity)
+  selector:
+    matchLabels:
+      app: sopilot
+      component: redis
+  template:
+    metadata:
+      labels:
+        app: sopilot
+        component: redis
+    spec:
+      containers:
+      - name: redis
+        image: redis:7-alpine
+        imagePullPolicy: IfNotPresent
+        command:
+        - redis-server
+        - /etc/redis/redis.conf
+
+        ports:
+        - containerPort: 6379
+          name: redis
+          protocol: TCP
+
+        env:
+        - name: REDIS_REPLICATION_MODE
+          value: "master"
+
+        volumeMounts:
+        - name: redis-data
+          mountPath: /data
+        - name: redis-config
+          mountPath: /etc/redis
+          readOnly: true
+
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
+
+        livenessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          exec:
+            command:
+            - redis-cli
+            - ping
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+
+      volumes:
+      - name: redis-config
+        configMap:
+          name: sopilot-redis-config
+
+  volumeClaimTemplates:
+  - metadata:
+      name: redis-data
+    spec:
+      accessModes: ["ReadWriteOnce"]
+      storageClassName: fast-ssd
+      resources:
+        requests:
+          storage: 20Gi
+
+---
+# Alternative: Use the PVC instead of volumeClaimTemplates
+# apiVersion: apps/v1
+# kind: Deployment
+# metadata:
+#   name: sopilot-redis
+# spec:
+#   replicas: 1
+#   ...
+#   volumes:
+#   - name: redis-data
+#     persistentVolumeClaim:
+#       claimName: sopilot-redis-data

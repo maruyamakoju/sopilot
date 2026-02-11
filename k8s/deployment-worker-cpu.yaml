@@ -1,0 +1,111 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sopilot-worker-cpu
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: worker
+    worker-type: cpu
+spec:
+  replicas: 4  # More CPU workers to handle overflow
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: sopilot
+      component: worker
+      worker-type: cpu
+  template:
+    metadata:
+      labels:
+        app: sopilot
+        component: worker
+        worker-type: cpu
+    spec:
+      # Anti-affinity: Spread workers across nodes
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app: sopilot
+                  component: worker
+              topologyKey: kubernetes.io/hostname
+
+      containers:
+      - name: worker
+        image: sopilot:latest-cpu  # Use Dockerfile.cpu
+        imagePullPolicy: IfNotPresent
+        command: ["sopilot-worker"]
+        args: ["--queues", "ingest,score,training"]
+
+        env:
+        # ConfigMap
+        - name: SOPILOT_DATA_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_DATA_DIR
+        - name: SOPILOT_QUEUE_BACKEND
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_QUEUE_BACKEND
+        - name: SOPILOT_REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_REDIS_URL
+        - name: SOPILOT_EMBEDDER_MODEL
+          value: "heuristic-v1"  # CPU workers use heuristic embedder
+        - name: SOPILOT_DTW_USE_GPU
+          value: "false"  # Force CPU mode
+        - name: SOPILOT_EMBEDDER_COMPILE
+          value: "false"  # No torch.compile on CPU
+        - name: SOPILOT_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_LOG_LEVEL
+        - name: SOPILOT_LOG_FORMAT
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_LOG_FORMAT
+
+        volumeMounts:
+        - name: data
+          mountPath: /data
+
+        resources:
+          requests:
+            cpu: 2000m
+            memory: 4Gi
+          limits:
+            cpu: 4000m
+            memory: 8Gi
+
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import redis; r=redis.from_url('redis://sopilot-redis:6379/0'); r.ping()"
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: sopilot-data
+
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 60

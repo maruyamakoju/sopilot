@@ -1,0 +1,137 @@
+{
+  "score_job_id": "f6756c21-92cd-490c-a29d-ef9222ddccc3",
+  "status": "completed",
+  "gold_video_id": 56,
+  "trainee_video_id": 57,
+  "requested_by": "token:admin",
+  "score": 5.366621192651138,
+  "error_message": null,
+  "queued_at": "2026-02-08T09:45:59+00:00",
+  "started_at": "2026-02-08T09:45:59+00:00",
+  "finished_at": "2026-02-08T09:46:00+00:00",
+  "result": {
+    "score": 5.366621192651138,
+    "metrics": {
+      "miss": 0,
+      "swap": 0,
+      "deviation": 0.42857142857142855,
+      "over_time": 0.0,
+      "temporal_warp": 0.08571428571428572,
+      "path_stretch": 0.16666666666666666,
+      "duplicate_ratio": 0.3333333333333333,
+      "order_violation_ratio": 0.0,
+      "temporal_drift": 0.10000000149011612,
+      "confidence_loss": 0.03769189119338989,
+      "local_similarity_gap": 0.10023349523544312,
+      "adaptive_low_similarity_threshold": 0.9661802554130554,
+      "effective_low_similarity_threshold": 0.9661802554130554,
+      "hard_miss_ratio": 0.5,
+      "mean_alignment_cost": 0.033169729369027276
+    },
+    "step_boundaries": {
+      "gold": [
+        0,
+        4,
+        6
+      ],
+      "trainee": [
+        0,
+        3,
+        6
+      ]
+    },
+    "deviations": [
+      {
+        "type": "execution_deviation",
+        "gold_step": 0,
+        "gold_time": {
+          "start_sec": 4.0,
+          "end_sec": 12.0
+        },
+        "trainee_time": {
+          "start_sec": 4.0,
+          "end_sec": 12.0
+        },
+        "confidence": 0.04921823740005493,
+        "reason": "low local similarity"
+      },
+      {
+        "type": "execution_deviation",
+        "gold_step": 1,
+        "gold_time": {
+          "start_sec": 16.0,
+          "end_sec": 20.0
+        },
+        "trainee_time": {
+          "start_sec": 12.0,
+          "end_sec": 16.0
+        },
+        "confidence": 0.1275097131729126,
+        "reason": "low local similarity"
+      }
+    ],
+    "alignment_preview": [
+      {
+        "gold_clip": 0,
+        "trainee_clip": 0,
+        "similarity": 1.0
+      },
+      {
+        "gold_clip": 1,
+        "trainee_clip": 1,
+        "similarity": 0.956
+      },
+      {
+        "gold_clip": 2,
+        "trainee_clip": 2,
+        "similarity": 0.9455
+      },
+      {
+        "gold_clip": 3,
+        "trainee_clip": 2,
+        "similarity": 0.9963
+      },
+      {
+        "gold_clip": 4,
+        "trainee_clip": 3,
+        "similarity": 0.8725
+      },
+      {
+        "gold_clip": 5,
+        "trainee_clip": 4,
+        "similarity": 0.9974
+      },
+      {
+        "gold_clip": 5,
+        "trainee_clip": 5,
+        "similarity": 1.0
+      }
+    ],
+    "clip_count": {
+      "gold": 6,
+      "trainee": 6
+    },
+    "step_map_preview": {
+      "gold": [
+        0,
+        0,
+        0,
+        0,
+        1,
+        1
+      ],
+      "trainee": [
+        0,
+        0,
+        0,
+        1,
+        1,
+        1
+      ]
+    },
+    "gold_video_id": 56,
+    "trainee_video_id": 57,
+    "task_id": "maintenance_filter_swap",
+    "embedding_model": "heuristic-v1"
+  }
+}

@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: sopilot-api
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: api
+  annotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "8000"
+    prometheus.io/path: "/metrics"
+spec:
+  type: ClusterIP
+  selector:
+    app: sopilot
+    component: api
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
+  sessionAffinity: None
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sopilot-redis
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: redis
+spec:
+  type: ClusterIP
+  selector:
+    app: sopilot
+    component: redis
+  ports:
+    - name: redis
+      protocol: TCP
+      port: 6379
+      targetPort: 6379
+  sessionAffinity: None
+
+---
+# Optional: Headless service for StatefulSet
+apiVersion: v1
+kind: Service
+metadata:
+  name: sopilot-redis-headless
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: redis
+spec:
+  type: ClusterIP
+  clusterIP: None  # Headless
+  selector:
+    app: sopilot
+    component: redis
+  ports:
+    - name: redis
+      protocol: TCP
+      port: 6379
+      targetPort: 6379

@@ -1,0 +1,671 @@
+﻿<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>SOPilot Field PoC Console</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;600;700&family=IBM+Plex+Mono:wght@400;600&display=swap');
+
+    :root {
+      --bg: #f4f0e6;
+      --panel: #fffaf1;
+      --ink: #1d2329;
+      --muted: #5d6772;
+      --accent: #0a7f65;
+      --warn: #ce5d0a;
+      --line: #d8ccbb;
+      --shadow: 0 14px 30px rgba(20, 22, 26, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: 'Space Grotesk', sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1100px 500px at 10% -20%, rgba(10, 127, 101, 0.18), transparent),
+        radial-gradient(900px 500px at 100% 10%, rgba(206, 93, 10, 0.16), transparent),
+        var(--bg);
+      min-height: 100vh;
+    }
+
+    .wrap {
+      max-width: 1180px;
+      margin: 0 auto;
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .hero {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      box-shadow: var(--shadow);
+      padding: 16px;
+      border-radius: 14px;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: clamp(1.4rem, 3vw, 2rem);
+      letter-spacing: 0.02em;
+    }
+
+    .sub {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.95rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 12px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      background: var(--panel);
+      border-radius: 12px;
+      padding: 12px;
+      box-shadow: var(--shadow);
+    }
+
+    .card h2 {
+      margin: 0 0 10px;
+      font-size: 1rem;
+    }
+
+    .span-4 { grid-column: span 4; }
+    .span-6 { grid-column: span 6; }
+    .span-8 { grid-column: span 8; }
+    .span-12 { grid-column: span 12; }
+
+    .row {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    label {
+      font-size: 0.82rem;
+      color: var(--muted);
+    }
+
+    input, button, select {
+      font-family: inherit;
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      border-radius: 8px;
+      padding: 8px 10px;
+    }
+
+    button {
+      cursor: pointer;
+      font-weight: 600;
+      background: linear-gradient(90deg, #0a7f65, #169b7e);
+      border: none;
+      color: #fff;
+      transition: transform 0.08s ease;
+    }
+
+    button.secondary {
+      background: linear-gradient(90deg, #4f5d6a, #607485);
+    }
+
+    button.warn {
+      background: linear-gradient(90deg, #ce5d0a, #e3741d);
+    }
+
+    button:active { transform: translateY(1px); }
+
+    .mono {
+      font-family: 'IBM Plex Mono', monospace;
+      font-size: 0.86rem;
+    }
+
+    .status {
+      padding: 8px;
+      border-radius: 8px;
+      background: #eef5f3;
+      border: 1px solid #cce3dc;
+      font-size: 0.85rem;
+      white-space: pre-wrap;
+      min-height: 42px;
+    }
+
+    .videos {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    video {
+      width: 100%;
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      background: #101418;
+      aspect-ratio: 16 / 9;
+    }
+
+    .timeline {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .marker {
+      border: 1px solid #d9b186;
+      background: #fff4ea;
+      color: #7c3c10;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 0.78rem;
+      cursor: pointer;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.82rem;
+    }
+
+    th, td {
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      padding: 6px;
+      vertical-align: top;
+    }
+
+    .small { font-size: 0.76rem; color: var(--muted); }
+
+    @media (max-width: 980px) {
+      .span-4, .span-6, .span-8, .span-12 { grid-column: span 12; }
+      .videos { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <section class="hero">
+      <h1>SOPilot Field PoC Console</h1>
+      <p class="sub">Gold/Trainee 同期再生・逸脱タイムライン・即時PDF出力で、現場の教育/監査にそのまま持ち込める画面。</p>
+    </section>
+
+    <section class="grid">
+      <article class="card span-4">
+        <h2>1) Upload</h2>
+        <div class="row">
+          <label>Auth token (optional)</label>
+          <input id="authToken" type="password" placeholder="Bearer token" />
+          <label>Basic user/password (optional)</label>
+          <input id="authUser" placeholder="username" />
+          <input id="authPass" type="password" placeholder="password" />
+        </div>
+        <div class="row">
+          <label>task_id</label>
+          <input id="taskId" value="maintenance_filter_swap" />
+        </div>
+        <div class="row">
+          <label>Gold video</label>
+          <input id="goldFile" type="file" accept="video/*" />
+          <button id="uploadGold">Upload Gold</button>
+        </div>
+        <div class="row">
+          <label>Trainee video</label>
+          <input id="traineeFile" type="file" accept="video/*" />
+          <button id="uploadTrainee">Upload Trainee</button>
+        </div>
+        <div class="row">
+          <label>Gold ID / Trainee ID</label>
+          <input id="goldId" class="mono" placeholder="gold video id" />
+          <input id="traineeId" class="mono" placeholder="trainee video id" />
+        </div>
+        <div class="status mono" id="uploadStatus"></div>
+      </article>
+
+      <article class="card span-4">
+        <h2>2) Score</h2>
+        <div class="row">
+          <button id="runScore">Create Score Job</button>
+          <button id="pollScore" class="secondary">Poll Score Job</button>
+          <input id="scoreJobId" class="mono" placeholder="score_job_id" />
+          <button id="downloadPdf" class="warn">Download PDF</button>
+        </div>
+        <div class="status mono" id="scoreStatus"></div>
+      </article>
+
+      <article class="card span-4">
+        <h2>3) Nightly Adapt</h2>
+        <div class="row">
+          <button id="triggerTrain">Trigger Training</button>
+          <input id="trainJobId" class="mono" placeholder="training_job_id" />
+          <button id="pollTrain" class="secondary">Poll Training Job</button>
+          <button id="nightlyStatusBtn" class="secondary">Nightly Status</button>
+        </div>
+        <div class="status mono" id="trainStatus"></div>
+      </article>
+
+      <article class="card span-12">
+        <h2>4) Sync Viewer + Deviation Timeline</h2>
+        <div class="videos">
+          <div>
+            <div class="small">Gold</div>
+            <video id="goldVideo" controls></video>
+          </div>
+          <div>
+            <div class="small">Trainee</div>
+            <video id="traineeVideo" controls></video>
+          </div>
+        </div>
+        <div class="timeline" id="markers"></div>
+      </article>
+
+      <article class="card span-12">
+        <h2>5) Deviations</h2>
+        <table id="devTable">
+          <thead>
+            <tr>
+              <th>#</th><th>type</th><th>reason</th><th>gold(sec)</th><th>trainee(sec)</th><th>confidence</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </article>
+
+      <article class="card span-12">
+        <h2>6) Recent Videos</h2>
+        <div class="row">
+          <button id="refreshVideos" class="secondary">Refresh</button>
+          <input id="deleteVideoId" class="mono" placeholder="video_id to delete" />
+          <button id="deleteVideo" class="warn">Delete Video</button>
+        </div>
+        <table id="videoTable">
+          <thead>
+            <tr>
+              <th>video_id</th><th>task_id</th><th>role</th><th>num_clips</th><th>embedding_model</th><th>created_at</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </article>
+
+      <article class="card span-12">
+        <h2>7) Audit Trail</h2>
+        <div class="row">
+          <button id="refreshAudit" class="secondary">Refresh Audit</button>
+        </div>
+        <table id="auditTable">
+          <thead>
+            <tr>
+              <th>job_id</th><th>type</th><th>requested_by</th><th>subject</th><th>status</th><th>model</th><th>score</th><th>time</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </article>
+
+      <article class="card span-6">
+        <h2>8) Queue Ops</h2>
+        <div class="row">
+          <button id="refreshQueue" class="secondary">Refresh Queue Metrics</button>
+        </div>
+        <div class="status mono" id="queueStatus"></div>
+      </article>
+
+      <article class="card span-6">
+        <h2>9) Signed Audit Export</h2>
+        <div class="row">
+          <label>Export limit</label>
+          <input id="auditExportLimit" class="mono" value="500" />
+          <button id="exportAudit" class="warn">Export Signed Audit JSON</button>
+        </div>
+        <div class="status mono" id="auditExportStatus"></div>
+      </article>
+    </section>
+  </div>
+
+  <script>
+    const byId = (id) => document.getElementById(id);
+    let goldBlobUrl = '';
+    let traineeBlobUrl = '';
+
+    function log(id, text) {
+      byId(id).textContent = text;
+    }
+
+    function authHeader() {
+      const token = byId('authToken').value.trim();
+      if (token) return `Bearer ${token}`;
+      const user = byId('authUser').value.trim();
+      const pass = byId('authPass').value;
+      if (user && pass) return `Basic ${btoa(`${user}:${pass}`)}`;
+      return '';
+    }
+
+    async function authorizedFetch(path, options = {}) {
+      const headers = Object.assign({}, options.headers || {});
+      const auth = authHeader();
+      if (auth && !headers.Authorization) headers.Authorization = auth;
+      return fetch(path, Object.assign({}, options, { headers }));
+    }
+
+    async function api(path, options = {}) {
+      const res = await authorizedFetch(path, options);
+      const text = await res.text();
+      let body = null;
+      try { body = text ? JSON.parse(text) : null; } catch { body = text; }
+      if (!res.ok) {
+        const detail = body && body.detail ? body.detail : text;
+        throw new Error(`HTTP ${res.status}: ${detail}`);
+      }
+      return body;
+    }
+
+    async function downloadWithAuth(path, filename) {
+      const res = await authorizedFetch(path);
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text || 'download failed'}`);
+      }
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 5000);
+    }
+
+    function sec(v) {
+      if (v === null || v === undefined || Number.isNaN(Number(v))) return '-';
+      return Number(v).toFixed(2);
+    }
+
+    async function upload(role) {
+      const taskId = byId('taskId').value.trim();
+      const input = role === 'gold' ? byId('goldFile') : byId('traineeFile');
+      if (!taskId) throw new Error('task_id is required');
+      if (!input.files || !input.files[0]) throw new Error(`${role} file is required`);
+
+      const fd = new FormData();
+      fd.append('task_id', taskId);
+      if (role !== 'gold') fd.append('role', role);
+      fd.append('file', input.files[0]);
+
+      const path = role === 'gold' ? '/gold' : '/videos';
+      const accepted = await api(path, { method: 'POST', body: fd });
+      log('uploadStatus', JSON.stringify(accepted, null, 2));
+
+      const jobId = accepted.ingest_job_id;
+      if (!jobId) throw new Error('ingest job id is missing');
+
+      const finalRes = await pollIngest(jobId);
+      if (finalRes.status !== 'completed') {
+        throw new Error(finalRes.error_message || `ingest failed: ${jobId}`);
+      }
+      if (role === 'gold') byId('goldId').value = String(finalRes.video_id);
+      if (role === 'trainee') byId('traineeId').value = String(finalRes.video_id);
+      log('uploadStatus', JSON.stringify(finalRes, null, 2));
+      await refreshVideos();
+      await refreshAuditTrail();
+    }
+
+    async function pollIngest(jobId) {
+      let last = null;
+      for (let i = 0; i < 300; i++) {
+        const res = await api(`/videos/jobs/${jobId}`);
+        last = res;
+        log('uploadStatus', JSON.stringify(res, null, 2));
+        if (res.status === 'completed' || res.status === 'failed') break;
+        await new Promise((r) => setTimeout(r, 1200));
+      }
+      if (!last) throw new Error(`failed to poll ingest job: ${jobId}`);
+      return last;
+    }
+
+    async function createScore() {
+      const gold = Number(byId('goldId').value);
+      const trainee = Number(byId('traineeId').value);
+      if (!gold || !trainee) throw new Error('gold_id and trainee_id are required');
+      const res = await api('/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ gold_video_id: gold, trainee_video_id: trainee }),
+      });
+      byId('scoreJobId').value = res.score_job_id;
+      log('scoreStatus', JSON.stringify(res, null, 2));
+      await refreshAuditTrail();
+      return res.score_job_id;
+    }
+
+    function syncPlayers(a, b) {
+      let lock = false;
+      const sync = (source, target) => {
+        if (lock) return;
+        lock = true;
+        target.currentTime = source.currentTime;
+        if (!source.paused && target.paused) target.play().catch(() => {});
+        if (source.paused && !target.paused) target.pause();
+        setTimeout(() => { lock = false; }, 0);
+      };
+      a.addEventListener('seeked', () => sync(a, b));
+      b.addEventListener('seeked', () => sync(b, a));
+      a.addEventListener('play', () => sync(a, b));
+      b.addEventListener('play', () => sync(b, a));
+      a.addEventListener('pause', () => sync(a, b));
+      b.addEventListener('pause', () => sync(b, a));
+    }
+
+    function renderDeviations(payload) {
+      const tbody = byId('devTable').querySelector('tbody');
+      tbody.innerHTML = '';
+      const markers = byId('markers');
+      markers.innerHTML = '';
+
+      const deviations = (payload.result && payload.result.deviations) || [];
+      deviations.forEach((d, idx) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${idx + 1}</td>
+          <td>${d.type || ''}</td>
+          <td>${d.reason || ''}</td>
+          <td>${sec(d.gold_time?.start_sec)} - ${sec(d.gold_time?.end_sec)}</td>
+          <td>${sec(d.trainee_time?.start_sec)} - ${sec(d.trainee_time?.end_sec)}</td>
+          <td>${sec(d.confidence)}</td>
+        `;
+        tbody.appendChild(tr);
+
+        const b = document.createElement('button');
+        b.className = 'marker';
+        b.textContent = `${idx + 1}:${d.type || 'deviation'}`;
+        b.onclick = () => {
+          const g = byId('goldVideo');
+          const t = byId('traineeVideo');
+          const gt = Number(d.gold_time?.start_sec ?? 0);
+          const tt = Number(d.trainee_time?.start_sec ?? gt);
+          g.currentTime = Number.isFinite(gt) ? gt : 0;
+          t.currentTime = Number.isFinite(tt) ? tt : 0;
+        };
+        markers.appendChild(b);
+      });
+    }
+
+    async function loadPlayers(goldId, traineeId) {
+      const goldRes = await authorizedFetch(`/videos/${goldId}/file`);
+      if (!goldRes.ok) {
+        throw new Error(`failed to load gold video: HTTP ${goldRes.status}`);
+      }
+      const traineeRes = await authorizedFetch(`/videos/${traineeId}/file`);
+      if (!traineeRes.ok) {
+        throw new Error(`failed to load trainee video: HTTP ${traineeRes.status}`);
+      }
+      const goldBlob = await goldRes.blob();
+      const traineeBlob = await traineeRes.blob();
+      if (goldBlobUrl) URL.revokeObjectURL(goldBlobUrl);
+      if (traineeBlobUrl) URL.revokeObjectURL(traineeBlobUrl);
+      goldBlobUrl = URL.createObjectURL(goldBlob);
+      traineeBlobUrl = URL.createObjectURL(traineeBlob);
+      byId('goldVideo').src = goldBlobUrl;
+      byId('traineeVideo').src = traineeBlobUrl;
+    }
+
+    async function pollScore() {
+      const jobId = byId('scoreJobId').value.trim();
+      if (!jobId) throw new Error('score_job_id is required');
+
+      let last = null;
+      for (let i = 0; i < 300; i++) {
+        const res = await api(`/score/${jobId}`);
+        last = res;
+        log('scoreStatus', JSON.stringify(res, null, 2));
+        if (res.status === 'completed' || res.status === 'failed') break;
+        await new Promise((r) => setTimeout(r, 1200));
+      }
+      if (!last) return;
+
+      if (last.status === 'completed') {
+        await loadPlayers(last.gold_video_id, last.trainee_video_id);
+        renderDeviations(last);
+      }
+    }
+
+    async function downloadPdf() {
+      const jobId = byId('scoreJobId').value.trim();
+      if (!jobId) throw new Error('score_job_id is required');
+      await downloadWithAuth(`/score/${jobId}/report.pdf`, `score_${jobId}.pdf`);
+    }
+
+    async function triggerTraining() {
+      const res = await api('/train/nightly', { method: 'POST' });
+      byId('trainJobId').value = res.training_job_id;
+      log('trainStatus', JSON.stringify(res, null, 2));
+      await refreshAuditTrail();
+      return res.training_job_id;
+    }
+
+    async function pollTraining() {
+      const id = byId('trainJobId').value.trim();
+      if (!id) throw new Error('training_job_id is required');
+      for (let i = 0; i < 300; i++) {
+        const res = await api(`/train/jobs/${id}`);
+        log('trainStatus', JSON.stringify(res, null, 2));
+        if (['completed', 'failed', 'skipped'].includes(res.status)) break;
+        await new Promise((r) => setTimeout(r, 1500));
+      }
+    }
+
+    async function fetchNightlyStatus() {
+      const res = await api('/train/nightly/status');
+      log('trainStatus', JSON.stringify(res, null, 2));
+    }
+
+    async function refreshVideos() {
+      const taskId = byId('taskId').value.trim();
+      const q = taskId ? `?task_id=${encodeURIComponent(taskId)}&limit=30` : '?limit=30';
+      const res = await api(`/videos${q}`);
+      const tbody = byId('videoTable').querySelector('tbody');
+      tbody.innerHTML = '';
+
+      res.items.forEach((v) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="mono">${v.video_id}</td>
+          <td>${v.task_id}</td>
+          <td>${v.role}</td>
+          <td>${v.num_clips}</td>
+          <td class="mono">${v.embedding_model || ''}</td>
+          <td class="mono">${v.created_at || ''}</td>
+        `;
+        tr.style.cursor = 'pointer';
+        tr.onclick = () => {
+          if (v.role === 'gold') byId('goldId').value = String(v.video_id);
+          else byId('traineeId').value = String(v.video_id);
+          byId('deleteVideoId').value = String(v.video_id);
+        };
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function deleteVideo() {
+      const id = Number(byId('deleteVideoId').value);
+      if (!id) throw new Error('video_id is required');
+      const res = await api(`/videos/${id}`, { method: 'DELETE' });
+      log('uploadStatus', JSON.stringify(res, null, 2));
+      await refreshVideos();
+      await refreshAuditTrail();
+    }
+
+    async function refreshAuditTrail() {
+      const res = await api('/audit/trail?limit=50');
+      const tbody = byId('auditTable').querySelector('tbody');
+      tbody.innerHTML = '';
+      res.items.forEach((item) => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="mono">${item.job_id}</td>
+          <td>${item.job_type}</td>
+          <td>${item.requested_by || ''}</td>
+          <td>${item.subject || ''}</td>
+          <td>${item.status}</td>
+          <td class="mono">${item.model_name || ''}</td>
+          <td>${item.score === null || item.score === undefined ? '' : Number(item.score).toFixed(2)}</td>
+          <td class="mono">${item.finished_at || item.started_at || item.queued_at || item.created_at || ''}</td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function refreshQueueMetrics() {
+      const res = await api('/ops/queue');
+      log('queueStatus', JSON.stringify(res, null, 2));
+    }
+
+    async function exportSignedAudit() {
+      const rawLimit = Number(byId('auditExportLimit').value);
+      const limit = Number.isFinite(rawLimit) && rawLimit > 0 ? Math.floor(rawLimit) : 500;
+      const payload = await api(`/audit/export?limit=${limit}`, { method: 'POST' });
+      log('auditExportStatus', JSON.stringify(payload, null, 2));
+      await downloadWithAuth(
+        `/audit/export/${encodeURIComponent(payload.export_id)}/file`,
+        `audit_export_${payload.export_id}.json`,
+      );
+    }
+
+    byId('uploadGold').onclick = () => upload('gold').catch((e) => log('uploadStatus', String(e)));
+    byId('uploadTrainee').onclick = () => upload('trainee').catch((e) => log('uploadStatus', String(e)));
+
+    byId('runScore').onclick = async () => {
+      try {
+        await createScore();
+      } catch (e) {
+        log('scoreStatus', String(e));
+      }
+    };
+
+    byId('pollScore').onclick = () => pollScore().catch((e) => log('scoreStatus', String(e)));
+    byId('downloadPdf').onclick = () => downloadPdf().catch((e) => log('scoreStatus', String(e)));
+
+    byId('triggerTrain').onclick = () => triggerTraining().catch((e) => log('trainStatus', String(e)));
+    byId('pollTrain').onclick = () => pollTraining().catch((e) => log('trainStatus', String(e)));
+    byId('nightlyStatusBtn').onclick = () => fetchNightlyStatus().catch((e) => log('trainStatus', String(e)));
+    byId('refreshVideos').onclick = () => refreshVideos().catch((e) => log('uploadStatus', String(e)));
+    byId('deleteVideo').onclick = () => deleteVideo().catch((e) => log('uploadStatus', String(e)));
+    byId('refreshAudit').onclick = () => refreshAuditTrail().catch((e) => log('trainStatus', String(e)));
+    byId('refreshQueue').onclick = () => refreshQueueMetrics().catch((e) => log('queueStatus', String(e)));
+    byId('exportAudit').onclick = () => exportSignedAudit().catch((e) => log('auditExportStatus', String(e)));
+
+    syncPlayers(byId('goldVideo'), byId('traineeVideo'));
+    refreshVideos().catch((e) => log('uploadStatus', String(e)));
+    refreshAuditTrail().catch((e) => log('trainStatus', String(e)));
+    refreshQueueMetrics().catch((e) => log('queueStatus', String(e)));
+  </script>
+</body>
+</html>

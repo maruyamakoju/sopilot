@@ -1,0 +1,86 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sopilot-ingress
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: ingress
+  annotations:
+    # Nginx ingress controller annotations
+    nginx.ingress.kubernetes.io/proxy-body-size: "2048m"  # Match SOPILOT_UPLOAD_MAX_MB
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"  # 10 min for long uploads
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "600"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+
+    # Rate limiting (adjust per requirements)
+    nginx.ingress.kubernetes.io/limit-rps: "100"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "5"
+
+    # SSL/TLS (uncomment if using cert-manager)
+    # cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    # nginx.ingress.kubernetes.io/ssl-redirect: "true"
+
+    # CORS (if needed for web UI)
+    # nginx.ingress.kubernetes.io/enable-cors: "true"
+    # nginx.ingress.kubernetes.io/cors-allow-origin: "https://your-domain.com"
+spec:
+  ingressClassName: nginx  # Or traefik, haproxy, etc.
+
+  # TLS configuration (uncomment if using HTTPS)
+  # tls:
+  # - hosts:
+  #   - sopilot.example.com
+  #   secretName: sopilot-tls-cert
+
+  rules:
+  - host: sopilot.example.com  # Replace with your domain
+    http:
+      paths:
+      - path: /
+        pathType: Prefix
+        backend:
+          service:
+            name: sopilot-api
+            port:
+              number: 80
+
+---
+# Alternative: NodePort for on-prem without ingress controller
+apiVersion: v1
+kind: Service
+metadata:
+  name: sopilot-api-nodeport
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: api-external
+spec:
+  type: NodePort
+  selector:
+    app: sopilot
+    component: api
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80
+      targetPort: 8000
+      nodePort: 30800  # Fixed port (30000-32767 range)
+
+---
+# Alternative: LoadBalancer for cloud deployments (GKE, EKS, AKS)
+# apiVersion: v1
+# kind: Service
+# metadata:
+#   name: sopilot-api-lb
+#   namespace: sopilot
+# spec:
+#   type: LoadBalancer
+#   selector:
+#     app: sopilot
+#     component: api
+#   ports:
+#     - name: http
+#       protocol: TCP
+#       port: 80
+#       targetPort: 8000

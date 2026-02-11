@@ -1,0 +1,97 @@
+x-common-env: &common-env
+  SOPILOT_DATA_DIR: /data
+  SOPILOT_QUEUE_BACKEND: rq
+  SOPILOT_REDIS_URL: redis://redis:6379/0
+  SOPILOT_RQ_QUEUE_PREFIX: sopilot
+  SOPILOT_AUTH_REQUIRED: ${SOPILOT_AUTH_REQUIRED:-true}
+  SOPILOT_API_TOKEN: ${SOPILOT_API_TOKEN:-}
+  SOPILOT_API_TOKEN_ROLE: ${SOPILOT_API_TOKEN_ROLE:-admin}
+  SOPILOT_API_ROLE_TOKENS: ${SOPILOT_API_ROLE_TOKENS:-}
+  SOPILOT_BASIC_USER: ${SOPILOT_BASIC_USER:-}
+  SOPILOT_BASIC_PASSWORD: ${SOPILOT_BASIC_PASSWORD:-}
+  SOPILOT_BASIC_ROLE: ${SOPILOT_BASIC_ROLE:-admin}
+  SOPILOT_AUTH_DEFAULT_ROLE: ${SOPILOT_AUTH_DEFAULT_ROLE:-admin}
+  SOPILOT_AUDIT_SIGNING_KEY: ${SOPILOT_AUDIT_SIGNING_KEY:-}
+  SOPILOT_AUDIT_SIGNING_KEY_ID: ${SOPILOT_AUDIT_SIGNING_KEY_ID:-local}
+  SOPILOT_PRIVACY_MASK_ENABLED: ${SOPILOT_PRIVACY_MASK_ENABLED:-false}
+  SOPILOT_PRIVACY_MASK_MODE: ${SOPILOT_PRIVACY_MASK_MODE:-black}
+  SOPILOT_PRIVACY_MASK_RECTS: ${SOPILOT_PRIVACY_MASK_RECTS:-}
+  SOPILOT_PRIVACY_FACE_BLUR: ${SOPILOT_PRIVACY_FACE_BLUR:-false}
+  SOPILOT_UPLOAD_MAX_MB: ${SOPILOT_UPLOAD_MAX_MB:-1024}
+  SOPILOT_MIN_SCORING_CLIPS: ${SOPILOT_MIN_SCORING_CLIPS:-4}
+  SOPILOT_EMBEDDER_BACKEND: auto
+  SOPILOT_VJEPA2_SOURCE: local
+  SOPILOT_VJEPA2_LOCAL_REPO: /models/vjepa2
+  SOPILOT_VJEPA2_LOCAL_CHECKPOINT: /models/checkpoints/vitl.pt
+  SOPILOT_VJEPA2_PRETRAINED: "false"
+
+x-common-build: &common-build
+  context: .
+  dockerfile: Dockerfile
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: sopilot-redis
+    restart: unless-stopped
+
+  sopilot-api:
+    build: *common-build
+    container_name: sopilot-api
+    depends_on:
+      - redis
+    ports:
+      - "8000:8000"
+    environment:
+      <<: *common-env
+      SOPILOT_NIGHTLY_ENABLED: "false"
+    volumes:
+      - ./data:/data
+      - ./models:/models:ro
+    command: ["uvicorn", "sopilot.main:app", "--host", "0.0.0.0", "--port", "8000"]
+    restart: unless-stopped
+
+  sopilot-worker-main:
+    build: *common-build
+    container_name: sopilot-worker-main
+    depends_on:
+      - redis
+    environment:
+      <<: *common-env
+    volumes:
+      - ./data:/data
+      - ./models:/models:ro
+    command: ["sopilot-worker", "--queues", "ingest,score"]
+    restart: unless-stopped
+
+  sopilot-worker-train:
+    build: *common-build
+    container_name: sopilot-worker-train
+    depends_on:
+      - redis
+    environment:
+      <<: *common-env
+    volumes:
+      - ./data:/data
+      - ./models:/models:rw
+    command: ["sopilot-worker", "--queues", "training"]
+    restart: unless-stopped
+
+  sopilot-watcher:
+    profiles: ["watch"]
+    build: *common-build
+    container_name: sopilot-watcher
+    depends_on:
+      - redis
+    environment:
+      <<: *common-env
+      SOPILOT_WATCH_ENABLED: "true"
+      SOPILOT_WATCH_DIR: /watch_inbox
+      SOPILOT_WATCH_TASK_ID: maintenance_filter_swap
+      SOPILOT_WATCH_ROLE: trainee
+    volumes:
+      - ./data:/data
+      - ./models:/models:ro
+      - ./watch_inbox:/watch_inbox
+    command: ["sopilot-watch"]
+    restart: unless-stopped

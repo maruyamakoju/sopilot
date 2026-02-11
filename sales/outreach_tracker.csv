@@ -1,0 +1,4 @@
+company,domain,contact_name,role,email,status,last_action,next_action_date,notes
+CompanyA,maintenance,,,,draft,,,
+CompanyB,qa_audit,,,,draft,,,
+CompanyC,training,,,,draft,,,

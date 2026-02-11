@@ -1,0 +1,43 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sopilot-data
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: storage
+spec:
+  accessModes:
+    - ReadWriteMany  # Multiple pods (API + workers) need access
+  resources:
+    requests:
+      storage: 500Gi  # Adjust based on expected video volume
+  storageClassName: fast-ssd  # Use SSD for better performance
+  # Alternative: nfs, ceph-filesystem, longhorn, etc.
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: sopilot-redis-data
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: redis-storage
+spec:
+  accessModes:
+    - ReadWriteOnce  # Redis is single-instance
+  resources:
+    requests:
+      storage: 20Gi  # Queue metadata storage
+  storageClassName: fast-ssd
+
+---
+# Notes:
+# - For production, use a distributed filesystem (NFS, Ceph, GlusterFS)
+#   that supports ReadWriteMany for /data/
+# - Ensure storageClassName matches your cluster's storage provisioner
+# - Consider using separate PVCs for:
+#   - /data/raw/ (raw videos, can be cold storage)
+#   - /data/embeddings/ (hot data, needs SSD)
+#   - /data/models/ (small, can be emptyDir)

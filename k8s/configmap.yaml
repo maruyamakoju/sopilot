@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sopilot-config
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: config
+data:
+  # Infrastructure
+  SOPILOT_DATA_DIR: "/data"
+  SOPILOT_QUEUE_BACKEND: "rq"
+  SOPILOT_REDIS_URL: "redis://sopilot-redis:6379/0"
+
+  # Video Processing
+  SOPILOT_TARGET_FPS: "4"
+  SOPILOT_UPLOAD_MAX_MB: "2000"
+  SOPILOT_VIDEO_MIN_DURATION: "5.0"
+  SOPILOT_VIDEO_MAX_DURATION: "600.0"
+
+  # Embedder
+  SOPILOT_EMBEDDER_MODEL: "vjepa2:vit_large:pt"
+  SOPILOT_EMBEDDER_BATCH_SIZE: "16"  # Auto-detect on GPU workers
+  SOPILOT_EMBEDDER_COMPILE: "true"   # Enable torch.compile on GPU
+
+  # DTW & Scoring
+  SOPILOT_DTW_USE_GPU: "auto"  # Auto-detect CUDA
+  SOPILOT_STEP_BOUNDARY_THRESHOLD_FACTOR: "2.0"
+  SOPILOT_STEP_MIN_CLIPS: "3"
+
+  # Training
+  SOPILOT_TRAINING_ENABLED: "true"
+  SOPILOT_TRAINING_HOUR: "2"  # 2 AM local time
+  SOPILOT_TRAINING_MIN_NEW_VIDEOS: "10"
+
+  # Authentication
+  SOPILOT_AUTH_REQUIRED: "true"
+  SOPILOT_AUTH_DEFAULT_ROLE: "viewer"
+
+  # Logging & Monitoring
+  SOPILOT_LOG_LEVEL: "INFO"
+  SOPILOT_LOG_FORMAT: "json"
+
+  # Privacy (disabled by default)
+  SOPILOT_PRIVACY_MASK_MODE: ""
+  SOPILOT_PRIVACY_FACE_BLUR: "false"
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: sopilot-redis-config
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: redis
+data:
+  redis.conf: |
+    # Redis configuration for SOPilot
+    maxmemory 2gb
+    maxmemory-policy allkeys-lru
+    save 900 1
+    save 300 10
+    save 60 10000
+    appendonly yes
+    appendfsync everysec

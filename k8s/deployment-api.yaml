@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sopilot-api
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: api
+spec:
+  replicas: 2  # Horizontal scaling for high availability
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0  # Zero-downtime deployments
+  selector:
+    matchLabels:
+      app: sopilot
+      component: api
+  template:
+    metadata:
+      labels:
+        app: sopilot
+        component: api
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8000"
+        prometheus.io/path: "/metrics"
+    spec:
+      containers:
+      - name: api
+        image: sopilot:latest-cpu  # Use Dockerfile.cpu for API (lightweight)
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 8000
+          name: http
+          protocol: TCP
+        env:
+        # Load from ConfigMap
+        - name: SOPILOT_DATA_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_DATA_DIR
+        - name: SOPILOT_QUEUE_BACKEND
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_QUEUE_BACKEND
+        - name: SOPILOT_REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_REDIS_URL
+        - name: SOPILOT_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_LOG_LEVEL
+        - name: SOPILOT_LOG_FORMAT
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_LOG_FORMAT
+        - name: SOPILOT_AUTH_REQUIRED
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_AUTH_REQUIRED
+
+        # Load from Secrets
+        - name: SOPILOT_API_ROLE_TOKENS
+          valueFrom:
+            secretKeyRef:
+              name: sopilot-secrets
+              key: SOPILOT_API_ROLE_TOKENS
+        - name: SOPILOT_AUDIT_SIGNING_KEY
+          valueFrom:
+            secretKeyRef:
+              name: sopilot-secrets
+              key: SOPILOT_AUDIT_SIGNING_KEY
+        - name: SOPILOT_AUDIT_SIGNING_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              name: sopilot-secrets
+              key: SOPILOT_AUDIT_SIGNING_KEY_ID
+
+        volumeMounts:
+        - name: data
+          mountPath: /data
+
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 4Gi
+
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 10
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 2
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: sopilot-data
+
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 30

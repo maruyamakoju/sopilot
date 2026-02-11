@@ -1,0 +1,297 @@
+{
+  "dashboard": {
+    "title": "SOPilot Production Dashboard",
+    "tags": ["sopilot", "video", "ml", "gpu"],
+    "timezone": "browser",
+    "editable": true,
+    "schemaVersion": 38,
+    "version": 1,
+    "refresh": "30s",
+    "time": {
+      "from": "now-6h",
+      "to": "now"
+    },
+    "panels": [
+      {
+        "id": 1,
+        "title": "Job Processing Rate",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 0, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(sopilot_ingest_jobs_total{status=\"completed\"}[5m])",
+            "legendFormat": "Ingest ({{status}})",
+            "refId": "A"
+          },
+          {
+            "expr": "rate(sopilot_score_jobs_total{status=\"completed\"}[5m])",
+            "legendFormat": "Score ({{status}})",
+            "refId": "B"
+          },
+          {
+            "expr": "rate(sopilot_training_jobs_total{status=\"completed\"}[5m])",
+            "legendFormat": "Training ({{status}})",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"label": "Jobs/sec", "format": "short"},
+          {"label": null, "format": "short"}
+        ]
+      },
+      {
+        "id": 2,
+        "title": "Job Success Rate",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(rate(sopilot_ingest_jobs_total{status=\"completed\"}[5m])) / (sum(rate(sopilot_ingest_jobs_total{status=\"completed\"}[5m])) + sum(rate(sopilot_ingest_jobs_total{status=\"failed\"}[5m]))) * 100",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "percent",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 95, "color": "yellow"},
+                {"value": 99, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 3,
+        "title": "Queue Depth",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(sopilot_queue_depth)",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "green"},
+                {"value": 50, "color": "yellow"},
+                {"value": 100, "color": "red"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 4,
+        "title": "Job Duration (p50, p95, p99)",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.50, rate(sopilot_job_duration_seconds_bucket{job_type=\"ingest\"}[5m]))",
+            "legendFormat": "Ingest p50",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(sopilot_job_duration_seconds_bucket{job_type=\"ingest\"}[5m]))",
+            "legendFormat": "Ingest p95",
+            "refId": "B"
+          },
+          {
+            "expr": "histogram_quantile(0.99, rate(sopilot_job_duration_seconds_bucket{job_type=\"ingest\"}[5m]))",
+            "legendFormat": "Ingest p99",
+            "refId": "C"
+          },
+          {
+            "expr": "histogram_quantile(0.50, rate(sopilot_job_duration_seconds_bucket{job_type=\"score\"}[5m]))",
+            "legendFormat": "Score p50",
+            "refId": "D"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(sopilot_job_duration_seconds_bucket{job_type=\"score\"}[5m]))",
+            "legendFormat": "Score p95",
+            "refId": "E"
+          }
+        ],
+        "yaxes": [
+          {"label": "Seconds", "format": "s"},
+          {"label": null, "format": "short"}
+        ]
+      },
+      {
+        "id": 5,
+        "title": "DTW Performance (CPU vs GPU)",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 8, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "histogram_quantile(0.95, rate(sopilot_dtw_execution_seconds_bucket{gpu=\"false\"}[5m]))",
+            "legendFormat": "CPU p95",
+            "refId": "A"
+          },
+          {
+            "expr": "histogram_quantile(0.95, rate(sopilot_dtw_execution_seconds_bucket{gpu=\"true\"}[5m]))",
+            "legendFormat": "GPU p95",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"label": "Seconds", "format": "s"},
+          {"label": null, "format": "short"}
+        ]
+      },
+      {
+        "id": 6,
+        "title": "GPU Memory Usage",
+        "type": "graph",
+        "gridPos": {"x": 0, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sopilot_gpu_memory_bytes{memory_type=\"allocated\"} / 1024 / 1024 / 1024",
+            "legendFormat": "Allocated ({{device_id}})",
+            "refId": "A"
+          },
+          {
+            "expr": "sopilot_gpu_memory_bytes{memory_type=\"reserved\"} / 1024 / 1024 / 1024",
+            "legendFormat": "Reserved ({{device_id}})",
+            "refId": "B"
+          },
+          {
+            "expr": "sopilot_gpu_memory_bytes{memory_type=\"total\"} / 1024 / 1024 / 1024",
+            "legendFormat": "Total ({{device_id}})",
+            "refId": "C"
+          }
+        ],
+        "yaxes": [
+          {"label": "GB", "format": "short"},
+          {"label": null, "format": "short"}
+        ]
+      },
+      {
+        "id": 7,
+        "title": "Embedding Generation Throughput",
+        "type": "graph",
+        "gridPos": {"x": 12, "y": 16, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "1 / histogram_quantile(0.50, rate(sopilot_embedding_generation_seconds_bucket{embedder=\"vjepa2\"}[5m]))",
+            "legendFormat": "V-JEPA2 (clips/sec)",
+            "refId": "A"
+          },
+          {
+            "expr": "1 / histogram_quantile(0.50, rate(sopilot_embedding_generation_seconds_bucket{embedder=\"heuristic-v1\"}[5m]))",
+            "legendFormat": "Heuristic (clips/sec)",
+            "refId": "B"
+          }
+        ],
+        "yaxes": [
+          {"label": "Clips/sec", "format": "short"},
+          {"label": null, "format": "short"}
+        ]
+      },
+      {
+        "id": 8,
+        "title": "Active Workers",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 24, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sopilot_active_workers",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"value": 0, "color": "red"},
+                {"value": 1, "color": "yellow"},
+                {"value": 2, "color": "green"}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "id": 9,
+        "title": "Total Clips Indexed",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 24, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sopilot_total_clips",
+            "refId": "A"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "none",
+            "color": {"mode": "palette-classic"}
+          }
+        }
+      },
+      {
+        "id": 10,
+        "title": "Job Failure Rate (last hour)",
+        "type": "table",
+        "gridPos": {"x": 12, "y": 24, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum(increase(sopilot_ingest_jobs_total{status=\"failed\"}[1h])) by (job_type)",
+            "format": "table",
+            "instant": true,
+            "refId": "A"
+          }
+        ],
+        "transformations": [
+          {
+            "id": "organize",
+            "options": {
+              "excludeByName": {"Time": true},
+              "indexByName": {},
+              "renameByName": {
+                "job_type": "Job Type",
+                "Value": "Failed Jobs (1h)"
+              }
+            }
+          }
+        ]
+      }
+    ],
+    "templating": {
+      "list": [
+        {
+          "name": "datasource",
+          "type": "datasource",
+          "query": "prometheus",
+          "current": {
+            "text": "Prometheus",
+            "value": "Prometheus"
+          }
+        }
+      ]
+    },
+    "annotations": {
+      "list": [
+        {
+          "name": "Deployments",
+          "datasource": "Prometheus",
+          "expr": "changes(sopilot_build_info[5m]) > 0",
+          "titleFormat": "Deployment",
+          "textFormat": "Version: {{version}}, Commit: {{commit}}"
+        }
+      ]
+    }
+  },
+  "overwrite": true
+}

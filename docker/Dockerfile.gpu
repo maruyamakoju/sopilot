@@ -1,0 +1,97 @@
+# Multi-stage Dockerfile for SOPilot with GPU support
+# Base: CUDA 12.1 + Ubuntu 22.04
+# Target: RTX 30/40/50 series, A100, H100
+
+# Stage 1: Build environment
+FROM nvidia/cuda:12.1.0-cudnn8-devel-ubuntu22.04 AS builder
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3.10-dev \
+    python3-pip \
+    git \
+    build-essential \
+    libopencv-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symlink for python
+RUN ln -sf /usr/bin/python3.10 /usr/bin/python
+
+# Upgrade pip
+RUN python -m pip install --upgrade pip setuptools wheel
+
+# Set working directory
+WORKDIR /build
+
+# Copy only requirements first (layer caching)
+COPY pyproject.toml README.md ./
+COPY src/ ./src/
+
+# Install Python dependencies
+RUN pip install --no-cache-dir \
+    torch==2.5.0 torchvision==0.20.0 --index-url https://download.pytorch.org/whl/cu121
+
+RUN pip install --no-cache-dir cupy-cuda12x>=13.0.0
+
+RUN pip install --no-cache-dir -e .
+
+# Stage 2: Runtime environment
+FROM nvidia/cuda:12.1.0-cudnn8-runtime-ubuntu22.04
+
+# Install runtime dependencies only
+RUN apt-get update && apt-get install -y \
+    python3.10 \
+    python3-pip \
+    libopencv-core4.5d \
+    libopencv-videoio4.5d \
+    libopencv-imgproc4.5d \
+    libgomp1 \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create symlink
+RUN ln -sf /usr/bin/python3.10 /usr/bin/python
+
+# Create non-root user
+RUN useradd -m -u 1000 sopilot && \
+    mkdir -p /app /data && \
+    chown -R sopilot:sopilot /app /data
+
+# Copy installed packages from builder
+COPY --from=builder /usr/local/lib/python3.10/dist-packages /usr/local/lib/python3.10/dist-packages
+COPY --from=builder /usr/local/bin /usr/local/bin
+
+# Copy application code
+WORKDIR /app
+COPY --chown=sopilot:sopilot . .
+
+# Install app in editable mode
+USER sopilot
+RUN pip install --no-cache-dir -e .
+
+# Create data directories
+RUN mkdir -p /data/raw /data/embeddings /data/models /data/reports /data/logs
+
+# Environment defaults
+ENV PYTHONUNBUFFERED=1 \
+    SOPILOT_DATA_DIR=/data \
+    SOPILOT_QUEUE_BACKEND=rq \
+    SOPILOT_REDIS_URL=redis://redis:6379/0 \
+    SOPILOT_DTW_USE_GPU=auto \
+    SOPILOT_EMBEDDER_COMPILE=true \
+    SOPILOT_LOG_FORMAT=json \
+    CUDA_VISIBLE_DEVICES=0
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD python -c "import requests; requests.get('http://localhost:8000/health', timeout=5).raise_for_status()" || exit 1
+
+# Expose API port
+EXPOSE 8000
+
+# Default command: API server
+CMD ["uvicorn", "sopilot.api:app", "--host", "0.0.0.0", "--port", "8000"]
+
+# Alternative commands (override with docker run --entrypoint):
+# Worker: sopilot-worker --queues ingest,score,training
+# Watch: sopilot-watch

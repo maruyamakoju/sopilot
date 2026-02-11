@@ -1,0 +1,56 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Runtime data & generated artifacts
+data/
+watch_inbox/
+demo_artifacts/
+
+# Model weights (track via LFS or download scripts)
+*.pt
+*.pth
+*.npz
+*.onnx
+
+# Database
+*.db
+*.sqlite
+
+# Test and coverage
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Logs
+*.log
+
+# IDE
+.vscode/
+.idea/
+
+# OS artifacts
+.DS_Store
+Thumbs.db
+nul
+
+# Claude Code session data
+.claude/
+
+# Benchmark results (regenerable)
+benchmarks/results/
+
+# Windows path artifact from earlier session
+C:Users07013Desktop02081.githubworkflows/

@@ -1,0 +1,55 @@
+{
+  "generated_at": "2026-02-08T09:46:01+00:00",
+  "runtime_mode": "api",
+  "queue": {
+    "backend": "rq",
+    "redis_ok": true,
+    "error": null,
+    "queues": [
+      {
+        "key": "ingest",
+        "name": "sopilot_ingest",
+        "queued": 0,
+        "started": 0,
+        "failed": 0,
+        "finished": 0,
+        "deferred": 0,
+        "scheduled": 0
+      },
+      {
+        "key": "score",
+        "name": "sopilot_score",
+        "queued": 0,
+        "started": 0,
+        "failed": 0,
+        "finished": 0,
+        "deferred": 0,
+        "scheduled": 0
+      },
+      {
+        "key": "training",
+        "name": "sopilot_training",
+        "queued": 0,
+        "started": 0,
+        "failed": 0,
+        "finished": 0,
+        "deferred": 0,
+        "scheduled": 0
+      }
+    ]
+  },
+  "jobs": {
+    "ingest": {
+      "completed": 54,
+      "failed": 5,
+      "total": 59
+    },
+    "score": {
+      "completed": 36,
+      "total": 36
+    },
+    "training": {
+      "total": 0
+    }
+  }
+}

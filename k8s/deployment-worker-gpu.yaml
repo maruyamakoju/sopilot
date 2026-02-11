@@ -1,0 +1,168 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sopilot-worker-gpu
+  namespace: sopilot
+  labels:
+    app: sopilot
+    component: worker
+    worker-type: gpu
+spec:
+  replicas: 2  # Scale based on GPU availability
+  strategy:
+    type: Recreate  # GPU workers should not overlap during updates
+  selector:
+    matchLabels:
+      app: sopilot
+      component: worker
+      worker-type: gpu
+  template:
+    metadata:
+      labels:
+        app: sopilot
+        component: worker
+        worker-type: gpu
+      annotations:
+        prometheus.io/scrape: "false"  # Workers don't expose /metrics
+    spec:
+      # Node affinity: Schedule on GPU nodes
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+            - matchExpressions:
+              - key: nvidia.com/gpu
+                operator: Exists
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - weight: 100
+            preference:
+              matchExpressions:
+              - key: gpu-type
+                operator: In
+                values:
+                - rtx-5090
+                - rtx-4090
+                - a100
+                - h100
+
+      # Anti-affinity: Spread workers across nodes
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app: sopilot
+                component: worker
+                worker-type: gpu
+            topologyKey: kubernetes.io/hostname
+
+      containers:
+      - name: worker
+        image: sopilot:latest-gpu  # Use Dockerfile.gpu
+        imagePullPolicy: IfNotPresent
+        command: ["sopilot-worker"]
+        args: ["--queues", "ingest,score,training"]
+
+        env:
+        # ConfigMap
+        - name: SOPILOT_DATA_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_DATA_DIR
+        - name: SOPILOT_QUEUE_BACKEND
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_QUEUE_BACKEND
+        - name: SOPILOT_REDIS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_REDIS_URL
+        - name: SOPILOT_EMBEDDER_MODEL
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_EMBEDDER_MODEL
+        - name: SOPILOT_EMBEDDER_BATCH_SIZE
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_EMBEDDER_BATCH_SIZE
+        - name: SOPILOT_EMBEDDER_COMPILE
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_EMBEDDER_COMPILE
+        - name: SOPILOT_DTW_USE_GPU
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_DTW_USE_GPU
+        - name: SOPILOT_LOG_LEVEL
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_LOG_LEVEL
+        - name: SOPILOT_LOG_FORMAT
+          valueFrom:
+            configMapKeyRef:
+              name: sopilot-config
+              key: SOPILOT_LOG_FORMAT
+
+        # GPU environment
+        - name: CUDA_VISIBLE_DEVICES
+          value: "0"  # Single GPU per worker
+        - name: NVIDIA_VISIBLE_DEVICES
+          value: "all"
+        - name: NVIDIA_DRIVER_CAPABILITIES
+          value: "compute,utility"
+
+        volumeMounts:
+        - name: data
+          mountPath: /data
+        - name: shm
+          mountPath: /dev/shm  # Shared memory for PyTorch DataLoader
+
+        resources:
+          requests:
+            cpu: 4000m
+            memory: 16Gi
+            nvidia.com/gpu: 1  # Request 1 GPU
+          limits:
+            cpu: 8000m
+            memory: 32Gi
+            nvidia.com/gpu: 1  # Limit to 1 GPU
+
+        # No HTTP probes (workers don't expose HTTP endpoints)
+        # Use exec probes instead
+        livenessProbe:
+          exec:
+            command:
+            - python
+            - -c
+            - "import redis; r=redis.from_url('redis://sopilot-redis:6379/0'); r.ping()"
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+          failureThreshold: 3
+
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: sopilot-data
+      - name: shm
+        emptyDir:
+          medium: Memory
+          sizeLimit: 8Gi  # Adjust based on batch size
+
+      restartPolicy: Always
+      terminationGracePeriodSeconds: 120  # Allow jobs to finish
+
+      # Tolerations: Allow scheduling on GPU-tainted nodes
+      tolerations:
+      - key: nvidia.com/gpu
+        operator: Exists
+        effect: NoSchedule

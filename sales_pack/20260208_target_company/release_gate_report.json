@@ -1,0 +1,77 @@
+{
+  "passed": true,
+  "generated_at": "2026-02-08T09:47:57Z",
+  "task_id": "maintenance_filter_swap",
+  "baseline_score": 99.99985694885254,
+  "median_failure_score": 47.55397867709398,
+  "baseline_gap": 52.44587827175856,
+  "gate_results": {
+    "baseline_min_score": true,
+    "all_failures_below_max": true,
+    "strict_failure_count_ok": true,
+    "baseline_gap_ok": true
+  },
+  "config": {
+    "baseline_min_score": 90.0,
+    "failure_max_score": 95.0,
+    "failure_strict_max_score": 90.0,
+    "min_failures_below_strict": 3,
+    "min_baseline_gap": 5.0
+  },
+  "outcomes": [
+    {
+      "name": "gold_vs_gold",
+      "score_job_id": "56b29b55-19c4-4503-acfa-430f9b54c32a",
+      "status": "completed",
+      "score": 99.99985694885254,
+      "error_message": null,
+      "clip_count_gold": 6,
+      "clip_count_trainee": 6
+    },
+    {
+      "name": "missing",
+      "score_job_id": "8a58028b-8c45-461c-ad02-bad03abdf9d6",
+      "status": "completed",
+      "score": 5.366621192651138,
+      "error_message": null,
+      "clip_count_gold": 6,
+      "clip_count_trainee": 6
+    },
+    {
+      "name": "swap",
+      "score_job_id": "0f02ded2-6ca3-4f4a-a8aa-1cf0b4d9fb4f",
+      "status": "completed",
+      "score": 47.55397867709398,
+      "error_message": null,
+      "clip_count_gold": 6,
+      "clip_count_trainee": 6
+    },
+    {
+      "name": "deviation",
+      "score_job_id": "6ffe5059-1f1f-4ebd-bcc0-e8e38fe2ef8c",
+      "status": "completed",
+      "score": 62.90947437286377,
+      "error_message": null,
+      "clip_count_gold": 6,
+      "clip_count_trainee": 6
+    },
+    {
+      "name": "time_over",
+      "score_job_id": "a81cda45-700e-449e-a6ec-2703d3171b53",
+      "status": "completed",
+      "score": 15.16589503522431,
+      "error_message": null,
+      "clip_count_gold": 6,
+      "clip_count_trainee": 6
+    },
+    {
+      "name": "mixed",
+      "score_job_id": "4c2cdf51-d5cb-4abe-8811-71d89481c40d",
+      "status": "completed",
+      "score": 51.458327288925645,
+      "error_message": null,
+      "clip_count_gold": 6,
+      "clip_count_trainee": 6
+    }
+  ]
+}

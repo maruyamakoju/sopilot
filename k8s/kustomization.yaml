@@ -1,0 +1,66 @@
+# Kustomize configuration for SOPilot deployment
+# Usage: kubectl apply -k k8s/
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+# Namespace
+namespace: sopilot
+
+# Resources (deployment order)
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - secret.yaml
+  - pvc.yaml
+  - service.yaml
+  - statefulset-redis.yaml
+  - deployment-api.yaml
+  - deployment-worker-gpu.yaml
+  - deployment-worker-cpu.yaml
+  - ingress.yaml
+
+# Common labels
+commonLabels:
+  app: sopilot
+  managed-by: kustomize
+
+# Common annotations
+commonAnnotations:
+  version: "0.1.0"
+  deployed-by: "kustomize"
+
+# Image transformations (update image tags)
+images:
+  - name: sopilot
+    newName: your-registry.com/sopilot  # Replace with your registry
+    newTag: latest  # Or use semantic version (v1.0.0)
+
+# ConfigMap generator (alternative to configmap.yaml)
+# configMapGenerator:
+#   - name: sopilot-config
+#     literals:
+#       - SOPILOT_LOG_LEVEL=INFO
+#       - SOPILOT_LOG_FORMAT=json
+
+# Secret generator (DO NOT commit secrets!)
+# secretGenerator:
+#   - name: sopilot-secrets
+#     literals:
+#       - SOPILOT_API_ROLE_TOKENS=admin:secret123
+
+# Patches (overlays for different environments)
+# patchesStrategicMerge:
+#   - patches/production.yaml
+
+# Replacements (variable substitution)
+# replacements:
+#   - source:
+#       kind: ConfigMap
+#       name: sopilot-config
+#       fieldPath: data.SOPILOT_REDIS_URL
+#     targets:
+#       - select:
+#           kind: Deployment
+#         fieldPaths:
+#           - spec.template.spec.containers.[name=api].env.[name=SOPILOT_REDIS_URL].value

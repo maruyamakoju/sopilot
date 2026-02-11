@@ -1,0 +1,225 @@
+# Prometheus Alerting Rules for SOPilot
+# Apply with: kubectl apply -f monitoring/prometheus-rules.yaml
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: sopilot-alerts
+  namespace: sopilot
+  labels:
+    prometheus: kube-prometheus
+    role: alert-rules
+spec:
+  groups:
+  - name: sopilot.jobs
+    interval: 30s
+    rules:
+    # High failure rate
+    - alert: HighJobFailureRate
+      expr: |
+        (
+          sum(rate(sopilot_ingest_jobs_total{status="failed"}[5m]))
+          /
+          sum(rate(sopilot_ingest_jobs_total[5m]))
+        ) > 0.10
+      for: 5m
+      labels:
+        severity: warning
+        component: jobs
+      annotations:
+        summary: "High job failure rate ({{ $value | humanizePercentage }})"
+        description: "More than 10% of jobs are failing in the last 5 minutes."
+
+    # Queue backlog
+    - alert: QueueBacklog
+      expr: sopilot_queue_depth > 100
+      for: 5m
+      labels:
+        severity: warning
+        component: queue
+      annotations:
+        summary: "Queue {{ $labels.queue }} has {{ $value }} jobs pending"
+        description: "Queue depth has been above 100 for 5 minutes. Consider scaling workers."
+
+    # Critical queue backlog
+    - alert: CriticalQueueBacklog
+      expr: sopilot_queue_depth > 500
+      for: 2m
+      labels:
+        severity: critical
+        component: queue
+      annotations:
+        summary: "CRITICAL: Queue {{ $labels.queue }} has {{ $value }} jobs pending"
+        description: "Queue depth is critically high. Immediate attention required."
+
+    # Job duration increased
+    - alert: SlowJobProcessing
+      expr: |
+        histogram_quantile(0.95, rate(sopilot_job_duration_seconds_bucket{job_type="ingest"}[5m])) > 60
+      for: 10m
+      labels:
+        severity: warning
+        component: performance
+      annotations:
+        summary: "Ingest jobs are taking longer than usual (p95: {{ $value | humanizeDuration }})"
+        description: "95th percentile job duration is above 60s. Check system resources."
+
+  - name: sopilot.gpu
+    interval: 30s
+    rules:
+    # GPU memory high
+    - alert: HighGPUMemoryUsage
+      expr: |
+        (
+          sopilot_gpu_memory_bytes{memory_type="allocated"}
+          /
+          sopilot_gpu_memory_bytes{memory_type="total"}
+        ) > 0.90
+      for: 5m
+      labels:
+        severity: warning
+        component: gpu
+      annotations:
+        summary: "GPU {{ $labels.device_id }} memory usage is {{ $value | humanizePercentage }}"
+        description: "GPU memory usage is above 90% for 5 minutes."
+
+    # GPU not available (expected on GPU workers)
+    - alert: GPUNotAvailable
+      expr: |
+        sopilot_gpu_memory_bytes{memory_type="total"} == 0
+        and on() sopilot_dtw_execution_seconds_count{gpu="false"} > 0
+      for: 10m
+      labels:
+        severity: critical
+        component: gpu
+      annotations:
+        summary: "GPU not detected on GPU worker"
+        description: "Worker pod scheduled on GPU node but GPU is not available."
+
+  - name: sopilot.performance
+    interval: 30s
+    rules:
+    # DTW performance degradation
+    - alert: DTWPerformanceDegradation
+      expr: |
+        histogram_quantile(0.95, rate(sopilot_dtw_execution_seconds_bucket{gpu="true"}[5m])) > 0.5
+      for: 10m
+      labels:
+        severity: warning
+        component: performance
+      annotations:
+        summary: "GPU DTW performance degraded (p95: {{ $value | humanizeDuration }})"
+        description: "GPU DTW execution is slower than expected. Check GPU utilization."
+
+    # Embedding generation slow
+    - alert: SlowEmbeddingGeneration
+      expr: |
+        histogram_quantile(0.95, rate(sopilot_embedding_generation_seconds_bucket{embedder="vjepa2"}[5m])) > 10
+      for: 10m
+      labels:
+        severity: warning
+        component: performance
+      annotations:
+        summary: "V-JEPA2 embedding generation slow (p95: {{ $value | humanizeDuration }})"
+        description: "Embedding generation is taking longer than usual."
+
+  - name: sopilot.system
+    interval: 60s
+    rules:
+    # No active workers
+    - alert: NoActiveWorkers
+      expr: sopilot_active_workers == 0
+      for: 2m
+      labels:
+        severity: critical
+        component: workers
+      annotations:
+        summary: "No active workers detected"
+        description: "All workers are down. Jobs will not be processed."
+
+    # Redis connection issues
+    - alert: RedisConnectionErrors
+      expr: |
+        rate(sopilot_redis_connection_errors_total[5m]) > 0.1
+      for: 2m
+      labels:
+        severity: critical
+        component: redis
+      annotations:
+        summary: "Redis connection errors detected ({{ $value }} errors/sec)"
+        description: "Workers cannot connect to Redis. Check Redis pod status."
+
+    # Database locked (SQLite contention)
+    - alert: DatabaseLocked
+      expr: |
+        rate(sopilot_database_locked_errors_total[5m]) > 1
+      for: 5m
+      labels:
+        severity: warning
+        component: database
+      annotations:
+        summary: "Database lock contention detected"
+        description: "SQLite database is experiencing lock contention. Consider migrating to PostgreSQL."
+
+  - name: sopilot.sla
+    interval: 60s
+    rules:
+    # API availability
+    - alert: APIDown
+      expr: up{job="sopilot-api"} == 0
+      for: 1m
+      labels:
+        severity: critical
+        component: api
+      annotations:
+        summary: "SOPilot API is down"
+        description: "API pod {{ $labels.instance }} is not responding to health checks."
+
+    # API response time SLA
+    - alert: HighAPILatency
+      expr: |
+        histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{endpoint="/score"}[5m])) > 5
+      for: 5m
+      labels:
+        severity: warning
+        component: api
+      annotations:
+        summary: "API latency is high (p95: {{ $value | humanizeDuration }})"
+        description: "95th percentile API response time exceeds 5 seconds."
+
+---
+# Example Alertmanager configuration (alertmanager.yml)
+# Place in: kubectl create configmap alertmanager-config --from-file=alertmanager.yml -n monitoring
+
+# global:
+#   resolve_timeout: 5m
+#
+# route:
+#   group_by: ['alertname', 'component']
+#   group_wait: 10s
+#   group_interval: 10s
+#   repeat_interval: 12h
+#   receiver: 'default'
+#   routes:
+#   - match:
+#       severity: critical
+#     receiver: pagerduty
+#   - match:
+#       severity: warning
+#     receiver: slack
+#
+# receivers:
+# - name: 'default'
+#   webhook_configs:
+#   - url: 'http://127.0.0.1:5001/'
+#
+# - name: 'pagerduty'
+#   pagerduty_configs:
+#   - service_key: YOUR_PAGERDUTY_KEY
+#
+# - name: 'slack'
+#   slack_configs:
+#   - api_url: 'https://hooks.slack.com/services/YOUR/SLACK/WEBHOOK'
+#     channel: '#sopilot-alerts'
+#     title: 'SOPilot Alert'
+#     text: '{{ range .Alerts }}{{ .Annotations.summary }}\n{{ end }}'

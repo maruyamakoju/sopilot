@@ -44,8 +44,8 @@ vigil = [
   "scenedetect[opencv]>=0.6.3",
   "open-clip-torch>=2.24.0",
   "pillow>=10.0.0",
-  "transformers>=4.45.0",
-  "qwen-vl-utils[decord]>=0.0.8",
+  "transformers>=4.51.3",  # Qwen2.5-VL requires 4.51+ for proper model doc
+  "qwen-vl-utils[decord]>=0.0.10",  # Video kwargs stability (return_video_kwargs)
   "torch>=2.4.0",
   "accelerate>=0.34.0",
 ]

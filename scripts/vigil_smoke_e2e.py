@@ -266,12 +266,24 @@ def main():
 
         from sopilot.video_llm_service import VideoLLMService, get_default_config
 
-        # Use mock mode for now (can upgrade to Qwen2.5-VL with --use-llm flag)
+        # Use mock mode for now (can upgrade to Qwen2.5-VL with --llm-model flag)
         llm_model = getattr(args, "llm_model", "mock")
         llm_config = get_default_config(llm_model)
         llm_config.device = args.device
 
+        logger.info("Video-LLM mode: %s", llm_model)
+
         llm_service = VideoLLMService(llm_config)
+
+        # Verify model is loaded (not mock fallback) if real model requested
+        if llm_model != "mock":
+            if llm_service._model is None:
+                logger.error("❌ Model failed to load! Falling back to mock mode.")
+                logger.error("   Install dependencies: pip install -e '.[vigil]'")
+            else:
+                logger.info("✅ Model loaded: %s", type(llm_service._model).__name__)
+        else:
+            logger.info("ℹ️  Using mock mode (no model loading)")
 
         # Generate answer from top-1 clip if available
         final_answer = None

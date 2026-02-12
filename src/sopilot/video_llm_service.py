@@ -379,6 +379,9 @@ class VideoLLMService:
     ) -> VideoQAResult:
         """Answer question using Qwen2.5-VL.
 
+        CRITICAL: This method extracts frames ONLY from [start_sec, end_sec] to ensure
+        the model answers based on retrieved evidence, not the full video.
+
         Args:
             video_path: Path to video file
             question: Question to answer
@@ -389,7 +392,9 @@ class VideoLLMService:
         Returns:
             VideoQAResult with answer
         """
+        import tempfile
         import torch
+        from PIL import Image
 
         # Prepare prompt with optional CoT
         if enable_cot:
@@ -397,24 +402,88 @@ class VideoLLMService:
         else:
             prompt = question
 
-        # Prepare messages in Qwen2.5-VL format
+        # Extract frames from [start_sec, end_sec] ONLY (RAG faithfulness)
         video_path = Path(video_path)
-        messages = [
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "video",
-                        "video": f"file:///{video_path.absolute().as_posix()}",
-                        "max_pixels": self.config.max_pixels,
-                        "fps": self.config.fps,
-                    },
-                    {"type": "text", "text": prompt},
-                ],
-            }
-        ]
+        cap = cv2.VideoCapture(str(video_path))
+        if not cap.isOpened():
+            raise ValueError(f"Cannot open video: {video_path}")
+
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+
+        start_frame = int(start_sec * fps)
+        if end_sec is None:
+            end_frame = total_frames
+        else:
+            end_frame = int(end_sec * fps)
+
+        end_frame = min(end_frame, total_frames)
+
+        if start_frame >= end_frame:
+            cap.release()
+            raise ValueError(f"Invalid frame range: [{start_frame}, {end_frame})")
+
+        # Calculate number of frames to sample (capped at max_frames)
+        duration_sec = (end_frame - start_frame) / fps
+        target_frames = min(
+            self.config.max_frames,
+            max(8, int(duration_sec * self.config.fps)),  # At least 8 frames
+        )
+
+        # Uniform sampling within clip
+        num_frames = end_frame - start_frame
+        if num_frames <= target_frames:
+            frame_indices = list(range(start_frame, end_frame))
+        else:
+            step = num_frames / target_frames
+            frame_indices = [int(start_frame + i * step) for i in range(target_frames)]
+
+        # Extract frames to temporary directory
+        temp_dir = tempfile.mkdtemp(prefix="qwen_vl_")
+        frame_paths: list[str] = []
 
         try:
+            for idx, frame_idx in enumerate(frame_indices):
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+                ret, frame = cap.read()
+                if not ret:
+                    logger.warning("Failed to extract frame %d", frame_idx)
+                    continue
+
+                # Convert BGR to RGB and save
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                frame_path = Path(temp_dir) / f"frame_{idx:04d}.jpg"
+                Image.fromarray(frame_rgb).save(frame_path, quality=90)
+                frame_paths.append(f"file:///{frame_path.absolute().as_posix()}")
+
+            cap.release()
+
+            if not frame_paths:
+                raise ValueError("No frames extracted from clip")
+
+            logger.info(
+                "Extracted %d frames from clip [%.2f-%.2f sec] for Qwen2.5-VL",
+                len(frame_paths),
+                start_sec,
+                end_sec or (total_frames / fps),
+            )
+
+            # Prepare messages in Qwen2.5-VL format (frame list mode)
+            messages = [
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "video",
+                            "video": frame_paths,  # Pass frame list instead of full video
+                            "max_pixels": self.config.max_pixels,
+                            "fps": self.config.fps,
+                        },
+                        {"type": "text", "text": prompt},
+                    ],
+                }
+            ]
+
             # Apply chat template
             text = self._processor.apply_chat_template(
                 messages, tokenize=False, add_generation_prompt=True
@@ -479,6 +548,13 @@ class VideoLLMService:
         except Exception as exc:
             logger.error("Video QA failed: %s", exc)
             raise RuntimeError(f"Video QA inference failed: {exc}") from exc
+
+        finally:
+            # Cleanup temporary frames
+            import shutil
+            if temp_dir and Path(temp_dir).exists():
+                shutil.rmtree(temp_dir, ignore_errors=True)
+                logger.debug("Cleaned up temporary frames: %s", temp_dir)
 
     def batch_extract_embeddings(
         self,

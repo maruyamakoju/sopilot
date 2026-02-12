@@ -1,34 +1,38 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
-from typing import Callable, Protocol
-
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Protocol
 
 logger = logging.getLogger(__name__)
 
 
 def _empty_queue_stats(key: str, name: str) -> dict:
-    return {"key": key, "name": name, "queued": 0, "started": 0, "failed": 0, "finished": 0, "deferred": 0, "scheduled": 0}
+    return {
+        "key": key,
+        "name": name,
+        "queued": 0,
+        "started": 0,
+        "failed": 0,
+        "finished": 0,
+        "deferred": 0,
+        "scheduled": 0,
+    }
 
 
 class QueueManager(Protocol):
     kind: str
 
-    def enqueue_ingest(self, job_id: str) -> None:
-        ...
+    def enqueue_ingest(self, job_id: str) -> None: ...
 
-    def enqueue_score(self, job_id: str) -> None:
-        ...
+    def enqueue_score(self, job_id: str) -> None: ...
 
-    def enqueue_training(self, job_id: str) -> None:
-        ...
+    def enqueue_training(self, job_id: str) -> None: ...
 
-    def close(self) -> None:
-        ...
+    def close(self) -> None: ...
 
-    def metrics(self) -> dict:
-        ...
+    def metrics(self) -> dict: ...
 
 
 @dataclass

@@ -21,8 +21,7 @@ import pytest
 import torch
 
 from sopilot.nn.trainer import SOPilotTrainer, TrainingConfig, TrainingLog
-from sopilot.step_engine import evaluate_sop, detect_step_boundaries, invalidate_neural_caches
-
+from sopilot.step_engine import detect_step_boundaries, evaluate_sop, invalidate_neural_caches
 
 # ---------------------------------------------------------------------------
 # Fixtures and helpers
@@ -277,10 +276,7 @@ class TestFullNeuralPipeline:
         # Phase 3
         rng = np.random.default_rng(77)
         gold_list = embeddings[:3]
-        trainee_list = [
-            e + rng.standard_normal(e.shape).astype(np.float32) * 0.4
-            for e in gold_list
-        ]
+        trainee_list = [e + rng.standard_normal(e.shape).astype(np.float32) * 0.4 for e in gold_list]
         target_scores = np.array([90.0, 60.0, 40.0], dtype=np.float32)
         log_joint = trainer.joint_finetune(gold_list, trainee_list, target_scores)
         assert log_joint.final_loss != 0.0
@@ -341,10 +337,7 @@ class TestSaveAndLoad:
         # Joint finetune (creates soft_dtw + alignment_bridge)
         rng = np.random.default_rng(55)
         gold_list = embeddings[:3]
-        trainee_list = [
-            e + rng.standard_normal(e.shape).astype(np.float32) * 0.4
-            for e in gold_list
-        ]
+        trainee_list = [e + rng.standard_normal(e.shape).astype(np.float32) * 0.4 for e in gold_list]
         target_scores = np.array([85.0, 60.0, 40.0], dtype=np.float32)
         trainer.joint_finetune(gold_list, trainee_list, target_scores)
 
@@ -384,6 +377,7 @@ class TestSaveAndLoad:
 
         save_path = tmp_path / "projection_head.pt"
         from sopilot.nn.projection_head import save_projection_head
+
         save_projection_head(trainer.projection_head, save_path)
 
         loaded = load_projection_head(save_path, device="cpu")
@@ -395,7 +389,7 @@ class TestSaveAndLoad:
     def test_segmenter_roundtrip(self, tmp_path: Path) -> None:
         """Save and reload NeuralStepSegmenter, verify predict_boundaries."""
         _seed()
-        from sopilot.nn.step_segmenter import save_segmenter, load_segmenter
+        from sopilot.nn.step_segmenter import load_segmenter, save_segmenter
 
         cfg = _make_tiny_config(tmp_path)
         trainer = SOPilotTrainer(cfg)
@@ -414,7 +408,7 @@ class TestSaveAndLoad:
     def test_asformer_roundtrip(self, tmp_path: Path) -> None:
         """Save and reload ASFormer, verify predict_boundaries_asformer."""
         _seed()
-        from sopilot.nn.asformer import save_asformer, load_asformer, predict_boundaries_asformer
+        from sopilot.nn.asformer import load_asformer, predict_boundaries_asformer, save_asformer
 
         cfg = _make_tiny_config(tmp_path)
         trainer = SOPilotTrainer(cfg)
@@ -426,9 +420,7 @@ class TestSaveAndLoad:
 
         loaded = load_asformer(save_path, device="cpu")
         test_emb = np.random.randn(25, DIM).astype(np.float32)
-        result_boundaries, probs = predict_boundaries_asformer(
-            loaded, test_emb, min_step_clips=2, device="cpu"
-        )
+        result_boundaries, probs = predict_boundaries_asformer(loaded, test_emb, min_step_clips=2, device="cpu")
         assert result_boundaries[0] == 0
         assert result_boundaries[-1] == 25
         assert probs.shape == (25,)
@@ -436,7 +428,7 @@ class TestSaveAndLoad:
     def test_scoring_head_roundtrip(self, tmp_path: Path) -> None:
         """Save and reload ScoringHead, verify predict_with_uncertainty."""
         _seed()
-        from sopilot.nn.scoring_head import save_scoring_head, load_scoring_head
+        from sopilot.nn.scoring_head import load_scoring_head, save_scoring_head
 
         cfg = _make_tiny_config(tmp_path)
         trainer = SOPilotTrainer(cfg)
@@ -502,6 +494,7 @@ class TestConformalRoundtrip:
 
         # Manually reload the conformal predictor (same path as step_engine uses)
         from sopilot.nn.conformal import SplitConformalPredictor
+
         cp = SplitConformalPredictor()
         data = np.load(out_dir / "conformal_predictor.npz")
         cp._quantile = float(data["quantile"])
@@ -542,10 +535,7 @@ class TestEvaluateSopNeuralMode:
 
     def _build_meta(self, n_clips: int) -> list[dict]:
         """Build minimal clip metadata for evaluate_sop."""
-        return [
-            {"start_sec": float(i), "end_sec": float(i + 1)}
-            for i in range(n_clips)
-        ]
+        return [{"start_sec": float(i), "end_sec": float(i + 1)} for i in range(n_clips)]
 
     def test_neural_mode_flag_in_result(self, tmp_path: Path) -> None:
         """When neural_mode=True, result should contain neural_mode=True."""
@@ -625,10 +615,7 @@ class TestEvaluateSopNeuralMode:
         # Joint finetune
         rng = np.random.default_rng(33)
         gold_list = embeddings[:3]
-        trainee_list = [
-            e + rng.standard_normal(e.shape).astype(np.float32) * 0.3
-            for e in gold_list
-        ]
+        trainee_list = [e + rng.standard_normal(e.shape).astype(np.float32) * 0.3 for e in gold_list]
         target_scores = np.array([80.0, 60.0, 45.0], dtype=np.float32)
         trainer.joint_finetune(gold_list, trainee_list, target_scores)
 
@@ -680,9 +667,7 @@ class TestEvaluateSopNeuralMode:
         assert "metrics" in result
 
         # Neural scoring should be present since we saved a scoring head
-        assert "neural_score" in result, (
-            "evaluate_sop should produce neural_score when models are available"
-        )
+        assert "neural_score" in result, "evaluate_sop should produce neural_score when models are available"
         ns = result["neural_score"]
         assert "score" in ns
         assert "uncertainty" in ns
@@ -851,5 +836,5 @@ class TestEdgeCases:
             losses.extend(log.epoch_losses)
 
         assert len(losses_run1) == len(losses_run2)
-        for l1, l2 in zip(losses_run1, losses_run2):
+        for l1, l2 in zip(losses_run1, losses_run2, strict=False):
             assert abs(l1 - l2) < 1e-6, f"Losses differ: {l1} vs {l2}"

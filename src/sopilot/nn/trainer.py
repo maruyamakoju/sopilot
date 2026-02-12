@@ -19,32 +19,29 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 
-from .projection_head import (
-    ProjectionHead,
-    NTXentLoss,
-    StepPairMiner,
-    save_projection_head,
-)
-from .soft_dtw import SoftDTW, SoftDTWAlignment
-from .step_segmenter import (
-    NeuralStepSegmenter,
-    SegmentationLoss,
-    generate_pseudo_labels,
-    save_segmenter,
-)
-from .scoring_head import (
-    ScoringHead,
-    IsotonicCalibrator,
-    METRIC_KEYS,
-    save_scoring_head,
-)
 from .asformer import (
     ASFormer,
     ASFormerLoss,
     save_asformer,
 )
-from .dilate_loss import SOPDilateLoss
 from .conformal import SplitConformalPredictor
+from .projection_head import (
+    NTXentLoss,
+    ProjectionHead,
+    StepPairMiner,
+    save_projection_head,
+)
+from .scoring_head import (
+    IsotonicCalibrator,
+    ScoringHead,
+    save_scoring_head,
+)
+from .soft_dtw import SoftDTW, SoftDTWAlignment
+from .step_segmenter import (
+    NeuralStepSegmenter,
+    SegmentationLoss,
+    save_segmenter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -67,12 +64,10 @@ class AlignmentFeatureBridge(nn.Module):
             nn.Linear(64, 32),
             nn.ReLU(),
             nn.Linear(32, 15),  # Output 15 features to match ScoringHead input
-            nn.Sigmoid(),       # Clamp to [0, 1] — prevents BN scale mismatch
+            nn.Sigmoid(),  # Clamp to [0, 1] — prevents BN scale mismatch
         )
 
-    def forward(
-        self, alignment_matrix: torch.Tensor, sdtw_distance: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, alignment_matrix: torch.Tensor, sdtw_distance: torch.Tensor) -> torch.Tensor:
         """Extract 15 scoring features from alignment matrix and distance.
 
         The alignment matrix already encodes the Soft-DTW distance signal
@@ -195,22 +190,18 @@ class SOPilotTrainer:
         log = TrainingLog(phase="projection_head")
         d_in = embeddings_list[0].shape[1]
 
-        self.projection_head = ProjectionHead(
-            d_in=d_in, d_out=self.config.proj_d_out
-        ).to(self.device)
+        self.projection_head = ProjectionHead(d_in=d_in, d_out=self.config.proj_d_out).to(self.device)
         log.num_parameters = self.projection_head.num_parameters
 
         criterion = NTXentLoss(temperature=self.config.proj_temperature).to(self.device)
         optimizer = optim.Adam(self.projection_head.parameters(), lr=self.config.proj_lr)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=self.config.proj_epochs
-        )
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.config.proj_epochs)
 
         # Build dataset: all clips with step labels
         all_embeddings = []
         all_labels = []
         label_offset = 0
-        for embs, bounds in zip(embeddings_list, boundaries_list):
+        for embs, bounds in zip(embeddings_list, boundaries_list, strict=False):
             labels = StepPairMiner.assign_step_labels(embs.shape[0], bounds)
             labels += label_offset
             label_offset = int(labels.max().item()) + 1
@@ -220,9 +211,7 @@ class SOPilotTrainer:
         all_emb = torch.cat(all_embeddings, dim=0)
         all_lab = torch.cat(all_labels, dim=0)
         dataset = TensorDataset(all_emb, all_lab)
-        loader = DataLoader(
-            dataset, batch_size=self.config.proj_batch_size, shuffle=True, drop_last=True
-        )
+        loader = DataLoader(dataset, batch_size=self.config.proj_batch_size, shuffle=True, drop_last=True)
 
         self.projection_head.train()
         for epoch in range(self.config.proj_epochs):
@@ -293,7 +282,7 @@ class SOPilotTrainer:
         # Build targets: binary boundary indicators
         X_list = []
         Y_list = []
-        for embs, bounds in zip(embeddings_list, boundaries_list):
+        for embs, bounds in zip(embeddings_list, boundaries_list, strict=False):
             n_clips = embs.shape[0]
             if n_clips < 3:
                 continue
@@ -311,7 +300,7 @@ class SOPilotTrainer:
         self.segmenter.train()
         for epoch in range(self.config.seg_epochs):
             epoch_loss = 0.0
-            for x, y in zip(X_list, Y_list):
+            for x, y in zip(X_list, Y_list, strict=False):
                 x = x.unsqueeze(0).to(self.device)  # (1, D, T)
                 y = y.unsqueeze(0).to(self.device)  # (1, T)
 
@@ -372,14 +361,12 @@ class SOPilotTrainer:
 
         criterion = ASFormerLoss(n_classes=2).to(self.device)
         optimizer = optim.Adam(self.asformer.parameters(), lr=self.config.asformer_lr)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=self.config.asformer_epochs
-        )
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.config.asformer_epochs)
 
         # Build targets: binary boundary indicators
         X_list = []
         Y_list = []
-        for embs, bounds in zip(embeddings_list, boundaries_list):
+        for embs, bounds in zip(embeddings_list, boundaries_list, strict=False):
             n_clips = embs.shape[0]
             if n_clips < 3:
                 continue
@@ -397,7 +384,7 @@ class SOPilotTrainer:
         self.asformer.train()
         for epoch in range(self.config.asformer_epochs):
             epoch_loss = 0.0
-            for x, y in zip(X_list, Y_list):
+            for x, y in zip(X_list, Y_list, strict=False):
                 x = x.unsqueeze(0).to(self.device)  # (1, D, T)
                 y = y.unsqueeze(0).to(self.device)  # (1, T)
 
@@ -461,15 +448,11 @@ class SOPilotTrainer:
         Y = torch.from_numpy(scores_array.astype(np.float32)).to(self.device).unsqueeze(-1)
 
         dataset = TensorDataset(X, Y)
-        loader = DataLoader(
-            dataset, batch_size=self.config.score_batch_size, shuffle=True
-        )
+        loader = DataLoader(dataset, batch_size=self.config.score_batch_size, shuffle=True)
 
         criterion = nn.MSELoss()
         optimizer = optim.Adam(self.scoring_head.parameters(), lr=self.config.score_lr)
-        scheduler = optim.lr_scheduler.CosineAnnealingLR(
-            optimizer, T_max=self.config.score_epochs
-        )
+        scheduler = optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=self.config.score_epochs)
 
         self.scoring_head.train()
         for epoch in range(self.config.score_epochs):
@@ -540,15 +523,11 @@ class SOPilotTrainer:
         # Freeze gamma: the d/d(gamma) of logsumexp(-x/gamma) is numerically
         # unstable when DP cells are INF, producing NaN gradients.  Gamma is
         # a smoothing hyperparameter, not an end-to-end learnable weight.
-        soft_dtw_alignment = SoftDTWAlignment(gamma=self.config.gamma_init).to(
-            self.device
-        )
+        soft_dtw_alignment = SoftDTWAlignment(gamma=self.config.gamma_init).to(self.device)
         soft_dtw_alignment.gamma.requires_grad = False
 
         # Initialize AlignmentFeatureBridge to convert alignment matrix to 15 features
-        self.alignment_bridge = AlignmentFeatureBridge(
-            d_embedding=self.config.proj_d_out
-        ).to(self.device)
+        self.alignment_bridge = AlignmentFeatureBridge(d_embedding=self.config.proj_d_out).to(self.device)
 
         # FREEZE the ScoringHead — it acts as a differentiable surrogate loss.
         # Gradients flow through it to improve upstream components, but its
@@ -562,10 +541,7 @@ class SOPilotTrainer:
         # Only optimise: projection head + alignment bridge.
         # DTW gamma is frozen (numerical stability), scoring head is frozen
         # (preserves Phase 2 weights for inference on raw metrics).
-        params = (
-            list(self.projection_head.parameters())
-            + list(self.alignment_bridge.parameters())
-        )
+        params = list(self.projection_head.parameters()) + list(self.alignment_bridge.parameters())
         optimizer = optim.Adam(params, lr=self.config.joint_lr)
         criterion = nn.MSELoss()
 
@@ -578,24 +554,16 @@ class SOPilotTrainer:
             nan_count = 0
 
             for i in range(n):
-                gold = torch.from_numpy(gold_embeddings_list[i].astype(np.float32)).to(
-                    self.device
-                )
-                trainee = torch.from_numpy(
-                    trainee_embeddings_list[i].astype(np.float32)
-                ).to(self.device)
-                target = torch.tensor(
-                    [[target_scores[i]]], dtype=torch.float32, device=self.device
-                )
+                gold = torch.from_numpy(gold_embeddings_list[i].astype(np.float32)).to(self.device)
+                trainee = torch.from_numpy(trainee_embeddings_list[i].astype(np.float32)).to(self.device)
+                target = torch.tensor([[target_scores[i]]], dtype=torch.float32, device=self.device)
 
                 # Forward: project -> alignment matrix -> feature bridge -> score
                 gold_proj = self.projection_head(gold)
                 trainee_proj = self.projection_head(trainee)
 
                 # Get alignment matrix and distance from SoftDTWAlignment
-                alignment_matrix, sdtw_dist = soft_dtw_alignment(
-                    gold_proj, trainee_proj
-                )
+                alignment_matrix, sdtw_dist = soft_dtw_alignment(gold_proj, trainee_proj)
 
                 # Use AlignmentFeatureBridge to extract 15 meaningful features
                 score_features = self.alignment_bridge(alignment_matrix, sdtw_dist)
@@ -611,7 +579,9 @@ class SOPilotTrainer:
                     if nan_count > max(1, n // 5):
                         logger.warning(
                             "Phase 3 epoch %d: >20%% NaN losses (%d/%d), stopping early",
-                            epoch + 1, nan_count, n,
+                            epoch + 1,
+                            nan_count,
+                            n,
                         )
                         nan_early_stop = True
                         break
@@ -739,12 +709,14 @@ class SOPilotTrainer:
         """Generate summary of all training phases."""
         summary: dict = {"phases": []}
         for log in self.logs:
-            summary["phases"].append({
-                "phase": log.phase,
-                "epochs": log.epochs_completed,
-                "final_loss": round(log.final_loss, 6),
-                "num_parameters": log.num_parameters,
-            })
+            summary["phases"].append(
+                {
+                    "phase": log.phase,
+                    "epochs": log.epochs_completed,
+                    "final_loss": round(log.final_loss, 6),
+                    "num_parameters": log.num_parameters,
+                }
+            )
         total_params = sum(log.num_parameters for log in self.logs)
         summary["total_trainable_parameters"] = total_params
         return summary

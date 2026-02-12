@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pathlib import Path, PurePosixPath
+from pathlib import Path
 
 from sopilot.watch_folder import _derive_task_role, _is_hidden_path
 

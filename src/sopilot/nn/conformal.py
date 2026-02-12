@@ -22,7 +22,6 @@ References:
 from __future__ import annotations
 
 import logging
-from typing import Callable
 
 import numpy as np
 import torch
@@ -88,7 +87,9 @@ class SplitConformalPredictor:
         self._quantile = float(np.quantile(self._scores, level))
         logger.info(
             "Conformal calibration: n=%d, alpha=%.3f, quantile=%.4f",
-            n, self.alpha, self._quantile,
+            n,
+            self.alpha,
+            self._quantile,
         )
 
     def predict(self, point_prediction: float) -> tuple[float, float, float]:
@@ -130,7 +131,7 @@ class SplitConformalPredictor:
     def coverage_guarantee(self) -> str:
         """Formal statement of the coverage guarantee."""
         return (
-            f"P(Y ∈ [{chr(0x0177)} ± {self._quantile:.4f}]) >= {1-self.alpha:.3f} "
+            f"P(Y ∈ [{chr(0x0177)} ± {self._quantile:.4f}]) >= {1 - self.alpha:.3f} "
             f"(finite-sample, distribution-free, calibrated on {self._n_cal} samples)"
         )
 
@@ -188,9 +189,7 @@ class ConformizedQuantileRegression:
         self._Q = float(np.quantile(scores, level))
         logger.info("CQR calibration: n=%d, Q=%.4f", n, self._Q)
 
-    def predict(
-        self, lower_quantile: float, upper_quantile: float
-    ) -> tuple[float, float]:
+    def predict(self, lower_quantile: float, upper_quantile: float) -> tuple[float, float]:
         """Return calibrated interval.
 
         Args:
@@ -227,7 +226,7 @@ class AdaptiveConformalInference:
         learning_rate: float = 0.01,
     ) -> None:
         if not 0 < target_alpha < 1:
-            raise ValueError(f"target_alpha must be in (0, 1)")
+            raise ValueError("target_alpha must be in (0, 1)")
         self.target_alpha = target_alpha
         self.learning_rate = learning_rate
         self._alpha_t: float = target_alpha
@@ -248,19 +247,19 @@ class AdaptiveConformalInference:
         err_t = 1.0 if (actual < lower or actual > upper) else 0.0
 
         # Online gradient update
-        self._alpha_t = self._alpha_t + self.learning_rate * (
-            self.target_alpha - err_t
-        )
+        self._alpha_t = self._alpha_t + self.learning_rate * (self.target_alpha - err_t)
         # Clamp to valid range
         self._alpha_t = max(0.001, min(0.999, self._alpha_t))
 
-        self._history.append({
-            "alpha_t": self._alpha_t,
-            "err_t": err_t,
-            "actual": float(actual),
-            "lower": float(lower),
-            "upper": float(upper),
-        })
+        self._history.append(
+            {
+                "alpha_t": self._alpha_t,
+                "err_t": err_t,
+                "actual": float(actual),
+                "lower": float(lower),
+                "upper": float(upper),
+            }
+        )
 
     @property
     def current_alpha(self) -> float:
@@ -292,7 +291,7 @@ class MondrianConformal:
 
     def __init__(self, alpha: float = 0.05) -> None:
         if not 0 < alpha < 1:
-            raise ValueError(f"alpha must be in (0, 1)")
+            raise ValueError("alpha must be in (0, 1)")
         self.alpha = alpha
         self._group_quantiles: dict[int, float] = {}
         self._group_counts: dict[int, int] = {}
@@ -335,9 +334,7 @@ class MondrianConformal:
             {int(g): self._group_counts.get(int(g), 0) for g in unique_groups},
         )
 
-    def predict(
-        self, point_prediction: float, group: int
-    ) -> tuple[float, float, float]:
+    def predict(self, point_prediction: float, group: int) -> tuple[float, float, float]:
         """Predict with group-specific interval.
 
         Args:
@@ -392,9 +389,7 @@ class ConformalMCDropout:
         self._cqr = ConformizedQuantileRegression(alpha=alpha)
         self._calibrated = False
 
-    def _mc_dropout_predict(
-        self, x: torch.Tensor
-    ) -> tuple[float, float, float]:
+    def _mc_dropout_predict(self, x: torch.Tensor) -> tuple[float, float, float]:
         """Run MC Dropout forward passes.
 
         Returns:
@@ -472,5 +467,5 @@ class ConformalMCDropout:
             "ci_upper": float(np.clip(hi_conf, 0.0, 100.0)),
             "interval_width": float(hi_conf - lo_conf),
             "method": "conformal_mc_dropout",
-            "coverage_guarantee": f">= {1-self.alpha:.0%}",
+            "coverage_guarantee": f">= {1 - self.alpha:.0%}",
         }

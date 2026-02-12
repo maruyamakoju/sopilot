@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from sopilot.queueing import _build_retry_intervals, InlineQueueManager
+from sopilot.queueing import InlineQueueManager, _build_retry_intervals
 
 
 def test_build_retry_intervals_with_zero() -> None:

@@ -1,7 +1,5 @@
 """Tests for DILATE loss module."""
 
-import numpy as np
-import pytest
 import torch
 
 

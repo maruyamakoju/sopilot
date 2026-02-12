@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 import argparse
+import os
+import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import os
 from pathlib import Path
-import sqlite3
 from typing import Any
 
 import numpy as np

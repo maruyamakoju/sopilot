@@ -6,16 +6,14 @@ import pytest
 import torch
 
 from sopilot.nn.optimal_transport import (
-    SinkhornDistance,
-    GromovWassersteinDistance,
     FusedGromovWasserstein,
+    GromovWassersteinDistance,
     HierarchicalOTAlignment,
+    SinkhornDistance,
     WassersteinBarycenter,
     _cosine_cost_matrix,
     _euclidean_cost_matrix,
-    _intra_distance_matrix,
 )
-
 
 # ---------------------------------------------------------------------------
 # Sinkhorn tests
@@ -109,9 +107,7 @@ class TestSinkhornLogDomain:
         torch.manual_seed(42)
         C = torch.rand(8, 8) + 0.1
         solver_std = SinkhornDistance(epsilon=0.05, max_iter=500)
-        solver_scale = SinkhornDistance(
-            epsilon=0.05, max_iter=500, epsilon_scaling=True, scaling_steps=5
-        )
+        solver_scale = SinkhornDistance(epsilon=0.05, max_iter=500, epsilon_scaling=True, scaling_steps=5)
         dist_std, P_std = solver_std(C)
         dist_scale, P_scale = solver_scale(C)
         # Results should be close (not exact due to different convergence paths)
@@ -166,8 +162,8 @@ class TestGWIdenticalStructures:
         cost_diff, _ = gw(D, D2)
         # Self-comparison should be cheaper than cross-comparison
         assert cost_same.item() <= cost_diff.item() + 0.01, (
-            f"Same-structure cost {cost_same.item()} should be <= "
-            f"different-structure cost {cost_diff.item()}")
+            f"Same-structure cost {cost_same.item()} should be <= different-structure cost {cost_diff.item()}"
+        )
 
     def test_identity_distance_matrix(self) -> None:
         """Identity matrix as distance should give near-zero GW with itself."""
@@ -208,7 +204,8 @@ class TestGWEfficientGradient:
         G_efficient = GromovWassersteinDistance._compute_gw_gradient(D1, D2, P)
         G_naive = GromovWassersteinDistance._compute_gw_gradient_naive(D1, D2, P)
         assert torch.allclose(G_efficient, G_naive, atol=1e-5), (
-            f"Max diff: {(G_efficient - G_naive).abs().max().item()}")
+            f"Max diff: {(G_efficient - G_naive).abs().max().item()}"
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -227,15 +224,13 @@ class TestFusedGWAlpha:
         D1 = torch.rand(M, M)
         D2 = torch.rand(N, N)
         eps = 0.1
-        fgw = FusedGromovWasserstein(alpha=1.0, epsilon=eps, max_outer_iter=50,
-                                     max_inner_iter=100, tol=1e-6)
+        fgw = FusedGromovWasserstein(alpha=1.0, epsilon=eps, max_outer_iter=50, max_inner_iter=100, tol=1e-6)
         cost_fgw, P_fgw = fgw(C, D1, D2)
         # Compare with pure Sinkhorn
         sink = SinkhornDistance(epsilon=eps, max_iter=100, tol=1e-6)
         cost_sink, P_sink = sink(C)
         # Transport plans should be very similar
-        assert torch.allclose(P_fgw, P_sink, atol=0.05), (
-            f"Max diff: {(P_fgw - P_sink).abs().max().item()}")
+        assert torch.allclose(P_fgw, P_sink, atol=0.05), f"Max diff: {(P_fgw - P_sink).abs().max().item()}"
 
     def test_alpha_zero_ignores_features(self) -> None:
         """With alpha=0, only structure (GW) matters."""
@@ -277,9 +272,7 @@ class TestHierarchicalConstraint:
         y[:10] = x[:10] + 0.01 * torch.randn(10, D)
         y[10:] = x[10:] + 0.01 * torch.randn(10, D)
 
-        model = HierarchicalOTAlignment(
-            n_phases=2, epsilon_coarse=0.1, epsilon_fine=0.05, max_iter=50
-        )
+        model = HierarchicalOTAlignment(n_phases=2, epsilon_coarse=0.1, epsilon_fine=0.05, max_iter=50)
         dist, P_fine, P_coarse = model(x, y)
 
         # Fine plan should have most mass in diagonal blocks
@@ -287,8 +280,8 @@ class TestHierarchicalConstraint:
         block2_mass = P_fine[10:, 10:].sum().item()
         off_diag_mass = P_fine[:10, 10:].sum().item() + P_fine[10:, :10].sum().item()
         assert block1_mass + block2_mass > off_diag_mass, (
-            f"Diagonal blocks ({block1_mass + block2_mass:.3f}) should dominate "
-            f"off-diagonal ({off_diag_mass:.3f})")
+            f"Diagonal blocks ({block1_mass + block2_mass:.3f}) should dominate off-diagonal ({off_diag_mass:.3f})"
+        )
 
     def test_hierarchical_output_shapes(self) -> None:
         torch.manual_seed(42)
@@ -318,8 +311,7 @@ class TestBarycenterIdentical:
         C = (support.unsqueeze(1) - support.unsqueeze(0)) ** 2
         bary = WassersteinBarycenter(epsilon=0.05, max_iter=100, max_outer_iter=30)
         result = bary([p, p, p], [C, C, C])
-        assert torch.allclose(result, p, atol=0.05), (
-            f"Barycenter {result} should match input {p}")
+        assert torch.allclose(result, p, atol=0.05), f"Barycenter {result} should match input {p}"
 
     def test_uniform_barycenter(self) -> None:
         torch.manual_seed(42)

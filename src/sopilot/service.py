@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import logging
+from datetime import datetime, timezone
 from pathlib import Path
 
 import numpy as np
@@ -16,7 +16,6 @@ from .queueing import InlineQueueManager, QueueManager, RqQueueManager
 from .scoring_service import ScoringService
 from .training_service import TrainingService
 from .vector_index import NpyVectorIndex
-
 
 logger = logging.getLogger(__name__)
 
@@ -186,8 +185,7 @@ class SopilotService:
 
     # -- Scoring --
 
-    def enqueue_score(self, gold_video_id: int, trainee_video_id: int,
-                      requested_by: str | None = None) -> dict:
+    def enqueue_score(self, gold_video_id: int, trainee_video_id: int, requested_by: str | None = None) -> dict:
         return self._scoring.enqueue_score(gold_video_id, trainee_video_id, requested_by)
 
     def run_score_job(self, job_id: str) -> None:

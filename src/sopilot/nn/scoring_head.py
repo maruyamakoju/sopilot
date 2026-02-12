@@ -281,9 +281,7 @@ class IsotonicCalibrator:
 # ---------------------------------------------------------------------------
 
 
-def metrics_to_tensor(
-    metrics: dict, device: str = "cpu"
-) -> torch.Tensor:
+def metrics_to_tensor(metrics: dict, device: str = "cpu") -> torch.Tensor:
     """Convert evaluate_sop() metrics dict to (1, 15) tensor.
 
     Args:

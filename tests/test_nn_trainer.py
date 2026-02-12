@@ -3,10 +3,8 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
-import torch
 
-from sopilot.nn.trainer import SOPilotTrainer, TrainingConfig, TrainingLog
+from sopilot.nn.trainer import SOPilotTrainer, TrainingConfig
 
 
 class TestTrainingConfig:
@@ -39,9 +37,7 @@ class TestSOPilotTrainer:
         return embeddings_list, boundaries_list
 
     def test_train_projection_head(self) -> None:
-        cfg = TrainingConfig(
-            proj_d_in=64, proj_d_out=32, proj_epochs=3, proj_batch_size=16
-        )
+        cfg = TrainingConfig(proj_d_in=64, proj_d_out=32, proj_epochs=3, proj_batch_size=16)
         trainer = SOPilotTrainer(cfg)
         embeddings, boundaries = self._make_synthetic_data(d=64)
 
@@ -106,9 +102,7 @@ class TestSOPilotTrainer:
         assert "scoring_head" in paths
 
     def test_training_summary(self) -> None:
-        cfg = TrainingConfig(
-            proj_d_in=32, proj_d_out=16, proj_epochs=2, proj_batch_size=16
-        )
+        cfg = TrainingConfig(proj_d_in=32, proj_d_out=16, proj_epochs=2, proj_batch_size=16)
         trainer = SOPilotTrainer(cfg)
         embeddings, boundaries = self._make_synthetic_data(d=32, n_clips=16)
         trainer.train_projection_head(embeddings, boundaries)

@@ -1,13 +1,12 @@
 from __future__ import annotations
 
 import os
-from pathlib import Path
 from unittest.mock import patch
 
 import pytest
 
-from sopilot.config import Settings, _env_bool, _env_float, _env_int, _env_str
 from conftest import make_test_settings
+from sopilot.config import Settings, _env_bool, _env_float, _env_int, _env_str
 
 
 class TestEnvInt:

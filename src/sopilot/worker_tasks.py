@@ -7,7 +7,6 @@ from .db import Database
 from .service import SopilotService
 from .storage import ensure_directories
 
-
 _service_lock = threading.Lock()
 _service: SopilotService | None = None
 

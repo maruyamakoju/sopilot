@@ -34,9 +34,7 @@ class DilatedResidualBlock(nn.Module):
 
     def __init__(self, channels: int, dilation: int, dropout: float = 0.3) -> None:
         super().__init__()
-        self.conv = nn.Conv1d(
-            channels, channels, kernel_size=3, padding=dilation, dilation=dilation
-        )
+        self.conv = nn.Conv1d(channels, channels, kernel_size=3, padding=dilation, dilation=dilation)
         self.bn = nn.BatchNorm1d(channels)
         self.dropout = nn.Dropout(dropout)
 
@@ -63,9 +61,7 @@ class _SegmentationStage(nn.Module):
         super().__init__()
         self.dilations = dilations
         self.input_proj = nn.Conv1d(d_in, d_hidden, kernel_size=1)
-        self.blocks = nn.ModuleList(
-            [DilatedResidualBlock(d_hidden, d, dropout) for d in dilations]
-        )
+        self.blocks = nn.ModuleList([DilatedResidualBlock(d_hidden, d, dropout) for d in dilations])
         self.output_proj = nn.Conv1d(d_hidden, n_classes, kernel_size=1)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -95,9 +91,7 @@ class NeuralStepSegmenter(nn.Module):
         self.d_in = d_in
         self.dilations = dilations
         self.stage1 = _SegmentationStage(d_in, d_hidden, n_classes, dilations, dropout)
-        self.stage2 = _SegmentationStage(
-            n_classes + d_in, d_hidden, n_classes, dilations, dropout
-        )
+        self.stage2 = _SegmentationStage(n_classes + d_in, d_hidden, n_classes, dilations, dropout)
 
     def forward(self, x: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Forward pass through both stages.

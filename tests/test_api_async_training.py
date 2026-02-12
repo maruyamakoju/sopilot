@@ -1,14 +1,14 @@
 from __future__ import annotations
 
-from pathlib import Path
 import os
 import tempfile
 import time
+from pathlib import Path
 from unittest.mock import patch
 
 import cv2
-from fastapi.testclient import TestClient
 import numpy as np
+from fastapi.testclient import TestClient
 
 from sopilot.api import create_app
 

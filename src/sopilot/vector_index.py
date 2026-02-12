@@ -1,13 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
-import os
-from pathlib import Path
 import json
+import os
 import re
 import shutil
 import threading
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 
 import numpy as np
 
@@ -102,9 +102,7 @@ class NpyVectorIndex:
                 combined_vecs = vectors.astype(np.float32)
             else:
                 if existing_vecs.shape[1] != vectors.shape[1]:
-                    raise ValueError(
-                        f"embedding dimension mismatch: {existing_vecs.shape[1]} vs {vectors.shape[1]}"
-                    )
+                    raise ValueError(f"embedding dimension mismatch: {existing_vecs.shape[1]} vs {vectors.shape[1]}")
                 combined_vecs = np.concatenate([existing_vecs, vectors.astype(np.float32)], axis=0)
 
             combined_meta = existing_meta + metadata
@@ -187,9 +185,10 @@ class NpyVectorIndex:
             for idx in order:
                 meta = metadata[int(idx)]
                 if exclude_video_id is not None and exclude_clip_idx is not None:
-                    if int(meta.get("video_id", -1)) == exclude_video_id and int(
-                        meta.get("clip_idx", -1)
-                    ) == exclude_clip_idx:
+                    if (
+                        int(meta.get("video_id", -1)) == exclude_video_id
+                        and int(meta.get("clip_idx", -1)) == exclude_clip_idx
+                    ):
                         continue
                 out.append(
                     {

@@ -19,14 +19,15 @@ References:
 from __future__ import annotations
 
 import logging
-from typing import Optional
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-from sopilot.nn.constants import INF as _INF, GAMMA_MIN as _GAMMA_MIN
-from sopilot.nn.functional import softmin3 as _softmin3, pairwise_euclidean_sq
+from sopilot.nn.constants import GAMMA_MIN as _GAMMA_MIN
+from sopilot.nn.constants import INF as _INF
+from sopilot.nn.functional import pairwise_euclidean_sq
+from sopilot.nn.functional import softmin3 as _softmin3
 
 logger = logging.getLogger(__name__)
 
@@ -43,8 +44,7 @@ __all__ = [
 # ---------------------------------------------------------------------------
 
 
-def _soft_dtw_forward(cost: torch.Tensor, gamma: float = 0.1
-                      ) -> tuple[torch.Tensor, torch.Tensor]:
+def _soft_dtw_forward(cost: torch.Tensor, gamma: float = 0.1) -> tuple[torch.Tensor, torch.Tensor]:
     """Compute Soft-DTW distance and store DP table.
 
     Args:
@@ -81,8 +81,7 @@ def _soft_dtw_forward(cost: torch.Tensor, gamma: float = 0.1
     return R[m, n], R
 
 
-def _soft_dtw_alignment(cost: torch.Tensor, gamma: float = 0.1
-                        ) -> tuple[torch.Tensor, torch.Tensor]:
+def _soft_dtw_alignment(cost: torch.Tensor, gamma: float = 0.1) -> tuple[torch.Tensor, torch.Tensor]:
     """Compute Soft-DTW soft alignment matrix via forward-backward.
 
     The alignment matrix A[i,j] gives the probability mass that cell (i,j)
@@ -122,19 +121,19 @@ def _soft_dtw_alignment(cost: torch.Tensor, gamma: float = 0.1
         # Diagonal successor (i+1, j+1)
         diag_cost = torch.where(
             (ii + 1 <= m) & (jj + 1 <= n),
-            R_bwd[ii + 1, jj + 1] + cost[ii.clamp(max=m-1), jj.clamp(max=n-1)],
+            R_bwd[ii + 1, jj + 1] + cost[ii.clamp(max=m - 1), jj.clamp(max=n - 1)],
             torch.tensor(_INF, dtype=dtype, device=device),
         )
         # Below successor (i+1, j)
         below_cost = torch.where(
             ii + 1 <= m,
-            R_bwd[ii + 1, jj] + cost[ii.clamp(max=m-1), (jj - 1).clamp(min=0)],
+            R_bwd[ii + 1, jj] + cost[ii.clamp(max=m - 1), (jj - 1).clamp(min=0)],
             torch.tensor(_INF, dtype=dtype, device=device),
         )
         # Right successor (i, j+1)
         right_cost = torch.where(
             jj + 1 <= n,
-            R_bwd[ii, jj + 1] + cost[(ii - 1).clamp(min=0), jj.clamp(max=n-1)],
+            R_bwd[ii, jj + 1] + cost[(ii - 1).clamp(min=0), jj.clamp(max=n - 1)],
             torch.tensor(_INF, dtype=dtype, device=device),
         )
 
@@ -142,8 +141,8 @@ def _soft_dtw_alignment(cost: torch.Tensor, gamma: float = 0.1
         R_bwd[ii, jj] = sm
 
     # Alignment matrix: exp(-(forward + cost + backward - total) / gamma)
-    f_vals = R_fwd[1:m + 1, 1:n + 1]
-    b_vals = R_bwd[1:m + 1, 1:n + 1]
+    f_vals = R_fwd[1 : m + 1, 1 : n + 1]
+    b_vals = R_bwd[1 : m + 1, 1 : n + 1]
     log_prob = -(f_vals + cost + b_vals - distance) / g
     log_prob = log_prob.clamp(max=0.0)
     alignment = torch.exp(log_prob)
@@ -157,6 +156,7 @@ def _soft_dtw_alignment(cost: torch.Tensor, gamma: float = 0.1
 # ---------------------------------------------------------------------------
 # Shape Loss
 # ---------------------------------------------------------------------------
+
 
 class ShapeDTWLoss(nn.Module):
     """Shape component of DILATE: differentiable Soft-DTW distance.
@@ -197,6 +197,7 @@ class ShapeDTWLoss(nn.Module):
 # Temporal Distortion Index
 # ---------------------------------------------------------------------------
 
+
 class TemporalDistortionLoss(nn.Module):
     """Temporal component of DILATE: Temporal Distortion Index (TDI).
 
@@ -217,7 +218,7 @@ class TemporalDistortionLoss(nn.Module):
         self,
         pred: torch.Tensor,
         target: torch.Tensor,
-        alignment: Optional[torch.Tensor] = None,
+        alignment: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Compute TDI loss.
 
@@ -240,7 +241,7 @@ class TemporalDistortionLoss(nn.Module):
         self,
         pred: torch.Tensor,
         target: torch.Tensor,
-        alignment: Optional[torch.Tensor] = None,
+        alignment: torch.Tensor | None = None,
     ) -> torch.Tensor:
         M, N = pred.shape[0], target.shape[0]
         device = pred.device
@@ -265,6 +266,7 @@ class TemporalDistortionLoss(nn.Module):
 # DILATE Loss (Combined)
 # ---------------------------------------------------------------------------
 
+
 class DILATELoss(nn.Module):
     """DILATE: Shape and Time Distortion Loss (Le Guen & Thome, ICML 2019).
 
@@ -284,9 +286,7 @@ class DILATELoss(nn.Module):
         self.alpha = alpha
         self.gamma = gamma
 
-    def forward(
-        self, pred: torch.Tensor, target: torch.Tensor
-    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    def forward(self, pred: torch.Tensor, target: torch.Tensor) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         """Compute DILATE loss.
 
         Args:
@@ -310,9 +310,7 @@ class DILATELoss(nn.Module):
             }
         return self._single(pred, target)
 
-    def _single(
-        self, pred: torch.Tensor, target: torch.Tensor
-    ) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
+    def _single(self, pred: torch.Tensor, target: torch.Tensor) -> tuple[torch.Tensor, dict[str, torch.Tensor]]:
         M, N = pred.shape[0], target.shape[0]
         cost = pairwise_euclidean_sq(pred, target)
 
@@ -339,6 +337,7 @@ class DILATELoss(nn.Module):
 # ---------------------------------------------------------------------------
 # Extended DILATE for SOP evaluation
 # ---------------------------------------------------------------------------
+
 
 class SOPDilateLoss(nn.Module):
     """Extended DILATE loss specialized for SOP compliance evaluation.
@@ -451,7 +450,7 @@ class SOPDilateLoss(nn.Module):
                 if start >= end:
                     continue
                 step_mass = alignment[start:end, :].sum()
-                expected_mass = (end - start)  # Expected mass proportional to step length
+                expected_mass = end - start  # Expected mass proportional to step length
                 coverage_loss = coverage_loss + F.relu(expected_mass * 0.5 - step_mass)
             coverage_loss = coverage_loss / n_steps
 

@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
 import os
+from dataclasses import dataclass
 from pathlib import Path
 from statistics import median
 
@@ -95,14 +95,17 @@ def _load_neural_model(key: str, model_dir: Path, device: str | None = None):
     """Load a neural model from the registry by key."""
     for cache_key, filename, module_path, attr_path in _NEURAL_MODEL_REGISTRY:
         if cache_key == key:
+
             def _get_loader(_mp=module_path, _ap=attr_path):
                 import importlib
+
                 mod = importlib.import_module(_mp, package="sopilot")
                 parts = _ap.split(".")
                 obj = getattr(mod, parts[0])
                 for p in parts[1:]:
                     obj = getattr(obj, p)
                 return obj
+
             return _load_cached_model(cache_key, model_dir, filename, _get_loader, device=device)
     raise KeyError(f"Unknown neural model: {key}")
 
@@ -127,14 +130,15 @@ def _load_neural_conformal(model_dir: Path):
     def _get_loader():
         def _load_conformal(path):
             from .nn.conformal import SplitConformalPredictor
+
             cp = SplitConformalPredictor()
             data = np.load(path)
-            cp._quantile = float(
-                data["quantile"].item() if hasattr(data["quantile"], "item") else data["quantile"]
-            )
+            cp._quantile = float(data["quantile"].item() if hasattr(data["quantile"], "item") else data["quantile"])
             cp._calibrated = True
             return cp
+
         return _load_conformal
+
     return _load_cached_model("conformal", model_dir, "conformal_predictor.npz", _get_loader)
 
 
@@ -175,8 +179,11 @@ def detect_step_boundaries(
         if asformer is not None:
             try:
                 from .nn.asformer import predict_boundaries_asformer
+
                 boundaries, _ = predict_boundaries_asformer(
-                    asformer, embeddings, min_step_clips=min_step_clips,
+                    asformer,
+                    embeddings,
+                    min_step_clips=min_step_clips,
                     device=neural_device,
                 )
                 logger.debug("ASFormer segmenter produced %d boundaries", len(boundaries))
@@ -188,9 +195,7 @@ def detect_step_boundaries(
         segmenter = _load_neural_segmenter(neural_model_dir, device=neural_device)
         if segmenter is not None:
             try:
-                boundaries = segmenter.predict_boundaries(
-                    embeddings, min_step_clips=min_step_clips
-                )
+                boundaries = segmenter.predict_boundaries(embeddings, min_step_clips=min_step_clips)
                 logger.debug("MS-TCN segmenter produced %d boundaries", len(boundaries))
                 return boundaries
             except Exception as e:
@@ -230,9 +235,7 @@ def dtw_align(gold: np.ndarray, trainee: np.ndarray) -> AlignmentResult:
         return AlignmentResult(path=[], mean_cost=1.0)
 
     if m > MAX_DTW_CLIPS or n > MAX_DTW_CLIPS:
-        raise ValueError(
-            f"clip count exceeds DTW limit: gold={m}, trainee={n}, max={MAX_DTW_CLIPS}"
-        )
+        raise ValueError(f"clip count exceeds DTW limit: gold={m}, trainee={n}, max={MAX_DTW_CLIPS}")
 
     cost = (1.0 - (g @ t.T)).astype(np.float64)
 
@@ -260,8 +263,7 @@ def dtw_align(gold: np.ndarray, trainee: np.ndarray) -> AlignmentResult:
         dp[ii, jj] = cost[ii - 1, jj - 1] + min_all
 
         # trace: 0=diagonal, 1=above, 2=left
-        tr = np.where(min_all == diag, np.int8(0),
-                      np.where(min_all == above, np.int8(1), np.int8(2)))
+        tr = np.where(min_all == diag, np.int8(0), np.where(min_all == above, np.int8(1), np.int8(2)))
         trace[ii, jj] = tr
 
     i, j = m, n
@@ -346,9 +348,7 @@ def _best_match_structure(
     order_violation_ratio = float(violations / max(1, m - 1))
 
     expected = np.linspace(0, max(n - 1, 0), num=max(1, m), dtype=np.float32)
-    temporal_drift = float(
-        np.mean(np.abs(best_idx.astype(np.float32) - expected)) / max(1.0, float(n - 1))
-    )
+    temporal_drift = float(np.mean(np.abs(best_idx.astype(np.float32) - expected)) / max(1.0, float(n - 1)))
 
     mean_best = float(np.mean(best_sims))
     median_best = float(np.median(best_sims))
@@ -377,12 +377,11 @@ def _hard_dtw_fallback(
 ) -> AlignmentResult:
     """Hard DTW with GPU/CPU fallback chain."""
     if use_gpu_dtw is None:
-        use_gpu_dtw = os.getenv("SOPILOT_DTW_USE_GPU", "auto").strip().lower() in {
-            "1", "true", "auto"
-        }
+        use_gpu_dtw = os.getenv("SOPILOT_DTW_USE_GPU", "auto").strip().lower() in {"1", "true", "auto"}
     if use_gpu_dtw:
         try:
             from .dtw_gpu import dtw_align_auto
+
             gpu_result = dtw_align_auto(gold_embeddings, trainee_embeddings, prefer_gpu=True)
             return AlignmentResult(path=gpu_result.path, mean_cost=gpu_result.mean_cost)
         except Exception as e:
@@ -410,8 +409,10 @@ def _resolve_alignment(
     # Option 1: Optimal Transport alignment (Sinkhorn + Gromov-Wasserstein)
     if neural_ot_alignment:
         try:
-            from .nn.optimal_transport import HierarchicalOTAlignment
             import torch
+
+            from .nn.optimal_transport import HierarchicalOTAlignment
+
             ot_aligner = HierarchicalOTAlignment(
                 sinkhorn_reg=0.05, n_clusters=min(8, max(2, gold_embeddings.shape[0] // 5))
             )
@@ -433,8 +434,10 @@ def _resolve_alignment(
     # Option 2: CUDA-accelerated Soft-DTW (distance only, path via CPU fallback)
     if neural_cuda_dtw:
         try:
-            from .nn.soft_dtw_cuda import SoftDTWCuda
             import torch
+
+            from .nn.soft_dtw_cuda import SoftDTWCuda
+
             g_t = torch.from_numpy(gold_embeddings.astype(np.float32)).unsqueeze(0)
             t_t = torch.from_numpy(trainee_embeddings.astype(np.float32)).unsqueeze(0)
             sdtw = SoftDTWCuda(gamma=neural_soft_dtw_gamma)
@@ -447,9 +450,8 @@ def _resolve_alignment(
     # Option 3: CPU Soft-DTW (always provides path + alignment matrix)
     try:
         from .nn.soft_dtw import soft_dtw_align_numpy
-        soft_path, soft_cost, _ = soft_dtw_align_numpy(
-            gold_embeddings, trainee_embeddings, gamma=neural_soft_dtw_gamma
-        )
+
+        soft_path, soft_cost, _ = soft_dtw_align_numpy(gold_embeddings, trainee_embeddings, gamma=neural_soft_dtw_gamma)
         logger.debug("Using CPU Soft-DTW alignment (γ=%.2f)", neural_soft_dtw_gamma)
         return AlignmentResult(path=soft_path, mean_cost=soft_cost)
     except Exception as e:
@@ -484,27 +486,31 @@ def _detect_deviations(
         pairs = pairs_by_g_step.get(gs, [])
         if not pairs:
             miss += 1
-            deviations.append({
-                "type": "step_missing",
-                "gold_step": gs,
-                "gold_time": _clip_time_range(gold_meta, list(range(gold_steps[gs], gold_steps[gs + 1]))),
-                "trainee_time": {"start_sec": None, "end_sec": None},
-                "confidence": 1.0,
-                "reason": "no aligned trainee clips",
-            })
+            deviations.append(
+                {
+                    "type": "step_missing",
+                    "gold_step": gs,
+                    "gold_time": _clip_time_range(gold_meta, list(range(gold_steps[gs], gold_steps[gs + 1]))),
+                    "trainee_time": {"start_sec": None, "end_sec": None},
+                    "confidence": 1.0,
+                    "reason": "no aligned trainee clips",
+                }
+            )
             continue
 
         sims = [p[2] for p in pairs]
         if max(sims) < effective_threshold:
             miss += 1
-            deviations.append({
-                "type": "step_missing",
-                "gold_step": gs,
-                "gold_time": _clip_time_range(gold_meta, list(range(gold_steps[gs], gold_steps[gs + 1]))),
-                "trainee_time": _clip_time_range(trainee_meta, [p[1] for p in pairs]),
-                "confidence": float(1.0 - max(sims)),
-                "reason": "aligned similarity below threshold",
-            })
+            deviations.append(
+                {
+                    "type": "step_missing",
+                    "gold_step": gs,
+                    "gold_time": _clip_time_range(gold_meta, list(range(gold_steps[gs], gold_steps[gs + 1]))),
+                    "trainee_time": _clip_time_range(trainee_meta, [p[1] for p in pairs]),
+                    "confidence": float(1.0 - max(sims)),
+                    "reason": "aligned similarity below threshold",
+                }
+            )
 
         step_target_positions.append((gs, float(median([p[1] for p in pairs]))))
 
@@ -516,14 +522,16 @@ def _detect_deviations(
         if cur + 1.0 < prev:
             swap += 1
             gs = step_target_positions[idx][0]
-            deviations.append({
-                "type": "order_swap",
-                "gold_step": gs,
-                "gold_time": _clip_time_range(gold_meta, list(range(gold_steps[gs], gold_steps[gs + 1]))),
-                "trainee_time": {"start_sec": None, "end_sec": None},
-                "confidence": float(min(1.0, (prev - cur) / max(prev, 1.0))),
-                "reason": "step order likely inverted",
-            })
+            deviations.append(
+                {
+                    "type": "order_swap",
+                    "gold_step": gs,
+                    "gold_time": _clip_time_range(gold_meta, list(range(gold_steps[gs], gold_steps[gs + 1]))),
+                    "trainee_time": {"start_sec": None, "end_sec": None},
+                    "confidence": float(min(1.0, (prev - cur) / max(prev, 1.0))),
+                    "reason": "step order likely inverted",
+                }
+            )
 
     # Detect execution deviations (contiguous low-similarity regions)
     low_pairs = [(gi, tj, sim) for gi, tj, sim in path if sim < effective_threshold]
@@ -554,14 +562,16 @@ def _emit_deviation_chunk(
     """Append an execution_deviation entry from a contiguous chunk of low-similarity pairs."""
     g_idxs = [x[0] for x in chunk]
     t_idxs = [x[1] for x in chunk]
-    deviations.append({
-        "type": "execution_deviation",
-        "gold_step": g_step_map[g_idxs[0]],
-        "gold_time": _clip_time_range(gold_meta, g_idxs),
-        "trainee_time": _clip_time_range(trainee_meta, t_idxs),
-        "confidence": float(1.0 - np.mean([x[2] for x in chunk])),
-        "reason": "low local similarity",
-    })
+    deviations.append(
+        {
+            "type": "execution_deviation",
+            "gold_step": g_step_map[g_idxs[0]],
+            "gold_time": _clip_time_range(gold_meta, g_idxs),
+            "trainee_time": _clip_time_range(trainee_meta, t_idxs),
+            "confidence": float(1.0 - np.mean([x[2] for x in chunk])),
+            "reason": "low local similarity",
+        }
+    )
 
 
 def _compute_sop_score(
@@ -618,10 +628,9 @@ def _apply_neural_scoring(
 
     try:
         from .nn.scoring_head import metrics_to_tensor
+
         metrics_tensor = metrics_to_tensor(metrics_dict, device=neural_device)
-        uncertainty = scoring_head.predict_with_uncertainty(
-            metrics_tensor, n_samples=neural_uncertainty_samples
-        )
+        uncertainty = scoring_head.predict_with_uncertainty(metrics_tensor, n_samples=neural_uncertainty_samples)
 
         calibrated_score = None
         if neural_calibration_enabled:
@@ -651,8 +660,10 @@ def _apply_neural_scoring(
         }
         logger.debug(
             "Neural score: %.1f ± %.1f (CI: [%.1f, %.1f])",
-            uncertainty["score"], uncertainty["uncertainty"],
-            uncertainty["ci_lower"], uncertainty["ci_upper"],
+            uncertainty["score"],
+            uncertainty["uncertainty"],
+            uncertainty["ci_lower"],
+            uncertainty["ci_upper"],
         )
     except Exception as e:
         logger.warning("Neural scoring failed: %s", e)
@@ -698,9 +709,15 @@ def evaluate_sop(
 
     # Phase 2: Alignment
     alignment = _resolve_alignment(
-        gold_embeddings, trainee_embeddings, gold_norm, trainee_norm, use_gpu_dtw,
-        neural_mode=neural_mode, neural_model_dir=neural_model_dir,
-        neural_soft_dtw_gamma=neural_soft_dtw_gamma, neural_cuda_dtw=neural_cuda_dtw,
+        gold_embeddings,
+        trainee_embeddings,
+        gold_norm,
+        trainee_norm,
+        use_gpu_dtw,
+        neural_mode=neural_mode,
+        neural_model_dir=neural_model_dir,
+        neural_soft_dtw_gamma=neural_soft_dtw_gamma,
+        neural_cuda_dtw=neural_cuda_dtw,
         neural_ot_alignment=neural_ot_alignment,
     )
 
@@ -713,7 +730,13 @@ def evaluate_sop(
     t_step_map = _clip_to_step(trainee_steps, int(trainee_embeddings.shape[0]))
 
     miss, swap, deviation, deviations = _detect_deviations(
-        path, gold_steps, trainee_steps, gold_meta, trainee_meta, g_step_map, effective_threshold,
+        path,
+        gold_steps,
+        trainee_steps,
+        gold_meta,
+        trainee_meta,
+        g_step_map,
+        effective_threshold,
     )
 
     # Phase 4: Temporal metrics
@@ -728,14 +751,22 @@ def evaluate_sop(
     else:
         temporal_warp = 1.0
 
-    path_stretch = float(
-        max(0.0, len(path) - max(n_gold, n_trainee)) / max(1.0, float(max(n_gold, n_trainee)))
-    )
+    path_stretch = float(max(0.0, len(path) - max(n_gold, n_trainee)) / max(1.0, float(max(n_gold, n_trainee))))
 
     # Phase 5: Score computation
     score = _compute_sop_score(
-        miss, swap, deviation, over_time, temporal_warp, path_stretch, structure,
-        w_miss, w_swap, w_dev, w_time, w_warp,
+        miss,
+        swap,
+        deviation,
+        over_time,
+        temporal_warp,
+        path_stretch,
+        structure,
+        w_miss,
+        w_swap,
+        w_dev,
+        w_time,
+        w_warp,
     )
 
     metrics_dict = {
@@ -762,8 +793,7 @@ def evaluate_sop(
         "step_boundaries": {"gold": gold_steps, "trainee": trainee_steps},
         "deviations": deviations,
         "alignment_preview": [
-            {"gold_clip": gi, "trainee_clip": tj, "similarity": round(float(sim), 4)}
-            for gi, tj, sim in path[:300]
+            {"gold_clip": gi, "trainee_clip": tj, "similarity": round(float(sim), 4)} for gi, tj, sim in path[:300]
         ],
         "clip_count": {"gold": n_gold, "trainee": n_trainee},
         "step_map_preview": {"gold": g_step_map[:100], "trainee": t_step_map[:100]},
@@ -773,8 +803,12 @@ def evaluate_sop(
     # Phase 6: Neural scoring with uncertainty
     if neural_mode and neural_model_dir is not None:
         _apply_neural_scoring(
-            metrics_dict, result, neural_model_dir, neural_device,
-            neural_uncertainty_samples, neural_calibration_enabled,
+            metrics_dict,
+            result,
+            neural_model_dir,
+            neural_device,
+            neural_uncertainty_samples,
+            neural_calibration_enabled,
         )
 
     return result

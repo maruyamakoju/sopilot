@@ -111,14 +111,16 @@ class TemporalAttentionVisualizer:
                     best_trainee_step = ts
                     break
 
-            summaries.append({
-                "gold_step": k,
-                "gold_frames": (g_start, g_end),
-                "alignment_mass": round(total_mass, 4),
-                "mean_strength": round(mean_strength, 4),
-                "best_trainee_step": best_trainee_step,
-                "best_trainee_frame": best_trainee_frame,
-            })
+            summaries.append(
+                {
+                    "gold_step": k,
+                    "gold_frames": (g_start, g_end),
+                    "alignment_mass": round(total_mass, 4),
+                    "mean_strength": round(mean_strength, 4),
+                    "best_trainee_step": best_trainee_step,
+                    "best_trainee_frame": best_trainee_frame,
+                }
+            )
 
         return summaries
 
@@ -141,9 +143,7 @@ class IntegratedGradientsExplainer:
         self.model = model
         self.n_steps = n_steps
 
-    def attribute(
-        self, x: torch.Tensor, baseline: torch.Tensor | None = None
-    ) -> torch.Tensor:
+    def attribute(self, x: torch.Tensor, baseline: torch.Tensor | None = None) -> torch.Tensor:
         """Compute integrated gradients attributions.
 
         Approximated with Riemann sum over n_steps.
@@ -209,9 +209,7 @@ class WachterCounterfactualExplainer:
         self.model.eval()
         x_prime = x.clone().detach().requires_grad_(True)
         optimizer = torch.optim.Adam([x_prime], lr=lr)
-        target_tensor = torch.tensor(
-            [[target_score]], dtype=x.dtype, device=x.device
-        )
+        target_tensor = torch.tensor([[target_score]], dtype=x.dtype, device=x.device)
 
         for _ in range(n_steps):
             optimizer.zero_grad()
@@ -226,7 +224,7 @@ class WachterCounterfactualExplainer:
             achieved = float(self.model(x_prime).item())
 
         perturbation = (x_prime - x).detach()
-        l2_dist = float(torch.sqrt(torch.sum(perturbation ** 2)).item())
+        l2_dist = float(torch.sqrt(torch.sum(perturbation**2)).item())
 
         return {
             "original_input": x.detach().cpu().numpy(),
@@ -248,9 +246,7 @@ class CounterfactualExplainer:
     def __init__(self, scoring_head: torch.nn.Module) -> None:
         self.scoring_head = scoring_head
 
-    def compute_sensitivity(
-        self, metrics_tensor: torch.Tensor
-    ) -> dict[str, float]:
+    def compute_sensitivity(self, metrics_tensor: torch.Tensor) -> dict[str, float]:
         """Compute per-metric sensitivity (partial derivative of score).
 
         Args:
@@ -336,12 +332,14 @@ class CounterfactualExplainer:
             # Negative gradient means reducing this metric increases score
             potential_gain = abs(grad)
             direction = "decrease" if grad < 0 else "increase"
-            improvements.append({
-                "metric": name,
-                "sensitivity": round(grad, 4),
-                "direction_to_improve": direction,
-                "potential_gain_per_unit": round(potential_gain, 4),
-            })
+            improvements.append(
+                {
+                    "metric": name,
+                    "sensitivity": round(grad, 4),
+                    "direction_to_improve": direction,
+                    "potential_gain_per_unit": round(potential_gain, 4),
+                }
+            )
 
         improvements.sort(key=lambda x: x["potential_gain_per_unit"], reverse=True)
         return improvements[:n_top]

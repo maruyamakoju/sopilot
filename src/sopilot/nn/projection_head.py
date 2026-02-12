@@ -13,10 +13,8 @@ Architecture:
 from __future__ import annotations
 
 import logging
-import math
 from pathlib import Path
 
-import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -132,9 +130,7 @@ class NTXentLoss(nn.Module):
         # For stability, use log-sum-exp over positives then subtract log(count)
         neg_inf = torch.full_like(sim, -1e9)
         pos_sim = torch.where(positive_mask.bool(), sim, neg_inf)
-        log_numer = torch.logsumexp(pos_sim, dim=1) - torch.log(
-            positives_per_row.clamp(min=1)
-        )
+        log_numer = torch.logsumexp(pos_sim, dim=1) - torch.log(positives_per_row.clamp(min=1))
 
         # Loss: -log(positive / all) = -(log_numer - log_denom)
         loss = -(log_numer - log_denom)
@@ -157,9 +153,7 @@ class StepPairMiner:
     """
 
     @staticmethod
-    def assign_step_labels(
-        n_clips: int, boundaries: list[int]
-    ) -> torch.Tensor:
+    def assign_step_labels(n_clips: int, boundaries: list[int]) -> torch.Tensor:
         """Return (n_clips,) integer tensor of step assignments."""
         labels = torch.zeros(n_clips, dtype=torch.long)
         for k in range(len(boundaries) - 1):

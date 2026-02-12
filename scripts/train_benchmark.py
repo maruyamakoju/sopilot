@@ -35,10 +35,8 @@ if str(_SRC_DIR) not in sys.path:
 from sopilot.nn.trainer import (  # noqa: E402
     SOPilotTrainer,
     TrainingConfig,
-    AlignmentFeatureBridge,
 )
 from sopilot.step_engine import evaluate_sop  # noqa: E402
-from sopilot.nn.scoring_head import ScoringHead, METRIC_KEYS  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Logging setup
@@ -62,11 +60,10 @@ _JOINT_MAX_CLIPS = 30
 # 1.  Synthetic data generation
 # ===================================================================
 
+
 def _random_boundaries(n_clips: int, n_steps: int) -> list[int]:
     """Generate sorted random step boundaries [0, b1, ..., n_clips]."""
-    inner = sorted(
-        np.random.choice(range(2, n_clips - 1), size=n_steps - 1, replace=False).tolist()
-    )
+    inner = sorted(np.random.choice(range(2, n_clips - 1), size=n_steps - 1, replace=False).tolist())
     return [0] + inner + [n_clips]
 
 
@@ -102,7 +99,9 @@ def generate_synthetic_data(
     rng = np.random.default_rng(seed)
     logger.info(
         "Generating synthetic data: %d gold, %d trainee, dim=%d",
-        n_gold, n_trainee, dim,
+        n_gold,
+        n_trainee,
+        dim,
     )
 
     gold_embeddings: list[np.ndarray] = []
@@ -128,10 +127,7 @@ def generate_synthetic_data(
 
         gold_embeddings.append(embs)
         gold_boundaries.append(bounds)
-        gold_meta_all.append([
-            {"start_sec": float(c * 2.0), "end_sec": float((c + 1) * 2.0)}
-            for c in range(n_clips)
-        ])
+        gold_meta_all.append([{"start_sec": float(c * 2.0), "end_sec": float((c + 1) * 2.0)} for c in range(n_clips)])
 
     trainee_embeddings: list[np.ndarray] = []
     trainee_boundaries: list[list[int]] = []
@@ -156,10 +152,9 @@ def generate_synthetic_data(
         n_steps_t = min(n_steps_t, n_clips_t - 2)
         trainee_boundaries.append(_random_boundaries(n_clips_t, n_steps_t))
 
-        trainee_meta_all.append([
-            {"start_sec": float(c * 2.0), "end_sec": float((c + 1) * 2.0)}
-            for c in range(n_clips_t)
-        ])
+        trainee_meta_all.append(
+            [{"start_sec": float(c * 2.0), "end_sec": float((c + 1) * 2.0)} for c in range(n_clips_t)]
+        )
 
         # Target score via mean cosine similarity
         min_len = min(gold_emb.shape[0], warped.shape[0])
@@ -176,8 +171,10 @@ def generate_synthetic_data(
     )
     logger.info(
         "Target scores: mean=%.1f, std=%.1f, min=%.1f, max=%.1f",
-        float(np.mean(target_scores)), float(np.std(target_scores)),
-        float(np.min(target_scores)), float(np.max(target_scores)),
+        float(np.mean(target_scores)),
+        float(np.std(target_scores)),
+        float(np.min(target_scores)),
+        float(np.max(target_scores)),
     )
 
     return {
@@ -194,6 +191,7 @@ def generate_synthetic_data(
 # ===================================================================
 # 2.  Generate synthetic 15-metric feature rows for ScoringHead
 # ===================================================================
+
 
 def generate_scoring_data(
     gold_embeddings: list[np.ndarray],
@@ -218,21 +216,21 @@ def generate_scoring_data(
         mean_sim = float(np.mean(cos))
         std_sim = float(np.std(cos))
 
-        metrics[i, 0] = max(0.0, (1.0 - mean_sim) * 5.0)       # miss
-        metrics[i, 1] = max(0.0, std_sim * 3.0)                 # swap
-        metrics[i, 2] = max(0.0, 1.0 - mean_sim)                # deviation
+        metrics[i, 0] = max(0.0, (1.0 - mean_sim) * 5.0)  # miss
+        metrics[i, 1] = max(0.0, std_sim * 3.0)  # swap
+        metrics[i, 2] = max(0.0, 1.0 - mean_sim)  # deviation
         metrics[i, 3] = abs(g.shape[0] - t.shape[0]) / max(g.shape[0], 1)  # over_time
-        metrics[i, 4] = std_sim * 0.5                            # temporal_warp
+        metrics[i, 4] = std_sim * 0.5  # temporal_warp
         metrics[i, 5] = abs(g.shape[0] - t.shape[0]) / max(g.shape[0], t.shape[0], 1)
-        metrics[i, 6] = max(0.0, 1.0 - mean_sim) * 0.3          # duplicate_ratio
-        metrics[i, 7] = std_sim * 0.2                            # order_violation_ratio
-        metrics[i, 8] = std_sim * 0.3                            # temporal_drift
-        metrics[i, 9] = max(0.0, 1.0 - mean_sim)                # confidence_loss
+        metrics[i, 6] = max(0.0, 1.0 - mean_sim) * 0.3  # duplicate_ratio
+        metrics[i, 7] = std_sim * 0.2  # order_violation_ratio
+        metrics[i, 8] = std_sim * 0.3  # temporal_drift
+        metrics[i, 9] = max(0.0, 1.0 - mean_sim)  # confidence_loss
         metrics[i, 10] = float(np.max(cos) - np.min(cos)) if min_len > 0 else 0.0
         metrics[i, 11] = max(0.3, float(np.median(cos) - 0.01))
         metrics[i, 12] = max(0.3, float(np.median(cos) - 0.01))
-        metrics[i, 13] = float(np.mean(cos < 0.3))              # hard_miss_ratio
-        metrics[i, 14] = max(0.0, 1.0 - mean_sim) * 0.5         # mean_alignment_cost
+        metrics[i, 13] = float(np.mean(cos < 0.3))  # hard_miss_ratio
+        metrics[i, 14] = max(0.0, 1.0 - mean_sim) * 0.5  # mean_alignment_cost
 
     return metrics, target_scores
 
@@ -248,6 +246,7 @@ def _subsample_uniform(arr: np.ndarray, max_len: int) -> np.ndarray:
 # ===================================================================
 # 3.  Main benchmark runner
 # ===================================================================
+
 
 def _detect_device(requested: str) -> str:
     """Resolve device string, falling back to CPU if CUDA unavailable."""
@@ -303,8 +302,14 @@ def run_benchmark(args: argparse.Namespace) -> None:
     logger.info("Device:            %s", device)
     logger.info("Epochs multiplier: %.2f", em)
     logger.info("Output directory:  %s", output_dir)
-    logger.info("Phase epochs:      proj=%d  seg=%d  asformer=%d  score=%d  joint=%d",
-                proj_epochs, seg_epochs, asformer_epochs, score_epochs, joint_epochs)
+    logger.info(
+        "Phase epochs:      proj=%d  seg=%d  asformer=%d  score=%d  joint=%d",
+        proj_epochs,
+        seg_epochs,
+        asformer_epochs,
+        score_epochs,
+        joint_epochs,
+    )
     logger.info("-" * 70)
 
     # ------------------------------------------------------------------
@@ -363,13 +368,15 @@ def run_benchmark(args: argparse.Namespace) -> None:
     t_start = time.perf_counter()
     log_proj = trainer.train_projection_head(gold_embs, gold_bounds)
     t_proj = time.perf_counter() - t_start
-    phase_timings.append({
-        "phase": "1a: ProjectionHead",
-        "epochs": log_proj.epochs_completed,
-        "final_loss": log_proj.final_loss,
-        "num_params": log_proj.num_parameters,
-        "wall_time": t_proj,
-    })
+    phase_timings.append(
+        {
+            "phase": "1a: ProjectionHead",
+            "epochs": log_proj.epochs_completed,
+            "final_loss": log_proj.final_loss,
+            "num_params": log_proj.num_parameters,
+            "wall_time": t_proj,
+        }
+    )
     logger.info("Phase 1a finished in %.2fs", t_proj)
 
     # -------------------- Phase 1b: StepSegmenter --------------------
@@ -380,13 +387,15 @@ def run_benchmark(args: argparse.Namespace) -> None:
     t_start = time.perf_counter()
     log_seg = trainer.train_step_segmenter(gold_embs, gold_bounds)
     t_seg = time.perf_counter() - t_start
-    phase_timings.append({
-        "phase": "1b: StepSegmenter",
-        "epochs": log_seg.epochs_completed,
-        "final_loss": log_seg.final_loss,
-        "num_params": log_seg.num_parameters,
-        "wall_time": t_seg,
-    })
+    phase_timings.append(
+        {
+            "phase": "1b: StepSegmenter",
+            "epochs": log_seg.epochs_completed,
+            "final_loss": log_seg.final_loss,
+            "num_params": log_seg.num_parameters,
+            "wall_time": t_seg,
+        }
+    )
     logger.info("Phase 1b finished in %.2fs", t_seg)
 
     # -------------------- Phase 1c: ASFormer --------------------
@@ -397,13 +406,15 @@ def run_benchmark(args: argparse.Namespace) -> None:
     t_start = time.perf_counter()
     log_asf = trainer.train_asformer(gold_embs, gold_bounds)
     t_asf = time.perf_counter() - t_start
-    phase_timings.append({
-        "phase": "1c: ASFormer",
-        "epochs": log_asf.epochs_completed,
-        "final_loss": log_asf.final_loss,
-        "num_params": log_asf.num_parameters,
-        "wall_time": t_asf,
-    })
+    phase_timings.append(
+        {
+            "phase": "1c: ASFormer",
+            "epochs": log_asf.epochs_completed,
+            "final_loss": log_asf.final_loss,
+            "num_params": log_asf.num_parameters,
+            "wall_time": t_asf,
+        }
+    )
     logger.info("Phase 1c finished in %.2fs", t_asf)
 
     # -------------------- Phase 2: ScoringHead --------------------
@@ -412,18 +423,22 @@ def run_benchmark(args: argparse.Namespace) -> None:
     logger.info("PHASE 2: ScoringHead (warm-start)")
     logger.info("=" * 50)
     metrics_array, scores_array = generate_scoring_data(
-        gold_embs, trainee_embs, target_scores,
+        gold_embs,
+        trainee_embs,
+        target_scores,
     )
     t_start = time.perf_counter()
     log_score = trainer.train_scoring_head(metrics_array, scores_array)
     t_score = time.perf_counter() - t_start
-    phase_timings.append({
-        "phase": "2:  ScoringHead",
-        "epochs": log_score.epochs_completed,
-        "final_loss": log_score.final_loss,
-        "num_params": log_score.num_parameters,
-        "wall_time": t_score,
-    })
+    phase_timings.append(
+        {
+            "phase": "2:  ScoringHead",
+            "epochs": log_score.epochs_completed,
+            "final_loss": log_score.final_loss,
+            "num_params": log_score.num_parameters,
+            "wall_time": t_score,
+        }
+    )
     logger.info("Phase 2 finished in %.2fs", t_score)
 
     # -------------------- Phase 3: Joint fine-tune --------------------
@@ -435,17 +450,12 @@ def run_benchmark(args: argparse.Namespace) -> None:
     # Subsample sequences for joint finetuning: the dict-based Soft-DTW DP
     # has O(M*N) Python-level iterations, so we cap each sequence at
     # _JOINT_MAX_CLIPS to keep training time reasonable.
-    joint_gold = [
-        _subsample_uniform(gold_embs[i % len(gold_embs)], _JOINT_MAX_CLIPS)
-        for i in range(len(trainee_embs))
-    ]
-    joint_trainee = [
-        _subsample_uniform(trainee_embs[i], _JOINT_MAX_CLIPS)
-        for i in range(len(trainee_embs))
-    ]
+    joint_gold = [_subsample_uniform(gold_embs[i % len(gold_embs)], _JOINT_MAX_CLIPS) for i in range(len(trainee_embs))]
+    joint_trainee = [_subsample_uniform(trainee_embs[i], _JOINT_MAX_CLIPS) for i in range(len(trainee_embs))]
     logger.info(
         "Joint finetune: %d pairs, sequences capped at %d clips",
-        len(joint_gold), _JOINT_MAX_CLIPS,
+        len(joint_gold),
+        _JOINT_MAX_CLIPS,
     )
 
     # Phase 3 freezes the scoring head internally and sets BN to eval mode
@@ -455,13 +465,15 @@ def run_benchmark(args: argparse.Namespace) -> None:
     t_start = time.perf_counter()
     log_joint = trainer.joint_finetune(joint_gold, joint_trainee, target_scores)
     t_joint = time.perf_counter() - t_start
-    phase_timings.append({
-        "phase": "3:  Joint Finetune",
-        "epochs": log_joint.epochs_completed,
-        "final_loss": log_joint.final_loss,
-        "num_params": log_joint.num_parameters,
-        "wall_time": t_joint,
-    })
+    phase_timings.append(
+        {
+            "phase": "3:  Joint Finetune",
+            "epochs": log_joint.epochs_completed,
+            "final_loss": log_joint.final_loss,
+            "num_params": log_joint.num_parameters,
+            "wall_time": t_joint,
+        }
+    )
     logger.info("Phase 3 finished in %.2fs", t_joint)
 
     # -------------------- Phase 4: Calibration --------------------
@@ -480,13 +492,15 @@ def run_benchmark(args: argparse.Namespace) -> None:
     t_start = time.perf_counter()
     trainer.calibrate(cal_preds, scores_array)
     t_cal = time.perf_counter() - t_start
-    phase_timings.append({
-        "phase": "4:  Calibration",
-        "epochs": 0,
-        "final_loss": 0.0,
-        "num_params": 0,
-        "wall_time": t_cal,
-    })
+    phase_timings.append(
+        {
+            "phase": "4:  Calibration",
+            "epochs": 0,
+            "final_loss": 0.0,
+            "num_params": 0,
+            "wall_time": t_cal,
+        }
+    )
     logger.info("Phase 4 finished in %.2fs", t_cal)
 
     # ------------------------------------------------------------------
@@ -517,6 +531,7 @@ def run_benchmark(args: argparse.Namespace) -> None:
 
     # Clear step_engine neural caches so it picks up freshly saved models
     from sopilot.step_engine import invalidate_neural_caches
+
     invalidate_neural_caches()
 
     eval_scores: list[float] = []
@@ -571,7 +586,12 @@ def run_benchmark(args: argparse.Namespace) -> None:
             cal_str = f"{cal_score:.1f}" if cal_score is not None else "N/A"
             logger.info(
                 "  Pair %2d/%d: heuristic=%.1f  neural=%.1f +/- %.1f  calibrated=%s",
-                i + 1, n_eval, heuristic_score, neural_score, uncertainty, cal_str,
+                i + 1,
+                n_eval,
+                heuristic_score,
+                neural_score,
+                uncertainty,
+                cal_str,
             )
 
     t_eval = time.perf_counter() - t_eval_start
@@ -640,6 +660,7 @@ def run_benchmark(args: argparse.Namespace) -> None:
 # CLI entry point
 # ===================================================================
 
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="SOPilot neural pipeline benchmark & training script.",
@@ -668,8 +689,7 @@ Examples:
         "--epochs-multiplier",
         type=float,
         default=1.0,
-        help="Scale all epoch counts by this factor (default: 1.0). "
-             "Use 0.5 for quick test, 2.0 for longer training.",
+        help="Scale all epoch counts by this factor (default: 1.0). Use 0.5 for quick test, 2.0 for longer training.",
     )
     return parser.parse_args()
 

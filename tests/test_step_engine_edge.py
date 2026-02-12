@@ -5,7 +5,6 @@ import pytest
 
 from sopilot.step_engine import (
     MAX_DTW_CLIPS,
-    AlignmentResult,
     detect_step_boundaries,
     dtw_align,
     evaluate_sop,
@@ -13,10 +12,7 @@ from sopilot.step_engine import (
 
 
 def _meta(n: int) -> list[dict]:
-    return [
-        {"clip_idx": i, "start_sec": float(i * 4), "end_sec": float((i + 1) * 4)}
-        for i in range(n)
-    ]
+    return [{"clip_idx": i, "start_sec": float(i * 4), "end_sec": float((i + 1) * 4)} for i in range(n)]
 
 
 class TestDtwClipLimit:

@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 import torch
 
 from sopilot.nn.scoring_head import (
-    ScoringHead,
-    IsotonicCalibrator,
     METRIC_KEYS,
     N_METRICS,
+    IsotonicCalibrator,
+    ScoringHead,
+    load_scoring_head,
     metrics_to_tensor,
     save_scoring_head,
-    load_scoring_head,
 )
 
 
@@ -80,9 +79,7 @@ class TestScoringHead:
         with torch.no_grad():
             out_after = loaded(x)
 
-        np.testing.assert_allclose(
-            out_before.numpy(), out_after.numpy(), atol=1e-6
-        )
+        np.testing.assert_allclose(out_before.numpy(), out_after.numpy(), atol=1e-6)
 
 
 class TestIsotonicCalibrator:
@@ -93,7 +90,7 @@ class TestIsotonicCalibrator:
         cal.fit(predicted, actual)
 
         # Calibrated score should be close to actual for training points
-        for p, a in zip(predicted, actual):
+        for p, a in zip(predicted, actual, strict=False):
             c = cal.calibrate(float(p))
             assert abs(c - a) < 10.0
 

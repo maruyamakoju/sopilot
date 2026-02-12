@@ -3,16 +3,15 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 import torch
 
 from sopilot.nn.step_segmenter import (
-    NeuralStepSegmenter,
     DilatedResidualBlock,
+    NeuralStepSegmenter,
     SegmentationLoss,
     generate_pseudo_labels,
-    save_segmenter,
     load_segmenter,
+    save_segmenter,
 )
 
 
@@ -82,9 +81,7 @@ class TestNeuralStepSegmenter:
         with torch.no_grad():
             _, out_after = loaded(x)
 
-        np.testing.assert_allclose(
-            out_before.numpy(), out_after.numpy(), atol=1e-6
-        )
+        np.testing.assert_allclose(out_before.numpy(), out_after.numpy(), atol=1e-6)
 
 
 class TestSegmentationLoss:

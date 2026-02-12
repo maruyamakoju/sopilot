@@ -46,6 +46,7 @@ __all__ = [
 # Relative Positional Encoding
 # ---------------------------------------------------------------------------
 
+
 class RelativePositionalEncoding(nn.Module):
     """Learnable relative positional encoding (Shaw et al., 2018).
 
@@ -82,6 +83,7 @@ class RelativePositionalEncoding(nn.Module):
 # Multi-Head Temporal Self-Attention
 # ---------------------------------------------------------------------------
 
+
 class TemporalSelfAttention(nn.Module):
     """Multi-head self-attention with relative positional encoding.
 
@@ -112,9 +114,7 @@ class TemporalSelfAttention(nn.Module):
 
         self.rel_pos = RelativePositionalEncoding(self.d_head, max_relative_position)
 
-    def forward(
-        self, x: torch.Tensor, mask: torch.Tensor | None = None
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         """Self-attention on temporal features.
 
         Args:
@@ -158,6 +158,7 @@ class TemporalSelfAttention(nn.Module):
 # Cross-Attention (for refinement stages)
 # ---------------------------------------------------------------------------
 
+
 class TemporalCrossAttention(nn.Module):
     """Cross-attention between refinement stage and encoder features.
 
@@ -165,9 +166,7 @@ class TemporalCrossAttention(nn.Module):
     representations for informed prediction correction.
     """
 
-    def __init__(
-        self, d_model: int, n_heads: int = 4, dropout: float = 0.1
-    ) -> None:
+    def __init__(self, d_model: int, n_heads: int = 4, dropout: float = 0.1) -> None:
         super().__init__()
         assert d_model % n_heads == 0
         self.n_heads = n_heads
@@ -220,6 +219,7 @@ class TemporalCrossAttention(nn.Module):
 # Feed-Forward Network
 # ---------------------------------------------------------------------------
 
+
 class PositionwiseFFN(nn.Module):
     """Position-wise feed-forward network with GELU activation."""
 
@@ -237,6 +237,7 @@ class PositionwiseFFN(nn.Module):
 # ---------------------------------------------------------------------------
 # ASFormer Block
 # ---------------------------------------------------------------------------
+
 
 class ASFormerBlock(nn.Module):
     """Single ASFormer block: DilatedConv + Self-Attention + FFN.
@@ -260,8 +261,11 @@ class ASFormerBlock(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
         padding = dilation * (kernel_size - 1) // 2
         self.conv = nn.Conv1d(
-            d_model, d_model, kernel_size=kernel_size,
-            padding=padding, dilation=dilation,
+            d_model,
+            d_model,
+            kernel_size=kernel_size,
+            padding=padding,
+            dilation=dilation,
         )
         self.conv_dropout = nn.Dropout(dropout)
 
@@ -275,9 +279,7 @@ class ASFormerBlock(nn.Module):
         self.ffn = PositionwiseFFN(d_model, dropout=dropout)
         self.ffn_dropout = nn.Dropout(dropout)
 
-    def forward(
-        self, x: torch.Tensor, mask: torch.Tensor | None = None
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, mask: torch.Tensor | None = None) -> torch.Tensor:
         """(B, T, D) -> (B, T, D)"""
         # Dilated conv (operates on channel dim)
         residual = x
@@ -307,6 +309,7 @@ class ASFormerBlock(nn.Module):
 # ASFormer Decoder Block (with cross-attention)
 # ---------------------------------------------------------------------------
 
+
 class ASFormerDecoderBlock(nn.Module):
     """Decoder block: DilatedConv + Self-Attention + Cross-Attention + FFN."""
 
@@ -323,8 +326,11 @@ class ASFormerDecoderBlock(nn.Module):
         self.norm1 = nn.LayerNorm(d_model)
         padding = dilation * (kernel_size - 1) // 2
         self.conv = nn.Conv1d(
-            d_model, d_model, kernel_size=kernel_size,
-            padding=padding, dilation=dilation,
+            d_model,
+            d_model,
+            kernel_size=kernel_size,
+            padding=padding,
+            dilation=dilation,
         )
         self.conv_dropout = nn.Dropout(dropout)
 
@@ -375,6 +381,7 @@ class ASFormerDecoderBlock(nn.Module):
 # Full ASFormer Model
 # ---------------------------------------------------------------------------
 
+
 class ASFormer(nn.Module):
     """ASFormer: Transformer for Action Segmentation.
 
@@ -419,10 +426,9 @@ class ASFormer(nn.Module):
 
         # Encoder
         encoder_dilations = [2 ** (i % n_encoder_layers) for i in range(n_encoder_layers)]
-        self.encoder_blocks = nn.ModuleList([
-            ASFormerBlock(d_model, n_heads, dil, dropout=dropout)
-            for dil in encoder_dilations
-        ])
+        self.encoder_blocks = nn.ModuleList(
+            [ASFormerBlock(d_model, n_heads, dil, dropout=dropout) for dil in encoder_dilations]
+        )
         self.encoder_norm = nn.LayerNorm(d_model)
         self.encoder_out_proj = nn.Linear(d_model, n_classes)
 
@@ -435,10 +441,9 @@ class ASFormer(nn.Module):
         for _ in range(n_decoders):
             self.decoder_input_projs.append(nn.Linear(n_classes + d_in, d_model))
             decoder_dilations = [2 ** (i % n_decoder_layers) for i in range(n_decoder_layers)]
-            blocks = nn.ModuleList([
-                ASFormerDecoderBlock(d_model, n_heads, dil, dropout=dropout)
-                for dil in decoder_dilations
-            ])
+            blocks = nn.ModuleList(
+                [ASFormerDecoderBlock(d_model, n_heads, dil, dropout=dropout) for dil in decoder_dilations]
+            )
             self.decoder_blocks_list.append(blocks)
             self.decoder_norms.append(nn.LayerNorm(d_model))
             self.decoder_out_projs.append(nn.Linear(d_model, n_classes))
@@ -498,6 +503,7 @@ class ASFormer(nn.Module):
 # ASFormer Loss
 # ---------------------------------------------------------------------------
 
+
 class ASFormerLoss(nn.Module):
     """Combined loss for ASFormer training.
 
@@ -550,9 +556,7 @@ class ASFormerLoss(nn.Module):
             # Gather probabilities for correct class
             target_probs = probs.gather(1, targets.unsqueeze(1)).squeeze(1)
             focal_weight = (1 - target_probs) ** self.focal_gamma
-            focal_ce = (focal_weight * F.cross_entropy(
-                logits, targets, weight=weight, reduction='none'
-            )).mean()
+            focal_ce = (focal_weight * F.cross_entropy(logits, targets, weight=weight, reduction="none")).mean()
 
             # Temporal smoothing
             smooth = torch.mean(torch.abs(probs[:, :, 1:] - probs[:, :, :-1]))
@@ -566,6 +570,7 @@ class ASFormerLoss(nn.Module):
 # ---------------------------------------------------------------------------
 # Prediction utility
 # ---------------------------------------------------------------------------
+
 
 def predict_boundaries_asformer(
     model: ASFormer,
@@ -623,20 +628,24 @@ def predict_boundaries_asformer(
 # Save / Load
 # ---------------------------------------------------------------------------
 
+
 def save_asformer(model: ASFormer, path: Path) -> None:
     """Save ASFormer model checkpoint."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    torch.save({
-        "d_in": model.d_in,
-        "d_model": model.d_model,
-        "n_classes": model.n_classes,
-        "n_heads": model.n_heads,
-        "n_encoder_layers": model.n_encoder_layers,
-        "n_decoder_layers": model.n_decoder_layers,
-        "n_decoders": model.n_decoders,
-        "dropout": model.dropout,
-        "state_dict": model.state_dict(),
-    }, path)
+    torch.save(
+        {
+            "d_in": model.d_in,
+            "d_model": model.d_model,
+            "n_classes": model.n_classes,
+            "n_heads": model.n_heads,
+            "n_encoder_layers": model.n_encoder_layers,
+            "n_decoder_layers": model.n_decoder_layers,
+            "n_decoders": model.n_decoders,
+            "dropout": model.dropout,
+            "state_dict": model.state_dict(),
+        },
+        path,
+    )
     logger.info("Saved ASFormer (%d params) to %s", model.num_parameters, path)
 
 

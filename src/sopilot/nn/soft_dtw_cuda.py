@@ -5,15 +5,15 @@ Uses vectorized PyTorch ops with anti-diagonal wavefront parallelism.
 """
 
 from __future__ import annotations
+
 import logging
-from typing import Optional, Tuple, Union
-import numpy as np
+
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from sopilot.nn.constants import INF as _INF, GAMMA_MIN as _GAMMA_MIN
-from sopilot.nn.functional import pairwise_euclidean_sq, pairwise_cosine_dist
+from sopilot.nn.constants import GAMMA_MIN as _GAMMA_MIN
+from sopilot.nn.constants import INF as _INF
+from sopilot.nn.functional import pairwise_cosine_dist, pairwise_euclidean_sq
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +39,8 @@ def _compute_pairwise_cost(x, y, metric="cosine"):
 
 def _apply_bandwidth_mask(cost, bandwidth):
     """Sakoe-Chiba band constraint."""
-    if bandwidth is None or bandwidth >= 1.0: return cost
+    if bandwidth is None or bandwidth >= 1.0:
+        return cost
     B, M, N = cost.shape
     bandwidth = max(0.0, bandwidth)
     ii = torch.arange(M, device=cost.device, dtype=cost.dtype).unsqueeze(1)
@@ -62,7 +63,8 @@ class SoftDTWFunction(torch.autograd.Function):
         R[:, 0, 0] = 0.0
         for d in range(M + N - 1):
             i0, i1 = max(0, d - N + 1), min(d, M - 1)
-            if i0 > i1: continue
+            if i0 > i1:
+                continue
             ii = torch.arange(i0, i1 + 1, device=dev)
             jj = d - ii
             ip, jp = ii + 1, jj + 1
@@ -82,12 +84,13 @@ class SoftDTWFunction(torch.autograd.Function):
         E = torch.zeros((B, M + 2, N + 2), device=dev, dtype=dt)
         E[:, M, N] = 1.0
         Re = torch.full((B, M + 2, N + 2), -_INF, device=dev, dtype=dt)
-        Re[:, :M + 1, :N + 1] = R
+        Re[:, : M + 1, : N + 1] = R
         Ce = torch.zeros((B, M + 2, N + 2), device=dev, dtype=dt)
-        Ce[:, 1:M + 1, 1:N + 1] = cost
+        Ce[:, 1 : M + 1, 1 : N + 1] = cost
         for d in range(M + N - 3, -1, -1):
             i0, i1 = max(0, d - N + 1), min(d, M - 1)
-            if i0 > i1: continue
+            if i0 > i1:
+                continue
             ii = torch.arange(i0, i1 + 1, device=dev)
             jj = d - ii
             ip, jp = ii + 1, jj + 1
@@ -96,7 +99,7 @@ class SoftDTWFunction(torch.autograd.Function):
             wn = torch.exp(((Re[:, ip + 1, jp] - Ce[:, ip + 1, jp] - rc) / gv).clamp(-50, 50))
             wr = torch.exp(((Re[:, ip, jp + 1] - Ce[:, ip, jp + 1] - rc) / gv).clamp(-50, 50))
             E[:, ip, jp] = E[:, ip + 1, jp + 1] * wd + E[:, ip + 1, jp] * wn + E[:, ip, jp + 1] * wr
-        return E[:, 1:M + 1, 1:N + 1] * grad_output.view(B, 1, 1), None
+        return E[:, 1 : M + 1, 1 : N + 1] * grad_output.view(B, 1, 1), None
 
 
 class SoftDTWCuda(nn.Module):
@@ -118,8 +121,10 @@ class SoftDTWCuda(nn.Module):
 
     def forward(self, x, y):
         was_unbatched = x.dim() == 2
-        if x.dim() == 2: x = x.unsqueeze(0)
-        if y.dim() == 2: y = y.unsqueeze(0)
+        if x.dim() == 2:
+            x = x.unsqueeze(0)
+        if y.dim() == 2:
+            y = y.unsqueeze(0)
         cost_xy = _compute_pairwise_cost(x, y, metric=self.metric)
         dist = self._sdtw_cost(cost_xy)
         if self.normalize:
@@ -128,7 +133,8 @@ class SoftDTWCuda(nn.Module):
             dist_xx = self._sdtw_cost(cost_xx)
             dist_yy = self._sdtw_cost(cost_yy)
             dist = dist - 0.5 * (dist_xx + dist_yy)
-        if was_unbatched: return dist.squeeze(0)
+        if was_unbatched:
+            return dist.squeeze(0)
         return dist
 
 
@@ -153,7 +159,8 @@ class SoftDTWAlignmentCuda(nn.Module):
         R[:, 0, 0] = 0.0
         for d in range(M + N - 1):
             i0, i1 = max(0, d - N + 1), min(d, M - 1)
-            if i0 > i1: continue
+            if i0 > i1:
+                continue
             ii = torch.arange(i0, i1 + 1, device=dev)
             jj = d - ii
             ip, jp = ii + 1, jj + 1
@@ -163,30 +170,35 @@ class SoftDTWAlignmentCuda(nn.Module):
         E = torch.zeros((B, M + 2, N + 2), device=dev, dtype=dt)
         E[:, M, N] = 1.0
         Re = torch.full((B, M + 2, N + 2), -_INF, device=dev, dtype=dt)
-        Re[:, :M + 1, :N + 1] = R
+        Re[:, : M + 1, : N + 1] = R
         Ce = torch.zeros((B, M + 2, N + 2), device=dev, dtype=dt)
-        Ce[:, 1:M + 1, 1:N + 1] = cost
+        Ce[:, 1 : M + 1, 1 : N + 1] = cost
         for d in range(M + N - 3, -1, -1):
             i0, i1 = max(0, d - N + 1), min(d, M - 1)
-            if i0 > i1: continue
+            if i0 > i1:
+                continue
             ii = torch.arange(i0, i1 + 1, device=dev)
             jj = d - ii
             ip, jp = ii + 1, jj + 1
             rc = Re[:, ip, jp]
-            wd = torch.exp(((Re[:, ip+1, jp+1] - Ce[:, ip+1, jp+1] - rc) / gv).clamp(-50, 50))
-            wn = torch.exp(((Re[:, ip+1, jp] - Ce[:, ip+1, jp] - rc) / gv).clamp(-50, 50))
-            wr = torch.exp(((Re[:, ip, jp+1] - Ce[:, ip, jp+1] - rc) / gv).clamp(-50, 50))
-            E[:, ip, jp] = E[:, ip+1, jp+1]*wd + E[:, ip+1, jp]*wn + E[:, ip, jp+1]*wr
-        return E[:, 1:M+1, 1:N+1], distance
+            wd = torch.exp(((Re[:, ip + 1, jp + 1] - Ce[:, ip + 1, jp + 1] - rc) / gv).clamp(-50, 50))
+            wn = torch.exp(((Re[:, ip + 1, jp] - Ce[:, ip + 1, jp] - rc) / gv).clamp(-50, 50))
+            wr = torch.exp(((Re[:, ip, jp + 1] - Ce[:, ip, jp + 1] - rc) / gv).clamp(-50, 50))
+            E[:, ip, jp] = E[:, ip + 1, jp + 1] * wd + E[:, ip + 1, jp] * wn + E[:, ip, jp + 1] * wr
+        return E[:, 1 : M + 1, 1 : N + 1], distance
 
     def forward(self, x, y):
         was_unbatched = x.dim() == 2
-        if x.dim() == 2: x = x.unsqueeze(0)
-        if y.dim() == 2: y = y.unsqueeze(0)
+        if x.dim() == 2:
+            x = x.unsqueeze(0)
+        if y.dim() == 2:
+            y = y.unsqueeze(0)
         cost = _compute_pairwise_cost(x, y, metric=self.metric)
         alignment, distance = self._compute_alignment(cost)
-        if was_unbatched: return alignment.squeeze(0), distance.squeeze(0)
+        if was_unbatched:
+            return alignment.squeeze(0), distance.squeeze(0)
         return alignment, distance
+
 
 def _downsample_sequence(x, factor):
     """Downsample a sequence by averaging consecutive frames."""
@@ -201,8 +213,7 @@ def _downsample_sequence(x, factor):
     return x[:, :trim].reshape(B, -1, factor, D).mean(dim=2)
 
 
-def multi_scale_sdtw(x, y, gamma=1.0, normalize=True, bandwidth=None,
-                      metric="cosine", scales=None, weights=None):
+def multi_scale_sdtw(x, y, gamma=1.0, normalize=True, bandwidth=None, metric="cosine", scales=None, weights=None):
     """Compute Soft-DTW at multiple temporal resolutions.
 
     Computes Soft-DTW at each scale (downsampling factor) and returns
@@ -229,19 +240,20 @@ def multi_scale_sdtw(x, y, gamma=1.0, normalize=True, bandwidth=None,
     assert len(scales) == len(weights), "scales and weights must have same length"
 
     was_unbatched = x.dim() == 2
-    if x.dim() == 2: x = x.unsqueeze(0)
-    if y.dim() == 2: y = y.unsqueeze(0)
+    if x.dim() == 2:
+        x = x.unsqueeze(0)
+    if y.dim() == 2:
+        y = y.unsqueeze(0)
 
     total = torch.zeros(x.shape[0], device=x.device, dtype=x.dtype)
-    sdtw = SoftDTWCuda(gamma=gamma, normalize=normalize,
-                        bandwidth=bandwidth, metric=metric)
+    sdtw = SoftDTWCuda(gamma=gamma, normalize=normalize, bandwidth=bandwidth, metric=metric)
     # Move gamma to match device
     sdtw = sdtw.to(x.device)
     # Detach gamma so it does not double-count in multi-scale
     sdtw.gamma.requires_grad_(False)
     sdtw.gamma.data = torch.tensor(float(gamma), device=x.device, dtype=x.dtype)
 
-    for scale, weight in zip(scales, weights):
+    for scale, weight in zip(scales, weights, strict=False):
         xs = _downsample_sequence(x, scale)
         ys = _downsample_sequence(y, scale)
         if xs.shape[1] < 2 or ys.shape[1] < 2:
@@ -255,8 +267,7 @@ def multi_scale_sdtw(x, y, gamma=1.0, normalize=True, bandwidth=None,
     return total
 
 
-def pairwise_soft_dtw(sequences, gamma=1.0, normalize=True, bandwidth=None,
-                       metric="cosine"):
+def pairwise_soft_dtw(sequences, gamma=1.0, normalize=True, bandwidth=None, metric="cosine"):
     """Compute pairwise Soft-DTW distance matrix for a list of sequences.
 
     Given K sequences, computes the (K, K) distance matrix where entry (i, j)
@@ -280,8 +291,7 @@ def pairwise_soft_dtw(sequences, gamma=1.0, normalize=True, bandwidth=None,
     dt = sequences[0].dtype
     dist_matrix = torch.zeros((K, K), device=dev, dtype=dt)
 
-    sdtw = SoftDTWCuda(gamma=gamma, normalize=normalize,
-                        bandwidth=bandwidth, metric=metric)
+    sdtw = SoftDTWCuda(gamma=gamma, normalize=normalize, bandwidth=bandwidth, metric=metric)
     sdtw = sdtw.to(dev)
     sdtw.gamma.requires_grad_(False)
     sdtw.gamma.data = torch.tensor(float(gamma), device=dev, dtype=dt)
@@ -293,4 +303,3 @@ def pairwise_soft_dtw(sequences, gamma=1.0, normalize=True, bandwidth=None,
             dist_matrix[j, i] = d.squeeze()
 
     return dist_matrix
-

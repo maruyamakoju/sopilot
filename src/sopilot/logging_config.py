@@ -15,6 +15,7 @@ Usage:
     logger = get_logger(__name__)
     logger.info("processing_video", video_id=123, task_id="task1")
 """
+
 from __future__ import annotations
 
 import logging
@@ -24,6 +25,7 @@ from typing import Any
 
 try:
     import structlog
+
     STRUCTLOG_AVAILABLE = True
 except ImportError:
     STRUCTLOG_AVAILABLE = False

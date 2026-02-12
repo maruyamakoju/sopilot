@@ -3,15 +3,15 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 import numpy as np
 import pytest
 
+from conftest import make_test_settings
 from sopilot.db import Database
 from sopilot.service import SopilotService
-from conftest import make_test_settings
 
 
 def _build_service(data_dir: Path, runtime_mode: str = "api", **overrides) -> SopilotService:
@@ -49,10 +49,7 @@ def _seed_video(svc: SopilotService, task_id: str, role: str, dim: int = 4, n_cl
 
     np.save(raw_path, embeddings)
     np.save(emb_path, embeddings)
-    meta = [
-        {"clip_idx": i, "start_sec": float(i * 4), "end_sec": float((i + 1) * 4)}
-        for i in range(n_clips)
-    ]
+    meta = [{"clip_idx": i, "start_sec": float(i * 4), "end_sec": float((i + 1) * 4)} for i in range(n_clips)]
     meta_path.write_text(json.dumps(meta), encoding="utf-8")
 
     svc.db.finalize_video(
@@ -103,9 +100,7 @@ class TestAdapterLoading:
                 np.savez(adapter_path, mean=mean, std=std)
 
                 pointer_path = models_dir / "current_adapter.json"
-                pointer_path.write_text(
-                    json.dumps({"adapter_path": str(adapter_path)}), encoding="utf-8"
-                )
+                pointer_path.write_text(json.dumps({"adapter_path": str(adapter_path)}), encoding="utf-8")
 
                 result = svc._load_current_adapter()
                 assert result is not None
@@ -129,9 +124,7 @@ class TestAdapterLoading:
                 np.savez(adapter_path, mean=mean, std=std)
 
                 pointer_path = models_dir / "current_adapter.json"
-                pointer_path.write_text(
-                    json.dumps({"adapter_path": str(adapter_path)}), encoding="utf-8"
-                )
+                pointer_path.write_text(json.dumps({"adapter_path": str(adapter_path)}), encoding="utf-8")
 
                 first = svc._load_current_adapter()
                 second = svc._load_current_adapter()
@@ -190,9 +183,7 @@ class TestApplyFeatureAdapter:
                 adapter_path = models_dir / "adapter.npz"
                 np.savez(adapter_path, mean=mean, std=std)
                 pointer_path = models_dir / "current_adapter.json"
-                pointer_path.write_text(
-                    json.dumps({"adapter_path": str(adapter_path)}), encoding="utf-8"
-                )
+                pointer_path.write_text(json.dumps({"adapter_path": str(adapter_path)}), encoding="utf-8")
 
                 inp = np.array([[3.0, 4.0]], dtype=np.float32)
                 out = svc._apply_feature_adapter(inp)
@@ -216,9 +207,7 @@ class TestApplyFeatureAdapter:
                 adapter_path = models_dir / "adapter.npz"
                 np.savez(adapter_path, mean=mean, std=std)
                 pointer_path = models_dir / "current_adapter.json"
-                pointer_path.write_text(
-                    json.dumps({"adapter_path": str(adapter_path)}), encoding="utf-8"
-                )
+                pointer_path.write_text(json.dumps({"adapter_path": str(adapter_path)}), encoding="utf-8")
 
                 # Input has 2 dims, adapter has 3 -> mismatch, should return input as-is
                 inp = np.array([[1.0, 2.0]], dtype=np.float32)
@@ -274,10 +263,7 @@ class TestSearch:
                 assert result["query_video_id"] == vid1
                 assert result["query_clip_idx"] == 0
                 # Should exclude self from results
-                assert all(
-                    not (item["video_id"] == vid1 and item["clip_idx"] == 0)
-                    for item in result["items"]
-                )
+                assert all(not (item["video_id"] == vid1 and item["clip_idx"] == 0) for item in result["items"])
             finally:
                 svc.shutdown()
 

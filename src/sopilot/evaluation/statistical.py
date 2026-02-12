@@ -9,9 +9,9 @@ Provides rigorous statistical tools for validating neural component contribution
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import logging
-from typing import Any, Callable
+from collections.abc import Callable
+from dataclasses import dataclass, field
 
 import numpy as np
 
@@ -187,6 +187,7 @@ def intraclass_correlation(
     # Get F critical values
     try:
         from scipy.stats import f as f_dist
+
         f_critical_lower = f_dist.ppf(alpha / 2, df1, df2)
         f_critical_upper = f_dist.ppf(1 - alpha / 2, df1, df2)
     except ImportError:
@@ -229,9 +230,7 @@ class AblationResult:
 
     def __post_init__(self) -> None:
         if len(self.scores) > 0:
-            self.mean, self.ci_lower, self.ci_upper = bootstrap_confidence_interval(
-                self.scores
-            )
+            self.mean, self.ci_lower, self.ci_upper = bootstrap_confidence_interval(self.scores)
 
 
 @dataclass
@@ -269,9 +268,7 @@ class AblationStudy:
             result = AblationResult(name=name, scores=scores)
 
             if name != self.base_name:
-                diff, p_value = permutation_test(
-                    base_scores, scores, n_permutations=n_permutations
-                )
+                diff, p_value = permutation_test(base_scores, scores, n_permutations=n_permutations)
                 result.diff_from_base = diff
                 result.p_value = p_value
 

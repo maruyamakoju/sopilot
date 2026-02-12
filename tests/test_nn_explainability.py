@@ -7,10 +7,10 @@ import pytest
 import torch
 
 from sopilot.nn.explainability import (
-    TemporalAttentionVisualizer,
     CounterfactualExplainer,
+    TemporalAttentionVisualizer,
 )
-from sopilot.nn.scoring_head import ScoringHead, N_METRICS, METRIC_KEYS
+from sopilot.nn.scoring_head import METRIC_KEYS, N_METRICS, ScoringHead
 
 
 class TestTemporalAttentionVisualizer:
@@ -41,9 +41,7 @@ class TestTemporalAttentionVisualizer:
         gold_boundaries = [0, 3, 7, 10]
         trainee_boundaries = [0, 4, 8, 12]
 
-        summaries = TemporalAttentionVisualizer.step_alignment_summary(
-            alignment, gold_boundaries, trainee_boundaries
-        )
+        summaries = TemporalAttentionVisualizer.step_alignment_summary(alignment, gold_boundaries, trainee_boundaries)
 
         assert len(summaries) == 3  # 3 gold steps
         for s in summaries:

@@ -6,11 +6,10 @@ import numpy as np
 import pytest
 
 from sopilot.evaluation.statistical import (
-    bootstrap_confidence_interval,
-    permutation_test,
-    intraclass_correlation,
     AblationStudy,
-    AblationResult,
+    bootstrap_confidence_interval,
+    intraclass_correlation,
+    permutation_test,
 )
 
 
@@ -18,9 +17,7 @@ class TestBootstrapCI:
     def test_basic_mean(self) -> None:
         rng = np.random.default_rng(42)
         scores = rng.normal(50, 5, size=100)
-        mean, ci_lower, ci_upper = bootstrap_confidence_interval(
-            scores, n_bootstrap=1000, rng=rng
-        )
+        mean, ci_lower, ci_upper = bootstrap_confidence_interval(scores, n_bootstrap=1000, rng=rng)
         assert 45 < mean < 55
         assert ci_lower < mean
         assert ci_upper > mean
@@ -40,9 +37,7 @@ class TestBootstrapCI:
     def test_custom_statistic(self) -> None:
         rng = np.random.default_rng(42)
         scores = rng.normal(0, 1, size=200)
-        med, lo, hi = bootstrap_confidence_interval(
-            scores, statistic=np.median, rng=rng
-        )
+        med, lo, hi = bootstrap_confidence_interval(scores, statistic=np.median, rng=rng)
         assert -1.0 < med < 1.0
 
     def test_ci_contains_true_mean(self) -> None:
@@ -50,9 +45,7 @@ class TestBootstrapCI:
         rng = np.random.default_rng(42)
         true_mean = 75.0
         scores = rng.normal(true_mean, 3, size=200)
-        _, ci_lower, ci_upper = bootstrap_confidence_interval(
-            scores, n_bootstrap=5000, rng=rng
-        )
+        _, ci_lower, ci_upper = bootstrap_confidence_interval(scores, n_bootstrap=5000, rng=rng)
         assert ci_lower < true_mean < ci_upper
 
 

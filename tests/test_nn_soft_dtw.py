@@ -3,14 +3,13 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 import torch
 
 from sopilot.nn.soft_dtw import (
     SoftDTW,
     SoftDTWAlignment,
-    soft_dtw_align_numpy,
     _softmin3,
+    soft_dtw_align_numpy,
 )
 
 

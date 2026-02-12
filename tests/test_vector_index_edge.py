@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from pathlib import Path
 import tempfile
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -126,9 +126,7 @@ class TestSearchExclusion:
                 exclude_video_id=1,
                 exclude_clip_idx=0,
             )
-            assert all(
-                not (r["video_id"] == 1 and r["clip_idx"] == 0) for r in results
-            )
+            assert all(not (r["video_id"] == 1 and r["clip_idx"] == 0) for r in results)
             assert len(results) == 2
 
     def test_search_empty_index_returns_empty(self) -> None:

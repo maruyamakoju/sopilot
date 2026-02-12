@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 import threading
+from pathlib import Path
 
 import numpy as np
 
@@ -100,6 +100,7 @@ class EmbeddingManager:
             return None
         try:
             import torch
+
             with torch.no_grad():
                 x = torch.from_numpy(embeddings)
                 device = next(model.parameters()).device
@@ -121,6 +122,7 @@ class EmbeddingManager:
                 return self._neural_adapter
             try:
                 from .nn.projection_head import load_projection_head
+
                 device = self._resolve_neural_device()
                 model = load_projection_head(model_path, device=device)
                 self._neural_adapter = model
@@ -136,6 +138,7 @@ class EmbeddingManager:
         if device == "auto":
             try:
                 import torch
+
                 return "cuda" if torch.cuda.is_available() else "cpu"
             except ImportError:
                 return "cpu"

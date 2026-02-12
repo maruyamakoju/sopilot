@@ -33,14 +33,11 @@ Implements:
 from __future__ import annotations
 
 import logging
-import math
-from typing import Optional
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
-from sopilot.nn.functional import pairwise_euclidean_sq, pairwise_cosine_dist
+from sopilot.nn.functional import pairwise_cosine_dist, pairwise_euclidean_sq
 
 logger = logging.getLogger(__name__)
 
@@ -63,8 +60,7 @@ def _log_safe(x: torch.Tensor) -> torch.Tensor:
     return torch.log(x.clamp(min=1e-30))
 
 
-def _uniform_marginal(n: int, batch: int, dtype: torch.dtype,
-                       device: torch.device) -> torch.Tensor:
+def _uniform_marginal(n: int, batch: int, dtype: torch.dtype, device: torch.device) -> torch.Tensor:
     """Return uniform distribution of shape (batch, n)."""
     return torch.full((batch, n), 1.0 / n, dtype=dtype, device=device)
 
@@ -141,7 +137,7 @@ class SinkhornDistance(nn.Module):
         tol: float = 1e-6,
         epsilon_scaling: bool = False,
         scaling_steps: int = 5,
-        unbalanced_tau: Optional[float] = None,
+        unbalanced_tau: float | None = None,
     ) -> None:
         super().__init__()
         self.epsilon = epsilon
@@ -184,25 +180,22 @@ class SinkhornDistance(nn.Module):
             if self.unbalanced_tau is not None:
                 tau = self.unbalanced_tau
                 rho = tau / (tau + epsilon)
-                u = rho * (log_a - torch.logsumexp(
-                    log_K + v.unsqueeze(1), dim=2))
-                v = rho * (log_b - torch.logsumexp(
-                    log_K + u.unsqueeze(2), dim=1))
+                u = rho * (log_a - torch.logsumexp(log_K + v.unsqueeze(1), dim=2))
+                v = rho * (log_b - torch.logsumexp(log_K + u.unsqueeze(2), dim=1))
             else:
-                u = log_a - torch.logsumexp(
-                    log_K + v.unsqueeze(1), dim=2)
-                v = log_b - torch.logsumexp(
-                    log_K + u.unsqueeze(2), dim=1)
+                u = log_a - torch.logsumexp(log_K + v.unsqueeze(1), dim=2)
+                v = log_b - torch.logsumexp(log_K + u.unsqueeze(2), dim=1)
 
             log_P = u.unsqueeze(2) + log_K + v.unsqueeze(1)
             row_sums = torch.logsumexp(log_P, dim=2)
-            err = (torch.exp(row_sums) - torch.exp(log_a)).abs().sum(
-                dim=1).max()
+            err = (torch.exp(row_sums) - torch.exp(log_a)).abs().sum(dim=1).max()
 
             if err.item() < self.tol:
                 logger.debug(
                     "Sinkhorn converged at iteration %d (err=%.2e, eps=%.4f)",
-                    iteration, err.item(), epsilon,
+                    iteration,
+                    err.item(),
+                    epsilon,
                 )
                 break
 
@@ -212,8 +205,8 @@ class SinkhornDistance(nn.Module):
     def forward(
         self,
         C: torch.Tensor,
-        a: Optional[torch.Tensor] = None,
-        b: Optional[torch.Tensor] = None,
+        a: torch.Tensor | None = None,
+        b: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute the Sinkhorn distance and optimal transport plan.
 
@@ -249,23 +242,16 @@ class SinkhornDistance(nn.Module):
 
         if self.epsilon_scaling:
             eps_values = [
-                self.epsilon * (
-                    10.0 ** ((self.scaling_steps - 1 - i)
-                             / max(1, self.scaling_steps - 1))
-                )
+                self.epsilon * (10.0 ** ((self.scaling_steps - 1 - i) / max(1, self.scaling_steps - 1)))
                 for i in range(self.scaling_steps)
             ]
             eps_values[-1] = self.epsilon
             iters_per_stage = max(1, self.max_iter // self.scaling_steps)
 
             for eps in eps_values:
-                log_P, u, v = self._sinkhorn_log(
-                    C, log_a, log_b, eps, iters_per_stage
-                )
+                log_P, u, v = self._sinkhorn_log(C, log_a, log_b, eps, iters_per_stage)
         else:
-            log_P, u, v = self._sinkhorn_log(
-                C, log_a, log_b, self.epsilon, self.max_iter
-            )
+            log_P, u, v = self._sinkhorn_log(C, log_a, log_b, self.epsilon, self.max_iter)
 
         P = torch.exp(log_P)
         distance = (P * C).sum(dim=(1, 2))
@@ -315,14 +301,10 @@ class GromovWassersteinDistance(nn.Module):
         self.max_outer_iter = max_outer_iter
         self.max_inner_iter = max_inner_iter
         self.tol = tol
-        self.sinkhorn = SinkhornDistance(
-            epsilon=epsilon, max_iter=max_inner_iter, tol=tol
-        )
+        self.sinkhorn = SinkhornDistance(epsilon=epsilon, max_iter=max_inner_iter, tol=tol)
 
     @staticmethod
-    def _compute_gw_gradient(
-        D1: torch.Tensor, D2: torch.Tensor, P: torch.Tensor
-    ) -> torch.Tensor:
+    def _compute_gw_gradient(D1: torch.Tensor, D2: torch.Tensor, P: torch.Tensor) -> torch.Tensor:
         """Efficient O(M^2*N + M*N^2) GW gradient computation.
 
         G[i,j] = sum_k D1[i,k]^2 * a[k] + sum_l D2[j,l]^2 * b[l]
@@ -346,9 +328,7 @@ class GromovWassersteinDistance(nn.Module):
         return term1 + term2 + term3
 
     @staticmethod
-    def _compute_gw_gradient_naive(
-        D1: torch.Tensor, D2: torch.Tensor, P: torch.Tensor
-    ) -> torch.Tensor:
+    def _compute_gw_gradient_naive(D1: torch.Tensor, D2: torch.Tensor, P: torch.Tensor) -> torch.Tensor:
         """Naive O(M^2 * N^2) gradient computation for verification.
 
         Computes G[i,j] = sum_{k,l} (D1[i,k] - D2[j,l])^2 * P[k,l]
@@ -369,9 +349,7 @@ class GromovWassersteinDistance(nn.Module):
         return G
 
     @staticmethod
-    def _compute_gw_cost(
-        D1: torch.Tensor, D2: torch.Tensor, P: torch.Tensor
-    ) -> torch.Tensor:
+    def _compute_gw_cost(D1: torch.Tensor, D2: torch.Tensor, P: torch.Tensor) -> torch.Tensor:
         """Compute the full GW objective value.
 
         Efficient form:
@@ -383,12 +361,8 @@ class GromovWassersteinDistance(nn.Module):
         b = P.sum(dim=1)
         D1_sq = D1 * D1
         D2_sq = D2 * D2
-        term1 = torch.bmm(
-            a.unsqueeze(1), torch.bmm(D1_sq, a.unsqueeze(2))
-        ).squeeze(2).squeeze(1)
-        term2 = torch.bmm(
-            b.unsqueeze(1), torch.bmm(D2_sq, b.unsqueeze(2))
-        ).squeeze(2).squeeze(1)
+        term1 = torch.bmm(a.unsqueeze(1), torch.bmm(D1_sq, a.unsqueeze(2))).squeeze(2).squeeze(1)
+        term2 = torch.bmm(b.unsqueeze(1), torch.bmm(D2_sq, b.unsqueeze(2))).squeeze(2).squeeze(1)
         D1_P = torch.bmm(D1, P)
         P_D2T = torch.bmm(P, D2.transpose(1, 2))
         cross_term = (D1_P * P_D2T).sum(dim=(1, 2))
@@ -398,8 +372,8 @@ class GromovWassersteinDistance(nn.Module):
         self,
         D1: torch.Tensor,
         D2: torch.Tensor,
-        a: Optional[torch.Tensor] = None,
-        b: Optional[torch.Tensor] = None,
+        a: torch.Tensor | None = None,
+        b: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute GW distance and transport plan via Frank-Wolfe.
 
@@ -436,8 +410,7 @@ class GromovWassersteinDistance(nn.Module):
             P = (1.0 - alpha) * P + alpha * P_star
             change = (P - P_prev).abs().sum(dim=(1, 2)).max()
             if change.item() < self.tol:
-                logger.debug("GW converged at iteration %d (change=%.2e)",
-                             step, change.item())
+                logger.debug("GW converged at iteration %d (change=%.2e)", step, change.item())
                 break
         cost = self._compute_gw_cost(D1, D2, P)
         if squeeze_batch:
@@ -487,17 +460,15 @@ class FusedGromovWasserstein(nn.Module):
         self.max_outer_iter = max_outer_iter
         self.max_inner_iter = max_inner_iter
         self.tol = tol
-        self.sinkhorn = SinkhornDistance(
-            epsilon=epsilon, max_iter=max_inner_iter, tol=tol
-        )
+        self.sinkhorn = SinkhornDistance(epsilon=epsilon, max_iter=max_inner_iter, tol=tol)
 
     def forward(
         self,
         C: torch.Tensor,
         D1: torch.Tensor,
         D2: torch.Tensor,
-        a: Optional[torch.Tensor] = None,
-        b: Optional[torch.Tensor] = None,
+        a: torch.Tensor | None = None,
+        b: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute Fused GW distance.
 
@@ -535,8 +506,7 @@ class FusedGromovWasserstein(nn.Module):
             P = (1.0 - alpha_fw) * P + alpha_fw * P_star
             change = (P - P_prev).abs().sum(dim=(1, 2)).max()
             if change.item() < self.tol:
-                logger.debug("Fused GW converged at iteration %d (change=%.2e)",
-                             step, change.item())
+                logger.debug("Fused GW converged at iteration %d (change=%.2e)", step, change.item())
                 break
         feature_cost = (P * C).sum(dim=(1, 2))
         gw_cost = GromovWassersteinDistance._compute_gw_cost(D1, D2, P)
@@ -585,17 +555,19 @@ class HierarchicalOTAlignment(nn.Module):
         self.max_iter = max_iter
         self.constraint_temperature = constraint_temperature
         self.gw_solver = GromovWassersteinDistance(
-            epsilon=epsilon_coarse, max_outer_iter=max_iter,
-            max_inner_iter=max_iter, tol=1e-5,
+            epsilon=epsilon_coarse,
+            max_outer_iter=max_iter,
+            max_inner_iter=max_iter,
+            tol=1e-5,
         )
         self.sinkhorn_fine = SinkhornDistance(
-            epsilon=epsilon_fine, max_iter=max_iter, tol=1e-6,
+            epsilon=epsilon_fine,
+            max_iter=max_iter,
+            tol=1e-6,
         )
 
     @staticmethod
-    def _segment_embeddings(
-        x: torch.Tensor, n_segments: int
-    ) -> tuple[torch.Tensor, list[tuple[int, int]]]:
+    def _segment_embeddings(x: torch.Tensor, n_segments: int) -> tuple[torch.Tensor, list[tuple[int, int]]]:
         """Divide a sequence into segments and compute segment-level embeddings.
 
         Args:
@@ -641,24 +613,21 @@ class HierarchicalOTAlignment(nn.Module):
     ) -> torch.Tensor:
         """Build frame-level soft constraint mask from phase alignment."""
         B = P_coarse.shape[0]
-        mask = torch.zeros(B, T1, T2, dtype=P_coarse.dtype,
-                           device=P_coarse.device)
+        mask = torch.zeros(B, T1, T2, dtype=P_coarse.dtype, device=P_coarse.device)
         for k, (xs, xe) in enumerate(x_bounds):
             for l_idx, (ys, ye) in enumerate(y_bounds):
-                mask[:, xs:xe, ys:ye] = P_coarse[
-                    :, k, l_idx].view(B, 1, 1)
+                mask[:, xs:xe, ys:ye] = P_coarse[:, k, l_idx].view(B, 1, 1)
         mask_max = mask.amax(dim=(1, 2), keepdim=True).clamp(min=1e-8)
         mask = mask / mask_max
-        mask = torch.sigmoid(
-            (mask - 0.5) / self.constraint_temperature)
+        mask = torch.sigmoid((mask - 0.5) / self.constraint_temperature)
         return mask
 
     def _fine_alignment(
         self,
         C: torch.Tensor,
         constraint_mask: torch.Tensor,
-        a: Optional[torch.Tensor] = None,
-        b: Optional[torch.Tensor] = None,
+        a: torch.Tensor | None = None,
+        b: torch.Tensor | None = None,
     ) -> tuple[torch.Tensor, torch.Tensor]:
         """Level 2+3: Constrained Sinkhorn alignment."""
         large_cost = C.max().item() * 3.0
@@ -689,9 +658,7 @@ class HierarchicalOTAlignment(nn.Module):
         B, T1, D = x.shape
         T2 = y.shape[1]
         P_coarse, x_bounds, y_bounds = self._coarse_alignment(x, y)
-        constraint_mask = self._build_constraint_mask(
-            P_coarse, x_bounds, y_bounds, T1, T2
-        )
+        constraint_mask = self._build_constraint_mask(P_coarse, x_bounds, y_bounds, T1, T2)
         if cost_type == "cosine":
             C = _cosine_cost_matrix(x, y)
         elif cost_type == "euclidean":
@@ -735,7 +702,7 @@ class WassersteinBarycenter(nn.Module):
         max_iter: int = 100,
         max_outer_iter: int = 20,
         tol: float = 1e-6,
-        support_size: Optional[int] = None,
+        support_size: int | None = None,
     ) -> None:
         super().__init__()
         self.epsilon = epsilon
@@ -748,7 +715,7 @@ class WassersteinBarycenter(nn.Module):
         self,
         distributions: list[torch.Tensor],
         costs: list[torch.Tensor],
-        weights: Optional[torch.Tensor] = None,
+        weights: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Compute the Wasserstein barycenter of a set of distributions.
 
@@ -770,8 +737,7 @@ class WassersteinBarycenter(nn.Module):
         if K == 0:
             raise ValueError("Need at least one distribution")
         if len(costs) != K:
-            raise ValueError(
-                f"Got {K} distributions but {len(costs)} cost matrices")
+            raise ValueError(f"Got {K} distributions but {len(costs)} cost matrices")
         M = costs[0].shape[1]
         dtype = distributions[0].dtype
         device = distributions[0].device
@@ -792,11 +758,9 @@ class WassersteinBarycenter(nn.Module):
                 log_a_k = log_as[k]
                 v_k = v_list[k]
                 # Row update
-                u_k = log_a_k - torch.logsumexp(
-                    log_K_k + v_k.unsqueeze(0), dim=1)
+                u_k = log_a_k - torch.logsumexp(log_K_k + v_k.unsqueeze(0), dim=1)
                 # Column marginal in log domain
-                log_col_k = torch.logsumexp(
-                    u_k.unsqueeze(1) + log_K_k, dim=0) + v_k
+                log_col_k = torch.logsumexp(u_k.unsqueeze(1) + log_K_k, dim=0) + v_k
                 log_q_new = log_q_new + weights[k] * log_col_k
             # Normalize
             log_q_new = log_q_new - torch.logsumexp(log_q_new, dim=0)
@@ -806,15 +770,11 @@ class WassersteinBarycenter(nn.Module):
             for k in range(K):
                 log_K_k = log_Ks[k]
                 log_a_k = log_as[k]
-                u_k = log_a_k - torch.logsumexp(
-                    log_K_k + v_list[k].unsqueeze(0), dim=1)
-                v_list[k] = log_q - torch.logsumexp(
-                    log_K_k + u_k.unsqueeze(1), dim=0)
+                u_k = log_a_k - torch.logsumexp(log_K_k + v_list[k].unsqueeze(0), dim=1)
+                v_list[k] = log_q - torch.logsumexp(log_K_k + u_k.unsqueeze(1), dim=0)
             change = (q - q_prev).abs().sum()
             if change.item() < self.tol:
-                logger.debug(
-                    "Barycenter converged at iteration %d (change=%.2e)",
-                    outer_step, change.item())
+                logger.debug("Barycenter converged at iteration %d (change=%.2e)", outer_step, change.item())
                 break
         return q
 
@@ -822,8 +782,7 @@ class WassersteinBarycenter(nn.Module):
         self,
         distributions: list[torch.Tensor],
         costs: list[torch.Tensor],
-        weights: Optional[torch.Tensor] = None,
+        weights: torch.Tensor | None = None,
     ) -> torch.Tensor:
         """Compute Wasserstein barycenter (nn.Module interface)."""
         return self.compute_barycenter(distributions, costs, weights)
-

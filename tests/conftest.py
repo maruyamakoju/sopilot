@@ -1,4 +1,5 @@
 """Shared test fixtures and helpers for SOPilot tests."""
+
 from __future__ import annotations
 
 from pathlib import Path

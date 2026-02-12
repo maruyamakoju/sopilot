@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
 import json
 import logging
-from pathlib import Path
 import shlex
 import subprocess
 import threading
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
 
 import numpy as np
 
@@ -175,9 +175,7 @@ class TrainingService:
         )
         ended = datetime.now(tz=timezone.utc)
         if proc.returncode != 0:
-            raise RuntimeError(
-                f"adapt command failed rc={proc.returncode}: {proc.stderr[-800:]}"
-            )
+            raise RuntimeError(f"adapt command failed rc={proc.returncode}: {proc.stderr[-800:]}")
 
         refresh_stats = None
         after_pointer = None
@@ -314,6 +312,7 @@ class TrainingService:
         if device == "auto":
             try:
                 import torch
+
                 device = "cuda" if torch.cuda.is_available() else "cpu"
             except ImportError:
                 device = "cpu"
@@ -349,10 +348,14 @@ class TrainingService:
                     result = evaluate_sop(
                         gold_embeddings=embeddings_list[i],
                         trainee_embeddings=embeddings_list[j],
-                        gold_meta=[{"start_sec": 0.0, "end_sec": 1.0, "clip_idx": k}
-                                   for k in range(embeddings_list[i].shape[0])],
-                        trainee_meta=[{"start_sec": 0.0, "end_sec": 1.0, "clip_idx": k}
-                                      for k in range(embeddings_list[j].shape[0])],
+                        gold_meta=[
+                            {"start_sec": 0.0, "end_sec": 1.0, "clip_idx": k}
+                            for k in range(embeddings_list[i].shape[0])
+                        ],
+                        trainee_meta=[
+                            {"start_sec": 0.0, "end_sec": 1.0, "clip_idx": k}
+                            for k in range(embeddings_list[j].shape[0])
+                        ],
                         threshold_factor=self.settings.change_threshold_factor,
                         min_step_clips=self.settings.min_step_clips,
                         low_similarity_threshold=self.settings.low_similarity_threshold,
@@ -370,6 +373,7 @@ class TrainingService:
         score_log = None
         if len(metrics_list) >= 2:
             from .nn.scoring_head import METRIC_KEYS
+
             metrics_array = np.array(
                 [[m.get(k, 0.0) for k in METRIC_KEYS] for m in metrics_list],
                 dtype=np.float32,
@@ -379,6 +383,7 @@ class TrainingService:
 
             # Phase 4: Calibration (use same data as warm-start for now)
             import torch
+
             scoring_head = trainer.scoring_head
             if scoring_head is not None:
                 scoring_head.eval()

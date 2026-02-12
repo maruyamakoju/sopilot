@@ -1,8 +1,8 @@
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 from pathlib import Path
-import os
 
 
 def _env_int(key: str, default: int) -> int:
@@ -154,9 +154,7 @@ class Settings:
         if self.min_step_clips < 1:
             errors.append(f"min_step_clips must be >= 1, got {self.min_step_clips}")
         if not (0.0 <= self.low_similarity_threshold <= 1.0):
-            errors.append(
-                f"low_similarity_threshold must be in [0, 1], got {self.low_similarity_threshold}"
-            )
+            errors.append(f"low_similarity_threshold must be in [0, 1], got {self.low_similarity_threshold}")
         for name in ("w_miss", "w_swap", "w_dev", "w_time", "w_warp"):
             if getattr(self, name) < 0:
                 errors.append(f"{name} must be >= 0, got {getattr(self, name)}")
@@ -169,25 +167,17 @@ class Settings:
         if self.queue_backend not in {"inline", "rq"}:
             errors.append(f"queue_backend must be 'inline' or 'rq', got {self.queue_backend!r}")
         if self.privacy_mask_mode and self.privacy_mask_mode not in {"black", "blur", "pixelate"}:
-            errors.append(
-                f"privacy_mask_mode must be black|blur|pixelate, got {self.privacy_mask_mode!r}"
-            )
+            errors.append(f"privacy_mask_mode must be black|blur|pixelate, got {self.privacy_mask_mode!r}")
         if self.watch_role and self.watch_role not in {"gold", "trainee", "audit"}:
             errors.append(f"watch_role must be gold|trainee|audit, got {self.watch_role!r}")
         if self.neural_soft_dtw_gamma <= 0:
             errors.append(f"neural_soft_dtw_gamma must be > 0, got {self.neural_soft_dtw_gamma}")
         if self.neural_uncertainty_samples < 1:
-            errors.append(
-                f"neural_uncertainty_samples must be >= 1, got {self.neural_uncertainty_samples}"
-            )
+            errors.append(f"neural_uncertainty_samples must be >= 1, got {self.neural_uncertainty_samples}")
         if not (0.0 < self.neural_conformal_alpha < 1.0):
-            errors.append(
-                f"neural_conformal_alpha must be in (0, 1), got {self.neural_conformal_alpha}"
-            )
+            errors.append(f"neural_conformal_alpha must be in (0, 1), got {self.neural_conformal_alpha}")
         if not (0.0 <= self.neural_dilate_alpha <= 1.0):
-            errors.append(
-                f"neural_dilate_alpha must be in [0, 1], got {self.neural_dilate_alpha}"
-            )
+            errors.append(f"neural_dilate_alpha must be in [0, 1], got {self.neural_dilate_alpha}")
         if errors:
             raise ValueError("Settings validation failed:\n  - " + "\n  - ".join(errors))
 
@@ -274,9 +264,7 @@ def get_settings() -> Settings:
         dtw_use_gpu=_env_bool("SOPILOT_DTW_USE_GPU", True),
         # Neural mode
         neural_mode=_env_bool("SOPILOT_NEURAL_MODE", False),
-        neural_model_dir=Path(
-            _env_str("SOPILOT_NEURAL_MODEL_DIR", str(data_dir / "models" / "neural"))
-        ).resolve(),
+        neural_model_dir=Path(_env_str("SOPILOT_NEURAL_MODEL_DIR", str(data_dir / "models" / "neural"))).resolve(),
         neural_projection_enabled=_env_bool("SOPILOT_NEURAL_PROJECTION", True),
         neural_segmenter_enabled=_env_bool("SOPILOT_NEURAL_SEGMENTER", True),
         neural_scoring_enabled=_env_bool("SOPILOT_NEURAL_SCORING", True),

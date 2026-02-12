@@ -140,9 +140,7 @@ class SoftDTWAlignment(nn.Module):
         y_norm = F.normalize(y, dim=-1)
         return 1.0 - x_norm @ y_norm.T
 
-    def forward(
-        self, x: torch.Tensor, y: torch.Tensor
-    ) -> tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, x: torch.Tensor, y: torch.Tensor) -> tuple[torch.Tensor, torch.Tensor]:
         """Compute soft alignment matrix and distance.
 
         All computation stays in PyTorch tensors, maintaining gradient flow
@@ -243,13 +241,9 @@ def soft_dtw_align_numpy(
         - alignment_matrix: (M, N) soft alignment probabilities
     """
     if gold.ndim != 2 or trainee.ndim != 2:
-        raise ValueError(
-            f"Expected 2D arrays, got gold.shape={gold.shape}, trainee.shape={trainee.shape}"
-        )
+        raise ValueError(f"Expected 2D arrays, got gold.shape={gold.shape}, trainee.shape={trainee.shape}")
     if gold.shape[1] != trainee.shape[1]:
-        raise ValueError(
-            f"Embedding dim mismatch: gold has {gold.shape[1]}, trainee has {trainee.shape[1]}"
-        )
+        raise ValueError(f"Embedding dim mismatch: gold has {gold.shape[1]}, trainee has {trainee.shape[1]}")
     if gold.shape[0] == 0 or trainee.shape[0] == 0:
         raise ValueError("Input sequences must not be empty")
     device = "cpu"

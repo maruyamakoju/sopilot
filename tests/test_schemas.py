@@ -1,4 +1,5 @@
 """Tests for Pydantic schema models in sopilot.schemas."""
+
 from __future__ import annotations
 
 import pytest
@@ -17,7 +18,6 @@ from sopilot.schemas import (
     QueueMetricsResponse,
     QueueStatsItem,
     ReindexStats,
-    ScoreCreateResponse,
     ScoreMetrics,
     ScoreRequest,
     ScoreResult,
@@ -27,7 +27,6 @@ from sopilot.schemas import (
     StepBoundaries,
     StepMapPreview,
     TimeRange,
-    TrainingCreateResponse,
     TrainingResult,
     TrainingResultResponse,
     VideoDeleteResponse,
@@ -36,7 +35,6 @@ from sopilot.schemas import (
     VideoIngestResultResponse,
     VideoListResponse,
 )
-
 
 # ---------------------------------------------------------------------------
 # Health
@@ -312,23 +310,37 @@ class TestVideoModels:
 
     def test_ingest_result(self) -> None:
         m = VideoIngestResultResponse(
-            ingest_job_id="j1", status="completed", task_id="t1", role="trainee",
-            video_id=1, num_clips=10,
+            ingest_job_id="j1",
+            status="completed",
+            task_id="t1",
+            role="trainee",
+            video_id=1,
+            num_clips=10,
         )
         assert m.video_id == 1
 
     def test_video_info(self) -> None:
         m = VideoInfoResponse(
-            video_id=1, task_id="t1", role="gold", num_clips=5, embedding_model="heuristic-v1",
+            video_id=1,
+            task_id="t1",
+            role="gold",
+            num_clips=5,
+            embedding_model="heuristic-v1",
         )
         assert m.role == "gold"
 
     def test_video_list(self) -> None:
-        m = VideoListResponse(items=[
-            VideoInfoResponse(
-                video_id=1, task_id="t1", role="gold", num_clips=5, embedding_model="heuristic-v1",
-            )
-        ])
+        m = VideoListResponse(
+            items=[
+                VideoInfoResponse(
+                    video_id=1,
+                    task_id="t1",
+                    role="gold",
+                    num_clips=5,
+                    embedding_model="heuristic-v1",
+                )
+            ]
+        )
         assert len(m.items) == 1
 
     def test_delete(self) -> None:
@@ -354,8 +366,12 @@ class TestSearchModels:
             query_clip_idx=0,
             items=[
                 SearchResultItem(
-                    similarity=0.9, video_id=2, clip_idx=3,
-                    start_sec=0.0, end_sec=4.0, role="gold",
+                    similarity=0.9,
+                    video_id=2,
+                    clip_idx=3,
+                    start_sec=0.0,
+                    end_sec=4.0,
+                    role="gold",
                 )
             ],
         )
@@ -371,12 +387,17 @@ class TestAuditModels:
 
     def test_audit_export(self) -> None:
         sig = AuditSignature(
-            algorithm="hmac-sha256", key_id="k1",
-            payload_sha256="abc", signature_hex="def",
+            algorithm="hmac-sha256",
+            key_id="k1",
+            payload_sha256="abc",
+            signature_hex="def",
         )
         resp = AuditExportResponse(
-            export_id="e1", generated_at="2026-01-01", item_count=5,
-            file_path="/tmp/export.json", signature=sig,
+            export_id="e1",
+            generated_at="2026-01-01",
+            item_count=5,
+            file_path="/tmp/export.json",
+            signature=sig,
         )
         assert resp.signature.algorithm == "hmac-sha256"
 
@@ -387,10 +408,17 @@ class TestQueueModels:
             generated_at="2026-01-01",
             runtime_mode="api",
             queue=QueueBackendMetrics(
-                backend="inline", queues=[
+                backend="inline",
+                queues=[
                     QueueStatsItem(
-                        key="q1", name="ingest",
-                        queued=1, started=0, failed=0, finished=5, deferred=0, scheduled=0,
+                        key="q1",
+                        name="ingest",
+                        queued=1,
+                        started=0,
+                        failed=0,
+                        finished=5,
+                        deferred=0,
+                        scheduled=0,
                     )
                 ],
             ),

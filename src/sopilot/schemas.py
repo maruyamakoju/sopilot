@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
 
-
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
+
 
 class HealthResponse(BaseModel):
     status: str = Field(description="Service health: 'ok' or 'degraded'")
@@ -15,6 +15,7 @@ class HealthResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Video ingest
 # ---------------------------------------------------------------------------
+
 
 class VideoIngestCreateResponse(BaseModel):
     ingest_job_id: str
@@ -42,6 +43,7 @@ class VideoIngestResultResponse(BaseModel):
 # Score – request / create
 # ---------------------------------------------------------------------------
 
+
 class ScoreRequest(BaseModel):
     gold_video_id: int = Field(..., ge=1)
     trainee_video_id: int = Field(..., ge=1)
@@ -57,14 +59,17 @@ class ScoreCreateResponse(BaseModel):
 # Score – typed result sub-models
 # ---------------------------------------------------------------------------
 
+
 class TimeRange(BaseModel):
     """Start/end seconds for a clip range."""
+
     start_sec: float | None = None
     end_sec: float | None = None
 
 
 class ScoreMetrics(BaseModel):
     """Detailed scoring metrics produced by the step engine."""
+
     miss: int = Field(description="Number of missed gold steps")
     swap: int = Field(description="Number of step-order swaps")
     deviation: float = Field(description="Fraction of low-similarity aligned pairs")
@@ -114,18 +119,18 @@ class StepMapPreview(BaseModel):
 
 class NeuralScoreUncertainty(BaseModel):
     """MC Dropout uncertainty estimate for neural scoring."""
+
     score: float = Field(description="Mean score from MC samples")
     uncertainty: float = Field(description="Standard deviation across MC samples")
     ci_lower: float = Field(description="95% CI lower bound")
     ci_upper: float = Field(description="95% CI upper bound")
-    calibrated_score: float | None = Field(
-        default=None, description="Isotonic-calibrated score"
-    )
+    calibrated_score: float | None = Field(default=None, description="Isotonic-calibrated score")
     n_samples: int = Field(default=30, description="Number of MC Dropout samples")
 
 
 class ScoreResult(BaseModel):
     """Full evaluation output written to score_<job_id>.json."""
+
     model_config = ConfigDict(extra="allow")
 
     score: float = Field(ge=0.0, le=100.0, description="SOP compliance score 0-100")
@@ -151,6 +156,7 @@ class ScoreResult(BaseModel):
 # Score – result response
 # ---------------------------------------------------------------------------
 
+
 class ScoreResultResponse(BaseModel):
     score_job_id: str
     status: str
@@ -168,6 +174,7 @@ class ScoreResultResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Search
 # ---------------------------------------------------------------------------
+
 
 class SearchResultItem(BaseModel):
     similarity: float
@@ -188,6 +195,7 @@ class SearchResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Video CRUD
 # ---------------------------------------------------------------------------
+
 
 class VideoInfoResponse(BaseModel):
     video_id: int
@@ -215,6 +223,7 @@ class VideoDeleteResponse(BaseModel):
 # Training – typed result sub-models
 # ---------------------------------------------------------------------------
 
+
 class ReindexStats(BaseModel):
     old_index_version: str
     new_index_version: str
@@ -225,6 +234,7 @@ class ReindexStats(BaseModel):
 
 class TrainingResult(BaseModel):
     """Training job output (polymorphic: skipped | builtin | external)."""
+
     model_config = ConfigDict(extra="allow")
 
     status: str = Field(description="completed | skipped")
@@ -252,6 +262,7 @@ class TrainingResult(BaseModel):
 # Training – responses
 # ---------------------------------------------------------------------------
 
+
 class TrainingCreateResponse(BaseModel):
     training_job_id: str
     status: str
@@ -274,6 +285,7 @@ class TrainingResultResponse(BaseModel):
 # Nightly scheduler
 # ---------------------------------------------------------------------------
 
+
 class NightlyStatusResponse(BaseModel):
     enabled: bool
     next_run_local: str | None = None
@@ -284,6 +296,7 @@ class NightlyStatusResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Audit
 # ---------------------------------------------------------------------------
+
 
 class AuditTrailItem(BaseModel):
     job_id: str
@@ -323,6 +336,7 @@ class AuditExportResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Ops / queue metrics
 # ---------------------------------------------------------------------------
+
 
 class QueueStatsItem(BaseModel):
     key: str

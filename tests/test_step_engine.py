@@ -6,10 +6,7 @@ from sopilot.step_engine import detect_step_boundaries, evaluate_sop
 
 
 def _meta(n: int) -> list[dict]:
-    return [
-        {"clip_idx": i, "start_sec": float(i * 4), "end_sec": float((i + 1) * 4)}
-        for i in range(n)
-    ]
+    return [{"clip_idx": i, "start_sec": float(i * 4), "end_sec": float((i + 1) * 4)} for i in range(n)]
 
 
 def test_detect_step_boundaries_basic_transition() -> None:

@@ -23,7 +23,7 @@ class TestSplitConformal:
         actuals_test = predictions_test + rng.normal(0, 5, n_test)
 
         covered = 0
-        for pred, actual in zip(predictions_test, actuals_test):
+        for pred, actual in zip(predictions_test, actuals_test, strict=False):
             _, lo, hi = cp.predict(pred)
             if lo <= actual <= hi:
                 covered += 1

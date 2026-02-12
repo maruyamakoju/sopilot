@@ -24,14 +24,15 @@ Usage:
 
     increment_job_counter("score", status="completed")
 """
+
 from __future__ import annotations
 
-from contextlib import contextmanager
 import time
-from typing import Any
+from contextlib import contextmanager
 
 try:
-    from prometheus_client import Counter, Histogram, Gauge, Info
+    from prometheus_client import Counter, Gauge, Histogram, Info
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -229,6 +230,7 @@ def collect_gpu_metrics() -> None:
 
     try:
         import torch
+
         if not torch.cuda.is_available():
             return
 

@@ -3,28 +3,25 @@
 Covers: SoftDTWFunction, SoftDTWCuda, SoftDTWAlignmentCuda,
 multi_scale_sdtw, pairwise_soft_dtw."""
 
-import math
 import pytest
 import torch
-import torch.nn as nn
 
 from sopilot.nn.soft_dtw_cuda import (
-    SoftDTWFunction,
-    SoftDTWCuda,
+    _INF,
     SoftDTWAlignmentCuda,
+    SoftDTWCuda,
+    SoftDTWFunction,
+    _apply_bandwidth_mask,
+    _compute_pairwise_cost,
+    _downsample_sequence,
     multi_scale_sdtw,
     pairwise_soft_dtw,
-    _compute_pairwise_cost,
-    _apply_bandwidth_mask,
-    _downsample_sequence,
-    _INF,
-    _GAMMA_MIN,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _rand_seq(B, T, D, seed=42):
     """Generate a random batched sequence."""
@@ -41,6 +38,7 @@ def _rand_seq_2d(T, D, seed=42):
 # ---------------------------------------------------------------------------
 # 1. Cost Matrix Tests
 # ---------------------------------------------------------------------------
+
 
 class TestCostMatrix:
     """Tests for _compute_pairwise_cost."""
@@ -98,6 +96,7 @@ class TestCostMatrix:
 # 2. Bandwidth Mask Tests
 # ---------------------------------------------------------------------------
 
+
 class TestBandwidthMask:
     """Tests for _apply_bandwidth_mask (Sakoe-Chiba band)."""
 
@@ -146,6 +145,7 @@ class TestBandwidthMask:
 # ---------------------------------------------------------------------------
 # 3. SoftDTWFunction (Custom Autograd) Tests
 # ---------------------------------------------------------------------------
+
 
 class TestSoftDTWFunction:
     """Tests for the custom autograd Function."""
@@ -198,6 +198,7 @@ class TestSoftDTWFunction:
 # 4. Gradient / Backward Tests
 # ---------------------------------------------------------------------------
 
+
 class TestGradients:
     """Tests for backward pass correctness."""
 
@@ -245,6 +246,7 @@ class TestGradients:
 # ---------------------------------------------------------------------------
 # 5. SoftDTWCuda Module Tests
 # ---------------------------------------------------------------------------
+
 
 class TestSoftDTWCuda:
     """Tests for the SoftDTWCuda module."""
@@ -327,6 +329,7 @@ class TestSoftDTWCuda:
 # 6. SoftDTWAlignmentCuda Tests
 # ---------------------------------------------------------------------------
 
+
 class TestSoftDTWAlignmentCuda:
     """Tests for alignment matrix computation."""
 
@@ -392,6 +395,7 @@ class TestSoftDTWAlignmentCuda:
 # 7. Multi-Scale Soft-DTW Tests
 # ---------------------------------------------------------------------------
 
+
 class TestMultiScaleSDTW:
     """Tests for multi_scale_sdtw."""
 
@@ -401,8 +405,7 @@ class TestMultiScaleSDTW:
         y = _rand_seq(1, 8, 4, seed=99)
         sdtw = SoftDTWCuda(gamma=1.0, normalize=True, metric="cosine")
         d_sdtw = sdtw(x, y)
-        d_ms = multi_scale_sdtw(x, y, gamma=1.0, normalize=True,
-                                 metric="cosine", scales=[1], weights=[1.0])
+        d_ms = multi_scale_sdtw(x, y, gamma=1.0, normalize=True, metric="cosine", scales=[1], weights=[1.0])
         assert torch.allclose(d_sdtw, d_ms, atol=1e-4)
 
     def test_multi_scale_returns_finite(self):
@@ -446,10 +449,10 @@ class TestMultiScaleSDTW:
         assert torch.isfinite(d).all()
 
 
-
 # ---------------------------------------------------------------------------
 # 8. Pairwise Soft-DTW Tests
 # ---------------------------------------------------------------------------
+
 
 class TestPairwiseSoftDTW:
     """Tests for pairwise_soft_dtw."""
@@ -496,6 +499,7 @@ class TestPairwiseSoftDTW:
 # 9. Downsampling Tests
 # ---------------------------------------------------------------------------
 
+
 class TestDownsampling:
     """Tests for _downsample_sequence."""
 
@@ -534,6 +538,7 @@ class TestDownsampling:
 # ---------------------------------------------------------------------------
 # 10. Numerical Stability and Edge Cases
 # ---------------------------------------------------------------------------
+
 
 class TestNumericalStability:
     """Tests for numerical stability and edge cases."""

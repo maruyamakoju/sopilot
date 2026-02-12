@@ -3,15 +3,14 @@
 from __future__ import annotations
 
 import numpy as np
-import pytest
 import torch
 
 from sopilot.nn.projection_head import (
-    ProjectionHead,
     NTXentLoss,
+    ProjectionHead,
     StepPairMiner,
-    save_projection_head,
     load_projection_head,
+    save_projection_head,
 )
 
 
@@ -68,9 +67,7 @@ class TestProjectionHead:
         with torch.no_grad():
             out_after = loaded(x)
 
-        np.testing.assert_allclose(
-            out_before.numpy(), out_after.numpy(), atol=1e-6
-        )
+        np.testing.assert_allclose(out_before.numpy(), out_after.numpy(), atol=1e-6)
 
 
 class TestNTXentLoss:

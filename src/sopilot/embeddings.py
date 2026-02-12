@@ -1,9 +1,9 @@
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
-from pathlib import Path
 import time
+from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING, Protocol
 
 import cv2
@@ -32,11 +32,9 @@ _l2_normalize_rows = normalize_rows
 class ClipEmbedder(Protocol):
     name: str
 
-    def embed_clips(self, clips: list[ClipWindow]) -> np.ndarray:
-        ...
+    def embed_clips(self, clips: list[ClipWindow]) -> np.ndarray: ...
 
-    def active_name(self) -> str:
-        ...
+    def active_name(self) -> str: ...
 
 
 @dataclass
@@ -58,9 +56,7 @@ class HeuristicClipEmbedder:
 
         if len(gray) > 1:
             motion = np.abs(gray[1:] - gray[:-1])
-            motion_stats = np.array(
-                [motion.mean(), motion.std(), motion.max()], dtype=np.float32
-            )
+            motion_stats = np.array([motion.mean(), motion.std(), motion.max()], dtype=np.float32)
         else:
             motion_stats = np.zeros(3, dtype=np.float32)
 
@@ -68,9 +64,7 @@ class HeuristicClipEmbedder:
         for frame in frames:
             edges = cv2.Canny(frame, threshold1=80, threshold2=160)
             edge_values.append(float(edges.mean() / 255.0))
-        edge_stats = np.array(
-            [np.mean(edge_values), np.std(edge_values)], dtype=np.float32
-        )
+        edge_stats = np.array([np.mean(edge_values), np.std(edge_values)], dtype=np.float32)
 
         hists = []
         for channel in range(3):
@@ -212,7 +206,7 @@ class VJepa2Embedder:
         try:
             # RTX 5090 has 32GB VRAM - can handle much larger batches
             total_memory = torch.cuda.get_device_properties(0).total_memory
-            total_gb = total_memory / (1024 ** 3)
+            total_gb = total_memory / (1024**3)
 
             # Conservative estimate: 1GB per batch item for ViT-Large
             # RTX 5090: can do 16-24 batch size safely
@@ -225,8 +219,7 @@ class VJepa2Embedder:
 
             optimal = min(batch_limit, 32)  # Cap at 32 for numerical stability
             logger.info(
-                "Auto-detected optimal batch size: %d (GPU: %.1fGB, variant: %s)",
-                optimal, total_gb, self.variant
+                "Auto-detected optimal batch size: %d (GPU: %.1fGB, variant: %s)", optimal, total_gb, self.variant
             )
             return optimal
         except Exception as e:

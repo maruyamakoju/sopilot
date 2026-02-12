@@ -11,7 +11,6 @@ from .config import get_settings
 from .storage import ensure_directories
 from .worker_tasks import shutdown_worker_service
 
-
 logger = logging.getLogger(__name__)
 
 

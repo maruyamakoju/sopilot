@@ -30,9 +30,7 @@ def softmin3(
     return -g * torch.logsumexp(stacked, dim=-1)
 
 
-def pairwise_euclidean_sq(
-    x: torch.Tensor, y: torch.Tensor
-) -> torch.Tensor:
+def pairwise_euclidean_sq(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """Squared-Euclidean pairwise distance matrix.
 
     Args:
@@ -44,7 +42,7 @@ def pairwise_euclidean_sq(
     """
     if x.dim() == 2 and y.dim() == 2:
         diff = x.unsqueeze(1) - y.unsqueeze(0)  # (M, N, D)
-        return torch.sum(diff ** 2, dim=-1)
+        return torch.sum(diff**2, dim=-1)
     # Batched: use expansion trick for efficiency
     if x.dim() == 2:
         x = x.unsqueeze(0)
@@ -56,9 +54,7 @@ def pairwise_euclidean_sq(
     return (xx + yy.transpose(1, 2) - 2.0 * xy).clamp(min=0.0)
 
 
-def pairwise_cosine_dist(
-    x: torch.Tensor, y: torch.Tensor
-) -> torch.Tensor:
+def pairwise_cosine_dist(x: torch.Tensor, y: torch.Tensor) -> torch.Tensor:
     """Cosine distance cost matrix: 1 - cosine_similarity.
 
     Args:

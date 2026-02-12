@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import base64
-from contextlib import asynccontextmanager
 import hmac
-from pathlib import Path
 import uuid
+from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import FileResponse
@@ -13,9 +13,9 @@ from starlette.responses import JSONResponse
 from .config import get_settings
 from .db import Database
 from .schemas import (
+    AuditExportResponse,
     AuditTrailItem,
     AuditTrailResponse,
-    AuditExportResponse,
     HealthResponse,
     NightlyStatusResponse,
     QueueMetricsResponse,
@@ -34,7 +34,6 @@ from .schemas import (
 from .service import SopilotService
 from .storage import ensure_directories
 from .utils import safe_filename
-
 
 VALID_ROLES = {"gold", "trainee", "audit"}
 ROLE_ORDER = {"viewer": 1, "operator": 2, "admin": 3}
@@ -230,11 +229,7 @@ async def _handle_upload_enqueue(
     if role not in VALID_ROLES:
         raise HTTPException(status_code=400, detail=f"invalid role: {role}")
 
-    incoming = (
-        settings.raw_dir
-        / ".incoming"
-        / f"{uuid.uuid4().hex}_{_safe_filename(file.filename or 'upload.mp4')}"
-    )
+    incoming = settings.raw_dir / ".incoming" / f"{uuid.uuid4().hex}_{_safe_filename(file.filename or 'upload.mp4')}"
     try:
         max_bytes = max(1, int(settings.upload_max_mb)) * 1024 * 1024
         size = await _persist_upload(file, incoming, max_bytes=max_bytes)
@@ -577,8 +572,10 @@ def create_app() -> FastAPI:
     def prometheus_metrics():
         """Prometheus metrics endpoint for monitoring."""
         try:
-            from prometheus_client import generate_latest, CONTENT_TYPE_LATEST
+            from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
+
             from .metrics import collect_gpu_metrics
+
             # Collect latest GPU metrics before exposing
             collect_gpu_metrics()
             metrics_output = generate_latest()

@@ -1,18 +1,17 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
 import logging
-from pathlib import Path
 import shutil
 import time
 import uuid
+from datetime import datetime, timezone
+from pathlib import Path
 
 from .config import get_settings
 from .db import Database
 from .service import SopilotService
 from .storage import ensure_directories
 from .utils import now_tag, write_json
-
 
 logger = logging.getLogger(__name__)
 VIDEO_EXTENSIONS = {".mp4", ".mov", ".m4v", ".avi"}
@@ -150,7 +149,9 @@ def run() -> None:
                         "queued_at": datetime.now(tz=timezone.utc).isoformat(timespec="seconds"),
                     }
                     _write_json(processed_dir / f"{tag}.json", receipt)
-                    logger.info("queued source=%s job=%s task=%s role=%s", src_rel, result["ingest_job_id"], task_id, role)
+                    logger.info(
+                        "queued source=%s job=%s task=%s role=%s", src_rel, result["ingest_job_id"], task_id, role
+                    )
                 except Exception as exc:
                     err_target = failed_dir / tag
                     if staged.exists():

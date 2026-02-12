@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 import logging
-from pathlib import Path
 import shutil
 import uuid
+from pathlib import Path
 
 import numpy as np
 
@@ -195,9 +195,7 @@ class IngestService:
         clip_meta_path = self.settings.embeddings_dir / f"video_{video_id}.json"
         np.save(raw_embedding_path, raw_embeddings)
         np.save(embedding_path, effective_embeddings)
-        clip_meta_path.write_text(
-            json.dumps(clip_meta, ensure_ascii=True, indent=2), encoding="utf-8"
-        )
+        clip_meta_path.write_text(json.dumps(clip_meta, ensure_ascii=True, indent=2), encoding="utf-8")
 
         self.db.finalize_video(
             video_id=video_id,

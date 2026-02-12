@@ -10,10 +10,11 @@ Performance on RTX 5090:
 - 2000x2000 DTW: ~0.1-0.3s (vs 2-3s on CPU)
 - Memory: ~64MB for cost matrix + DP table (float32)
 """
+
 from __future__ import annotations
 
-from dataclasses import dataclass
 import logging
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -26,6 +27,7 @@ logger = logging.getLogger(__name__)
 # Try to import CuPy for GPU acceleration
 try:
     import cupy as cp
+
     CUPY_AVAILABLE = True
 except ImportError:
     CUPY_AVAILABLE = False
@@ -95,8 +97,7 @@ def _dtw_align_gpu(gold: np.ndarray, trainee: np.ndarray) -> DtwAlignment:
         dp[ii, jj] = cost[ii - 1, jj - 1] + min_all
 
         # Update traceback
-        tr = cp.where(min_all == diag, cp.int8(0),
-                      cp.where(min_all == above, cp.int8(1), cp.int8(2)))
+        tr = cp.where(min_all == diag, cp.int8(0), cp.where(min_all == above, cp.int8(1), cp.int8(2)))
         trace[ii, jj] = tr
 
     # Traceback on GPU (small overhead, but keeps everything on device)
@@ -126,10 +127,7 @@ def _dtw_align_gpu(gold: np.ndarray, trainee: np.ndarray) -> DtwAlignment:
     cost_cpu = cp.asnumpy(cost)
 
     # Build path with similarities
-    path = [
-        (pi, pj, float(1.0 - cost_cpu[pi, pj]))
-        for pi, pj in zip(path_i_cpu, path_j_cpu)
-    ]
+    path = [(pi, pj, float(1.0 - cost_cpu[pi, pj])) for pi, pj in zip(path_i_cpu, path_j_cpu, strict=False)]
 
     mean_cost = final_cost / max(1, len(path))
 
@@ -155,10 +153,12 @@ def dtw_align_auto(gold: np.ndarray, trainee: np.ndarray, prefer_gpu: bool = Tru
             logger.warning("GPU DTW failed, falling back to CPU: %s", e)
             # Fallback to CPU version (imported from step_engine)
             from .step_engine import dtw_align as dtw_align_cpu
+
             return dtw_align_cpu(gold, trainee)
     else:
         # Use CPU version
         from .step_engine import dtw_align as dtw_align_cpu
+
         return dtw_align_cpu(gold, trainee)
 
 
@@ -187,7 +187,7 @@ def get_gpu_info() -> dict[str, any]:
         return {
             "available": True,
             "name": props["name"].decode("utf-8"),
-            "total_memory_gb": props["totalGlobalMem"] / (1024 ** 3),
+            "total_memory_gb": props["totalGlobalMem"] / (1024**3),
             "compute_capability": f"{props['major']}.{props['minor']}",
             "multi_processor_count": props["multiProcessorCount"],
         }

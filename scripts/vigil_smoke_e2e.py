@@ -63,6 +63,13 @@ def main():
         default=None,
         help="Directory to save keyframes (optional)",
     )
+    parser.add_argument(
+        "--llm-model",
+        type=str,
+        default="mock",
+        choices=["mock", "qwen2.5-vl-7b"],
+        help="Video-LLM model for answer generation",
+    )
     args = parser.parse_args()
 
     video_path = Path(args.video)
@@ -252,8 +259,47 @@ def main():
                     logger.info("   Saved keyframe: %s", artifact_path.name)
 
         logger.info("")
+
+        # Step 7: Generate answer with Video-LLM
+        logger.info("Step 7: Generate answer with Video-LLM")
+        logger.info("-" * 60)
+
+        from sopilot.video_llm_service import VideoLLMService, get_default_config
+
+        # Use mock mode for now (can upgrade to Qwen2.5-VL with --use-llm flag)
+        llm_model = getattr(args, "llm_model", "mock")
+        llm_config = get_default_config(llm_model)
+        llm_config.device = args.device
+
+        llm_service = VideoLLMService(llm_config)
+
+        # Generate answer from top-1 clip if available
+        final_answer = None
+        if search_results:
+            top_result = search_results[0]
+            logger.info(
+                "Answering based on top clip: [%.2f-%.2f sec]",
+                top_result.start_sec,
+                top_result.end_sec,
+            )
+
+            qa_result = llm_service.answer_question(
+                video_path,
+                args.question,
+                start_sec=top_result.start_sec,
+                end_sec=top_result.end_sec,
+                enable_cot=False,
+            )
+
+            final_answer = qa_result.answer
+            logger.info("✅ Answer generated: %s", final_answer[:200])
+        else:
+            final_answer = "No relevant clips found to answer this question."
+            logger.warning("✗ No clips found, cannot generate answer")
+
+        logger.info("")
         logger.info("=" * 60)
-        logger.info("🎉 E2E smoke test PASSED (micro-only)")
+        logger.info("🎉 E2E smoke test PASSED (micro-only + Video-LLM)")
         logger.info("=" * 60)
         logger.info("")
         logger.info("Results:")
@@ -261,11 +307,12 @@ def main():
                     video_path.name, result.video_duration_sec, len(result.micro))
         logger.info("  - Question: %s", args.question)
         logger.info("  - Retrieved: %d clips", len(search_results))
+        logger.info("  - Answer: %s", final_answer)
         logger.info("  - Artifacts: ./artifacts/")
         logger.info("")
         logger.info("Next steps:")
         logger.info("  1. Review artifacts to validate relevance")
-        logger.info("  2. Add Video-LLM for answer generation (Priority 4)")
+        logger.info("  2. Install Qwen2.5-VL for real answer generation (pip install qwen-vl-utils)")
         logger.info("  3. Add coarse-to-fine retrieval (meso/macro levels)")
 
         return 0

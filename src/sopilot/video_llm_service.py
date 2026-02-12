@@ -22,16 +22,28 @@ from typing import Literal
 import cv2
 import numpy as np
 
+try:
+    from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+    QWEN_AVAILABLE = True
+except ImportError:
+    QWEN_AVAILABLE = False
+
+try:
+    from qwen_vl_utils import process_vision_info
+    QWEN_UTILS_AVAILABLE = True
+except ImportError:
+    QWEN_UTILS_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
-ModelName = Literal["internvideo2.5-chat-8b", "llava-video-7b", "mock"]
+ModelName = Literal["qwen2.5-vl-7b", "internvideo2.5-chat-8b", "llava-video-7b", "mock"]
 
 
 @dataclass
 class VideoLLMConfig:
     """Configuration for Video-LLM service."""
 
-    model_name: ModelName = "internvideo2.5-chat-8b"
+    model_name: ModelName = "qwen2.5-vl-7b"
     device: str = "cuda"  # cuda / cpu
     dtype: str = "float16"  # float16 / bfloat16 / float32
     load_in_8bit: bool = False
@@ -40,11 +52,16 @@ class VideoLLMConfig:
     # Frame sampling
     max_frames: int = 32  # Maximum frames per video clip
     frame_sample_strategy: Literal["uniform", "fps"] = "uniform"
+    fps: float = 1.0  # Frame sampling rate for Qwen2.5-VL
 
     # Inference
     max_new_tokens: int = 512
     temperature: float = 0.7
     top_p: float = 0.9
+
+    # Qwen2.5-VL specific
+    min_pixels: int = 256 * 28 * 28  # Minimum pixels for dynamic resolution
+    max_pixels: int = 1280 * 28 * 28  # Maximum pixels for dynamic resolution
 
 
 @dataclass
@@ -84,7 +101,9 @@ class VideoLLMService:
         """
         logger.info("Loading Video-LLM model: %s", self.config.model_name)
 
-        if self.config.model_name == "internvideo2.5-chat-8b":
+        if self.config.model_name == "qwen2.5-vl-7b":
+            self._load_qwen2_5_vl()
+        elif self.config.model_name == "internvideo2.5-chat-8b":
             self._load_internvideo()
         elif self.config.model_name == "llava-video-7b":
             self._load_llava_video()
@@ -92,6 +111,56 @@ class VideoLLMService:
             raise ValueError(f"Unknown model: {self.config.model_name}")
 
         logger.info("Model loaded successfully")
+
+    def _load_qwen2_5_vl(self) -> None:
+        """Load Qwen2.5-VL model.
+
+        Raises:
+            RuntimeError: If model loading fails or dependencies missing
+        """
+        if not QWEN_AVAILABLE:
+            raise RuntimeError(
+                "Qwen2.5-VL requires transformers>=4.45.0. "
+                "Install with: pip install transformers>=4.45.0"
+            )
+
+        if not QWEN_UTILS_AVAILABLE:
+            raise RuntimeError(
+                "Qwen2.5-VL requires qwen-vl-utils. "
+                "Install with: pip install qwen-vl-utils[decord]"
+            )
+
+        try:
+            import torch
+
+            # Determine torch dtype
+            if self.config.dtype == "float16":
+                torch_dtype = torch.float16
+            elif self.config.dtype == "bfloat16":
+                torch_dtype = torch.bfloat16
+            else:
+                torch_dtype = torch.float32
+
+            # Load model
+            logger.info("Loading Qwen2.5-VL-7B-Instruct...")
+            self._model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
+                "Qwen/Qwen2.5-VL-7B-Instruct",
+                torch_dtype=torch_dtype,
+                device_map="auto" if self.config.device == "cuda" else "cpu",
+            )
+
+            # Load processor with custom pixel range
+            self._processor = AutoProcessor.from_pretrained(
+                "Qwen/Qwen2.5-VL-7B-Instruct",
+                min_pixels=self.config.min_pixels,
+                max_pixels=self.config.max_pixels,
+            )
+
+            logger.info("Qwen2.5-VL loaded successfully")
+
+        except Exception as exc:
+            logger.error("Failed to load Qwen2.5-VL: %s", exc)
+            raise RuntimeError(f"Model loading failed: {exc}") from exc
 
     def _load_internvideo(self) -> None:
         """Load InternVideo2.5 Chat model.
@@ -285,41 +354,131 @@ class VideoLLMService:
                 reasoning="Mock reasoning" if enable_cot else None,
             )
 
-        # Sample frames
-        frames = self.sample_frames(video_path, start_sec=start_sec, end_sec=end_sec)
+        # Check if we're using Qwen2.5-VL (real implementation)
+        if self.config.model_name == "qwen2.5-vl-7b" and QWEN_UTILS_AVAILABLE:
+            return self._answer_question_qwen2_5_vl(
+                video_path, question, start_sec, end_sec, enable_cot
+            )
 
-        if len(frames) == 0:
-            raise ValueError("No frames sampled from video")
-
-        # TODO: Implement real video QA
-        # if enable_cot:
-        #     prompt = f"Let's think step by step. {question}"
-        # else:
-        #     prompt = question
-        #
-        # inputs = self._processor(frames, prompt, return_tensors="pt")
-        # outputs = self._model.generate(
-        #     **inputs,
-        #     max_new_tokens=self.config.max_new_tokens,
-        #     temperature=self.config.temperature,
-        #     top_p=self.config.top_p,
-        # )
-        # answer = self._processor.decode(outputs[0], skip_special_tokens=True)
-        #
-        # return VideoQAResult(
-        #     question=question,
-        #     answer=answer,
-        #     confidence=None,  # Extract from logits if needed
-        #     reasoning=None,  # Parse from CoT if enabled
-        # )
-
-        # Placeholder
+        # Fallback for other models (not yet implemented)
+        logger.warning("Model-specific inference not implemented, using mock answer")
         return VideoQAResult(
             question=question,
             answer="Placeholder answer: Real implementation coming soon.",
             confidence=None,
             reasoning=None,
         )
+
+    def _answer_question_qwen2_5_vl(
+        self,
+        video_path: Path | str,
+        question: str,
+        start_sec: float,
+        end_sec: float | None,
+        enable_cot: bool,
+    ) -> VideoQAResult:
+        """Answer question using Qwen2.5-VL.
+
+        Args:
+            video_path: Path to video file
+            question: Question to answer
+            start_sec: Start time in seconds
+            end_sec: End time in seconds (None = end of video)
+            enable_cot: Enable chain-of-thought reasoning
+
+        Returns:
+            VideoQAResult with answer
+        """
+        import torch
+
+        # Prepare prompt with optional CoT
+        if enable_cot:
+            prompt = f"Let's think step by step. {question}"
+        else:
+            prompt = question
+
+        # Prepare messages in Qwen2.5-VL format
+        video_path = Path(video_path)
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "video",
+                        "video": f"file:///{video_path.absolute().as_posix()}",
+                        "max_pixels": self.config.max_pixels,
+                        "fps": self.config.fps,
+                    },
+                    {"type": "text", "text": prompt},
+                ],
+            }
+        ]
+
+        try:
+            # Apply chat template
+            text = self._processor.apply_chat_template(
+                messages, tokenize=False, add_generation_prompt=True
+            )
+
+            # Process vision info
+            image_inputs, video_inputs, video_kwargs = process_vision_info(
+                messages, return_video_kwargs=True
+            )
+
+            # Prepare inputs
+            inputs = self._processor(
+                text=[text],
+                images=image_inputs,
+                videos=video_inputs,
+                padding=True,
+                return_tensors="pt",
+                **video_kwargs,
+            )
+
+            # Move to device
+            if self.config.device == "cuda":
+                inputs = inputs.to("cuda")
+
+            # Generate answer
+            with torch.no_grad():
+                generated_ids = self._model.generate(
+                    **inputs,
+                    max_new_tokens=self.config.max_new_tokens,
+                    temperature=self.config.temperature if self.config.temperature > 0 else None,
+                    top_p=self.config.top_p,
+                )
+
+            # Decode output
+            generated_ids_trimmed = [
+                out_ids[len(in_ids) :]
+                for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+            ]
+            output_text = self._processor.batch_decode(
+                generated_ids_trimmed,
+                skip_special_tokens=True,
+                clean_up_tokenization_spaces=False,
+            )
+
+            answer = output_text[0] if output_text else "No response generated."
+
+            # Parse reasoning if CoT was enabled
+            reasoning = None
+            if enable_cot and "step" in answer.lower():
+                # Extract reasoning part (before final answer if present)
+                reasoning = answer
+
+            logger.info("Generated answer: %s", answer[:100])
+
+            return VideoQAResult(
+                question=question,
+                answer=answer,
+                confidence=None,  # Qwen doesn't provide confidence scores directly
+                reasoning=reasoning,
+            )
+
+        except Exception as exc:
+            logger.error("Video QA failed: %s", exc)
+            raise RuntimeError(f"Video QA inference failed: {exc}") from exc
 
     def batch_extract_embeddings(
         self,
@@ -362,7 +521,7 @@ class VideoLLMService:
         return np.stack(embeddings, axis=0)
 
 
-def get_default_config(model_name: ModelName = "internvideo2.5-chat-8b") -> VideoLLMConfig:
+def get_default_config(model_name: ModelName = "qwen2.5-vl-7b") -> VideoLLMConfig:
     """Get default configuration for a model.
 
     Args:
@@ -371,7 +530,18 @@ def get_default_config(model_name: ModelName = "internvideo2.5-chat-8b") -> Vide
     Returns:
         VideoLLMConfig with model-specific defaults
     """
-    if model_name == "internvideo2.5-chat-8b":
+    if model_name == "qwen2.5-vl-7b":
+        return VideoLLMConfig(
+            model_name="qwen2.5-vl-7b",
+            device="cuda",
+            dtype="bfloat16",  # Qwen2.5-VL works best with bfloat16
+            max_frames=32,
+            fps=1.0,  # 1 FPS for efficient long-video understanding
+            max_new_tokens=512,
+            min_pixels=256 * 28 * 28,
+            max_pixels=1280 * 28 * 28,
+        )
+    elif model_name == "internvideo2.5-chat-8b":
         return VideoLLMConfig(
             model_name="internvideo2.5-chat-8b",
             device="cuda",

@@ -16,6 +16,8 @@ import os
 import sys
 from pathlib import Path
 
+import numpy as np
+
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
@@ -103,7 +105,7 @@ def main():
         logger.info("")
 
         # Step 2: Extract retrieval embeddings
-        logger.info("Step 2: Extract retrieval embeddings (OpenCLIP)")
+        logger.info("Step 2: Encode query text (OpenCLIP)")
         logger.info("-" * 60)
         from sopilot.retrieval_embeddings import create_embedder
 
@@ -112,25 +114,159 @@ def main():
             device=args.device,
         )
 
-        # For now, just demonstrate encoding the question
-        # In real implementation, we'd encode keyframes too
         query_embedding = embedder.encode_text([args.question])
         logger.info("✅ Query encoded: shape=%s", query_embedding.shape)
         logger.info("")
 
-        # TODO: Extract embeddings for all keyframes
-        # TODO: Store in Qdrant
-        # TODO: Search and retrieve
-        # TODO: Generate answer with Video-LLM
+        # Step 3: Extract and encode micro chunk keyframes
+        logger.info("Step 3: Extract and encode micro chunk keyframes")
+        logger.info("-" * 60)
 
+        import uuid
+        import cv2
+        from PIL import Image
+
+        video_id = str(uuid.uuid4())  # Generate unique video ID
+
+        # Extract keyframes and compute embeddings for each micro chunk
+        micro_metadata = []
+        micro_embeddings = []
+
+        cap = cv2.VideoCapture(str(video_path))
+        if not cap.isOpened():
+            logger.error("Cannot open video for keyframe extraction")
+            return 1
+
+        for idx, chunk in enumerate(result.micro):
+            keyframes = []
+            for frame_idx in chunk.keyframe_indices:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+                ret, frame = cap.read()
+                if ret:
+                    # Convert BGR to RGB
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    keyframes.append(Image.fromarray(frame_rgb))
+
+            if keyframes:
+                # Encode all keyframes for this chunk
+                keyframe_embeddings = embedder.encode_images(keyframes)
+
+                # Average pooling + L2 normalize
+                avg_embedding = np.mean(keyframe_embeddings, axis=0)
+                avg_embedding = avg_embedding / (np.linalg.norm(avg_embedding) + 1e-9)
+
+                micro_embeddings.append(avg_embedding)
+                micro_metadata.append({
+                    "clip_id": str(uuid.uuid4()),
+                    "video_id": video_id,
+                    "start_sec": chunk.start_sec,
+                    "end_sec": chunk.end_sec,
+                    "chunk_index": idx,
+                })
+
+        cap.release()
+
+        micro_embeddings_array = np.array(micro_embeddings, dtype=np.float32)
+        logger.info("✅ Encoded %d micro chunks", len(micro_embeddings_array))
+        logger.info("   Embedding dimension: %d", micro_embeddings_array.shape[1])
+        logger.info("")
+
+        # Step 4: Store in Qdrant
+        logger.info("Step 4: Store embeddings in Qdrant")
+        logger.info("-" * 60)
+
+        from sopilot.qdrant_service import QdrantService, QdrantConfig
+
+        qdrant_config = QdrantConfig(
+            host="localhost",
+            port=6333,
+            embedding_dim=embedder.config.embedding_dim,
+        )
+
+        qdrant_service = QdrantService(qdrant_config, use_faiss_fallback=True)
+        qdrant_service.ensure_collections(levels=["micro"], embedding_dim=embedder.config.embedding_dim)
+
+        num_added = qdrant_service.add_embeddings(
+            level="micro",
+            embeddings=micro_embeddings_array,
+            metadata=micro_metadata,
+        )
+
+        logger.info("✅ Stored %d embeddings in Qdrant/FAISS", num_added)
+        logger.info("")
+
+        # Step 5: Search and retrieve
+        logger.info("Step 5: Search for top-5 relevant clips")
+        logger.info("-" * 60)
+
+        search_results = qdrant_service.search(
+            level="micro",
+            query_vector=query_embedding[0],  # Extract single vector from batch
+            top_k=5,
+            video_id=video_id,
+        )
+
+        logger.info("✅ Found %d results", len(search_results))
+        logger.info("")
+
+        # Step 6: Output results with artifacts
+        logger.info("Step 6: Output results with keyframe artifacts")
+        logger.info("-" * 60)
+
+        artifacts_dir = Path("./artifacts")
+        artifacts_dir.mkdir(exist_ok=True)
+
+        if not search_results:
+            logger.warning("No search results found!")
+        else:
+            for rank, search_result in enumerate(search_results, 1):
+                logger.info(
+                    "Rank %d: [%.2f-%.2f sec] score=%.3f",
+                    rank,
+                    search_result.start_sec,
+                    search_result.end_sec,
+                    search_result.score,
+                )
+
+                # Find the chunk to get keyframes
+                chunk_idx = next(
+                    i for i, meta in enumerate(micro_metadata)
+                    if meta["clip_id"] == search_result.clip_id
+                )
+                chunk = result.micro[chunk_idx]
+
+                # Extract representative keyframe (middle one)
+                mid_keyframe_idx = chunk.keyframe_indices[len(chunk.keyframe_indices) // 2]
+
+                cap = cv2.VideoCapture(str(video_path))
+                cap.set(cv2.CAP_PROP_POS_FRAMES, mid_keyframe_idx)
+                ret, frame = cap.read()
+                cap.release()
+
+                if ret:
+                    artifact_path = (
+                        artifacts_dir
+                        / f"rank{rank:02d}_t{search_result.start_sec:.1f}s_score{search_result.score:.3f}.jpg"
+                    )
+                    cv2.imwrite(str(artifact_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
+                    logger.info("   Saved keyframe: %s", artifact_path.name)
+
+        logger.info("")
         logger.info("=" * 60)
-        logger.info("🎉 Smoke test passed (partial implementation)")
+        logger.info("🎉 E2E smoke test PASSED (micro-only)")
         logger.info("=" * 60)
         logger.info("")
+        logger.info("Results:")
+        logger.info("  - Video: %s (%.1f sec, %d micro chunks)",
+                    video_path.name, result.video_duration_sec, len(result.micro))
+        logger.info("  - Question: %s", args.question)
+        logger.info("  - Retrieved: %d clips", len(search_results))
+        logger.info("  - Artifacts: ./artifacts/")
+        logger.info("")
         logger.info("Next steps:")
-        logger.info("  1. Implement keyframe embedding extraction")
-        logger.info("  2. Implement Qdrant storage")
-        logger.info("  3. Implement retrieval + LLM inference")
+        logger.info("  1. Review artifacts to validate relevance")
+        logger.info("  2. Add Video-LLM for answer generation (Priority 4)")
+        logger.info("  3. Add coarse-to-fine retrieval (meso/macro levels)")
 
         return 0
 

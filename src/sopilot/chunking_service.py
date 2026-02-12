@@ -272,7 +272,11 @@ class ChunkingService:
             scene_list = [(0, total_frames)]
 
         shots: list[Chunk] = []
-        for idx, (start_frame, end_frame) in enumerate(scene_list):
+        for idx, (start_time, end_time) in enumerate(scene_list):
+            # PySceneDetect returns FrameTimecode objects, convert to frame numbers
+            start_frame = start_time.get_frames() if hasattr(start_time, "get_frames") else int(start_time)
+            end_frame = end_time.get_frames() if hasattr(end_time, "get_frames") else int(end_time)
+
             start_sec = start_frame / fps
             end_sec = end_frame / fps
 

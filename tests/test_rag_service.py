@@ -164,7 +164,7 @@ class TestRAGService:
 
         query_emb = rag_service._encode_query("What is happening?")
         assert isinstance(query_emb, np.ndarray)
-        assert query_emb.shape == (768,)  # Mock model uses 768-dim
+        assert query_emb.ndim == 1  # 1-D embedding vector (dim depends on model)
 
     def test_flatten_search_results(self):
         """Test flattening multi-level search results."""
@@ -203,7 +203,7 @@ class TestRAGService:
 
         # Add some mock embeddings to all levels
         for level in ["shot", "micro", "meso", "macro"]:
-            embeddings = np.random.randn(3, 768).astype(np.float32)
+            embeddings = np.random.randn(3, 512).astype(np.float32)
             metadata = [
                 {
                     "clip_id": f"{level}-{i}",
@@ -253,7 +253,7 @@ class TestRAGService:
 
         # Add embeddings from two videos to all levels
         for level in ["shot", "micro", "meso", "macro"]:
-            embeddings_v1 = np.random.randn(2, 768).astype(np.float32)
+            embeddings_v1 = np.random.randn(2, 512).astype(np.float32)
             metadata_v1 = [
                 {
                     "clip_id": f"{level}-v1-{i}",
@@ -265,7 +265,7 @@ class TestRAGService:
             ]
             qdrant_service.add_embeddings(level, embeddings_v1, metadata_v1)
 
-            embeddings_v2 = np.random.randn(2, 768).astype(np.float32)
+            embeddings_v2 = np.random.randn(2, 512).astype(np.float32)
             metadata_v2 = [
                 {
                     "clip_id": f"{level}-v2-{i}",

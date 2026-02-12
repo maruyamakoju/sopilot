@@ -108,12 +108,16 @@ class QdrantService:
         if QDRANT_AVAILABLE:
             try:
                 self._client = self._connect()
+                logger.info("Vector backend: qdrant (%s)", self.config.connection_url)
             except Exception as exc:
                 if use_faiss_fallback:
                     logger.warning("Qdrant connection failed, using FAISS fallback: %s", exc)
                     self._client = None
+                    logger.info("Vector backend: faiss (in-memory)")
                 else:
                     raise
+        else:
+            logger.info("Vector backend: faiss (in-memory, qdrant-client not installed)")
 
     def _connect(self) -> QdrantClient:
         """Establish connection to Qdrant server.

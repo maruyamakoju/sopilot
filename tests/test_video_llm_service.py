@@ -22,7 +22,7 @@ class TestVideoLLMConfig:
     def test_default_config(self):
         """Test default configuration."""
         config = VideoLLMConfig()
-        assert config.model_name == "internvideo2.5-chat-8b"
+        assert config.model_name == "qwen2.5-vl-7b"
         assert config.device == "cuda"
         assert config.dtype == "float16"
         assert config.load_in_8bit is False
@@ -87,13 +87,11 @@ class TestVideoLLMServiceMock:
         assert service._model is None
         assert service._processor is None
 
-    def test_init_real_model_fallback(self):
-        """Test initialization with real model falls back to mock."""
-        # InternVideo2.5 not installed, should fall back gracefully
+    def test_init_unimplemented_model_raises(self):
+        """Test initialization with unimplemented model raises error."""
         config = VideoLLMConfig(model_name="internvideo2.5-chat-8b")
-        service = VideoLLMService(config)
-        # Should not crash, just log warning
-        assert service.config == config
+        with pytest.raises(RuntimeError, match="not yet implemented"):
+            VideoLLMService(config)
 
     def test_extract_embedding_mock(self):
         """Test embedding extraction in mock mode."""

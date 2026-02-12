@@ -61,7 +61,7 @@ class VideoLLMConfig:
 
     # Qwen2.5-VL specific
     min_pixels: int = 256 * 28 * 28  # Minimum pixels for dynamic resolution
-    max_pixels: int = 1280 * 28 * 28  # Maximum pixels for dynamic resolution
+    max_pixels: int = 768 * 28 * 28  # Maximum pixels for dynamic resolution
 
 
 @dataclass
@@ -163,35 +163,18 @@ class VideoLLMService:
             raise RuntimeError(f"Model loading failed: {exc}") from exc
 
     def _load_internvideo(self) -> None:
-        """Load InternVideo2.5 Chat model.
-
-        Note: This is a placeholder. Real implementation requires:
-        - transformers library with InternVideo2.5 support
-        - Model downloaded from HuggingFace
-        """
-        # TODO: Implement real InternVideo2.5 loading
-        # from transformers import AutoModel, AutoProcessor
-        # self._model = AutoModel.from_pretrained(
-        #     "OpenGVLab/InternVideo2_5-Chat-8B",
-        #     device_map=self.config.device,
-        #     torch_dtype=...,
-        # )
-        # self._processor = AutoProcessor.from_pretrained(...)
-        logger.warning("InternVideo2.5 loading not implemented (using mock mode)")
-        self._model = None
-        self._processor = None
+        """Load InternVideo2.5 Chat model."""
+        raise RuntimeError(
+            "InternVideo2.5 loading not yet implemented. "
+            "Use 'qwen2.5-vl-7b' or 'mock' instead."
+        )
 
     def _load_llava_video(self) -> None:
-        """Load LLaVA-Video model.
-
-        Note: This is a placeholder. Real implementation requires:
-        - transformers library with LLaVA-Video support
-        - Model downloaded from HuggingFace
-        """
-        # TODO: Implement real LLaVA-Video loading
-        logger.warning("LLaVA-Video loading not implemented (using mock mode)")
-        self._model = None
-        self._processor = None
+        """Load LLaVA-Video model."""
+        raise RuntimeError(
+            "LLaVA-Video loading not yet implemented. "
+            "Use 'qwen2.5-vl-7b' or 'mock' instead."
+        )
 
     def sample_frames(
         self,
@@ -302,10 +285,14 @@ class VideoLLMService:
         else:  # mock or unknown
             dim = 768
 
-        if self._model is None:
-            # Mock mode: return random embedding
-            logger.warning("Model not loaded, returning mock embedding")
+        if self.config.model_name == "mock":
             return np.random.randn(dim).astype(np.float32)
+
+        if self._model is None:
+            raise RuntimeError(
+                f"Model '{self.config.model_name}' not loaded. "
+                "Cannot extract embeddings without a loaded model."
+            )
 
         # Sample frames
         frames = self.sample_frames(video_path, start_sec=start_sec, end_sec=end_sec)
@@ -344,14 +331,18 @@ class VideoLLMService:
         Raises:
             RuntimeError: If model not loaded
         """
-        if self._model is None:
-            # Mock mode: return placeholder answer
-            logger.warning("Model not loaded, returning mock answer")
+        if self.config.model_name == "mock":
             return VideoQAResult(
                 question=question,
                 answer="Mock answer: This is a placeholder response.",
                 confidence=0.5,
                 reasoning="Mock reasoning" if enable_cot else None,
+            )
+
+        if self._model is None:
+            raise RuntimeError(
+                f"Model '{self.config.model_name}' not loaded. "
+                "Cannot answer questions without a loaded model."
             )
 
         # Check if we're using Qwen2.5-VL (real implementation)
@@ -360,13 +351,8 @@ class VideoLLMService:
                 video_path, question, start_sec, end_sec, enable_cot
             )
 
-        # Fallback for other models (not yet implemented)
-        logger.warning("Model-specific inference not implemented, using mock answer")
-        return VideoQAResult(
-            question=question,
-            answer="Placeholder answer: Real implementation coming soon.",
-            confidence=None,
-            reasoning=None,
+        raise RuntimeError(
+            f"Model-specific inference not implemented for '{self.config.model_name}'"
         )
 
     def _answer_question_qwen2_5_vl(
@@ -454,7 +440,8 @@ class VideoLLMService:
                 frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 frame_path = Path(temp_dir) / f"frame_{idx:04d}.jpg"
                 Image.fromarray(frame_rgb).save(frame_path, quality=90)
-                frame_paths.append(f"file:///{frame_path.absolute().as_posix()}")
+                # Use raw path string (qwen_vl_utils strips file:// prefix incorrectly on Windows)
+                frame_paths.append(str(frame_path.absolute()))
 
             cap.release()
 
@@ -494,6 +481,15 @@ class VideoLLMService:
                 messages, return_video_kwargs=True
             )
 
+            # Fix video_kwargs: process_vision_info wraps scalars in lists
+            # (e.g. fps=[2.0] → fps=2.0) which causes validation errors
+            fixed_kwargs = {}
+            for k, v in video_kwargs.items():
+                if isinstance(v, list) and len(v) == 1:
+                    fixed_kwargs[k] = v[0]
+                else:
+                    fixed_kwargs[k] = v
+
             # Prepare inputs
             inputs = self._processor(
                 text=[text],
@@ -501,7 +497,7 @@ class VideoLLMService:
                 videos=video_inputs,
                 padding=True,
                 return_tensors="pt",
-                **video_kwargs,
+                **fixed_kwargs,
             )
 
             # Move to device
@@ -615,7 +611,7 @@ def get_default_config(model_name: ModelName = "qwen2.5-vl-7b") -> VideoLLMConfi
             fps=1.0,  # 1 FPS for efficient long-video understanding
             max_new_tokens=512,
             min_pixels=256 * 28 * 28,
-            max_pixels=1280 * 28 * 28,
+            max_pixels=768 * 28 * 28,
         )
     elif model_name == "internvideo2.5-chat-8b":
         return VideoLLMConfig(

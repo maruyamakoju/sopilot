@@ -408,6 +408,38 @@ class QdrantService:
 
         return results
 
+    def count_by_video(self, level: ChunkLevel, video_id: str) -> int:
+        """Count embeddings stored for a specific video.
+
+        Args:
+            level: Chunk level to check.
+            video_id: Video ID to filter.
+
+        Returns:
+            Number of stored embeddings for this video.
+        """
+        if self._client is None:
+            return self._count_by_video_faiss(level, video_id)
+
+        collection_name = self._get_collection_name(level)
+        try:
+            result = self._client.count(
+                collection_name=collection_name,
+                count_filter=Filter(
+                    must=[
+                        FieldCondition(
+                            key="video_id",
+                            match=MatchValue(value=str(video_id)),
+                        )
+                    ]
+                ),
+                exact=True,
+            )
+            return result.count
+        except Exception:
+            # Collection may not exist yet
+            return 0
+
     # ===== FAISS Fallback Implementation =====
 
     def _add_embeddings_faiss(
@@ -429,6 +461,13 @@ class QdrantService:
 
         logger.debug("Added %d embeddings to FAISS %s index", len(embeddings), level)
         return len(embeddings)
+
+    def _count_by_video_faiss(self, level: ChunkLevel, video_id: str) -> int:
+        """FAISS fallback for count_by_video."""
+        if level not in self._faiss_indexes:
+            return 0
+        metadata = self._faiss_indexes[level].get("metadata", [])
+        return sum(1 for m in metadata if str(m.get("video_id")) == str(video_id))
 
     def _search_faiss(
         self,

@@ -6,6 +6,9 @@ This script demonstrates the full VIGIL-RAG pipeline:
 3. Store in Qdrant
 4. Query → Retrieve → Answer
 
+Index/Query separation: If the video is already indexed (same sha256),
+steps 1-4 are skipped and only query/answer steps run.
+
 Usage:
     python scripts/vigil_smoke_e2e.py --video test.mp4 --question "What happened?"
 """
@@ -13,8 +16,8 @@ Usage:
 import argparse
 import json
 import logging
-import os
 import sys
+import uuid
 from pathlib import Path
 
 import numpy as np
@@ -27,6 +30,68 @@ logging.basicConfig(
     format="%(asctime)s [%(levelname)s] %(message)s",
 )
 logger = logging.getLogger(__name__)
+
+
+def _index_video(video_path, video_id, chunker, embedder, qdrant_service, domain, keyframe_dir):
+    """Index a video: chunk → encode keyframes → store in vector DB.
+
+    Returns:
+        (micro_metadata, chunk_result) — metadata list and ChunkResult.
+    """
+    import cv2
+    from PIL import Image
+
+    result = chunker.chunk_video(video_path, domain=domain, keyframe_dir=keyframe_dir)
+    logger.info("   Shots: %d, Micro: %d, Meso: %d, Macro: %d",
+                len(result.shots), len(result.micro), len(result.meso), len(result.macro))
+    logger.info("   FPS: %.2f, Duration: %.2f sec", result.video_fps, result.video_duration_sec)
+
+    # Extract keyframes and compute embeddings for each micro chunk
+    micro_metadata = []
+    micro_embeddings = []
+
+    cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        raise RuntimeError(f"Cannot open video: {video_path}")
+
+    for idx, chunk in enumerate(result.micro):
+        keyframes = []
+        for frame_idx in chunk.keyframe_indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+            ret, frame = cap.read()
+            if ret:
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                keyframes.append(Image.fromarray(frame_rgb))
+
+        if keyframes:
+            keyframe_embeddings = embedder.encode_images(keyframes)
+            avg_embedding = np.mean(keyframe_embeddings, axis=0)
+            avg_embedding = avg_embedding / (np.linalg.norm(avg_embedding) + 1e-9)
+
+            micro_embeddings.append(avg_embedding)
+            micro_metadata.append({
+                "clip_id": str(uuid.uuid4()),
+                "video_id": video_id,
+                "start_sec": chunk.start_sec,
+                "end_sec": chunk.end_sec,
+                "chunk_index": idx,
+            })
+
+    cap.release()
+
+    micro_embeddings_array = np.array(micro_embeddings, dtype=np.float32)
+    logger.info("   Encoded %d micro chunks (dim=%d)", len(micro_embeddings_array), micro_embeddings_array.shape[1])
+
+    # Store in Qdrant
+    qdrant_service.ensure_collections(levels=["micro"], embedding_dim=embedder.config.embedding_dim)
+    num_added = qdrant_service.add_embeddings(
+        level="micro",
+        embeddings=micro_embeddings_array,
+        metadata=micro_metadata,
+    )
+    logger.info("   Stored %d embeddings", num_added)
+
+    return micro_metadata, result
 
 
 def main():
@@ -77,6 +142,11 @@ def main():
         default=0,
         help="Top-K composite answer (0 = disabled, use top-1 only)",
     )
+    parser.add_argument(
+        "--force-reindex",
+        action="store_true",
+        help="Force re-indexing even if video already indexed",
+    )
     args = parser.parse_args()
 
     video_path = Path(args.video)
@@ -89,104 +159,35 @@ def main():
     logger.info("=" * 60)
     logger.info("Video: %s", video_path)
     logger.info("Question: %s", args.question)
-    logger.info("Domain: %s", args.domain)
-    logger.info("Embedding Model: %s", args.embedding_model)
     logger.info("Device: %s", args.device)
     logger.info("")
 
     try:
-        # Step 1: Multi-scale chunking
-        logger.info("Step 1: Multi-scale video chunking")
+        # Step 1: Compute stable video_id (sha256)
+        logger.info("Step 1: Compute stable video_id")
         logger.info("-" * 60)
-        from sopilot.chunking_service import ChunkingService
 
-        chunker = ChunkingService()
-        keyframe_dir = Path(args.keyframe_dir) if args.keyframe_dir else None
+        from sopilot.rag_service import compute_video_id
 
-        result = chunker.chunk_video(
-            video_path,
-            domain=args.domain,
-            keyframe_dir=keyframe_dir,
-        )
+        video_id = compute_video_id(video_path)
+        logger.info("   video_id = sha256:%s", video_id[:16])
 
-        logger.info("✅ Chunking complete:")
-        logger.info("   Shots: %d", len(result.shots))
-        logger.info("   Micro: %d", len(result.micro))
-        logger.info("   Meso: %d", len(result.meso))
-        logger.info("   Macro: %d", len(result.macro))
-        logger.info("   FPS: %.2f", result.video_fps)
-        logger.info("   Duration: %.2f sec", result.video_duration_sec)
+        # Step 2: Create embedder (always needed for query encoding)
         logger.info("")
-
-        # Step 2: Extract retrieval embeddings
-        logger.info("Step 2: Encode query text (OpenCLIP)")
+        logger.info("Step 2: Create retrieval embedder (OpenCLIP)")
         logger.info("-" * 60)
+
         from sopilot.retrieval_embeddings import create_embedder
 
         embedder = create_embedder(
             model_name=args.embedding_model,
             device=args.device,
         )
+        logger.info("   Model: %s, dim=%d", args.embedding_model, embedder.config.embedding_dim)
 
-        query_embedding = embedder.encode_text([args.question])
-        logger.info("✅ Query encoded: shape=%s", query_embedding.shape)
+        # Step 3: Connect to vector DB
         logger.info("")
-
-        # Step 3: Extract and encode micro chunk keyframes
-        logger.info("Step 3: Extract and encode micro chunk keyframes")
-        logger.info("-" * 60)
-
-        import uuid
-        import cv2
-        from PIL import Image
-
-        video_id = str(uuid.uuid4())  # Generate unique video ID
-
-        # Extract keyframes and compute embeddings for each micro chunk
-        micro_metadata = []
-        micro_embeddings = []
-
-        cap = cv2.VideoCapture(str(video_path))
-        if not cap.isOpened():
-            logger.error("Cannot open video for keyframe extraction")
-            return 1
-
-        for idx, chunk in enumerate(result.micro):
-            keyframes = []
-            for frame_idx in chunk.keyframe_indices:
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-                ret, frame = cap.read()
-                if ret:
-                    # Convert BGR to RGB
-                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                    keyframes.append(Image.fromarray(frame_rgb))
-
-            if keyframes:
-                # Encode all keyframes for this chunk
-                keyframe_embeddings = embedder.encode_images(keyframes)
-
-                # Average pooling + L2 normalize
-                avg_embedding = np.mean(keyframe_embeddings, axis=0)
-                avg_embedding = avg_embedding / (np.linalg.norm(avg_embedding) + 1e-9)
-
-                micro_embeddings.append(avg_embedding)
-                micro_metadata.append({
-                    "clip_id": str(uuid.uuid4()),
-                    "video_id": video_id,
-                    "start_sec": chunk.start_sec,
-                    "end_sec": chunk.end_sec,
-                    "chunk_index": idx,
-                })
-
-        cap.release()
-
-        micro_embeddings_array = np.array(micro_embeddings, dtype=np.float32)
-        logger.info("✅ Encoded %d micro chunks", len(micro_embeddings_array))
-        logger.info("   Embedding dimension: %d", micro_embeddings_array.shape[1])
-        logger.info("")
-
-        # Step 4: Store in Qdrant
-        logger.info("Step 4: Store embeddings in Qdrant")
+        logger.info("Step 3: Connect to vector DB")
         logger.info("-" * 60)
 
         from sopilot.qdrant_service import QdrantService, QdrantConfig
@@ -196,116 +197,123 @@ def main():
             port=6333,
             embedding_dim=embedder.config.embedding_dim,
         )
-
         qdrant_service = QdrantService(qdrant_config, use_faiss_fallback=True)
-        qdrant_service.ensure_collections(levels=["micro"], embedding_dim=embedder.config.embedding_dim)
 
-        num_added = qdrant_service.add_embeddings(
-            level="micro",
-            embeddings=micro_embeddings_array,
-            metadata=micro_metadata,
-        )
-
-        logger.info("✅ Stored %d embeddings in Qdrant/FAISS", num_added)
+        # Step 4: Index video (skip if already indexed)
         logger.info("")
-
-        # Step 5: Search and retrieve
-        logger.info("Step 5: Search for top-5 relevant clips")
+        logger.info("Step 4: Index video")
         logger.info("-" * 60)
 
+        existing_count = qdrant_service.count_by_video("micro", video_id)
+
+        if existing_count > 0 and not args.force_reindex:
+            logger.info("   Already indexed: %d micro chunks (skipping)", existing_count)
+            micro_metadata = None  # Not needed for query path
+        else:
+            if existing_count > 0:
+                logger.info("   Force re-index requested (overwriting %d chunks)", existing_count)
+            else:
+                logger.info("   New video, indexing...")
+
+            from sopilot.chunking_service import ChunkingService
+
+            chunker = ChunkingService()
+            keyframe_dir = Path(args.keyframe_dir) if args.keyframe_dir else None
+
+            micro_metadata, chunk_result = _index_video(
+                video_path, video_id, chunker, embedder, qdrant_service,
+                args.domain, keyframe_dir,
+            )
+            logger.info("   ✅ Indexing complete")
+
+        # ===== QUERY PATH (always runs) =====
+
+        # Step 5: Encode query and search
+        logger.info("")
+        logger.info("Step 5: Search for relevant clips")
+        logger.info("-" * 60)
+
+        query_embedding = embedder.encode_text([args.question])
         search_results = qdrant_service.search(
             level="micro",
-            query_vector=query_embedding[0],  # Extract single vector from batch
+            query_vector=query_embedding[0],
             top_k=5,
             video_id=video_id,
         )
+        logger.info("   Found %d results", len(search_results))
 
-        logger.info("✅ Found %d results", len(search_results))
+        # Step 6: Save keyframe artifacts
         logger.info("")
-
-        # Step 6: Output results with artifacts
-        logger.info("Step 6: Output results with keyframe artifacts")
+        logger.info("Step 6: Save keyframe artifacts")
         logger.info("-" * 60)
 
         artifacts_dir = Path("./artifacts")
         artifacts_dir.mkdir(exist_ok=True)
 
-        if not search_results:
-            logger.warning("No search results found!")
-        else:
-            for rank, search_result in enumerate(search_results, 1):
+        if search_results:
+            import cv2
+
+            for rank, sr in enumerate(search_results, 1):
                 logger.info(
-                    "Rank %d: [%.2f-%.2f sec] score=%.3f",
-                    rank,
-                    search_result.start_sec,
-                    search_result.end_sec,
-                    search_result.score,
+                    "   Rank %d: [%.2f-%.2f sec] score=%.3f",
+                    rank, sr.start_sec, sr.end_sec, sr.score,
                 )
 
-                # Find the chunk to get keyframes
-                chunk_idx = next(
-                    i for i, meta in enumerate(micro_metadata)
-                    if meta["clip_id"] == search_result.clip_id
-                )
-                chunk = result.micro[chunk_idx]
-
-                # Extract representative keyframe (middle one)
-                mid_keyframe_idx = chunk.keyframe_indices[len(chunk.keyframe_indices) // 2]
-
+                # Extract mid-point keyframe
+                mid_sec = (sr.start_sec + sr.end_sec) / 2.0
                 cap = cv2.VideoCapture(str(video_path))
-                cap.set(cv2.CAP_PROP_POS_FRAMES, mid_keyframe_idx)
+                fps = cap.get(cv2.CAP_PROP_FPS) or 30.0
+                cap.set(cv2.CAP_PROP_POS_FRAMES, int(mid_sec * fps))
                 ret, frame = cap.read()
                 cap.release()
 
                 if ret:
                     artifact_path = (
                         artifacts_dir
-                        / f"rank{rank:02d}_t{search_result.start_sec:.1f}s_score{search_result.score:.3f}.jpg"
+                        / f"rank{rank:02d}_t{sr.start_sec:.1f}s_score{sr.score:.3f}.jpg"
                     )
                     cv2.imwrite(str(artifact_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
-                    logger.info("   Saved keyframe: %s", artifact_path.name)
-
-        logger.info("")
+                    logger.info("   Saved: %s", artifact_path.name)
+        else:
+            logger.warning("   No search results found!")
 
         # Step 7: Generate answer with Video-LLM
+        logger.info("")
         logger.info("Step 7: Generate answer with Video-LLM")
         logger.info("-" * 60)
 
         from sopilot.video_llm_service import VideoLLMService, get_default_config
 
-        # Use mock mode for now (can upgrade to Qwen2.5-VL with --llm-model flag)
-        llm_model = getattr(args, "llm_model", "mock")
+        llm_model = args.llm_model
         llm_config = get_default_config(llm_model)
         llm_config.device = args.device
 
-        logger.info("Video-LLM mode: %s", llm_model)
+        logger.info("   Video-LLM mode: %s", llm_model)
 
         llm_service = VideoLLMService(llm_config)
 
-        # Verify model is loaded (not mock fallback) if real model requested
         if llm_model != "mock":
             if llm_service._model is None:
-                logger.error("❌ Model failed to load! Falling back to mock mode.")
-                logger.error("   Install dependencies: pip install -e '.[vigil]'")
+                logger.error("   Model failed to load! Install: pip install -e '.[vigil]'")
             else:
-                logger.info("✅ Model loaded: %s", type(llm_service._model).__name__)
-        else:
-            logger.info("ℹ️  Using mock mode (no model loading)")
+                logger.info("   Model loaded: %s", type(llm_service._model).__name__)
 
-        # Generate answer
         final_answer = None
         clip_observations = None
 
         if args.top_k > 0 and search_results:
-            # Top-K composite answer (Priority 4.3)
-            logger.info("Top-K composite mode: k=%d", args.top_k)
+            # Top-K composite answer
+            logger.info("   Top-K composite mode: k=%d", args.top_k)
 
             from sopilot.rag_service import RAGService, RetrievalConfig
+
+            # Use existing_count or len(micro_metadata) for micro_k
+            micro_k = existing_count if micro_metadata is None else len(micro_metadata)
 
             rag_service = RAGService(
                 vector_service=qdrant_service,
                 llm_service=llm_service,
-                retrieval_config=RetrievalConfig(micro_k=len(micro_metadata)),
+                retrieval_config=RetrievalConfig(micro_k=max(micro_k, 20)),
                 retrieval_embedder=embedder,
             )
 
@@ -319,9 +327,9 @@ def main():
             final_answer = rag_result.answer
             clip_observations = rag_result.clip_observations
 
-            logger.info("✅ Composite answer generated from %d clips", len(rag_result.evidence))
+            logger.info("   ✅ Composite answer from %d clips", len(rag_result.evidence))
 
-            # Save clip observations as JSON artifact
+            # Save artifacts
             if clip_observations:
                 obs_data = [
                     {
@@ -340,7 +348,6 @@ def main():
                     json.dump(obs_data, f, indent=2, ensure_ascii=False)
                 logger.info("   Saved: %s", obs_path)
 
-                # Save final answer as markdown
                 answer_path = artifacts_dir / "answer.md"
                 with open(answer_path, "w", encoding="utf-8") as f:
                     f.write(f"# Question\n\n{args.question}\n\n")
@@ -353,12 +360,10 @@ def main():
                 logger.info("   Saved: %s", answer_path)
 
         elif search_results:
-            # Top-1 mode (original)
             top_result = search_results[0]
             logger.info(
-                "Answering based on top clip: [%.2f-%.2f sec]",
-                top_result.start_sec,
-                top_result.end_sec,
+                "   Answering from top clip: [%.2f-%.2f sec]",
+                top_result.start_sec, top_result.end_sec,
             )
 
             qa_result = llm_service.answer_question(
@@ -370,25 +375,23 @@ def main():
             )
 
             final_answer = qa_result.answer
-            logger.info("✅ Answer generated: %s", final_answer[:200])
+            logger.info("   ✅ Answer: %s", final_answer[:200])
         else:
             final_answer = "No relevant clips found to answer this question."
-            logger.warning("✗ No clips found, cannot generate answer")
+            logger.warning("   No clips found, cannot generate answer")
 
+        # Summary
         logger.info("")
         logger.info("=" * 60)
-        logger.info("🎉 E2E smoke test PASSED (micro-only + Video-LLM)")
+        logger.info("E2E smoke test PASSED")
         logger.info("=" * 60)
-        logger.info("")
-        logger.info("Results:")
-        logger.info("  - Video: %s (%.1f sec, %d micro chunks)",
-                    video_path.name, result.video_duration_sec, len(result.micro))
-        logger.info("  - Question: %s", args.question)
-        logger.info("  - Retrieved: %d clips", len(search_results))
+        logger.info("  video_id: sha256:%s", video_id[:16])
+        logger.info("  Question: %s", args.question)
+        logger.info("  Retrieved: %d clips", len(search_results))
         if args.top_k > 0:
-            logger.info("  - Mode: Top-%d composite", args.top_k)
-        logger.info("  - Answer: %s", final_answer)
-        logger.info("  - Artifacts: ./artifacts/")
+            logger.info("  Mode: Top-%d composite", args.top_k)
+        logger.info("  Answer: %s", final_answer)
+        logger.info("  Artifacts: ./artifacts/")
 
         return 0
 

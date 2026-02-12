@@ -261,6 +261,39 @@ class TestQdrantServiceFAISSFallback:
         assert len(results["micro"]) == 3
         assert len(results["shot"]) == 3
 
+    def test_count_by_video_empty(self):
+        """Test count_by_video on empty index."""
+        config = _faiss_config()
+        service = QdrantService(config, use_faiss_fallback=True)
+        assert service.count_by_video("micro", "nonexistent") == 0
+
+    def test_count_by_video_with_data(self):
+        """Test count_by_video with data from multiple videos."""
+        config = _faiss_config()
+        service = QdrantService(config, use_faiss_fallback=True)
+
+        # Add 3 clips from video-1 and 2 from video-2
+        embeddings_v1 = np.random.randn(3, 768).astype(np.float32)
+        metadata_v1 = [
+            {"clip_id": f"v1-{i}", "video_id": "video-1",
+             "start_sec": float(i), "end_sec": float(i + 1)}
+            for i in range(3)
+        ]
+        service.add_embeddings("micro", embeddings_v1, metadata_v1)
+
+        embeddings_v2 = np.random.randn(2, 768).astype(np.float32)
+        metadata_v2 = [
+            {"clip_id": f"v2-{i}", "video_id": "video-2",
+             "start_sec": float(i), "end_sec": float(i + 1)}
+            for i in range(2)
+        ]
+        service.add_embeddings("micro", embeddings_v2, metadata_v2)
+
+        assert service.count_by_video("micro", "video-1") == 3
+        assert service.count_by_video("micro", "video-2") == 2
+        assert service.count_by_video("micro", "video-3") == 0
+        assert service.count_by_video("shot", "video-1") == 0  # Different level
+
     def test_coarse_to_fine_search_empty(self):
         """Test coarse-to-fine search with no data."""
         config = _faiss_config()

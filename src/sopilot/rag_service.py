@@ -17,14 +17,14 @@ Design principles:
 
 from __future__ import annotations
 
+import hashlib
+import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Literal
 
 import numpy as np
-
-import json
 
 from .qdrant_service import QdrantService, SearchResult
 from .video_llm_service import VideoLLMService, VideoQAResult
@@ -36,6 +36,26 @@ except ImportError:
     RETRIEVAL_AVAILABLE = False
 
 logger = logging.getLogger(__name__)
+
+
+def compute_video_id(video_path: Path | str, *, chunk_size: int = 1 << 20) -> str:
+    """Compute a stable, deterministic video ID from the file's SHA-256.
+
+    Args:
+        video_path: Path to the video file.
+        chunk_size: Read buffer size (default 1 MB).
+
+    Returns:
+        SHA-256 hex digest (64 chars).
+    """
+    h = hashlib.sha256()
+    with open(video_path, "rb") as f:
+        while True:
+            chunk = f.read(chunk_size)
+            if not chunk:
+                break
+            h.update(chunk)
+    return h.hexdigest()
 
 
 @dataclass

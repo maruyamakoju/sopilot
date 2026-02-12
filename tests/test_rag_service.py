@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import tempfile
+
 import numpy as np
 import pytest
 from sopilot.rag_service import (
@@ -10,6 +12,7 @@ from sopilot.rag_service import (
     Evidence,
     RAGResult,
     create_rag_service,
+    compute_video_id,
 )
 from sopilot.qdrant_service import QdrantConfig, QdrantService, SearchResult
 from sopilot.video_llm_service import VideoLLMConfig, VideoLLMService
@@ -354,3 +357,29 @@ class TestCreateRAGService:
         assert rag_service.retrieval_config.macro_k == 3
         assert rag_service.retrieval_config.meso_k == 6
         assert rag_service.retrieval_config.enable_rerank is True
+
+
+class TestComputeVideoId:
+    """Tests for compute_video_id."""
+
+    def test_deterministic(self):
+        """Same file always produces the same video_id."""
+        with tempfile.NamedTemporaryFile(suffix=".bin", delete=False) as f:
+            f.write(b"hello world")
+            path = f.name
+
+        vid1 = compute_video_id(path)
+        vid2 = compute_video_id(path)
+        assert vid1 == vid2
+        assert len(vid1) == 64  # SHA-256 hex
+
+    def test_different_content(self):
+        """Different content produces different video_id."""
+        with tempfile.NamedTemporaryFile(suffix=".a", delete=False) as f:
+            f.write(b"content A")
+            path_a = f.name
+        with tempfile.NamedTemporaryFile(suffix=".b", delete=False) as f:
+            f.write(b"content B")
+            path_b = f.name
+
+        assert compute_video_id(path_a) != compute_video_id(path_b)

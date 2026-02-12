@@ -42,6 +42,8 @@ vigil = [
   "alembic>=1.13.0",
   "qdrant-client>=1.7.0",
   "scenedetect[opencv]>=0.6.3",
+  "open-clip-torch>=2.24.0",
+  "pillow>=10.0.0",
 ]
 
 [project.scripts]

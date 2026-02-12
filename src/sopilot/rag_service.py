@@ -27,6 +27,12 @@ import numpy as np
 from .qdrant_service import QdrantService, SearchResult
 from .video_llm_service import VideoLLMService, VideoQAResult
 
+try:
+    from .retrieval_embeddings import RetrievalEmbedder
+    RETRIEVAL_AVAILABLE = True
+except ImportError:
+    RETRIEVAL_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 
@@ -82,6 +88,7 @@ class RAGService:
         vector_service: QdrantService,
         llm_service: VideoLLMService,
         retrieval_config: RetrievalConfig | None = None,
+        retrieval_embedder: "RetrievalEmbedder | None" = None,
     ) -> None:
         """Initialize RAG service.
 
@@ -89,10 +96,12 @@ class RAGService:
             vector_service: Qdrant service for vector search
             llm_service: Video-LLM service for embeddings and QA
             retrieval_config: Retrieval configuration (defaults to RetrievalConfig())
+            retrieval_embedder: Optional retrieval embedder (OpenCLIP). If None, falls back to mock.
         """
         self.vector_service = vector_service
         self.llm_service = llm_service
         self.retrieval_config = retrieval_config or RetrievalConfig()
+        self.retrieval_embedder = retrieval_embedder
 
     def answer_question(
         self,
@@ -247,25 +256,17 @@ class RAGService:
             question: Question text
 
         Returns:
-            Query embedding vector
-
-        Note:
-            For text queries, this would ideally use a text encoder
-            (e.g., CLIP text encoder, sentence-transformers).
-            For now, using mock embedding.
+            Query embedding vector (normalized for cosine similarity)
         """
-        # TODO: Implement real text encoding
-        # Option 1: Use CLIP text encoder (if using CLIP video encoder)
-        # Option 2: Use sentence-transformers (if using separate text encoder)
-        # Option 3: Use InternVideo2 text encoder (if available)
+        if self.retrieval_embedder is not None:
+            # Use OpenCLIP text encoder (real implementation)
+            logger.debug("Encoding query with OpenCLIP: %s", question[:50])
+            embeddings = self.retrieval_embedder.encode_text([question])
+            return embeddings[0]  # Return single embedding
 
-        # Mock: return random embedding matching model dimension
-        if self.llm_service.config.model_name == "internvideo2.5-chat-8b":
-            dim = 768
-        elif self.llm_service.config.model_name == "llava-video-7b":
-            dim = 4096
-        else:
-            dim = 768
+        # Fallback: mock embedding
+        # Determine dimension from vector service or default to 512 (OpenCLIP ViT-B-32)
+        dim = 512
 
         logger.debug("Encoding query (mock): %s", question[:50])
         return np.random.randn(dim).astype(np.float32)
@@ -332,6 +333,7 @@ def create_rag_service(
     *,
     vector_service: QdrantService,
     llm_service: VideoLLMService,
+    retrieval_embedder: "RetrievalEmbedder | None" = None,
     macro_k: int = 5,
     meso_k: int = 10,
     micro_k: int = 20,
@@ -343,6 +345,7 @@ def create_rag_service(
     Args:
         vector_service: Qdrant service
         llm_service: Video-LLM service
+        retrieval_embedder: Optional retrieval embedder (OpenCLIP)
         macro_k: Top-k for macro level
         meso_k: Top-k for meso level
         micro_k: Top-k for micro level
@@ -364,4 +367,5 @@ def create_rag_service(
         vector_service=vector_service,
         llm_service=llm_service,
         retrieval_config=config,
+        retrieval_embedder=retrieval_embedder,
     )

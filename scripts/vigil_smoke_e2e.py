@@ -11,6 +11,7 @@ Usage:
 """
 
 import argparse
+import json
 import logging
 import os
 import sys
@@ -69,6 +70,12 @@ def main():
         default="mock",
         choices=["mock", "qwen2.5-vl-7b"],
         help="Video-LLM model for answer generation",
+    )
+    parser.add_argument(
+        "--top-k",
+        type=int,
+        default=0,
+        help="Top-K composite answer (0 = disabled, use top-1 only)",
     )
     args = parser.parse_args()
 
@@ -285,9 +292,68 @@ def main():
         else:
             logger.info("ℹ️  Using mock mode (no model loading)")
 
-        # Generate answer from top-1 clip if available
+        # Generate answer
         final_answer = None
-        if search_results:
+        clip_observations = None
+
+        if args.top_k > 0 and search_results:
+            # Top-K composite answer (Priority 4.3)
+            logger.info("Top-K composite mode: k=%d", args.top_k)
+
+            from sopilot.rag_service import RAGService, RetrievalConfig
+
+            rag_service = RAGService(
+                vector_service=qdrant_service,
+                llm_service=llm_service,
+                retrieval_config=RetrievalConfig(micro_k=len(micro_metadata)),
+                retrieval_embedder=embedder,
+            )
+
+            rag_result = rag_service.answer_question_topk(
+                video_path,
+                args.question,
+                video_id=video_id,
+                top_k=args.top_k,
+            )
+
+            final_answer = rag_result.answer
+            clip_observations = rag_result.clip_observations
+
+            logger.info("✅ Composite answer generated from %d clips", len(rag_result.evidence))
+
+            # Save clip observations as JSON artifact
+            if clip_observations:
+                obs_data = [
+                    {
+                        "clip_id": o.clip_id,
+                        "start_sec": o.start_sec,
+                        "end_sec": o.end_sec,
+                        "relevance": o.relevance,
+                        "observation": o.observation,
+                        "answer_candidate": o.answer_candidate,
+                        "confidence": o.confidence,
+                    }
+                    for o in clip_observations
+                ]
+                obs_path = artifacts_dir / "clip_observations.json"
+                with open(obs_path, "w", encoding="utf-8") as f:
+                    json.dump(obs_data, f, indent=2, ensure_ascii=False)
+                logger.info("   Saved: %s", obs_path)
+
+                # Save final answer as markdown
+                answer_path = artifacts_dir / "answer.md"
+                with open(answer_path, "w", encoding="utf-8") as f:
+                    f.write(f"# Question\n\n{args.question}\n\n")
+                    f.write(f"# Answer\n\n{final_answer}\n\n")
+                    f.write(f"# Evidence ({len(clip_observations)} clips)\n\n")
+                    for o in clip_observations:
+                        f.write(f"- **[{o.start_sec:.1f}-{o.end_sec:.1f}s]** "
+                                f"(relevance={o.relevance:.1f}, confidence={o.confidence:.1f}): "
+                                f"{o.observation}\n")
+                logger.info("   Saved: %s", answer_path)
+
+        elif search_results:
+            # Top-1 mode (original)
             top_result = search_results[0]
             logger.info(
                 "Answering based on top clip: [%.2f-%.2f sec]",
@@ -319,13 +385,10 @@ def main():
                     video_path.name, result.video_duration_sec, len(result.micro))
         logger.info("  - Question: %s", args.question)
         logger.info("  - Retrieved: %d clips", len(search_results))
+        if args.top_k > 0:
+            logger.info("  - Mode: Top-%d composite", args.top_k)
         logger.info("  - Answer: %s", final_answer)
         logger.info("  - Artifacts: ./artifacts/")
-        logger.info("")
-        logger.info("Next steps:")
-        logger.info("  1. Review artifacts to validate relevance")
-        logger.info("  2. Install Qwen2.5-VL for real answer generation (pip install qwen-vl-utils)")
-        logger.info("  3. Add coarse-to-fine retrieval (meso/macro levels)")
 
         return 0
 

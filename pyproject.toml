@@ -36,6 +36,13 @@ ml = [
 gpu = [
   "cupy-cuda12x>=13.0.0"
 ]
+vigil = [
+  "psycopg2-binary>=2.9.9",
+  "sqlalchemy>=2.0.0",
+  "alembic>=1.13.0",
+  "qdrant-client>=1.7.0",
+  "scenedetect[opencv]>=0.6.3",
+]
 
 [project.scripts]
 sopilot-api = "sopilot.main:run"

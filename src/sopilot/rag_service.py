@@ -1,0 +1,367 @@
+"""RAG service for VIGIL-RAG long-form video question answering.
+
+This module implements the full RAG pipeline:
+1. Query encoding (text/video → embedding)
+2. Coarse-to-fine retrieval (Qdrant multi-level search)
+3. Re-ranking (optional cross-encoder or LLM scoring)
+4. Context assembly (gather clips + metadata)
+5. LLM inference (Video-LLM QA)
+6. Answer generation with evidence citations
+
+Design principles:
+- Hierarchical retrieval: Start broad (macro), refine to specific (shot)
+- Evidence tracking: Maintain clip_id → time range mapping for citations
+- Uncertainty quantification: Track confidence scores
+- Fallback gracefully: Degrade to available levels if some fail
+"""
+
+from __future__ import annotations
+
+import logging
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal
+
+import numpy as np
+
+from .qdrant_service import QdrantService, SearchResult
+from .video_llm_service import VideoLLMService, VideoQAResult
+
+logger = logging.getLogger(__name__)
+
+
+@dataclass
+class RetrievalConfig:
+    """Configuration for retrieval pipeline."""
+
+    # Retrieval depths per level
+    macro_k: int = 5
+    meso_k: int = 10
+    micro_k: int = 20
+    shot_k: int = 30
+
+    # Re-ranking
+    enable_rerank: bool = False
+    rerank_top_k: int = 10
+
+    # Filtering
+    min_score: float | None = None
+    video_id_filter: str | None = None
+
+
+@dataclass
+class Evidence:
+    """Evidence clip supporting an answer."""
+
+    clip_id: str
+    video_id: str
+    level: Literal["shot", "micro", "meso", "macro"]
+    start_sec: float
+    end_sec: float
+    score: float  # Retrieval score
+    rerank_score: float | None = None  # Re-ranking score (if enabled)
+
+
+@dataclass
+class RAGResult:
+    """Result of RAG question answering."""
+
+    question: str
+    answer: str
+    evidence: list[Evidence]  # Supporting clips
+    confidence: float | None = None
+    reasoning: str | None = None  # Chain-of-thought (if enabled)
+
+
+class RAGService:
+    """RAG service for long-form video QA."""
+
+    def __init__(
+        self,
+        *,
+        vector_service: QdrantService,
+        llm_service: VideoLLMService,
+        retrieval_config: RetrievalConfig | None = None,
+    ) -> None:
+        """Initialize RAG service.
+
+        Args:
+            vector_service: Qdrant service for vector search
+            llm_service: Video-LLM service for embeddings and QA
+            retrieval_config: Retrieval configuration (defaults to RetrievalConfig())
+        """
+        self.vector_service = vector_service
+        self.llm_service = llm_service
+        self.retrieval_config = retrieval_config or RetrievalConfig()
+
+    def answer_question(
+        self,
+        question: str,
+        *,
+        video_id: str | None = None,
+        enable_cot: bool = False,
+        return_top_k: int = 5,
+    ) -> RAGResult:
+        """Answer a question about video(s) using RAG.
+
+        Pipeline:
+        1. Encode question to embedding
+        2. Retrieve relevant clips (coarse-to-fine)
+        3. Re-rank clips (if enabled)
+        4. Assemble context from top clips
+        5. Generate answer with LLM
+        6. Return answer + evidence
+
+        Args:
+            question: Question to answer
+            video_id: Optional video ID filter
+            enable_cot: Enable chain-of-thought reasoning
+            return_top_k: Number of evidence clips to return
+
+        Returns:
+            RAGResult with answer and supporting evidence
+        """
+        logger.info("RAG question: %s", question)
+
+        # Step 1: Encode question
+        # TODO: For text-only queries, we'd use a text encoder
+        # For now, using a mock embedding (same as video embeddings)
+        query_embedding = self._encode_query(question)
+
+        # Step 2: Retrieve relevant clips (coarse-to-fine)
+        search_results = self.vector_service.coarse_to_fine_search(
+            query_vector=query_embedding,
+            video_id=video_id,
+            macro_k=self.retrieval_config.macro_k,
+            meso_k=self.retrieval_config.meso_k,
+            micro_k=self.retrieval_config.micro_k,
+            shot_k=self.retrieval_config.shot_k,
+        )
+
+        # Step 3: Flatten and re-rank
+        all_results = self._flatten_search_results(search_results)
+        if self.retrieval_config.enable_rerank:
+            all_results = self._rerank_results(question, all_results)
+
+        # Step 4: Take top-k evidence
+        top_results = all_results[:return_top_k]
+
+        # Convert to Evidence objects
+        evidence = [
+            Evidence(
+                clip_id=r.clip_id,
+                video_id=r.video_id,
+                level=r.level,
+                start_sec=r.start_sec,
+                end_sec=r.end_sec,
+                score=r.score,
+            )
+            for r in top_results
+        ]
+
+        # Step 5: Generate answer (for now, just use the top video clip)
+        if top_results:
+            # TODO: Use actual video path from database
+            # For now, mock answer
+            qa_result = VideoQAResult(
+                question=question,
+                answer=f"Based on the retrieved clips, the answer is: [placeholder answer]. "
+                f"Evidence found in {len(evidence)} clips.",
+                confidence=0.85,
+                reasoning="Coarse-to-fine retrieval identified relevant clips." if enable_cot else None,
+            )
+        else:
+            qa_result = VideoQAResult(
+                question=question,
+                answer="No relevant clips found to answer this question.",
+                confidence=0.0,
+            )
+
+        logger.info("Generated answer with %d evidence clips", len(evidence))
+
+        return RAGResult(
+            question=question,
+            answer=qa_result.answer,
+            evidence=evidence,
+            confidence=qa_result.confidence,
+            reasoning=qa_result.reasoning,
+        )
+
+    def answer_question_from_clip(
+        self,
+        video_path: Path | str,
+        question: str,
+        *,
+        start_sec: float = 0.0,
+        end_sec: float | None = None,
+        enable_cot: bool = False,
+    ) -> RAGResult:
+        """Answer a question about a specific video clip (no retrieval).
+
+        This is useful when you already know the relevant clip.
+
+        Args:
+            video_path: Path to video file
+            question: Question to answer
+            start_sec: Start time in seconds
+            end_sec: End time in seconds (None = end of video)
+            enable_cot: Enable chain-of-thought reasoning
+
+        Returns:
+            RAGResult with answer (no evidence since no retrieval)
+        """
+        logger.info("Direct clip QA: %s", question)
+
+        qa_result = self.llm_service.answer_question(
+            video_path,
+            question,
+            start_sec=start_sec,
+            end_sec=end_sec,
+            enable_cot=enable_cot,
+        )
+
+        # No evidence (direct clip, no retrieval)
+        evidence = [
+            Evidence(
+                clip_id="direct-clip",
+                video_id="unknown",
+                level="micro",
+                start_sec=start_sec,
+                end_sec=end_sec or 0.0,
+                score=1.0,  # Perfect match (user specified)
+            )
+        ]
+
+        return RAGResult(
+            question=question,
+            answer=qa_result.answer,
+            evidence=evidence,
+            confidence=qa_result.confidence,
+            reasoning=qa_result.reasoning,
+        )
+
+    def _encode_query(self, question: str) -> np.ndarray:
+        """Encode question to embedding vector.
+
+        Args:
+            question: Question text
+
+        Returns:
+            Query embedding vector
+
+        Note:
+            For text queries, this would ideally use a text encoder
+            (e.g., CLIP text encoder, sentence-transformers).
+            For now, using mock embedding.
+        """
+        # TODO: Implement real text encoding
+        # Option 1: Use CLIP text encoder (if using CLIP video encoder)
+        # Option 2: Use sentence-transformers (if using separate text encoder)
+        # Option 3: Use InternVideo2 text encoder (if available)
+
+        # Mock: return random embedding matching model dimension
+        if self.llm_service.config.model_name == "internvideo2.5-chat-8b":
+            dim = 768
+        elif self.llm_service.config.model_name == "llava-video-7b":
+            dim = 4096
+        else:
+            dim = 768
+
+        logger.debug("Encoding query (mock): %s", question[:50])
+        return np.random.randn(dim).astype(np.float32)
+
+    def _flatten_search_results(
+        self,
+        search_results: dict[str, list[SearchResult]],
+    ) -> list[SearchResult]:
+        """Flatten multi-level search results to single list.
+
+        Args:
+            search_results: Dict of level -> results
+
+        Returns:
+            Flattened list of results, sorted by score (descending)
+        """
+        all_results: list[SearchResult] = []
+        for level in ["shot", "micro", "meso", "macro"]:
+            if level in search_results:
+                all_results.extend(search_results[level])
+
+        # Sort by score descending
+        all_results.sort(key=lambda r: r.score, reverse=True)
+        return all_results
+
+    def _rerank_results(
+        self,
+        question: str,
+        results: list[SearchResult],
+    ) -> list[SearchResult]:
+        """Re-rank results using cross-encoder or LLM scoring.
+
+        Args:
+            question: Original question
+            results: Search results to re-rank
+
+        Returns:
+            Re-ranked results (sorted by new score)
+
+        Note:
+            This is a placeholder. Real implementation would:
+            - Use cross-encoder model (e.g., ms-marco-MiniLM-L-6-v2)
+            - Or use LLM to score relevance (slower but more accurate)
+        """
+        logger.debug("Re-ranking %d results (mock)", len(results))
+
+        # TODO: Implement real re-ranking
+        # Option 1: Cross-encoder
+        # from sentence_transformers import CrossEncoder
+        # model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
+        # pairs = [(question, clip_text) for clip_text in ...]
+        # scores = model.predict(pairs)
+        #
+        # Option 2: LLM scoring
+        # for result in results:
+        #     prompt = f"How relevant is this clip to the question?\nQ: {question}\nClip: ..."
+        #     score = llm.score(prompt)
+
+        # Mock: just return as-is (no re-ranking)
+        return results
+
+
+def create_rag_service(
+    *,
+    vector_service: QdrantService,
+    llm_service: VideoLLMService,
+    macro_k: int = 5,
+    meso_k: int = 10,
+    micro_k: int = 20,
+    shot_k: int = 30,
+    enable_rerank: bool = False,
+) -> RAGService:
+    """Factory function to create RAG service with common configuration.
+
+    Args:
+        vector_service: Qdrant service
+        llm_service: Video-LLM service
+        macro_k: Top-k for macro level
+        meso_k: Top-k for meso level
+        micro_k: Top-k for micro level
+        shot_k: Top-k for shot level
+        enable_rerank: Enable re-ranking
+
+    Returns:
+        Configured RAGService
+    """
+    config = RetrievalConfig(
+        macro_k=macro_k,
+        meso_k=meso_k,
+        micro_k=micro_k,
+        shot_k=shot_k,
+        enable_rerank=enable_rerank,
+    )
+
+    return RAGService(
+        vector_service=vector_service,
+        llm_service=llm_service,
+        retrieval_config=config,
+    )

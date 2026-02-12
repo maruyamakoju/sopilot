@@ -123,7 +123,7 @@ class TestRAGService:
 
     def _create_mock_services(self):
         """Create mock Qdrant and Video-LLM services."""
-        qdrant_config = QdrantConfig()
+        qdrant_config = QdrantConfig(host="localhost", port=19999)
         qdrant_service = QdrantService(qdrant_config, use_faiss_fallback=True)
 
         llm_config = VideoLLMConfig(model_name="mock")
@@ -319,7 +319,7 @@ class TestCreateRAGService:
 
     def test_create_with_defaults(self):
         """Test factory with default parameters."""
-        qdrant_config = QdrantConfig()
+        qdrant_config = QdrantConfig(host="localhost", port=19999)
         qdrant_service = QdrantService(qdrant_config, use_faiss_fallback=True)
 
         llm_config = VideoLLMConfig(model_name="mock")
@@ -337,7 +337,7 @@ class TestCreateRAGService:
 
     def test_create_with_custom_params(self):
         """Test factory with custom parameters."""
-        qdrant_config = QdrantConfig()
+        qdrant_config = QdrantConfig(host="localhost", port=19999)
         qdrant_service = QdrantService(qdrant_config, use_faiss_fallback=True)
 
         llm_config = VideoLLMConfig(model_name="mock")

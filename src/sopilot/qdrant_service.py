@@ -302,16 +302,16 @@ class QdrantService:
                 ]
             )
 
-        hits = self._client.search(
+        response = self._client.query_points(
             collection_name=collection_name,
-            query_vector=query_vector.tolist(),
+            query=query_vector.tolist(),
             limit=top_k,
             query_filter=search_filter,
             score_threshold=min_score,
         )
 
         results: list[SearchResult] = []
-        for hit in hits:
+        for hit in response.points:
             results.append(
                 SearchResult(
                     clip_id=str(hit.id),

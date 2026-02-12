@@ -51,7 +51,7 @@ services:
     restart: unless-stopped
 
   qdrant:
-    image: qdrant/qdrant:v1.7.4
+    image: qdrant/qdrant:v1.16.1
     container_name: vigil-qdrant
     ports:
       - "6333:6333"  # HTTP API

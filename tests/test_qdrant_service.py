@@ -37,12 +37,17 @@ class TestQdrantConfig:
         assert config.connection_url == "https://example.com:6333"
 
 
+def _faiss_config() -> QdrantConfig:
+    """Create config that always falls back to FAISS (unreachable port)."""
+    return QdrantConfig(host="localhost", port=19999)
+
+
 class TestQdrantServiceFAISSFallback:
     """Tests for QdrantService using FAISS fallback."""
 
     def test_init_with_fallback(self):
         """Test initialization with FAISS fallback enabled."""
-        config = QdrantConfig()
+        config = _faiss_config()
         service = QdrantService(config, use_faiss_fallback=True)
         assert service.config == config
         assert service.use_faiss_fallback is True
@@ -51,7 +56,7 @@ class TestQdrantServiceFAISSFallback:
 
     def test_collection_name(self):
         """Test collection name generation."""
-        config = QdrantConfig()
+        config = _faiss_config()
         service = QdrantService(config, use_faiss_fallback=True)
         assert service._get_collection_name("shot") == "vigil_shot"
         assert service._get_collection_name("micro") == "vigil_micro"
@@ -60,7 +65,7 @@ class TestQdrantServiceFAISSFallback:
 
     def test_add_embeddings_faiss(self):
         """Test adding embeddings with FAISS fallback."""
-        config = QdrantConfig()
+        config = _faiss_config()
         service = QdrantService(config, use_faiss_fallback=True)
 
         embeddings = np.random.randn(5, 768).astype(np.float32)
@@ -84,7 +89,7 @@ class TestQdrantServiceFAISSFallback:
 
     def test_add_embeddings_validation(self):
         """Test embedding validation."""
-        config = QdrantConfig()
+        config = _faiss_config()
         service = QdrantService(config, use_faiss_fallback=True)
 
         embeddings = np.random.randn(5, 768).astype(np.float32)
@@ -109,7 +114,7 @@ class TestQdrantServiceFAISSFallback:
 
     def test_add_embeddings_empty(self):
         """Test adding empty embeddings."""
-        config = QdrantConfig()
+        config = _faiss_config()
         service = QdrantService(config, use_faiss_fallback=True)
 
         embeddings = np.zeros((0, 768), dtype=np.float32)
@@ -120,7 +125,7 @@ class TestQdrantServiceFAISSFallback:
 
     def test_search_faiss_basic(self):
         """Test basic search with FAISS fallback."""
-        config = QdrantConfig()
+        config = _faiss_config()
         service = QdrantService(config, use_faiss_fallback=True)
 
         # Add some embeddings
@@ -150,7 +155,7 @@ class TestQdrantServiceFAISSFallback:
 
     def test_search_faiss_with_video_filter(self):
         """Test search with video_id filter."""
-        config = QdrantConfig()
+        config = _faiss_config()
         service = QdrantService(config, use_faiss_fallback=True)
 
         # Add embeddings from two videos
@@ -188,7 +193,7 @@ class TestQdrantServiceFAISSFallback:
 
     def test_search_faiss_with_min_score(self):
         """Test search with minimum score threshold."""
-        config = QdrantConfig()
+        config = _faiss_config()
         service = QdrantService(config, use_faiss_fallback=True)
 
         embeddings = np.random.randn(10, 768).astype(np.float32)
@@ -213,7 +218,7 @@ class TestQdrantServiceFAISSFallback:
 
     def test_search_faiss_empty_index(self):
         """Test search on empty index."""
-        config = QdrantConfig()
+        config = _faiss_config()
         service = QdrantService(config, use_faiss_fallback=True)
 
         query = np.random.randn(768).astype(np.float32)
@@ -223,7 +228,7 @@ class TestQdrantServiceFAISSFallback:
 
     def test_coarse_to_fine_search(self):
         """Test coarse-to-fine search across all levels."""
-        config = QdrantConfig()
+        config = _faiss_config()
         service = QdrantService(config, use_faiss_fallback=True)
 
         # Add embeddings at each level
@@ -258,7 +263,7 @@ class TestQdrantServiceFAISSFallback:
 
     def test_coarse_to_fine_search_empty(self):
         """Test coarse-to-fine search with no data."""
-        config = QdrantConfig()
+        config = _faiss_config()
         service = QdrantService(config, use_faiss_fallback=True)
 
         query = np.random.randn(768).astype(np.float32)

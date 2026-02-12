@@ -30,6 +30,44 @@ x-common-build: &common-build
   dockerfile: Dockerfile
 
 services:
+  # VIGIL-RAG infrastructure services
+  postgres:
+    image: postgres:15-alpine
+    container_name: vigil-postgres
+    environment:
+      POSTGRES_DB: vigil
+      POSTGRES_USER: vigil_user
+      POSTGRES_PASSWORD: vigil_dev_password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vigil_user -d vigil"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  qdrant:
+    image: qdrant/qdrant:v1.7.4
+    container_name: vigil-qdrant
+    ports:
+      - "6333:6333"  # HTTP API
+      - "6334:6334"  # gRPC API
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      QDRANT__SERVICE__GRPC_PORT: 6334
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://localhost:6333/health || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # SOPilot services
   redis:
     image: redis:7-alpine
     container_name: sopilot-redis
@@ -95,3 +133,9 @@ services:
       - ./watch_inbox:/watch_inbox
     command: ["sopilot-watch"]
     restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  qdrant_data:
+    driver: local

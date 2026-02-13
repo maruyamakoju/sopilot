@@ -51,6 +51,7 @@ class SearchResult:
     end_sec: float
     score: float  # Similarity score (higher is better)
     embedding: np.ndarray | None = None  # Optional: return embedding
+    transcript_text: str | None = None  # Audio transcript (Whisper)
 
 
 @dataclass
@@ -320,6 +321,7 @@ class QdrantService:
                     start_sec=float(hit.payload["start_sec"]),
                     end_sec=float(hit.payload["end_sec"]),
                     score=float(hit.score),
+                    transcript_text=hit.payload.get("transcript_text"),
                 )
             )
 
@@ -521,6 +523,7 @@ class QdrantService:
                     start_sec=float(meta["start_sec"]),
                     end_sec=float(meta["end_sec"]),
                     score=float(scores[idx]),
+                    transcript_text=meta.get("transcript_text"),
                 )
             )
 

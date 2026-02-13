@@ -89,6 +89,7 @@ class Evidence:
     end_sec: float
     score: float  # Retrieval score
     rerank_score: float | None = None  # Re-ranking score (if enabled)
+    transcript_text: str | None = None  # Audio transcript (Whisper)
 
 
 @dataclass
@@ -201,6 +202,7 @@ class RAGService:
                 start_sec=r.start_sec,
                 end_sec=r.end_sec,
                 score=r.score,
+                transcript_text=r.transcript_text,
             )
             for r in top_results
         ]
@@ -358,6 +360,7 @@ class RAGService:
                 start_sec=clip.start_sec,
                 end_sec=clip.end_sec,
                 score=clip.score,
+                transcript_text=clip.transcript_text,
             )
             for clip in top_clips
         ]

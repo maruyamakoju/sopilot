@@ -29,7 +29,10 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _index_video(video_path, video_id, chunker, embedder, qdrant_service, domain, keyframe_dir):
+def _index_video(
+    video_path, video_id, chunker, embedder, qdrant_service, domain, keyframe_dir,
+    transcription_service=None,
+):
     """Index a video: chunk → encode keyframes → store in vector DB.
 
     Returns:
@@ -40,9 +43,15 @@ def _index_video(video_path, video_id, chunker, embedder, qdrant_service, domain
     index_result = index_video_micro(
         video_path, video_id, chunker, embedder, qdrant_service,
         domain=domain, keyframe_dir=keyframe_dir,
+        transcription_service=transcription_service,
     )
     chunk_result = index_result["chunk_result"]
     logger.info("   FPS: %.2f, Duration: %.2f sec", chunk_result.video_fps, chunk_result.video_duration_sec)
+
+    tx_segments = index_result.get("transcript_segments", [])
+    if tx_segments:
+        logger.info("   Transcript: %d segments", len(tx_segments))
+
     return index_result["micro_metadata"], chunk_result
 
 
@@ -98,6 +107,18 @@ def main():
         "--force-reindex",
         action="store_true",
         help="Force re-indexing even if video already indexed",
+    )
+    parser.add_argument(
+        "--transcribe",
+        action="store_true",
+        help="Enable Whisper audio transcription during indexing",
+    )
+    parser.add_argument(
+        "--whisper-model",
+        type=str,
+        default="base",
+        choices=["tiny", "base", "small", "medium", "large"],
+        help="Whisper model size (default: base)",
     )
     args = parser.parse_args()
 
@@ -172,9 +193,23 @@ def main():
             chunker = ChunkingService()
             keyframe_dir = Path(args.keyframe_dir) if args.keyframe_dir else None
 
+            # Optional: Whisper transcription
+            tx_service = None
+            if args.transcribe:
+                from sopilot.transcription_service import TranscriptionConfig, TranscriptionService
+
+                tx_config = TranscriptionConfig(
+                    backend="openai-whisper",
+                    model_size=args.whisper_model,
+                    device=args.device,
+                )
+                tx_service = TranscriptionService(tx_config)
+                logger.info("   Whisper enabled: model=%s", args.whisper_model)
+
             micro_metadata, chunk_result = _index_video(
                 video_path, video_id, chunker, embedder, qdrant_service,
                 args.domain, keyframe_dir,
+                transcription_service=tx_service,
             )
             logger.info("   ✅ Indexing complete")
 
@@ -210,6 +245,8 @@ def main():
                     "   Rank %d: [%.2f-%.2f sec] score=%.3f",
                     rank, sr.start_sec, sr.end_sec, sr.score,
                 )
+                if sr.transcript_text:
+                    logger.info("     transcript: %s", sr.transcript_text[:120])
 
                 # Extract mid-point keyframe
                 mid_sec = (sr.start_sec + sr.end_sec) / 2.0

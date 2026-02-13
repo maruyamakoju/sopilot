@@ -21,6 +21,7 @@ if TYPE_CHECKING:
     from .chunking_service import Chunk, ChunkingResult
     from .qdrant_service import QdrantService
     from .retrieval_embeddings import RetrievalEmbedder
+    from .transcription_service import TranscriptionService
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +149,7 @@ def index_video_micro(
     *,
     domain: str = "generic",
     keyframe_dir: Path | None = None,
+    transcription_service: TranscriptionService | None = None,
 ) -> dict:
     """Index a video: chunk -> encode micro keyframes -> store in vector DB.
 
@@ -159,12 +161,14 @@ def index_video_micro(
         qdrant_service: QdrantService (or FAISS fallback) for storage.
         domain: Video domain for chunking.
         keyframe_dir: Optional directory to save keyframes.
+        transcription_service: Optional TranscriptionService for audio transcript.
 
     Returns:
         Dictionary with keys:
         - micro_metadata: list of metadata dicts for each micro chunk
         - chunk_result: ChunkingResult from the chunker
         - num_added: number of embeddings stored in vector DB
+        - transcript_segments: list of TranscriptionSegment (if transcribed)
     """
     from PIL import Image
 
@@ -173,6 +177,16 @@ def index_video_micro(
         "Chunked: shots=%d, micro=%d, meso=%d, macro=%d",
         len(result.shots), len(result.micro), len(result.meso), len(result.macro),
     )
+
+    # Transcribe audio (once for entire video)
+    all_segments: list = []
+    if transcription_service is not None:
+        try:
+            tx_result = transcription_service.transcribe(video_path)
+            all_segments = tx_result.segments
+            logger.info("Transcribed %d segments (language=%s)", len(all_segments), tx_result.language)
+        except Exception as exc:
+            logger.warning("Transcription failed, continuing without audio: %s", exc)
 
     micro_metadata: list[dict] = []
     micro_embeddings: list[np.ndarray] = []
@@ -195,20 +209,32 @@ def index_video_micro(
             avg_embedding = np.mean(keyframe_embeddings, axis=0)
             avg_embedding = avg_embedding / (np.linalg.norm(avg_embedding) + 1e-9)
 
+            # Collect transcript text overlapping this chunk
+            transcript_text = None
+            if all_segments and transcription_service is not None:
+                overlapping = transcription_service.segments_for_range(
+                    all_segments, chunk.start_sec, chunk.end_sec,
+                )
+                if overlapping:
+                    transcript_text = transcription_service.segments_to_text(overlapping)
+
             micro_embeddings.append(avg_embedding)
-            micro_metadata.append({
+            meta = {
                 "clip_id": str(uuid.uuid4()),
                 "video_id": video_id,
                 "start_sec": chunk.start_sec,
                 "end_sec": chunk.end_sec,
                 "chunk_index": idx,
-            })
+            }
+            if transcript_text:
+                meta["transcript_text"] = transcript_text
+            micro_metadata.append(meta)
 
     cap.release()
 
     if not micro_embeddings:
         logger.warning("No micro chunks encoded for %s", video_path)
-        return {"micro_metadata": [], "chunk_result": result, "num_added": 0}
+        return {"micro_metadata": [], "chunk_result": result, "num_added": 0, "transcript_segments": all_segments}
 
     micro_embeddings_array = np.array(micro_embeddings, dtype=np.float32)
     logger.info("Encoded %d micro chunks (dim=%d)", len(micro_embeddings_array), micro_embeddings_array.shape[1])
@@ -221,7 +247,12 @@ def index_video_micro(
     )
     logger.info("Stored %d embeddings", num_added)
 
-    return {"micro_metadata": micro_metadata, "chunk_result": result, "num_added": num_added}
+    return {
+        "micro_metadata": micro_metadata,
+        "chunk_result": result,
+        "num_added": num_added,
+        "transcript_segments": all_segments,
+    }
 
 
 def create_video_record(

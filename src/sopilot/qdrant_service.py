@@ -46,7 +46,7 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-ChunkLevel = Literal["shot", "micro", "meso", "macro"]
+ChunkLevel = Literal["shot", "micro", "meso", "macro", "micro_text"]
 
 
 @dataclass

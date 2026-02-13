@@ -249,12 +249,31 @@ def index_video_micro(
         embeddings=micro_embeddings_array,
         metadata=micro_metadata,
     )
-    logger.info("Stored %d embeddings", num_added)
+    logger.info("Stored %d micro embeddings", num_added)
+
+    # Index transcript text embeddings in micro_text collection
+    num_text_added = 0
+    text_meta_list = [m for m in micro_metadata if m.get("transcript_text")]
+    if text_meta_list:
+        text_strings = [m["transcript_text"] for m in text_meta_list]
+        text_embeddings = embedder.encode_text(text_strings)
+        # Normalise (encode_text already normalises for real OpenCLIP, but mock may not)
+        norms = np.linalg.norm(text_embeddings, axis=1, keepdims=True) + 1e-9
+        text_embeddings = text_embeddings / norms
+
+        qdrant_service.ensure_collections(levels=["micro_text"], embedding_dim=embedder.config.embedding_dim)
+        num_text_added = qdrant_service.add_embeddings(
+            level="micro_text",
+            embeddings=text_embeddings.astype(np.float32),
+            metadata=text_meta_list,
+        )
+        logger.info("Stored %d micro_text embeddings", num_text_added)
 
     return {
         "micro_metadata": micro_metadata,
         "chunk_result": result,
         "num_added": num_added,
+        "num_text_added": num_text_added,
         "transcript_segments": all_segments,
     }
 

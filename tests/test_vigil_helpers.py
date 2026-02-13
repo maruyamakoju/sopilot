@@ -218,6 +218,7 @@ def _make_mock_embedder(dim=512):
     embedder.config = MagicMock()
     embedder.config.embedding_dim = dim
     embedder.encode_images.return_value = np.random.randn(1, dim).astype(np.float32)
+    embedder.encode_text.side_effect = lambda texts: np.random.randn(len(texts), dim).astype(np.float32)
     return embedder
 
 
@@ -269,6 +270,7 @@ class TestIndexVideoMicroWithTranscription:
                 _make_mock_qdrant(),
             )
             assert result["num_added"] == 1
+            assert result["num_text_added"] == 0
             assert "transcript_segments" in result
             assert result["transcript_segments"] == []
             # No transcript_text in metadata
@@ -341,12 +343,13 @@ class TestIndexVideoMicroWithTranscription:
                 duration_sec=6.0,
             )
 
+            qdrant = _make_mock_qdrant()
             result = index_video_micro(
                 video_path,
                 "test-vid-id",
                 _make_mock_chunker(micro_chunks),
                 _make_mock_embedder(),
-                _make_mock_qdrant(),
+                qdrant,
                 transcription_service=tx_service,
             )
             assert result["num_added"] == 2
@@ -362,6 +365,11 @@ class TestIndexVideoMicroWithTranscription:
             meta1 = result["micro_metadata"][1]
             assert "transcript_text" in meta1
             assert "Step three" in meta1["transcript_text"]
+
+            # micro_text embeddings should have been stored
+            assert result["num_text_added"] == 2
+            # Verify micro_text collection exists in FAISS
+            assert "micro_text" in qdrant._faiss_indexes
 
         finally:
             video_path.unlink(missing_ok=True)

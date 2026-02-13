@@ -1,81 +1,66 @@
-# Lightweight Dockerfile for SOPilot (CPU-only)
-# Base: Ubuntu 22.04 + Python 3.10
-# Use case: Testing, CI/CD, low-volume deployments
+# Multi-stage Dockerfile for SOPilot (CPU-only, with PyTorch)
+# Use case: Testing, CI/CD, low-volume deployments with neural mode
+# For minimal image without PyTorch, use the root Dockerfile
 
-# Stage 1: Build environment
+# Stage 1: Build
 FROM python:3.10-slim AS builder
 
-# Install build dependencies
-RUN apt-get update && apt-get install -y \
+RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential \
     git \
-    libopencv-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Set working directory
 WORKDIR /build
 
-# Copy requirements
 COPY pyproject.toml README.md ./
 COPY src/ ./src/
 
-# Install Python dependencies (CPU-only PyTorch)
-RUN pip install --no-cache-dir --upgrade pip setuptools wheel && \
-    pip install --no-cache-dir \
-    torch==2.5.0 torchvision==0.20.0 --index-url https://download.pytorch.org/whl/cpu && \
-    pip install --no-cache-dir -e .
+RUN pip install --no-cache-dir --upgrade pip setuptools wheel \
+    && pip install --no-cache-dir \
+       torch==2.5.0 torchvision==0.20.0 --index-url https://download.pytorch.org/whl/cpu \
+    && pip install --no-cache-dir .
 
-# Stage 2: Runtime environment
+# Stage 2: Runtime
 FROM python:3.10-slim
 
-# Install runtime dependencies
-RUN apt-get update && apt-get install -y \
-    libopencv-core4.5d \
-    libopencv-videoio4.5d \
-    libopencv-imgproc4.5d \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libgl1 \
+    libglib2.0-0 \
     libgomp1 \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN useradd -m -u 1000 sopilot && \
-    mkdir -p /app /data && \
-    chown -R sopilot:sopilot /app /data
+# Non-root user
+RUN useradd -m -u 1000 sopilot \
+    && mkdir -p /app /data/raw /data/embeddings /data/models /data/reports /data/index \
+    && chown -R sopilot:sopilot /app /data
 
 # Copy installed packages from builder
 COPY --from=builder /usr/local/lib/python3.10/site-packages /usr/local/lib/python3.10/site-packages
 COPY --from=builder /usr/local/bin /usr/local/bin
 
-# Copy application code
+# Copy application source
 WORKDIR /app
-COPY --chown=sopilot:sopilot . .
+COPY --chown=sopilot:sopilot src/ ./src/
+COPY --chown=sopilot:sopilot pyproject.toml README.md ./
+RUN pip install --no-cache-dir --no-deps -e .
 
-# Install app
 USER sopilot
-RUN pip install --no-cache-dir -e .
 
-# Create data directories
-RUN mkdir -p /data/raw /data/embeddings /data/models /data/reports /data/logs
-
-# Environment defaults
-ENV PYTHONUNBUFFERED=1 \
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
     SOPILOT_DATA_DIR=/data \
     SOPILOT_QUEUE_BACKEND=rq \
     SOPILOT_REDIS_URL=redis://redis:6379/0 \
-    SOPILOT_DTW_USE_GPU=false \
-    SOPILOT_EMBEDDER_COMPILE=false \
-    SOPILOT_LOG_FORMAT=json
+    SOPILOT_DTW_USE_GPU=false
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Expose API port
 EXPOSE 8000
+VOLUME ["/data"]
 
-# Default command: API server
-CMD ["uvicorn", "sopilot.api:app", "--host", "0.0.0.0", "--port", "8000"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -sf http://localhost:8000/health || exit 1
 
-# Alternative commands:
-# Worker: sopilot-worker --queues ingest,score,training
-# Watch: sopilot-watch
+# Default: API server
+# Override for worker: ["sopilot-worker", "--queues", "ingest,score,training"]
+# Override for watcher: ["sopilot-watch"]
+CMD ["uvicorn", "sopilot.main:app", "--host", "0.0.0.0", "--port", "8000"]

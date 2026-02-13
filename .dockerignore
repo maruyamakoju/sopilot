@@ -1,11 +1,64 @@
-﻿__pycache__/
-.pytest_cache/
-.venv/
-venv/
-data/
-models/
+# Version control
 .git/
 .gitignore
+
+# Python
+__pycache__/
 *.pyc
 *.pyo
 *.pyd
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing
+tests/
+.pytest_cache/
+htmlcov/
+.coverage
+
+# Dev tools
+.ruff_cache/
+.mypy_cache/
+
+# Data / Models (bind-mounted at runtime)
+data/
+models/
+demo_videos/
+results/
+watch_inbox/
+
+# Benchmarks and scripts (not needed in image)
+benchmarks/
+scripts/
+
+# Docs
+*.md
+!README.md
+docs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+docker/
+Dockerfile*
+docker-compose*.yml
+.dockerignore
+
+# CI
+.github/
+
+# Environment files
+.env
+.env.local
+*.local.json

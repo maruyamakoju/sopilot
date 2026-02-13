@@ -6,14 +6,14 @@ Remaining refactoring and improvement items, prioritized by impact.
 
 ## P0 - High Priority (Security / Stability)
 
-### [P0-1] Add tests for `audit_service.py`
-Compliance/security auditing code has no dedicated test file. Audit trail integrity and signed export verification need coverage.
+### ~~[P0-1] Add tests for `audit_service.py`~~ ✅ DONE (2026-02-12)
+Added `tests/test_audit_service.py` (19 tests): audit trail, HMAC-SHA256 signed export, signature roundtrip, path sanitization.
 
-### [P0-2] Add tests for `db.py`
-Database layer (SQLite operations, schema migrations, `_ensure_column`, job state machine) has no dedicated tests. Currently only exercised indirectly via integration tests.
+### ~~[P0-2] Add tests for `db.py`~~ ✅ DONE (2026-02-12)
+Added `tests/test_db.py` (46 tests): schema init, _ensure_column guards, video CRUD, clips, job lifecycles, audit queries.
 
-### [P0-3] Add tests for `dtw_gpu.py`
-GPU DTW acceleration wrapper (CuPy) has no tests. Needs at least a CPU-fallback path test to verify graceful degradation.
+### ~~[P0-3] Add tests for `dtw_gpu.py`~~ ✅ DONE (2026-02-12)
+Added `tests/test_dtw_gpu.py` (13 tests): DtwAlignment, CPU fallback, auto-routing, GPU availability, diagnostics.
 
 ---
 

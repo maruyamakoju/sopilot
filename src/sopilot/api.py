@@ -278,6 +278,11 @@ def create_app() -> FastAPI:
     app.state.service = service
     ui_index = Path(__file__).resolve().parent / "ui" / "index.html"
 
+    # Include VIGIL-RAG router
+    from .vigil_router import router as vigil_router
+
+    app.include_router(vigil_router)
+
     @app.middleware("http")
     async def auth_middleware(request: Request, call_next):
         if _is_public_path(request.url.path):

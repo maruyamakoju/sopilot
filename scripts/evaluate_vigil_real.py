@@ -112,7 +112,7 @@ def _create_transcription_service(model_name: str = "base"):
     """Create transcription service (optional)."""
     from sopilot.transcription_service import TranscriptionConfig, TranscriptionService
 
-    config = TranscriptionConfig(backend="openai-whisper", model_name=model_name)
+    config = TranscriptionConfig(backend="openai-whisper", model_size=model_name)
     return TranscriptionService(config)
 
 
@@ -125,15 +125,20 @@ def _index_video(
     *,
     transcribe: bool = False,
     whisper_model: str = "base",
+    hierarchical: bool = False,
 ) -> dict:
-    """Index a single video: chunk → embed → store (+ optional transcription)."""
-    from sopilot.vigil_helpers import index_video_micro
+    """Index a single video: chunk → embed → store (+ optional transcription).
+
+    When *hierarchical* is True, indexes meso + macro levels too.
+    """
+    from sopilot.vigil_helpers import index_video_all_levels, index_video_micro
 
     tx_service = None
     if transcribe:
         tx_service = _create_transcription_service(whisper_model)
 
-    return index_video_micro(
+    index_fn = index_video_all_levels if hierarchical else index_video_micro
+    return index_fn(
         video_path,
         video_id,
         chunker,
@@ -152,19 +157,33 @@ def _retrieve_for_query(
     alpha: float,
     video_id: str | None,
     top_k: int,
+    hierarchical: bool = False,
 ) -> list[dict]:
     """Run retrieval for a single query. Returns list of {clip_id, score, ...}."""
     import contextlib
 
     query_embedding = embedder.encode_text([query_text])[0]
 
-    # Visual search
-    visual_results = qdrant.search(
-        level="micro",
-        query_vector=query_embedding,
-        top_k=top_k,
-        video_id=video_id,
-    )
+    # Visual search — flat or coarse-to-fine
+    if hierarchical:
+        hier_results = qdrant.coarse_to_fine_search(
+            query_embedding,
+            video_id=video_id,
+            macro_k=5,
+            meso_k=10,
+            micro_k=top_k,
+            shot_k=0,
+            enable_temporal_filtering=True,
+            time_expand_factor=0.1,
+        )
+        visual_results = hier_results.get("micro", [])
+    else:
+        visual_results = qdrant.search(
+            level="micro",
+            query_vector=query_embedding,
+            top_k=top_k,
+            video_id=video_id,
+        )
 
     if mode == "visual_only" or alpha <= 0:
         return [
@@ -258,6 +277,7 @@ def evaluate(
     transcribe: bool = False,
     whisper_model: str = "base",
     iou_threshold: float = 0.3,
+    hierarchical: bool = False,
 ) -> dict:
     """Run full real-data evaluation.
 
@@ -314,12 +334,17 @@ def evaluate(
             qdrant,
             transcribe=transcribe,
             whisper_model=whisper_model,
+            hierarchical=hierarchical,
         )
         dt = time.time() - t0
+        extra = ""
+        if hierarchical:
+            extra = f", meso={result.get('num_meso_added', 0)}, macro={result.get('num_macro_added', 0)}"
         logger.info(
-            "  Indexed %d micro clips (%d text), %.1f sec",
+            "  Indexed %d micro clips (%d text%s), %.1f sec",
             result["num_added"],
             result.get("num_text_added", 0),
+            extra,
             dt,
         )
         indexed_videos.add(vid)
@@ -350,6 +375,7 @@ def evaluate(
                 alpha=alpha,
                 video_id=q.video_id,
                 top_k=top_k,
+                hierarchical=hierarchical,
             )
 
             retrieved_ids = [r["clip_id"] for r in results]
@@ -469,6 +495,7 @@ def evaluate(
         "video_map_file": str(video_map_path),
         "embedding_model": embedding_model,
         "transcribe": transcribe,
+        "hierarchical": hierarchical,
         "top_k": top_k,
         "num_queries": len(retrieval_queries),
         "modes": mode_results,
@@ -635,6 +662,11 @@ def main() -> int:
         help="Temporal IoU threshold for time-range based GT matching (default: 0.3)",
     )
     parser.add_argument(
+        "--hierarchical",
+        action="store_true",
+        help="Enable coarse-to-fine hierarchical retrieval (indexes meso+macro levels)",
+    )
+    parser.add_argument(
         "--output",
         type=str,
         default=None,
@@ -687,6 +719,7 @@ def main() -> int:
         transcribe=args.transcribe,
         whisper_model=args.whisper_model,
         iou_threshold=args.iou_threshold,
+        hierarchical=args.hierarchical,
     )
 
     if not results:

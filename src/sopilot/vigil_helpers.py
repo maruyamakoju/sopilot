@@ -278,6 +278,116 @@ def index_video_micro(
     }
 
 
+def index_video_all_levels(
+    video_path: Path,
+    video_id: str,
+    chunker,
+    embedder: RetrievalEmbedder,
+    qdrant_service: QdrantService,
+    *,
+    domain: str = "generic",
+    keyframe_dir: Path | None = None,
+    transcription_service: TranscriptionService | None = None,
+) -> dict:
+    """Index a video at all chunk levels: micro + meso + macro.
+
+    Extends ``index_video_micro`` by additionally encoding meso and macro
+    keyframes and storing their embeddings in separate vector collections.
+    This enables coarse-to-fine hierarchical retrieval.
+
+    Args:
+        video_path: Path to the video file.
+        video_id: Stable video identifier (e.g. SHA-256).
+        chunker: ChunkingService instance.
+        embedder: RetrievalEmbedder for encoding keyframes.
+        qdrant_service: QdrantService (or FAISS fallback) for storage.
+        domain: Video domain for chunking.
+        keyframe_dir: Optional directory to save keyframes.
+        transcription_service: Optional TranscriptionService for audio transcript.
+
+    Returns:
+        Dictionary with all keys from ``index_video_micro`` plus:
+        - meso_metadata: list of metadata dicts for each meso chunk
+        - macro_metadata: list of metadata dicts for each macro chunk
+        - num_meso_added: number of meso embeddings stored
+        - num_macro_added: number of macro embeddings stored
+    """
+    from PIL import Image
+
+    # First, run micro-level indexing (unchanged)
+    micro_result = index_video_micro(
+        video_path,
+        video_id,
+        chunker,
+        embedder,
+        qdrant_service,
+        domain=domain,
+        keyframe_dir=keyframe_dir,
+        transcription_service=transcription_service,
+    )
+
+    chunk_result = micro_result["chunk_result"]
+    dim = embedder.config.embedding_dim
+
+    cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        raise RuntimeError(f"Cannot open video: {video_path}")
+
+    def _encode_level(chunks, level_name):
+        """Encode keyframes for a given chunk level and store embeddings."""
+        level_metadata: list[dict] = []
+        level_embeddings: list[np.ndarray] = []
+
+        for idx, chunk in enumerate(chunks):
+            keyframes = []
+            for frame_idx in chunk.keyframe_indices:
+                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+                ret, frame = cap.read()
+                if ret:
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                    keyframes.append(Image.fromarray(frame_rgb))
+
+            if keyframes:
+                kf_embs = embedder.encode_images(keyframes)
+                avg_emb = np.mean(kf_embs, axis=0)
+                avg_emb = avg_emb / (np.linalg.norm(avg_emb) + 1e-9)
+
+                level_embeddings.append(avg_emb)
+                level_metadata.append({
+                    "clip_id": str(uuid.uuid4()),
+                    "video_id": video_id,
+                    "start_sec": chunk.start_sec,
+                    "end_sec": chunk.end_sec,
+                    "chunk_index": idx,
+                })
+
+        num_added = 0
+        if level_embeddings:
+            emb_array = np.array(level_embeddings, dtype=np.float32)
+            qdrant_service.ensure_collections(levels=[level_name], embedding_dim=dim)
+            num_added = qdrant_service.add_embeddings(
+                level=level_name,
+                embeddings=emb_array,
+                metadata=level_metadata,
+            )
+            logger.info("Stored %d %s embeddings (dim=%d)", num_added, level_name, dim)
+
+        return level_metadata, num_added
+
+    meso_meta, num_meso = _encode_level(chunk_result.meso, "meso")
+    macro_meta, num_macro = _encode_level(chunk_result.macro, "macro")
+
+    cap.release()
+
+    return {
+        **micro_result,
+        "meso_metadata": meso_meta,
+        "macro_metadata": macro_meta,
+        "num_meso_added": num_meso,
+        "num_macro_added": num_macro,
+    }
+
+
 def create_video_record(
     *,
     file_path: Path,

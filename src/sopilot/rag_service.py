@@ -74,6 +74,8 @@ class RetrievalConfig:
     # Re-ranking
     enable_rerank: bool = False
     rerank_top_k: int = 10
+    rerank_diversity_weight: float = 0.3  # MMR lambda: 0=pure diversity, 1=pure relevance
+    rerank_transcript_boost: float = 0.15  # Bonus for keyword overlap with transcript
 
     # Filtering
     min_score: float | None = None
@@ -83,6 +85,10 @@ class RetrievalConfig:
     use_micro_text: bool = True
     micro_text_alpha: float = 0.7  # Weight for audio text score in fusion
     micro_text_k: int = 20  # Top-k for micro_text level
+
+    # Hierarchical coarse-to-fine retrieval
+    enable_hierarchical: bool = False
+    hierarchical_expand_factor: float = 0.1
 
 
 @dataclass
@@ -190,6 +196,8 @@ class RAGService:
             meso_k=self.retrieval_config.meso_k,
             micro_k=self.retrieval_config.micro_k,
             shot_k=self.retrieval_config.shot_k,
+            enable_temporal_filtering=self.retrieval_config.enable_hierarchical,
+            time_expand_factor=self.retrieval_config.hierarchical_expand_factor,
         )
 
         # Step 3: Flatten and re-rank
@@ -697,36 +705,87 @@ class RAGService:
         question: str,
         results: list[SearchResult],
     ) -> list[SearchResult]:
-        """Re-rank results using cross-encoder or LLM scoring.
+        """Re-rank results using MMR diversity + transcript keyword boost.
+
+        Combines three signals:
+        1. Original retrieval score (cosine similarity)
+        2. Temporal diversity penalty (MMR-style: penalize clips near
+           already-selected ones)
+        3. Transcript keyword boost (bonus when query words appear in
+           transcript text)
+
+        No additional model downloads required.
 
         Args:
             question: Original question
             results: Search results to re-rank
 
         Returns:
-            Re-ranked results (sorted by new score)
-
-        Note:
-            This is a placeholder. Real implementation would:
-            - Use cross-encoder model (e.g., ms-marco-MiniLM-L-6-v2)
-            - Or use LLM to score relevance (slower but more accurate)
+            Re-ranked results (sorted by combined score, truncated to
+            ``rerank_top_k``)
         """
-        logger.debug("Re-ranking %d results (mock)", len(results))
+        if len(results) <= 1:
+            return results
 
-        # TODO: Implement real re-ranking
-        # Option 1: Cross-encoder
-        # from sentence_transformers import CrossEncoder
-        # model = CrossEncoder('cross-encoder/ms-marco-MiniLM-L-6-v2')
-        # pairs = [(question, clip_text) for clip_text in ...]
-        # scores = model.predict(pairs)
-        #
-        # Option 2: LLM scoring
-        # for result in results:
-        #     prompt = f"How relevant is this clip to the question?\nQ: {question}\nClip: ..."
-        #     score = llm.score(prompt)
+        cfg = self.retrieval_config
+        lam = cfg.rerank_diversity_weight  # higher = more relevance
+        tx_boost = cfg.rerank_transcript_boost
+        top_k = cfg.rerank_top_k
 
-        # Mock: just return as-is (no re-ranking)
-        return results
+        # Normalise query words for keyword matching
+        query_words = set(question.lower().split())
+
+        # Pre-compute transcript keyword bonus for each result
+        tx_bonuses: list[float] = []
+        for r in results:
+            bonus = 0.0
+            if r.transcript_text and query_words:
+                doc_words = set(r.transcript_text.lower().split())
+                overlap = len(query_words & doc_words)
+                bonus = tx_boost * (overlap / len(query_words))
+            tx_bonuses.append(bonus)
+
+        # MMR-style greedy selection
+        selected: list[int] = []
+        remaining = set(range(len(results)))
+
+        while remaining and len(selected) < top_k:
+            best_idx = -1
+            best_mmr = -float("inf")
+
+            for idx in remaining:
+                relevance = results[idx].score + tx_bonuses[idx]
+
+                # Max temporal similarity to already-selected clips
+                max_sim = 0.0
+                if selected:
+                    for s_idx in selected:
+                        iou = temporal_iou(
+                            results[idx].start_sec,
+                            results[idx].end_sec,
+                            results[s_idx].start_sec,
+                            results[s_idx].end_sec,
+                        )
+                        max_sim = max(max_sim, iou)
+
+                mmr_score = (1 - lam) * relevance - lam * max_sim
+                if mmr_score > best_mmr:
+                    best_mmr = mmr_score
+                    best_idx = idx
+
+            if best_idx >= 0:
+                selected.append(best_idx)
+                remaining.discard(best_idx)
+
+        reranked = [results[i] for i in selected]
+        logger.info(
+            "Re-ranked %d → %d results (diversity=%.2f, tx_boost=%.2f)",
+            len(results),
+            len(reranked),
+            lam,
+            tx_boost,
+        )
+        return reranked
 
 
 def create_rag_service(

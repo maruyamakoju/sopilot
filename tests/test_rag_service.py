@@ -578,6 +578,84 @@ class TestObserveClipTranscript:
         assert "X" * 600 not in prompt
 
 
+class TestRerankResults:
+    """Tests for the MMR diversity + transcript boost re-ranker."""
+
+    def test_rerank_returns_subset(self):
+        """Re-ranking should return at most rerank_top_k results."""
+        qdrant_service, llm_service = make_mock_vigil_services()
+        config = RetrievalConfig(enable_rerank=True, rerank_top_k=3)
+        rag = RAGService(vector_service=qdrant_service, llm_service=llm_service, retrieval_config=config)
+
+        results = [
+            SearchResult(clip_id=f"c{i}", video_id="v1", level="micro",
+                         start_sec=i * 5.0, end_sec=(i + 1) * 5.0, score=1.0 - i * 0.1)
+            for i in range(6)
+        ]
+        reranked = rag._rerank_results("test query", results)
+        assert len(reranked) <= 3
+
+    def test_rerank_diversity_spreads_clips(self):
+        """Overlapping clips should be pushed apart by MMR diversity."""
+        qdrant_service, llm_service = make_mock_vigil_services()
+        config = RetrievalConfig(enable_rerank=True, rerank_top_k=3, rerank_diversity_weight=0.5)
+        rag = RAGService(vector_service=qdrant_service, llm_service=llm_service, retrieval_config=config)
+
+        # Two clips overlap heavily at [0,5], one far away at [50,55]
+        results = [
+            SearchResult(clip_id="near1", video_id="v1", level="micro",
+                         start_sec=0.0, end_sec=5.0, score=0.95),
+            SearchResult(clip_id="near2", video_id="v1", level="micro",
+                         start_sec=0.5, end_sec=5.5, score=0.90),
+            SearchResult(clip_id="far", video_id="v1", level="micro",
+                         start_sec=50.0, end_sec=55.0, score=0.85),
+        ]
+        reranked = rag._rerank_results("find something", results)
+        ids = [r.clip_id for r in reranked]
+        # "far" should appear before "near2" due to diversity
+        assert ids.index("far") < ids.index("near2")
+
+    def test_rerank_transcript_boost(self):
+        """Clips with matching transcript keywords should get a boost."""
+        qdrant_service, llm_service = make_mock_vigil_services()
+        config = RetrievalConfig(enable_rerank=True, rerank_top_k=3,
+                                 rerank_diversity_weight=0.0, rerank_transcript_boost=0.5)
+        rag = RAGService(vector_service=qdrant_service, llm_service=llm_service, retrieval_config=config)
+
+        # clip_b has lower base score but matching transcript
+        results = [
+            SearchResult(clip_id="a", video_id="v1", level="micro",
+                         start_sec=0.0, end_sec=5.0, score=0.80, transcript_text="unrelated text"),
+            SearchResult(clip_id="b", video_id="v1", level="micro",
+                         start_sec=10.0, end_sec=15.0, score=0.75,
+                         transcript_text="remove the old filter now"),
+        ]
+        reranked = rag._rerank_results("remove filter", results)
+        # "b" should rank first due to transcript keyword overlap boost
+        assert reranked[0].clip_id == "b"
+
+    def test_rerank_single_result(self):
+        """Single result should be returned as-is."""
+        qdrant_service, llm_service = make_mock_vigil_services()
+        config = RetrievalConfig(enable_rerank=True)
+        rag = RAGService(vector_service=qdrant_service, llm_service=llm_service, retrieval_config=config)
+
+        results = [
+            SearchResult(clip_id="c1", video_id="v1", level="micro",
+                         start_sec=0.0, end_sec=5.0, score=0.9),
+        ]
+        reranked = rag._rerank_results("test", results)
+        assert len(reranked) == 1
+        assert reranked[0].clip_id == "c1"
+
+    def test_rerank_empty(self):
+        """Empty input returns empty output."""
+        qdrant_service, llm_service = make_mock_vigil_services()
+        config = RetrievalConfig(enable_rerank=True)
+        rag = RAGService(vector_service=qdrant_service, llm_service=llm_service, retrieval_config=config)
+        assert rag._rerank_results("test", []) == []
+
+
 class TestComputeVideoId:
     """Tests for compute_video_id."""
 

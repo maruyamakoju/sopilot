@@ -279,6 +279,7 @@ class QdrantService:
         top_k: int = 10,
         video_id: str | None = None,
         min_score: float | None = None,
+        time_range: tuple[float, float] | None = None,
     ) -> list[SearchResult]:
         """Search for similar embeddings.
 
@@ -288,28 +289,42 @@ class QdrantService:
             top_k: Number of results to return
             video_id: Optional filter by video ID
             min_score: Optional minimum similarity score
+            time_range: Optional (start_sec, end_sec) — only return clips
+                that temporally overlap this window.
 
         Returns:
             List of SearchResult objects, sorted by score (descending)
         """
         if self._client is None:
             # FAISS fallback
-            return self._search_faiss(level, query_vector, top_k, video_id, min_score)
+            return self._search_faiss(level, query_vector, top_k, video_id, min_score, time_range)
 
         # Qdrant search
         collection_name = self._get_collection_name(level)
 
-        # Build filter if video_id specified
-        search_filter = None
+        # Build filter conditions
+        must_conditions: list = []
         if video_id is not None:
-            search_filter = Filter(
-                must=[
-                    FieldCondition(
-                        key="video_id",
-                        match=MatchValue(value=str(video_id)),
-                    )
-                ]
+            must_conditions.append(
+                FieldCondition(
+                    key="video_id",
+                    match=MatchValue(value=str(video_id)),
+                )
             )
+
+        if time_range is not None:
+            from qdrant_client.models import Range
+
+            t_start, t_end = time_range
+            # Overlap condition: clip.start_sec < t_end AND clip.end_sec > t_start
+            must_conditions.append(
+                FieldCondition(key="start_sec", range=Range(lt=t_end))
+            )
+            must_conditions.append(
+                FieldCondition(key="end_sec", range=Range(gt=t_start))
+            )
+
+        search_filter = Filter(must=must_conditions) if must_conditions else None
 
         response = self._client.query_points(
             collection_name=collection_name,
@@ -336,6 +351,29 @@ class QdrantService:
         logger.debug("Found %d results for level=%s, top_k=%d", len(results), level, top_k)
         return results
 
+    @staticmethod
+    def _compute_time_window(
+        results: list[SearchResult],
+        expand_factor: float = 0.1,
+    ) -> tuple[float, float] | None:
+        """Compute the union time window of search results, optionally expanded.
+
+        Args:
+            results: Search results to union.
+            expand_factor: Fraction of the window duration to pad each side
+                (e.g. 0.1 → 10 % expansion on each end).
+
+        Returns:
+            ``(start_sec, end_sec)`` or ``None`` if *results* is empty.
+        """
+        if not results:
+            return None
+        t_start = min(r.start_sec for r in results)
+        t_end = max(r.end_sec for r in results)
+        span = t_end - t_start
+        pad = span * expand_factor
+        return (max(0.0, t_start - pad), t_end + pad)
+
     def coarse_to_fine_search(
         self,
         query_vector: np.ndarray,
@@ -345,11 +383,16 @@ class QdrantService:
         meso_k: int = 10,
         micro_k: int = 20,
         shot_k: int = 30,
+        enable_temporal_filtering: bool = True,
+        time_expand_factor: float = 0.1,
     ) -> dict[ChunkLevel, list[SearchResult]]:
         """Perform coarse-to-fine retrieval across all levels.
 
-        Search order: macro → meso → micro → shot
-        Each level filters to relevant time ranges from coarser level.
+        Search order: macro → meso → micro → shot.
+        When *enable_temporal_filtering* is ``True`` each finer level is
+        restricted to the time window discovered at the coarser level.
+        If the coarser level returns no results the filter is dropped so
+        that audio-only or fine-grained queries still work.
 
         Args:
             query_vector: Query embedding vector
@@ -358,6 +401,9 @@ class QdrantService:
             meso_k: Top-k for meso level
             micro_k: Top-k for micro level
             shot_k: Top-k for shot level
+            enable_temporal_filtering: If True, restrict finer levels to
+                the time window from the coarser level.
+            time_expand_factor: Fraction of window to pad each side.
 
         Returns:
             Dictionary mapping level to search results
@@ -373,22 +419,29 @@ class QdrantService:
         )
         results["macro"] = macro_results
 
-        if not macro_results:
-            # No macro results, return empty for all levels
-            results["meso"] = []
-            results["micro"] = []
-            results["shot"] = []
-            return results
+        # Compute time window from macro results (None if empty → no filter)
+        macro_window = (
+            self._compute_time_window(macro_results, time_expand_factor)
+            if enable_temporal_filtering and macro_results
+            else None
+        )
 
-        # Step 2: Meso search (within macro time ranges)
-        # For simplicity, search all meso chunks (filtering by time range is TODO)
+        # Step 2: Meso search
         meso_results = self.search(
             level="meso",
             query_vector=query_vector,
             top_k=meso_k,
             video_id=video_id,
+            time_range=macro_window,
         )
         results["meso"] = meso_results
+
+        # Narrow further: use meso window if available, otherwise keep macro
+        meso_window = (
+            self._compute_time_window(meso_results, time_expand_factor)
+            if enable_temporal_filtering and meso_results
+            else macro_window
+        )
 
         # Step 3: Micro search
         micro_results = self.search(
@@ -396,24 +449,27 @@ class QdrantService:
             query_vector=query_vector,
             top_k=micro_k,
             video_id=video_id,
+            time_range=meso_window,
         )
         results["micro"] = micro_results
 
-        # Step 4: Shot search (finest)
+        # Step 4: Shot search (finest) — use same window as micro
         shot_results = self.search(
             level="shot",
             query_vector=query_vector,
             top_k=shot_k,
             video_id=video_id,
+            time_range=meso_window,
         )
         results["shot"] = shot_results
 
         logger.info(
-            "Coarse-to-fine search: macro=%d, meso=%d, micro=%d, shot=%d",
+            "Coarse-to-fine search: macro=%d, meso=%d, micro=%d, shot=%d (temporal_filter=%s)",
             len(macro_results),
             len(meso_results),
             len(micro_results),
             len(shot_results),
+            macro_window is not None,
         )
 
         return results
@@ -486,6 +542,7 @@ class QdrantService:
         top_k: int,
         video_id: str | None,
         min_score: float | None,
+        time_range: tuple[float, float] | None = None,
     ) -> list[SearchResult]:
         """FAISS fallback for search."""
         if level not in self._faiss_indexes or not self._faiss_indexes[level]["vectors"]:
@@ -505,6 +562,18 @@ class QdrantService:
         else:
             vectors = all_vectors
             metadata = all_metadata
+
+        # Filter by time_range (overlap: clip.start < t_end AND clip.end > t_start)
+        if time_range is not None:
+            t_start, t_end = time_range
+            keep_mask = np.array([
+                float(m["start_sec"]) < t_end and float(m["end_sec"]) > t_start
+                for m in metadata
+            ])
+            if not np.any(keep_mask):
+                return []
+            vectors = vectors[keep_mask]
+            metadata = [m for m, keep in zip(metadata, keep_mask, strict=False) if keep]
 
         # Compute cosine similarity
         query_norm = query_vector / (np.linalg.norm(query_vector) + 1e-9)

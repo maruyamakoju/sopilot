@@ -354,6 +354,120 @@ class TestCreateRAGService:
         assert rag_service.retrieval_config.enable_rerank is True
 
 
+class TestHybridSearch:
+    """Tests for hybrid visual + audio text search."""
+
+    @staticmethod
+    def _create_mock_services():
+        return make_mock_vigil_services()
+
+    def test_hybrid_search_visual_only(self):
+        """Hybrid search with no micro_text data falls back to visual-only."""
+        qdrant_service, llm_service = self._create_mock_services()
+
+        # Add visual embeddings only
+        embeddings = np.random.randn(3, 512).astype(np.float32)
+        metadata = [
+            {
+                "clip_id": f"clip-{i}",
+                "video_id": "video-1",
+                "start_sec": float(i * 2),
+                "end_sec": float((i + 1) * 2),
+            }
+            for i in range(3)
+        ]
+        qdrant_service.add_embeddings("micro", embeddings, metadata)
+
+        rag_service = RAGService(
+            vector_service=qdrant_service,
+            llm_service=llm_service,
+        )
+
+        query = np.random.randn(512).astype(np.float32)
+        results = rag_service._hybrid_search(query)
+        assert len(results) == 3
+
+    def test_hybrid_search_fusion(self):
+        """Hybrid search fuses visual and audio scores with max(v, alpha*a)."""
+        qdrant_service, llm_service = self._create_mock_services()
+
+        # Use same clip_ids in both micro and micro_text
+        dim = 512
+        # Visual: clip-0 has high visual score
+        v_emb = np.zeros((2, dim), dtype=np.float32)
+        v_emb[0, 0] = 1.0  # clip-0 close to query
+        v_emb[1, 1] = 1.0  # clip-1 less similar
+        v_meta = [
+            {"clip_id": "clip-0", "video_id": "vid", "start_sec": 0.0, "end_sec": 3.0},
+            {"clip_id": "clip-1", "video_id": "vid", "start_sec": 3.0, "end_sec": 6.0},
+        ]
+        qdrant_service.add_embeddings("micro", v_emb, v_meta)
+
+        # Audio: clip-1 has high text score, clip-2 is audio-only
+        a_emb = np.zeros((2, dim), dtype=np.float32)
+        a_emb[0, 0] = 1.0  # clip-1 close to query in text space
+        a_emb[1, 0] = 0.9  # clip-2 (audio only, no visual)
+        a_meta = [
+            {"clip_id": "clip-1", "video_id": "vid", "start_sec": 3.0, "end_sec": 6.0, "transcript_text": "hello"},
+            {"clip_id": "clip-2", "video_id": "vid", "start_sec": 6.0, "end_sec": 9.0, "transcript_text": "world"},
+        ]
+        qdrant_service.add_embeddings("micro_text", a_emb, a_meta)
+
+        rag_service = RAGService(
+            vector_service=qdrant_service,
+            llm_service=llm_service,
+            retrieval_config=RetrievalConfig(micro_text_alpha=0.7),
+        )
+
+        # Query aligned to dim 0
+        query = np.zeros(dim, dtype=np.float32)
+        query[0] = 1.0
+        results = rag_service._hybrid_search(query)
+
+        # Should have all 3 clips
+        clip_ids = {r.clip_id for r in results}
+        assert "clip-0" in clip_ids  # visual only
+        assert "clip-1" in clip_ids  # both
+        assert "clip-2" in clip_ids  # audio only
+
+        # clip-2 (audio only) should have transcript_text
+        clip2 = [r for r in results if r.clip_id == "clip-2"][0]
+        assert clip2.transcript_text == "world"
+
+    def test_hybrid_search_disabled(self):
+        """When use_micro_text=False, only visual search is used."""
+        qdrant_service, llm_service = self._create_mock_services()
+
+        embeddings = np.random.randn(2, 512).astype(np.float32)
+        meta = [
+            {"clip_id": f"clip-{i}", "video_id": "vid", "start_sec": float(i), "end_sec": float(i + 1)}
+            for i in range(2)
+        ]
+        qdrant_service.add_embeddings("micro", embeddings, meta)
+
+        # Also add micro_text
+        qdrant_service.add_embeddings(
+            "micro_text",
+            np.random.randn(1, 512).astype(np.float32),
+            [
+                {"clip_id": "clip-extra", "video_id": "vid", "start_sec": 10.0, "end_sec": 12.0},
+            ],
+        )
+
+        rag_service = RAGService(
+            vector_service=qdrant_service,
+            llm_service=llm_service,
+            retrieval_config=RetrievalConfig(use_micro_text=False),
+        )
+
+        query = np.random.randn(512).astype(np.float32)
+        results = rag_service._hybrid_search(query)
+        # Only micro results (2 clips), no micro_text clips
+        assert len(results) == 2
+        assert all(r.clip_id.startswith("clip-") for r in results)
+        assert "clip-extra" not in {r.clip_id for r in results}
+
+
 class TestComputeVideoId:
     """Tests for compute_video_id."""
 

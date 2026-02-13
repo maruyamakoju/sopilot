@@ -17,6 +17,7 @@ Design principles:
 
 from __future__ import annotations
 
+import contextlib
 import hashlib
 import logging
 from dataclasses import dataclass
@@ -77,6 +78,11 @@ class RetrievalConfig:
     # Filtering
     min_score: float | None = None
     video_id_filter: str | None = None
+
+    # Hybrid search (visual + audio transcript)
+    use_micro_text: bool = True
+    micro_text_alpha: float = 0.7  # Weight for audio text score in fusion
+    micro_text_k: int = 20  # Top-k for micro_text level
 
 
 @dataclass
@@ -319,14 +325,9 @@ class RAGService:
         video_path = Path(video_path)
         logger.info("Top-K RAG: question=%s, k=%d", question[:50], top_k)
 
-        # Step 1: Retrieve (micro-level search, most granular available)
+        # Step 1: Retrieve (hybrid visual + audio text search)
         query_embedding = self._encode_query(question)
-        all_results = self.vector_service.search(
-            level="micro",
-            query_vector=query_embedding,
-            top_k=self.retrieval_config.micro_k,
-            video_id=video_id,
-        )
+        all_results = self._hybrid_search(query_embedding, video_id=video_id)
 
         # Step 2: Dedup overlapping clips
         deduped = self._dedup_clips(all_results, overlap_threshold)
@@ -580,6 +581,88 @@ class RAGService:
 
         logger.debug("Encoding query (mock): %s", question[:50])
         return np.random.randn(dim).astype(np.float32)
+
+    def _hybrid_search(
+        self,
+        query_embedding: np.ndarray,
+        *,
+        video_id: str | None = None,
+    ) -> list[SearchResult]:
+        """Search micro (visual) and micro_text (audio) then fuse scores.
+
+        Fusion: final_score = max(visual_score, alpha * audio_score)
+        Clips found only in micro_text are included with score = alpha * audio_score.
+
+        Args:
+            query_embedding: Normalised query vector (D,).
+            video_id: Optional video ID filter.
+
+        Returns:
+            Sorted list of SearchResult (descending by fused score).
+        """
+        cfg = self.retrieval_config
+
+        # Visual search (always)
+        visual_results = self.vector_service.search(
+            level="micro",
+            query_vector=query_embedding,
+            top_k=cfg.micro_k,
+            video_id=video_id,
+        )
+
+        # Audio text search (optional)
+        audio_results: list[SearchResult] = []
+        if cfg.use_micro_text:
+            with contextlib.suppress(Exception):
+                audio_results = self.vector_service.search(
+                    level="micro_text",
+                    query_vector=query_embedding,
+                    top_k=cfg.micro_text_k,
+                    video_id=video_id,
+                )
+
+        if not audio_results:
+            return visual_results
+
+        # Build clip_id -> score maps
+        visual_map: dict[str, SearchResult] = {r.clip_id: r for r in visual_results}
+        audio_map: dict[str, SearchResult] = {r.clip_id: r for r in audio_results}
+
+        all_clip_ids = set(visual_map) | set(audio_map)
+        alpha = cfg.micro_text_alpha
+
+        fused: list[SearchResult] = []
+        for cid in all_clip_ids:
+            v = visual_map.get(cid)
+            a = audio_map.get(cid)
+
+            v_score = v.score if v else 0.0
+            a_score = (a.score * alpha) if a else 0.0
+            final_score = max(v_score, a_score)
+
+            # Use the visual result as base (more metadata); fall back to audio
+            base = v or a
+            assert base is not None
+            fused.append(
+                SearchResult(
+                    clip_id=base.clip_id,
+                    video_id=base.video_id,
+                    level="micro",
+                    start_sec=base.start_sec,
+                    end_sec=base.end_sec,
+                    score=final_score,
+                    transcript_text=base.transcript_text or (a.transcript_text if a else None),
+                )
+            )
+
+        fused.sort(key=lambda r: r.score, reverse=True)
+        logger.info(
+            "Hybrid search: visual=%d, audio=%d, fused=%d",
+            len(visual_results),
+            len(audio_results),
+            len(fused),
+        )
+        return fused
 
     def _flatten_search_results(
         self,

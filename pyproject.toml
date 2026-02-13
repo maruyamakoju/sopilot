@@ -49,6 +49,9 @@ vigil = [
   "torch>=2.4.0",
   "accelerate>=0.34.0",
 ]
+whisper = [
+  "openai-whisper>=20231117",
+]
 
 [project.scripts]
 sopilot-api = "sopilot.main:run"

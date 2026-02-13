@@ -1,0 +1,5 @@
+{
+  "_comment": "Map video_id (from benchmark JSONL) to local file paths. Copy this file to video_paths.local.json and fill in your paths.",
+  "factory-01": "C:/data/videos/factory_01.mp4",
+  "factory-02": "C:/data/videos/factory_02.mp4"
+}

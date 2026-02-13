@@ -1,0 +1,81 @@
+name: Real Data Benchmark
+
+on:
+  workflow_dispatch:
+    inputs:
+      alpha:
+        description: "Hybrid alpha value (or comma-separated sweep)"
+        default: "0.7"
+        required: false
+      embedding_model:
+        description: "OpenCLIP model"
+        default: "ViT-B-32"
+        required: false
+        type: choice
+        options:
+          - ViT-B-32
+          - ViT-L-14
+          - ViT-H-14
+      transcribe:
+        description: "Enable Whisper transcription"
+        default: false
+        required: false
+        type: boolean
+      whisper_model:
+        description: "Whisper model size"
+        default: "base"
+        required: false
+        type: choice
+        options:
+          - tiny
+          - base
+          - small
+          - medium
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libglib2.0-0 ffmpeg
+
+      - name: Install project
+        run: |
+          pip install -e ".[dev,ml,vigil]"
+          if [ "${{ inputs.transcribe }}" = "true" ]; then
+            pip install -e ".[whisper]"
+          fi
+
+      - name: Check for video map
+        run: |
+          if [ ! -f benchmarks/video_paths.local.json ]; then
+            echo "ERROR: benchmarks/video_paths.local.json not found."
+            echo "This workflow requires real video files. See benchmarks/README.md."
+            exit 1
+          fi
+
+      - name: Run real benchmark
+        run: |
+          python scripts/evaluate_vigil_real.py \
+            --benchmark benchmarks/real_v1.jsonl \
+            --video-map benchmarks/video_paths.local.json \
+            --alpha-sweep "${{ inputs.alpha }}" \
+            --embedding-model "${{ inputs.embedding_model }}" \
+            ${{ inputs.transcribe == 'true' && '--transcribe' || '' }} \
+            --whisper-model "${{ inputs.whisper_model }}" \
+            --output benchmarks/results/real_benchmark_latest.json
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: real-benchmark-results
+          path: benchmarks/results/real_benchmark_latest.json

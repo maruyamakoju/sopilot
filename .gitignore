@@ -58,5 +58,8 @@ nul
 # Benchmark results (regenerable)
 benchmarks/results/
 
+# Local video path mappings (per-machine, not committed)
+benchmarks/video_paths.local.json
+
 # Windows path artifact from earlier session
 C:Users07013Desktop02081.githubworkflows/

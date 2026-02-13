@@ -25,11 +25,11 @@ try:
     from qdrant_client import QdrantClient
     from qdrant_client.models import (
         Distance,
-        VectorParams,
-        PointStruct,
-        Filter,
         FieldCondition,
+        Filter,
         MatchValue,
+        PointStruct,
+        VectorParams,
     )
     QDRANT_AVAILABLE = True
 except ImportError:
@@ -491,7 +491,7 @@ class QdrantService:
             if not np.any(mask):
                 return []
             vectors = all_vectors[mask]
-            metadata = [m for m, keep in zip(all_metadata, mask) if keep]
+            metadata = [m for m, keep in zip(all_metadata, mask, strict=False) if keep]
         else:
             vectors = all_vectors
             metadata = all_metadata
@@ -505,7 +505,7 @@ class QdrantService:
         if min_score is not None:
             mask = scores >= min_score
             scores = scores[mask]
-            metadata = [m for m, keep in zip(metadata, mask) if keep]
+            metadata = [m for m, keep in zip(metadata, mask, strict=False) if keep]
 
         # Sort by score descending and take top-k
         sorted_indices = np.argsort(-scores)[:top_k]

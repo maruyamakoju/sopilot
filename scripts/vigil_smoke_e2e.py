@@ -17,10 +17,7 @@ import argparse
 import json
 import logging
 import sys
-import uuid
 from pathlib import Path
-
-import numpy as np
 
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -38,60 +35,15 @@ def _index_video(video_path, video_id, chunker, embedder, qdrant_service, domain
     Returns:
         (micro_metadata, chunk_result) — metadata list and ChunkResult.
     """
-    import cv2
-    from PIL import Image
+    from sopilot.vigil_helpers import index_video_micro
 
-    result = chunker.chunk_video(video_path, domain=domain, keyframe_dir=keyframe_dir)
-    logger.info("   Shots: %d, Micro: %d, Meso: %d, Macro: %d",
-                len(result.shots), len(result.micro), len(result.meso), len(result.macro))
-    logger.info("   FPS: %.2f, Duration: %.2f sec", result.video_fps, result.video_duration_sec)
-
-    # Extract keyframes and compute embeddings for each micro chunk
-    micro_metadata = []
-    micro_embeddings = []
-
-    cap = cv2.VideoCapture(str(video_path))
-    if not cap.isOpened():
-        raise RuntimeError(f"Cannot open video: {video_path}")
-
-    for idx, chunk in enumerate(result.micro):
-        keyframes = []
-        for frame_idx in chunk.keyframe_indices:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-            ret, frame = cap.read()
-            if ret:
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                keyframes.append(Image.fromarray(frame_rgb))
-
-        if keyframes:
-            keyframe_embeddings = embedder.encode_images(keyframes)
-            avg_embedding = np.mean(keyframe_embeddings, axis=0)
-            avg_embedding = avg_embedding / (np.linalg.norm(avg_embedding) + 1e-9)
-
-            micro_embeddings.append(avg_embedding)
-            micro_metadata.append({
-                "clip_id": str(uuid.uuid4()),
-                "video_id": video_id,
-                "start_sec": chunk.start_sec,
-                "end_sec": chunk.end_sec,
-                "chunk_index": idx,
-            })
-
-    cap.release()
-
-    micro_embeddings_array = np.array(micro_embeddings, dtype=np.float32)
-    logger.info("   Encoded %d micro chunks (dim=%d)", len(micro_embeddings_array), micro_embeddings_array.shape[1])
-
-    # Store in Qdrant
-    qdrant_service.ensure_collections(levels=["micro"], embedding_dim=embedder.config.embedding_dim)
-    num_added = qdrant_service.add_embeddings(
-        level="micro",
-        embeddings=micro_embeddings_array,
-        metadata=micro_metadata,
+    index_result = index_video_micro(
+        video_path, video_id, chunker, embedder, qdrant_service,
+        domain=domain, keyframe_dir=keyframe_dir,
     )
-    logger.info("   Stored %d embeddings", num_added)
-
-    return micro_metadata, result
+    chunk_result = index_result["chunk_result"]
+    logger.info("   FPS: %.2f, Duration: %.2f sec", chunk_result.video_fps, chunk_result.video_duration_sec)
+    return index_result["micro_metadata"], chunk_result
 
 
 def main():
@@ -190,7 +142,7 @@ def main():
         logger.info("Step 3: Connect to vector DB")
         logger.info("-" * 60)
 
-        from sopilot.qdrant_service import QdrantService, QdrantConfig
+        from sopilot.qdrant_service import QdrantConfig, QdrantService
 
         qdrant_config = QdrantConfig(
             host="localhost",

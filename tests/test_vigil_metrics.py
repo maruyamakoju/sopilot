@@ -3,17 +3,16 @@
 from __future__ import annotations
 
 import pytest
+
 from sopilot.evaluation.vigil_metrics import (
-    evidence_recall_at_k,
-    event_detection_metrics,
-    ndcg_at_k,
-    mrr,
-    _compute_temporal_iou,
-    _compute_dcg,
     _compute_ap,
-    EvidenceRecallResult,
-    EventDetectionResult,
+    _compute_dcg,
+    event_detection_metrics,
+    evidence_recall_at_k,
+    mrr,
+    ndcg_at_k,
 )
+from sopilot.temporal import temporal_iou
 
 
 class TestEvidenceRecallAtK:
@@ -243,18 +242,18 @@ class TestHelperFunctions:
 
     def test_temporal_iou_perfect_overlap(self):
         """Test IoU with perfect overlap."""
-        iou = _compute_temporal_iou(0.0, 10.0, 0.0, 10.0)
+        iou = temporal_iou(0.0, 10.0, 0.0, 10.0)
         assert iou == pytest.approx(1.0)
 
     def test_temporal_iou_partial_overlap(self):
         """Test IoU with partial overlap."""
-        iou = _compute_temporal_iou(0.0, 10.0, 5.0, 15.0)
+        iou = temporal_iou(0.0, 10.0, 5.0, 15.0)
         # Intersection: 5.0, Union: 15.0
         assert iou == pytest.approx(5 / 15)
 
     def test_temporal_iou_no_overlap(self):
         """Test IoU with no overlap."""
-        iou = _compute_temporal_iou(0.0, 5.0, 10.0, 15.0)
+        iou = temporal_iou(0.0, 5.0, 10.0, 15.0)
         assert iou == pytest.approx(0.0)
 
     def test_dcg_basic(self):

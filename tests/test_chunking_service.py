@@ -3,8 +3,8 @@
 from __future__ import annotations
 
 import pytest
-from pathlib import Path
-from sopilot.chunking_service import ChunkConfig, ChunkingService, Chunk
+
+from sopilot.chunking_service import Chunk, ChunkConfig, ChunkingService
 
 # Skip tests if scenedetect not available
 pytest.importorskip("scenedetect")

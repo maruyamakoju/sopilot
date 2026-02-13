@@ -108,3 +108,17 @@ def make_test_settings(data_dir: Path | None = None, **overrides) -> Settings:
     )
     defaults.update(overrides)
     return Settings(**defaults)
+
+
+def make_mock_vigil_services():
+    """Create mock Qdrant (FAISS fallback) and Video-LLM (mock) services for VIGIL-RAG tests."""
+    from sopilot.qdrant_service import QdrantConfig, QdrantService
+    from sopilot.video_llm_service import VideoLLMConfig, VideoLLMService
+
+    qdrant_config = QdrantConfig(host="localhost", port=19999)
+    qdrant_service = QdrantService(qdrant_config, use_faiss_fallback=True)
+
+    llm_config = VideoLLMConfig(model_name="mock")
+    llm_service = VideoLLMService(llm_config)
+
+    return qdrant_service, llm_service

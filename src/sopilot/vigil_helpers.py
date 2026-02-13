@@ -8,15 +8,19 @@ This module provides utility functions for:
 
 from __future__ import annotations
 
-import hashlib
+import itertools
 import logging
+import uuid
 from pathlib import Path
 from typing import TYPE_CHECKING
 
 import cv2
+import numpy as np
 
 if TYPE_CHECKING:
-    from .chunking_service import ChunkingResult, Chunk
+    from .chunking_service import Chunk, ChunkingResult
+    from .qdrant_service import QdrantService
+    from .retrieval_embeddings import RetrievalEmbedder
 
 logger = logging.getLogger(__name__)
 
@@ -24,17 +28,18 @@ logger = logging.getLogger(__name__)
 def compute_video_checksum(video_path: Path) -> str:
     """Compute SHA-256 checksum of a video file.
 
+    Delegates to rag_service.compute_video_id which uses the same
+    algorithm (SHA-256) with a larger read buffer for performance.
+
     Args:
         video_path: Path to video file
 
     Returns:
-        Hex-encoded SHA-256 checksum
+        Hex-encoded SHA-256 checksum (64 chars)
     """
-    sha256 = hashlib.sha256()
-    with open(video_path, "rb") as f:
-        while chunk := f.read(8192):
-            sha256.update(chunk)
-    return sha256.hexdigest()
+    from .rag_service import compute_video_id
+
+    return compute_video_id(video_path)
 
 
 def extract_video_metadata(video_path: Path) -> dict:
@@ -119,23 +124,8 @@ def chunking_result_to_clip_records(
     Returns:
         List of dictionaries suitable for inserting into clips table
     """
-    records: list[dict] = []
-
-    # Add all shots
-    for chunk in result.shots:
-        records.append(chunk_to_clip_record(chunk, video_id, keyframe_dir))
-
-    # Add all micro chunks
-    for chunk in result.micro:
-        records.append(chunk_to_clip_record(chunk, video_id, keyframe_dir))
-
-    # Add all meso chunks
-    for chunk in result.meso:
-        records.append(chunk_to_clip_record(chunk, video_id, keyframe_dir))
-
-    # Add all macro chunks
-    for chunk in result.macro:
-        records.append(chunk_to_clip_record(chunk, video_id, keyframe_dir))
+    all_chunks = itertools.chain(result.shots, result.micro, result.meso, result.macro)
+    records = [chunk_to_clip_record(chunk, video_id, keyframe_dir) for chunk in all_chunks]
 
     logger.info(
         "Generated %d clip records (shots=%d, micro=%d, meso=%d, macro=%d)",
@@ -147,6 +137,91 @@ def chunking_result_to_clip_records(
     )
 
     return records
+
+
+def index_video_micro(
+    video_path: Path,
+    video_id: str,
+    chunker,
+    embedder: RetrievalEmbedder,
+    qdrant_service: QdrantService,
+    *,
+    domain: str = "generic",
+    keyframe_dir: Path | None = None,
+) -> dict:
+    """Index a video: chunk -> encode micro keyframes -> store in vector DB.
+
+    Args:
+        video_path: Path to the video file.
+        video_id: Stable video identifier (e.g. SHA-256).
+        chunker: ChunkingService instance.
+        embedder: RetrievalEmbedder for encoding keyframes.
+        qdrant_service: QdrantService (or FAISS fallback) for storage.
+        domain: Video domain for chunking.
+        keyframe_dir: Optional directory to save keyframes.
+
+    Returns:
+        Dictionary with keys:
+        - micro_metadata: list of metadata dicts for each micro chunk
+        - chunk_result: ChunkingResult from the chunker
+        - num_added: number of embeddings stored in vector DB
+    """
+    from PIL import Image
+
+    result = chunker.chunk_video(video_path, domain=domain, keyframe_dir=keyframe_dir)
+    logger.info(
+        "Chunked: shots=%d, micro=%d, meso=%d, macro=%d",
+        len(result.shots), len(result.micro), len(result.meso), len(result.macro),
+    )
+
+    micro_metadata: list[dict] = []
+    micro_embeddings: list[np.ndarray] = []
+
+    cap = cv2.VideoCapture(str(video_path))
+    if not cap.isOpened():
+        raise RuntimeError(f"Cannot open video: {video_path}")
+
+    for idx, chunk in enumerate(result.micro):
+        keyframes = []
+        for frame_idx in chunk.keyframe_indices:
+            cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+            ret, frame = cap.read()
+            if ret:
+                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                keyframes.append(Image.fromarray(frame_rgb))
+
+        if keyframes:
+            keyframe_embeddings = embedder.encode_images(keyframes)
+            avg_embedding = np.mean(keyframe_embeddings, axis=0)
+            avg_embedding = avg_embedding / (np.linalg.norm(avg_embedding) + 1e-9)
+
+            micro_embeddings.append(avg_embedding)
+            micro_metadata.append({
+                "clip_id": str(uuid.uuid4()),
+                "video_id": video_id,
+                "start_sec": chunk.start_sec,
+                "end_sec": chunk.end_sec,
+                "chunk_index": idx,
+            })
+
+    cap.release()
+
+    if not micro_embeddings:
+        logger.warning("No micro chunks encoded for %s", video_path)
+        return {"micro_metadata": [], "chunk_result": result, "num_added": 0}
+
+    micro_embeddings_array = np.array(micro_embeddings, dtype=np.float32)
+    logger.info("Encoded %d micro chunks (dim=%d)", len(micro_embeddings_array), micro_embeddings_array.shape[1])
+
+    qdrant_service.ensure_collections(levels=["micro"], embedding_dim=embedder.config.embedding_dim)
+    num_added = qdrant_service.add_embeddings(
+        level="micro",
+        embeddings=micro_embeddings_array,
+        metadata=micro_metadata,
+    )
+    logger.info("Stored %d embeddings", num_added)
+
+    return {"micro_metadata": micro_metadata, "chunk_result": result, "num_added": num_added}
 
 
 def create_video_record(

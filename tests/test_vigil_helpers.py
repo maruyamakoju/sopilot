@@ -4,12 +4,13 @@ from __future__ import annotations
 
 import tempfile
 from pathlib import Path
+
+from sopilot.chunking_service import Chunk, ChunkingResult
 from sopilot.vigil_helpers import (
     chunk_to_clip_record,
     chunking_result_to_clip_records,
     compute_video_checksum,
 )
-from sopilot.chunking_service import Chunk, ChunkingResult
 
 
 class TestComputeChecksum:

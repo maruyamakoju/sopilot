@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Literal
 
 import numpy as np
+
+from sopilot.temporal import temporal_iou as _temporal_iou
 
 logger = logging.getLogger(__name__)
 
@@ -82,7 +83,7 @@ def evidence_recall_at_k(
     num_queries = len(retrieved_clip_ids)
     recall_sums = {k: 0.0 for k in k_values}
 
-    for retrieved, ground_truth in zip(retrieved_clip_ids, ground_truth_clip_ids):
+    for retrieved, ground_truth in zip(retrieved_clip_ids, ground_truth_clip_ids, strict=True):
         if not ground_truth:
             # No ground truth clips, skip this query
             continue
@@ -163,7 +164,7 @@ def event_detection_metrics(
                 continue
 
             # Compute IoU
-            iou = _compute_temporal_iou(
+            iou = _temporal_iou(
                 pred["start_sec"],
                 pred["end_sec"],
                 gt["start_sec"],
@@ -243,7 +244,7 @@ def ndcg_at_k(
 
     ndcg_scores = []
 
-    for retrieved, relevance in zip(retrieved_clip_ids, relevance_scores):
+    for retrieved, relevance in zip(retrieved_clip_ids, relevance_scores, strict=True):
         # Get relevance scores for retrieved clips
         retrieved_relevances = [relevance.get(clip_id, 0.0) for clip_id in retrieved[:k]]
 
@@ -281,7 +282,7 @@ def mrr(
 
     rr_scores = []
 
-    for retrieved, relevant in zip(retrieved_clip_ids, relevant_clip_ids):
+    for retrieved, relevant in zip(retrieved_clip_ids, relevant_clip_ids, strict=True):
         # Find rank of first relevant item (1-indexed)
         for rank, clip_id in enumerate(retrieved, start=1):
             if clip_id in relevant:
@@ -295,32 +296,6 @@ def mrr(
 
 
 # ===== Helper Functions =====
-
-
-def _compute_temporal_iou(
-    start1: float,
-    end1: float,
-    start2: float,
-    end2: float,
-) -> float:
-    """Compute temporal Intersection over Union.
-
-    Args:
-        start1, end1: First interval
-        start2, end2: Second interval
-
-    Returns:
-        IoU in [0, 1]
-    """
-    intersection_start = max(start1, start2)
-    intersection_end = min(end1, end2)
-    intersection = max(0.0, intersection_end - intersection_start)
-
-    union_start = min(start1, start2)
-    union_end = max(end1, end2)
-    union = union_end - union_start
-
-    return intersection / union if union > 0 else 0.0
 
 
 def _compute_dcg(relevances: list[float]) -> float:

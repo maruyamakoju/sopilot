@@ -20,10 +20,9 @@ from pathlib import Path
 from typing import Literal
 
 import cv2
-import numpy as np
 
 try:
-    from scenedetect import detect, AdaptiveDetector
+    from scenedetect import AdaptiveDetector, detect
     SCENEDETECT_AVAILABLE = True
 except ImportError:
     SCENEDETECT_AVAILABLE = False
@@ -272,7 +271,7 @@ class ChunkingService:
             scene_list = [(0, total_frames)]
 
         shots: list[Chunk] = []
-        for idx, (start_time, end_time) in enumerate(scene_list):
+        for _idx, (start_time, end_time) in enumerate(scene_list):
             # PySceneDetect returns FrameTimecode objects, convert to frame numbers
             start_frame = start_time.get_frames() if hasattr(start_time, "get_frames") else int(start_time)
             end_frame = end_time.get_frames() if hasattr(end_time, "get_frames") else int(end_time)

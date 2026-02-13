@@ -23,7 +23,7 @@ def check_postgres():
 
     try:
         import psycopg2
-        from psycopg2 import sql
+        from psycopg2 import sql  # noqa: F401
     except ImportError:
         print("❌ psycopg2 not installed. Run: pip install -e '.[vigil]'")
         return False
@@ -119,8 +119,8 @@ def check_alembic():
 
     try:
         from alembic.config import Config
-        from alembic.script import ScriptDirectory
         from alembic.runtime.migration import MigrationContext
+        from alembic.script import ScriptDirectory
         from sqlalchemy import create_engine
     except ImportError:
         print("❌ alembic not installed. Run: pip install -e '.[vigil]'")
@@ -146,7 +146,7 @@ def check_alembic():
             print(f"✅ Migrations up-to-date ({current_rev})")
             return True
         else:
-            print(f"⚠️  Migration mismatch:")
+            print("⚠️  Migration mismatch:")
             print(f"   Current: {current_rev}")
             print(f"   Head: {head_rev}")
             print("   Run: alembic upgrade head")

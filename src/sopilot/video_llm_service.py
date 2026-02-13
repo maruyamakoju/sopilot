@@ -23,7 +23,7 @@ import cv2
 import numpy as np
 
 try:
-    from transformers import Qwen2_5_VLForConditionalGeneration, AutoProcessor
+    from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
     QWEN_AVAILABLE = True
 except ImportError:
     QWEN_AVAILABLE = False
@@ -379,6 +379,7 @@ class VideoLLMService:
             VideoQAResult with answer
         """
         import tempfile
+
         import torch
         from PIL import Image
 
@@ -516,7 +517,7 @@ class VideoLLMService:
             # Decode output
             generated_ids_trimmed = [
                 out_ids[len(in_ids) :]
-                for in_ids, out_ids in zip(inputs.input_ids, generated_ids)
+                for in_ids, out_ids in zip(inputs.input_ids, generated_ids, strict=True)
             ]
             output_text = self._processor.batch_decode(
                 generated_ids_trimmed,

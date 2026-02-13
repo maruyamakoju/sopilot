@@ -18,7 +18,6 @@ Design principles:
 from __future__ import annotations
 
 import hashlib
-import json
 import logging
 from dataclasses import dataclass
 from pathlib import Path
@@ -26,7 +25,9 @@ from typing import Literal
 
 import numpy as np
 
+from .llm_utils import parse_llm_json
 from .qdrant_service import QdrantService, SearchResult
+from .temporal import temporal_iou
 from .video_llm_service import VideoLLMService, VideoQAResult
 
 try:
@@ -124,7 +125,7 @@ class RAGService:
         vector_service: QdrantService,
         llm_service: VideoLLMService,
         retrieval_config: RetrievalConfig | None = None,
-        retrieval_embedder: "RetrievalEmbedder | None" = None,
+        retrieval_embedder: RetrievalEmbedder | None = None,
     ) -> None:
         """Initialize RAG service.
 
@@ -399,7 +400,7 @@ class RAGService:
                 # Only dedup within same video
                 if candidate.video_id != existing.video_id:
                     continue
-                iou = self._temporal_iou(
+                iou = temporal_iou(
                     candidate.start_sec, candidate.end_sec,
                     existing.start_sec, existing.end_sec,
                 )
@@ -409,17 +410,6 @@ class RAGService:
             if not is_dup:
                 kept.append(candidate)
         return kept
-
-    @staticmethod
-    def _temporal_iou(s1: float, e1: float, s2: float, e2: float) -> float:
-        """Compute temporal Intersection over Union."""
-        inter_start = max(s1, s2)
-        inter_end = min(e1, e2)
-        intersection = max(0.0, inter_end - inter_start)
-        union = (e1 - s1) + (e2 - s2) - intersection
-        if union <= 0:
-            return 0.0
-        return intersection / union
 
     def _observe_clip(
         self,
@@ -456,7 +446,12 @@ class RAGService:
                 end_sec=clip.end_sec,
                 enable_cot=False,
             )
-            parsed = self._parse_observation_json(qa_result.answer)
+            parsed = parse_llm_json(qa_result.answer, fallback={
+                "relevance": 0.0,
+                "observation": "",
+                "answer_candidate": "",
+                "confidence": 0.0,
+            })
         except Exception as exc:
             logger.warning(
                 "Clip observation failed [%.1f-%.1f]: %s",
@@ -478,37 +473,6 @@ class RAGService:
             answer_candidate=str(parsed.get("answer_candidate", "")),
             confidence=float(parsed.get("confidence", 0.0)),
         )
-
-    @staticmethod
-    def _parse_observation_json(text: str) -> dict:
-        """Parse LLM output as JSON, handling common formatting issues."""
-        # Strip markdown fences if present
-        cleaned = text.strip()
-        if cleaned.startswith("```"):
-            lines = cleaned.split("\n")
-            # Remove first and last fence lines
-            lines = [l for l in lines if not l.strip().startswith("```")]
-            cleaned = "\n".join(lines)
-
-        try:
-            return json.loads(cleaned)
-        except json.JSONDecodeError:
-            # Try to find JSON object in the text
-            start = cleaned.find("{")
-            end = cleaned.rfind("}") + 1
-            if start >= 0 and end > start:
-                try:
-                    return json.loads(cleaned[start:end])
-                except json.JSONDecodeError:
-                    pass
-
-        logger.warning("Failed to parse observation JSON: %s", text[:100])
-        return {
-            "relevance": 0.0,
-            "observation": text[:200],
-            "answer_candidate": "",
-            "confidence": 0.0,
-        }
 
     def _synthesize_answer(
         self,
@@ -673,7 +637,7 @@ def create_rag_service(
     *,
     vector_service: QdrantService,
     llm_service: VideoLLMService,
-    retrieval_embedder: "RetrievalEmbedder | None" = None,
+    retrieval_embedder: RetrievalEmbedder | None = None,
     macro_k: int = 5,
     meso_k: int = 10,
     micro_k: int = 20,

@@ -5,16 +5,17 @@ from __future__ import annotations
 import tempfile
 
 import numpy as np
-import pytest
+
+from conftest import make_mock_vigil_services
+from sopilot.qdrant_service import QdrantConfig, QdrantService, SearchResult
 from sopilot.rag_service import (
-    RAGService,
-    RetrievalConfig,
     Evidence,
     RAGResult,
-    create_rag_service,
+    RAGService,
+    RetrievalConfig,
     compute_video_id,
+    create_rag_service,
 )
-from sopilot.qdrant_service import QdrantConfig, QdrantService, SearchResult
 from sopilot.video_llm_service import VideoLLMConfig, VideoLLMService
 
 
@@ -124,15 +125,9 @@ class TestRAGResult:
 class TestRAGService:
     """Tests for RAGService."""
 
-    def _create_mock_services(self):
-        """Create mock Qdrant and Video-LLM services."""
-        qdrant_config = QdrantConfig(host="localhost", port=19999)
-        qdrant_service = QdrantService(qdrant_config, use_faiss_fallback=True)
-
-        llm_config = VideoLLMConfig(model_name="mock")
-        llm_service = VideoLLMService(llm_config)
-
-        return qdrant_service, llm_service
+    @staticmethod
+    def _create_mock_services():
+        return make_mock_vigil_services()
 
     def test_init(self):
         """Test RAG service initialization."""

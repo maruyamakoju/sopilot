@@ -6,6 +6,13 @@ from .statistical import (
     intraclass_correlation,
     permutation_test,
 )
+from .vigil_benchmark import (
+    BenchmarkQuery,
+    BenchmarkReport,
+    VIGILBenchmarkRunner,
+    format_report,
+    report_to_dict,
+)
 from .vigil_metrics import (
     EventDetectionResult,
     EvidenceRecallResult,
@@ -30,4 +37,10 @@ __all__ = [
     "event_detection_metrics",
     "mrr",
     "ndcg_at_k",
+    # VIGIL-RAG benchmark
+    "BenchmarkQuery",
+    "BenchmarkReport",
+    "VIGILBenchmarkRunner",
+    "format_report",
+    "report_to_dict",
 ]

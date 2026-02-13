@@ -62,3 +62,6 @@ jobs:
 
       - name: Run E2E smoke test
         run: python scripts/smoke_e2e.py --verbose
+
+      - name: Run VIGIL-RAG benchmark smoke test
+        run: python scripts/evaluate_vigil_benchmark.py --benchmark benchmarks/smoke_benchmark.jsonl

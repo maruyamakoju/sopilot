@@ -44,7 +44,7 @@ def check_postgres():
                 user=user_pass[0],
                 password=user_pass[1],
                 host=host_port[0],
-                port=host_port[1] if len(host_port) > 1 else "5432"
+                port=host_port[1] if len(host_port) > 1 else "5432",
             )
         else:
             conn = psycopg2.connect(db_url)
@@ -59,8 +59,17 @@ def check_postgres():
         """)
         tables = [row[0] for row in cursor.fetchall()]
 
-        expected_tables = {"videos", "clips", "embeddings", "events", "queries",
-                          "ingest_jobs", "score_jobs", "training_jobs", "alembic_version"}
+        expected_tables = {
+            "videos",
+            "clips",
+            "embeddings",
+            "events",
+            "queries",
+            "ingest_jobs",
+            "score_jobs",
+            "training_jobs",
+            "alembic_version",
+        }
 
         if not expected_tables.issubset(set(tables)):
             missing = expected_tables - set(tables)

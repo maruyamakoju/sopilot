@@ -16,6 +16,12 @@ dist/
 data/
 watch_inbox/
 demo_artifacts/
+artifacts/
+
+# Generated test/demo videos
+test_video.mp4
+faithfulness_test_video.mp4
+VIGIL_E2E_SUMMARY.md
 
 # Model weights (track via LFS or download scripts)
 *.pt

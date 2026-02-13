@@ -24,12 +24,14 @@ import numpy as np
 
 try:
     from transformers import AutoProcessor, Qwen2_5_VLForConditionalGeneration
+
     QWEN_AVAILABLE = True
 except ImportError:
     QWEN_AVAILABLE = False
 
 try:
     from qwen_vl_utils import process_vision_info
+
     QWEN_UTILS_AVAILABLE = True
 except ImportError:
     QWEN_UTILS_AVAILABLE = False
@@ -120,15 +122,11 @@ class VideoLLMService:
         """
         if not QWEN_AVAILABLE:
             raise RuntimeError(
-                "Qwen2.5-VL requires transformers>=4.45.0. "
-                "Install with: pip install transformers>=4.45.0"
+                "Qwen2.5-VL requires transformers>=4.45.0. Install with: pip install transformers>=4.45.0"
             )
 
         if not QWEN_UTILS_AVAILABLE:
-            raise RuntimeError(
-                "Qwen2.5-VL requires qwen-vl-utils. "
-                "Install with: pip install qwen-vl-utils[decord]"
-            )
+            raise RuntimeError("Qwen2.5-VL requires qwen-vl-utils. Install with: pip install qwen-vl-utils[decord]")
 
         try:
             import torch
@@ -164,17 +162,11 @@ class VideoLLMService:
 
     def _load_internvideo(self) -> None:
         """Load InternVideo2.5 Chat model."""
-        raise RuntimeError(
-            "InternVideo2.5 loading not yet implemented. "
-            "Use 'qwen2.5-vl-7b' or 'mock' instead."
-        )
+        raise RuntimeError("InternVideo2.5 loading not yet implemented. Use 'qwen2.5-vl-7b' or 'mock' instead.")
 
     def _load_llava_video(self) -> None:
         """Load LLaVA-Video model."""
-        raise RuntimeError(
-            "LLaVA-Video loading not yet implemented. "
-            "Use 'qwen2.5-vl-7b' or 'mock' instead."
-        )
+        raise RuntimeError("LLaVA-Video loading not yet implemented. Use 'qwen2.5-vl-7b' or 'mock' instead.")
 
     def sample_frames(
         self,
@@ -290,8 +282,7 @@ class VideoLLMService:
 
         if self._model is None:
             raise RuntimeError(
-                f"Model '{self.config.model_name}' not loaded. "
-                "Cannot extract embeddings without a loaded model."
+                f"Model '{self.config.model_name}' not loaded. Cannot extract embeddings without a loaded model."
             )
 
         # Sample frames
@@ -341,19 +332,14 @@ class VideoLLMService:
 
         if self._model is None:
             raise RuntimeError(
-                f"Model '{self.config.model_name}' not loaded. "
-                "Cannot answer questions without a loaded model."
+                f"Model '{self.config.model_name}' not loaded. Cannot answer questions without a loaded model."
             )
 
         # Check if we're using Qwen2.5-VL (real implementation)
         if self.config.model_name == "qwen2.5-vl-7b" and QWEN_UTILS_AVAILABLE:
-            return self._answer_question_qwen2_5_vl(
-                video_path, question, start_sec, end_sec, enable_cot
-            )
+            return self._answer_question_qwen2_5_vl(video_path, question, start_sec, end_sec, enable_cot)
 
-        raise RuntimeError(
-            f"Model-specific inference not implemented for '{self.config.model_name}'"
-        )
+        raise RuntimeError(f"Model-specific inference not implemented for '{self.config.model_name}'")
 
     def _answer_question_qwen2_5_vl(
         self,
@@ -473,14 +459,10 @@ class VideoLLMService:
             ]
 
             # Apply chat template
-            text = self._processor.apply_chat_template(
-                messages, tokenize=False, add_generation_prompt=True
-            )
+            text = self._processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
 
             # Process vision info
-            image_inputs, video_inputs, video_kwargs = process_vision_info(
-                messages, return_video_kwargs=True
-            )
+            image_inputs, video_inputs, video_kwargs = process_vision_info(messages, return_video_kwargs=True)
 
             # Fix video_kwargs: process_vision_info wraps scalars in lists
             # (e.g. fps=[2.0] → fps=2.0) which causes validation errors
@@ -516,8 +498,7 @@ class VideoLLMService:
 
             # Decode output
             generated_ids_trimmed = [
-                out_ids[len(in_ids) :]
-                for in_ids, out_ids in zip(inputs.input_ids, generated_ids, strict=True)
+                out_ids[len(in_ids) :] for in_ids, out_ids in zip(inputs.input_ids, generated_ids, strict=True)
             ]
             output_text = self._processor.batch_decode(
                 generated_ids_trimmed,
@@ -549,6 +530,7 @@ class VideoLLMService:
         finally:
             # Cleanup temporary frames
             import shutil
+
             if temp_dir and Path(temp_dir).exists():
                 shutil.rmtree(temp_dir, ignore_errors=True)
                 logger.debug("Cleaned up temporary frames: %s", temp_dir)

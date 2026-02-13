@@ -94,8 +94,7 @@ def chunk_to_clip_record(
     keyframe_paths: list[str] | None = None
     if keyframe_dir is not None:
         keyframe_paths = [
-            str(keyframe_dir / f"{chunk.level}_frame_{frame_idx:08d}.jpg")
-            for frame_idx in chunk.keyframe_indices
+            str(keyframe_dir / f"{chunk.level}_frame_{frame_idx:08d}.jpg") for frame_idx in chunk.keyframe_indices
         ]
 
     return {
@@ -175,7 +174,10 @@ def index_video_micro(
     result = chunker.chunk_video(video_path, domain=domain, keyframe_dir=keyframe_dir)
     logger.info(
         "Chunked: shots=%d, micro=%d, meso=%d, macro=%d",
-        len(result.shots), len(result.micro), len(result.meso), len(result.macro),
+        len(result.shots),
+        len(result.micro),
+        len(result.meso),
+        len(result.macro),
     )
 
     # Transcribe audio (once for entire video)
@@ -213,7 +215,9 @@ def index_video_micro(
             transcript_text = None
             if all_segments and transcription_service is not None:
                 overlapping = transcription_service.segments_for_range(
-                    all_segments, chunk.start_sec, chunk.end_sec,
+                    all_segments,
+                    chunk.start_sec,
+                    chunk.end_sec,
                 )
                 if overlapping:
                     transcript_text = transcription_service.segments_to_text(overlapping)

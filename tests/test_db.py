@@ -27,9 +27,14 @@ def db(tmp_path):
 
 
 def _make_video(db: Database, task_id: str = "t1", role: str = "gold") -> int:
-    return db.create_video(VideoCreateInput(
-        task_id=task_id, role=role, file_path="/tmp/video.mp4", embedding_model="heuristic",
-    ))
+    return db.create_video(
+        VideoCreateInput(
+            task_id=task_id,
+            role=role,
+            file_path="/tmp/video.mp4",
+            embedding_model="heuristic",
+        )
+    )
 
 
 class TestSchemaInit:
@@ -81,8 +86,13 @@ class TestVideoCreateInput:
 
     def test_optional_fields(self):
         v = VideoCreateInput(
-            task_id="t1", role="gold", file_path="/tmp/v.mp4", embedding_model="h",
-            site_id="s1", camera_id="c1", operator_id_hash="abc",
+            task_id="t1",
+            role="gold",
+            file_path="/tmp/v.mp4",
+            embedding_model="h",
+            site_id="s1",
+            camera_id="c1",
+            operator_id_hash="abc",
         )
         assert v.site_id == "s1"
         assert v.camera_id == "c1"
@@ -136,10 +146,15 @@ class TestVideoCrud:
 
     def test_delete_cascades_clips(self, db):
         vid = _make_video(db)
-        db.add_clips(vid, "t1", "gold", [
-            {"clip_idx": 0, "start_sec": 0.0, "end_sec": 4.0},
-            {"clip_idx": 1, "start_sec": 4.0, "end_sec": 8.0},
-        ])
+        db.add_clips(
+            vid,
+            "t1",
+            "gold",
+            [
+                {"clip_idx": 0, "start_sec": 0.0, "end_sec": 4.0},
+                {"clip_idx": 1, "start_sec": 4.0, "end_sec": 8.0},
+            ],
+        )
         db.delete_video(vid)
         cur = db._conn.cursor()
         cur.execute("SELECT COUNT(*) AS c FROM clips WHERE video_id = ?", (vid,))
@@ -216,10 +231,15 @@ class TestClips:
 
     def test_add_clips(self, db):
         vid = _make_video(db)
-        db.add_clips(vid, "t1", "gold", [
-            {"clip_idx": 0, "start_sec": 0.0, "end_sec": 4.0, "quality_flags": "ok"},
-            {"clip_idx": 1, "start_sec": 4.0, "end_sec": 8.0},
-        ])
+        db.add_clips(
+            vid,
+            "t1",
+            "gold",
+            [
+                {"clip_idx": 0, "start_sec": 0.0, "end_sec": 4.0, "quality_flags": "ok"},
+                {"clip_idx": 1, "start_sec": 4.0, "end_sec": 8.0},
+            ],
+        )
         cur = db._conn.cursor()
         cur.execute("SELECT * FROM clips WHERE video_id = ?", (vid,))
         clips = [dict(r) for r in cur.fetchall()]
@@ -233,9 +253,14 @@ class TestIngestJobLifecycle:
 
     def _create_job(self, db):
         return db.create_ingest_job(
-            task_id="t1", role="trainee", requested_by="user",
-            file_name="v.mp4", file_path="/tmp/v.mp4",
-            site_id="s1", camera_id="c1", operator_id_hash="hash1",
+            task_id="t1",
+            role="trainee",
+            requested_by="user",
+            file_name="v.mp4",
+            file_path="/tmp/v.mp4",
+            site_id="s1",
+            camera_id="c1",
+            operator_id_hash="hash1",
         )
 
     def test_create_ingest_job(self, db):
@@ -262,8 +287,12 @@ class TestIngestJobLifecycle:
         vid = _make_video(db)
         db.mark_ingest_job_running(job_id)
         db.complete_ingest_job(
-            job_id=job_id, video_id=vid, num_clips=10,
-            source_fps=30.0, sampled_fps=4.0, embedding_model="heuristic",
+            job_id=job_id,
+            video_id=vid,
+            num_clips=10,
+            source_fps=30.0,
+            sampled_fps=4.0,
+            embedding_model="heuristic",
         )
         job = db.get_ingest_job(job_id)
         assert job["status"] == "completed"
@@ -321,8 +350,10 @@ class TestTrainingJobLifecycle:
         assert db.get_training_job(job_id)["status"] == "running"
 
         db.complete_training_job(
-            job_id, status="completed",
-            summary_path="/summary.json", metrics_json='{"loss": 0.1}',
+            job_id,
+            status="completed",
+            summary_path="/summary.json",
+            metrics_json='{"loss": 0.1}',
         )
         job = db.get_training_job(job_id)
         assert job["status"] == "completed"

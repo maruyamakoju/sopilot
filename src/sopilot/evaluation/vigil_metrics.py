@@ -73,9 +73,7 @@ def evidence_recall_at_k(
         ValueError: If input lists have different lengths
     """
     if len(retrieved_clip_ids) != len(ground_truth_clip_ids):
-        raise ValueError(
-            f"Mismatch: {len(retrieved_clip_ids)} retrieved vs {len(ground_truth_clip_ids)} ground truth"
-        )
+        raise ValueError(f"Mismatch: {len(retrieved_clip_ids)} retrieved vs {len(ground_truth_clip_ids)} ground truth")
 
     if k_values is None:
         k_values = [1, 3, 5, 10]

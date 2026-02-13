@@ -31,9 +31,18 @@ try:
         PointStruct,
         VectorParams,
     )
+
     QDRANT_AVAILABLE = True
 except ImportError:
     QDRANT_AVAILABLE = False
+
+    # Stub Distance so QdrantConfig can be defined without qdrant_client
+    class _DistanceStub:
+        COSINE = "Cosine"
+        EUCLID = "Euclid"
+        DOT = "Dot"
+
+    Distance = _DistanceStub  # type: ignore[misc,assignment]
 
 logger = logging.getLogger(__name__)
 
@@ -102,8 +111,7 @@ class QdrantService:
 
         if not QDRANT_AVAILABLE and not use_faiss_fallback:
             raise RuntimeError(
-                "qdrant-client not installed and fallback disabled. "
-                "Install with: pip install qdrant-client"
+                "qdrant-client not installed and fallback disabled. Install with: pip install qdrant-client"
             )
 
         if QDRANT_AVAILABLE:

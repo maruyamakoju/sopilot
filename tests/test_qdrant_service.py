@@ -276,16 +276,14 @@ class TestQdrantServiceFAISSFallback:
         # Add 3 clips from video-1 and 2 from video-2
         embeddings_v1 = np.random.randn(3, 768).astype(np.float32)
         metadata_v1 = [
-            {"clip_id": f"v1-{i}", "video_id": "video-1",
-             "start_sec": float(i), "end_sec": float(i + 1)}
+            {"clip_id": f"v1-{i}", "video_id": "video-1", "start_sec": float(i), "end_sec": float(i + 1)}
             for i in range(3)
         ]
         service.add_embeddings("micro", embeddings_v1, metadata_v1)
 
         embeddings_v2 = np.random.randn(2, 768).astype(np.float32)
         metadata_v2 = [
-            {"clip_id": f"v2-{i}", "video_id": "video-2",
-             "start_sec": float(i), "end_sec": float(i + 1)}
+            {"clip_id": f"v2-{i}", "video_id": "video-2", "start_sec": float(i), "end_sec": float(i + 1)}
             for i in range(2)
         ]
         service.add_embeddings("micro", embeddings_v2, metadata_v2)

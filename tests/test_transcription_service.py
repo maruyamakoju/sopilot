@@ -19,6 +19,7 @@ from sopilot.transcription_service import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 def _make_dummy_file(suffix=".mp4") -> Path:
     """Create a temporary file for testing."""
     with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
@@ -45,6 +46,7 @@ def _make_sample_segments() -> list[TranscriptionSegment]:
 # ---------------------------------------------------------------------------
 # TranscriptionConfig tests
 # ---------------------------------------------------------------------------
+
 
 class TestTranscriptionConfig:
     def test_defaults(self):
@@ -74,6 +76,7 @@ class TestTranscriptionConfig:
 # TranscriptionSegment tests
 # ---------------------------------------------------------------------------
 
+
 class TestTranscriptionSegment:
     def test_create(self):
         seg = TranscriptionSegment(start_sec=1.0, end_sec=3.5, text="hello", language="en")
@@ -90,6 +93,7 @@ class TestTranscriptionSegment:
 # ---------------------------------------------------------------------------
 # TranscriptionResult tests
 # ---------------------------------------------------------------------------
+
 
 class TestTranscriptionResult:
     def test_empty(self):
@@ -109,6 +113,7 @@ class TestTranscriptionResult:
 # ---------------------------------------------------------------------------
 # TranscriptionService: Mock backend
 # ---------------------------------------------------------------------------
+
 
 class TestTranscriptionServiceMock:
     def test_mock_init_no_deps(self):
@@ -137,6 +142,7 @@ class TestTranscriptionServiceMock:
 # ---------------------------------------------------------------------------
 # TranscriptionService: Whisper backend (mocked import)
 # ---------------------------------------------------------------------------
+
 
 class TestTranscriptionServiceWhisper:
     def test_missing_whisper_raises(self):
@@ -218,6 +224,7 @@ class TestTranscriptionServiceWhisper:
 # ---------------------------------------------------------------------------
 # Helper methods
 # ---------------------------------------------------------------------------
+
 
 class TestSegmentsForRange:
     def test_full_overlap(self):

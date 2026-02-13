@@ -32,6 +32,7 @@ from .video_llm_service import VideoLLMService, VideoQAResult
 
 try:
     from .retrieval_embeddings import RetrievalEmbedder
+
     RETRIEVAL_AVAILABLE = True
 except ImportError:
     RETRIEVAL_AVAILABLE = False
@@ -404,8 +405,10 @@ class RAGService:
                 if candidate.video_id != existing.video_id:
                     continue
                 iou = temporal_iou(
-                    candidate.start_sec, candidate.end_sec,
-                    existing.start_sec, existing.end_sec,
+                    candidate.start_sec,
+                    candidate.end_sec,
+                    existing.start_sec,
+                    existing.end_sec,
                 )
                 if iou >= iou_threshold:
                     is_dup = True
@@ -431,7 +434,7 @@ class RAGService:
             ClipObservation with structured output
         """
         observation_prompt = (
-            f"You are analyzing a short video clip to answer: \"{question}\"\n\n"
+            f'You are analyzing a short video clip to answer: "{question}"\n\n'
             "Respond ONLY with a JSON object (no markdown fences):\n"
             "{\n"
             '  "relevance": <0.0-1.0 how relevant this clip is to the question>,\n'
@@ -449,16 +452,21 @@ class RAGService:
                 end_sec=clip.end_sec,
                 enable_cot=False,
             )
-            parsed = parse_llm_json(qa_result.answer, fallback={
-                "relevance": 0.0,
-                "observation": "",
-                "answer_candidate": "",
-                "confidence": 0.0,
-            })
+            parsed = parse_llm_json(
+                qa_result.answer,
+                fallback={
+                    "relevance": 0.0,
+                    "observation": "",
+                    "answer_candidate": "",
+                    "confidence": 0.0,
+                },
+            )
         except Exception as exc:
             logger.warning(
                 "Clip observation failed [%.1f-%.1f]: %s",
-                clip.start_sec, clip.end_sec, exc,
+                clip.start_sec,
+                clip.end_sec,
+                exc,
             )
             parsed = {
                 "relevance": 0.0,
@@ -540,13 +548,8 @@ class RAGService:
             # We need a video path, which the caller provides via answer_question_topk
             # For now, we'll raise if we can't synthesize
             logger.info("Synthesis: using %d observations", len(relevant))
-            return (
-                f"Based on {len(relevant)} video clips:\n\n"
-                + "\n\n".join(
-                    f"[{o.start_sec:.1f}-{o.end_sec:.1f}s]: {o.answer_candidate}"
-                    for o in relevant
-                    if o.answer_candidate
-                )
+            return f"Based on {len(relevant)} video clips:\n\n" + "\n\n".join(
+                f"[{o.start_sec:.1f}-{o.end_sec:.1f}s]: {o.answer_candidate}" for o in relevant if o.answer_candidate
             )
 
         except Exception as exc:

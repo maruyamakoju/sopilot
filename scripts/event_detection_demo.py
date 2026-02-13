@@ -43,7 +43,11 @@ def _index_video(video_path, video_id, chunker, embedder, qdrant_service, keyfra
     from sopilot.vigil_helpers import index_video_micro
 
     index_result = index_video_micro(
-        video_path, video_id, chunker, embedder, qdrant_service,
+        video_path,
+        video_id,
+        chunker,
+        embedder,
+        qdrant_service,
         keyframe_dir=keyframe_dir,
     )
     return index_result["num_added"]
@@ -188,7 +192,11 @@ def main():
         for i, evt in enumerate(detection_result.events, 1):
             logger.info(
                 "  Event %d: [%.1f-%.1f s] type=%s confidence=%.2f",
-                i, evt.start_sec, evt.end_sec, evt.event_type, evt.confidence,
+                i,
+                evt.start_sec,
+                evt.end_sec,
+                evt.event_type,
+                evt.confidence,
             )
             logger.info("    Observation: %s", evt.observation[:120])
 

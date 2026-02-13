@@ -78,8 +78,7 @@ class TranscriptionService:
             import whisper  # noqa: F401
         except ImportError:
             raise RuntimeError(
-                "openai-whisper is required for transcription. "
-                "Install with: pip install openai-whisper"
+                "openai-whisper is required for transcription. Install with: pip install openai-whisper"
             ) from None
 
         logger.info("Loading Whisper model: %s (device=%s)", self.config.model_size, self.config.device)
@@ -159,7 +158,9 @@ class TranscriptionService:
 
         logger.info(
             "Transcribed %d segments (%.1f sec, language=%s)",
-            len(segments), duration_sec, detected_language,
+            len(segments),
+            duration_sec,
+            detected_language,
         )
 
         return TranscriptionResult(
@@ -184,10 +185,7 @@ class TranscriptionService:
         Returns:
             Segments that overlap [start_sec, end_sec].
         """
-        return [
-            seg for seg in segments
-            if seg.end_sec > start_sec and seg.start_sec < end_sec
-        ]
+        return [seg for seg in segments if seg.end_sec > start_sec and seg.start_sec < end_sec]
 
     def segments_to_text(self, segments: list[TranscriptionSegment]) -> str:
         """Join segment texts into a single string.

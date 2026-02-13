@@ -97,8 +97,9 @@ def generate_test_video(
         writer.write(frame)
 
         if (frame_idx + 1) % int(fps) == 0:
-            logger.info("Progress: %d/%d frames (%.1f%%)",
-                        frame_idx + 1, total_frames, 100 * (frame_idx + 1) / total_frames)
+            logger.info(
+                "Progress: %d/%d frames (%.1f%%)", frame_idx + 1, total_frames, 100 * (frame_idx + 1) / total_frames
+            )
 
     writer.release()
     logger.info("✅ Test video saved: %s", output_path)

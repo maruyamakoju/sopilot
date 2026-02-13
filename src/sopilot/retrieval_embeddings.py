@@ -26,6 +26,7 @@ logger = logging.getLogger(__name__)
 try:
     import open_clip
     import torch
+
     OPENCLIP_AVAILABLE = True
 except ImportError:
     OPENCLIP_AVAILABLE = False
@@ -101,10 +102,7 @@ class RetrievalEmbedder:
         self._tokenizer = None
 
         if not OPENCLIP_AVAILABLE:
-            logger.warning(
-                "open_clip_torch not installed, using mock mode. "
-                "Install with: pip install -e '.[vigil]'"
-            )
+            logger.warning("open_clip_torch not installed, using mock mode. Install with: pip install -e '.[vigil]'")
         else:
             self._load_model()
 
@@ -177,9 +175,7 @@ class RetrievalEmbedder:
 
         with torch.no_grad():
             # Preprocess and stack
-            image_tensors = torch.stack(
-                [self._preprocess(img) for img in pil_images]
-            ).to(self.config.device)
+            image_tensors = torch.stack([self._preprocess(img) for img in pil_images]).to(self.config.device)
 
             embeddings = self._model.encode_image(image_tensors)
 

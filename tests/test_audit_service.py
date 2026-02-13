@@ -70,13 +70,23 @@ class TestGetAuditTrail:
         # Create one of each job type
         from sopilot.db import VideoCreateInput
 
-        vid = db.create_video(VideoCreateInput(
-            task_id="t1", role="gold", file_path="/tmp/v.mp4", embedding_model="heuristic",
-        ))
+        vid = db.create_video(
+            VideoCreateInput(
+                task_id="t1",
+                role="gold",
+                file_path="/tmp/v.mp4",
+                embedding_model="heuristic",
+            )
+        )
         db.create_ingest_job(
-            task_id="t1", role="trainee", requested_by=None,
-            file_name="v.mp4", file_path="/tmp/v.mp4",
-            site_id=None, camera_id=None, operator_id_hash=None,
+            task_id="t1",
+            role="trainee",
+            requested_by=None,
+            file_name="v.mp4",
+            file_path="/tmp/v.mp4",
+            site_id=None,
+            camera_id=None,
+            operator_id_hash=None,
         )
         db.create_score_job(vid, vid, requested_by="admin")
         db.create_training_job("nightly", requested_by=None)
@@ -160,9 +170,14 @@ class TestExportSignedAuditTrail:
     def test_signature_verification_roundtrip(self, audit_env):
         service, db, settings = audit_env
         db.create_ingest_job(
-            task_id="t1", role="trainee", requested_by="user",
-            file_name="v.mp4", file_path="/tmp/v.mp4",
-            site_id=None, camera_id=None, operator_id_hash=None,
+            task_id="t1",
+            role="trainee",
+            requested_by="user",
+            file_name="v.mp4",
+            file_path="/tmp/v.mp4",
+            site_id=None,
+            camera_id=None,
+            operator_id_hash=None,
         )
         result = service.export_signed_audit_trail()
 

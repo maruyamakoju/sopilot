@@ -30,7 +30,13 @@ logger = logging.getLogger(__name__)
 
 
 def _index_video(
-    video_path, video_id, chunker, embedder, qdrant_service, domain, keyframe_dir,
+    video_path,
+    video_id,
+    chunker,
+    embedder,
+    qdrant_service,
+    domain,
+    keyframe_dir,
     transcription_service=None,
 ):
     """Index a video: chunk → encode keyframes → store in vector DB.
@@ -41,8 +47,13 @@ def _index_video(
     from sopilot.vigil_helpers import index_video_micro
 
     index_result = index_video_micro(
-        video_path, video_id, chunker, embedder, qdrant_service,
-        domain=domain, keyframe_dir=keyframe_dir,
+        video_path,
+        video_id,
+        chunker,
+        embedder,
+        qdrant_service,
+        domain=domain,
+        keyframe_dir=keyframe_dir,
         transcription_service=transcription_service,
     )
     chunk_result = index_result["chunk_result"]
@@ -207,8 +218,13 @@ def main():
                 logger.info("   Whisper enabled: model=%s", args.whisper_model)
 
             micro_metadata, chunk_result = _index_video(
-                video_path, video_id, chunker, embedder, qdrant_service,
-                args.domain, keyframe_dir,
+                video_path,
+                video_id,
+                chunker,
+                embedder,
+                qdrant_service,
+                args.domain,
+                keyframe_dir,
                 transcription_service=tx_service,
             )
             logger.info("   ✅ Indexing complete")
@@ -243,7 +259,10 @@ def main():
             for rank, sr in enumerate(search_results, 1):
                 logger.info(
                     "   Rank %d: [%.2f-%.2f sec] score=%.3f",
-                    rank, sr.start_sec, sr.end_sec, sr.score,
+                    rank,
+                    sr.start_sec,
+                    sr.end_sec,
+                    sr.score,
                 )
                 if sr.transcript_text:
                     logger.info("     transcript: %s", sr.transcript_text[:120])
@@ -257,10 +276,7 @@ def main():
                 cap.release()
 
                 if ret:
-                    artifact_path = (
-                        artifacts_dir
-                        / f"rank{rank:02d}_t{sr.start_sec:.1f}s_score{sr.score:.3f}.jpg"
-                    )
+                    artifact_path = artifacts_dir / f"rank{rank:02d}_t{sr.start_sec:.1f}s_score{sr.score:.3f}.jpg"
                     cv2.imwrite(str(artifact_path), frame, [cv2.IMWRITE_JPEG_QUALITY, 90])
                     logger.info("   Saved: %s", artifact_path.name)
         else:
@@ -343,16 +359,19 @@ def main():
                     f.write(f"# Answer\n\n{final_answer}\n\n")
                     f.write(f"# Evidence ({len(clip_observations)} clips)\n\n")
                     for o in clip_observations:
-                        f.write(f"- **[{o.start_sec:.1f}-{o.end_sec:.1f}s]** "
-                                f"(relevance={o.relevance:.1f}, confidence={o.confidence:.1f}): "
-                                f"{o.observation}\n")
+                        f.write(
+                            f"- **[{o.start_sec:.1f}-{o.end_sec:.1f}s]** "
+                            f"(relevance={o.relevance:.1f}, confidence={o.confidence:.1f}): "
+                            f"{o.observation}\n"
+                        )
                 logger.info("   Saved: %s", answer_path)
 
         elif search_results:
             top_result = search_results[0]
             logger.info(
                 "   Answering from top clip: [%.2f-%.2f sec]",
-                top_result.start_sec, top_result.end_sec,
+                top_result.start_sec,
+                top_result.end_sec,
             )
 
             qa_result = llm_service.answer_question(

@@ -196,6 +196,7 @@ class TestChunkingResultToClipRecords:
 # index_video_micro + transcription integration tests
 # ---------------------------------------------------------------------------
 
+
 def _make_mock_chunker(micro_chunks):
     """Create a mock chunker that returns given micro chunks."""
     chunker = MagicMock()
@@ -253,11 +254,16 @@ class TestIndexVideoMicroWithTranscription:
         video_path = _make_test_video()
         try:
             micro_chunk = Chunk(
-                level="micro", start_sec=0.0, end_sec=3.0,
-                start_frame=0, end_frame=90, keyframe_indices=[45],
+                level="micro",
+                start_sec=0.0,
+                end_sec=3.0,
+                start_frame=0,
+                end_frame=90,
+                keyframe_indices=[45],
             )
             result = index_video_micro(
-                video_path, "test-vid-id",
+                video_path,
+                "test-vid-id",
                 _make_mock_chunker([micro_chunk]),
                 _make_mock_embedder(),
                 _make_mock_qdrant(),
@@ -276,13 +282,18 @@ class TestIndexVideoMicroWithTranscription:
         video_path = _make_test_video()
         try:
             micro_chunk = Chunk(
-                level="micro", start_sec=0.0, end_sec=3.0,
-                start_frame=0, end_frame=90, keyframe_indices=[45],
+                level="micro",
+                start_sec=0.0,
+                end_sec=3.0,
+                start_frame=0,
+                end_frame=90,
+                keyframe_indices=[45],
             )
             tx_service = TranscriptionService(TranscriptionConfig(backend="mock"))
 
             result = index_video_micro(
-                video_path, "test-vid-id",
+                video_path,
+                "test-vid-id",
                 _make_mock_chunker([micro_chunk]),
                 _make_mock_embedder(),
                 _make_mock_qdrant(),
@@ -299,12 +310,20 @@ class TestIndexVideoMicroWithTranscription:
         try:
             micro_chunks = [
                 Chunk(
-                    level="micro", start_sec=0.0, end_sec=3.0,
-                    start_frame=0, end_frame=90, keyframe_indices=[45],
+                    level="micro",
+                    start_sec=0.0,
+                    end_sec=3.0,
+                    start_frame=0,
+                    end_frame=90,
+                    keyframe_indices=[45],
                 ),
                 Chunk(
-                    level="micro", start_sec=3.0, end_sec=6.0,
-                    start_frame=90, end_frame=180, keyframe_indices=[135],
+                    level="micro",
+                    start_sec=3.0,
+                    end_sec=6.0,
+                    start_frame=90,
+                    end_frame=180,
+                    keyframe_indices=[135],
                 ),
             ]
 
@@ -317,11 +336,14 @@ class TestIndexVideoMicroWithTranscription:
                 TranscriptionSegment(4.0, 5.5, "Step three", "en"),
             ]
             tx_service.transcribe = lambda _path: TranscriptionResult(
-                segments=fake_segments, language="en", duration_sec=6.0,
+                segments=fake_segments,
+                language="en",
+                duration_sec=6.0,
             )
 
             result = index_video_micro(
-                video_path, "test-vid-id",
+                video_path,
+                "test-vid-id",
                 _make_mock_chunker(micro_chunks),
                 _make_mock_embedder(),
                 _make_mock_qdrant(),
@@ -349,15 +371,20 @@ class TestIndexVideoMicroWithTranscription:
         video_path = _make_test_video()
         try:
             micro_chunk = Chunk(
-                level="micro", start_sec=0.0, end_sec=3.0,
-                start_frame=0, end_frame=90, keyframe_indices=[45],
+                level="micro",
+                start_sec=0.0,
+                end_sec=3.0,
+                start_frame=0,
+                end_frame=90,
+                keyframe_indices=[45],
             )
 
             tx_service = TranscriptionService(TranscriptionConfig(backend="mock"))
             tx_service.transcribe = MagicMock(side_effect=RuntimeError("ffmpeg not found"))
 
             result = index_video_micro(
-                video_path, "test-vid-id",
+                video_path,
+                "test-vid-id",
                 _make_mock_chunker([micro_chunk]),
                 _make_mock_embedder(),
                 _make_mock_qdrant(),

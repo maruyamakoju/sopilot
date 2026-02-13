@@ -23,6 +23,7 @@ import cv2
 
 try:
     from scenedetect import AdaptiveDetector, detect
+
     SCENEDETECT_AVAILABLE = True
 except ImportError:
     SCENEDETECT_AVAILABLE = False
@@ -163,10 +164,7 @@ class ChunkingService:
             RuntimeError: If PySceneDetect is not available
         """
         if not SCENEDETECT_AVAILABLE:
-            raise RuntimeError(
-                "scenedetect package not installed. "
-                "Install with: pip install scenedetect[opencv]"
-            )
+            raise RuntimeError("scenedetect package not installed. Install with: pip install scenedetect[opencv]")
 
         video_path = Path(video_path)
         if not video_path.exists():
@@ -331,10 +329,7 @@ class ChunkingService:
             # Adjust to align with base chunk boundaries if possible
             if base_chunks:
                 # Find base chunks overlapping with [current_start, current_end]
-                overlapping = [
-                    c for c in base_chunks
-                    if c.start_sec < current_end and c.end_sec > current_start
-                ]
+                overlapping = [c for c in base_chunks if c.start_sec < current_end and c.end_sec > current_start]
                 if overlapping:
                     # Snap to the last overlapping chunk's end
                     current_end = max(c.end_sec for c in overlapping)

@@ -28,6 +28,7 @@ from .video_llm_service import VideoLLMService
 
 try:
     from .retrieval_embeddings import RetrievalEmbedder
+
     RETRIEVAL_AVAILABLE = True
 except ImportError:
     RETRIEVAL_AVAILABLE = False
@@ -98,7 +99,9 @@ class EventDetectionService:
 
         logger.info(
             "Event detection: %d types, top_k=%d, threshold=%.2f",
-            len(event_types), top_k, confidence_threshold,
+            len(event_types),
+            top_k,
+            confidence_threshold,
         )
 
         # Stage 1: Retrieve proposals for each event type
@@ -128,7 +131,9 @@ class EventDetectionService:
 
         logger.info(
             "Stage 2: %d verified events (from %d proposals, threshold=%.2f)",
-            len(verified_events), num_proposals, confidence_threshold,
+            len(verified_events),
+            num_proposals,
+            confidence_threshold,
         )
 
         return EventDetectionResult(
@@ -201,17 +206,22 @@ class EventDetectionService:
                 end_sec=clip.end_sec,
                 enable_cot=False,
             )
-            parsed = parse_llm_json(qa_result.answer, fallback={
-                "detected": False,
-                "confidence": 0.0,
-                "observation": "",
-                "refined_start_sec": None,
-                "refined_end_sec": None,
-            })
+            parsed = parse_llm_json(
+                qa_result.answer,
+                fallback={
+                    "detected": False,
+                    "confidence": 0.0,
+                    "observation": "",
+                    "refined_start_sec": None,
+                    "refined_end_sec": None,
+                },
+            )
         except Exception as exc:
             logger.warning(
                 "Stage 2 verification failed [%.1f-%.1f]: %s",
-                clip.start_sec, clip.end_sec, exc,
+                clip.start_sec,
+                clip.end_sec,
+                exc,
             )
             return None
 
@@ -275,8 +285,10 @@ class EventDetectionService:
                 if candidate.video_id != existing.video_id:
                     continue
                 iou = temporal_iou(
-                    candidate.start_sec, candidate.end_sec,
-                    existing.start_sec, existing.end_sec,
+                    candidate.start_sec,
+                    candidate.end_sec,
+                    existing.start_sec,
+                    existing.end_sec,
                 )
                 if iou >= iou_threshold:
                     is_dup = True
@@ -284,4 +296,3 @@ class EventDetectionService:
             if not is_dup:
                 kept.append((candidate_type, candidate))
         return kept
-

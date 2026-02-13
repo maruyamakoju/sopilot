@@ -186,13 +186,20 @@ class EventDetectionService:
         Returns:
             DetectedEvent if the LLM confirms the event, None otherwise.
         """
+        # Build prompt with optional transcript context
+        transcript_ctx = ""
+        if clip.transcript_text:
+            excerpt = clip.transcript_text[:400]
+            transcript_ctx = f'\nAudio transcript for this clip: "{excerpt}"\n'
+
         verification_prompt = (
-            f'Does this video clip contain the event: "{event_type}"?\n\n'
+            f'Does this video clip contain the event: "{event_type}"?\n'
+            f"{transcript_ctx}\n"
             "Respond ONLY with a JSON object (no markdown fences):\n"
             "{\n"
             '  "detected": true or false,\n'
             '  "confidence": <0.0-1.0>,\n'
-            '  "observation": "<describe what you see>",\n'
+            '  "observation": "<describe what you see AND hear>",\n'
             '  "refined_start_sec": <float or null>,\n'
             '  "refined_end_sec": <float or null>\n'
             "}"

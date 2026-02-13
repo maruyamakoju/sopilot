@@ -468,6 +468,116 @@ class TestHybridSearch:
         assert "clip-extra" not in {r.clip_id for r in results}
 
 
+class TestObserveClipTranscript:
+    """Tests for transcript_text being included in _observe_clip prompt."""
+
+    @staticmethod
+    def _create_mock_services():
+        return make_mock_vigil_services()
+
+    def test_observe_clip_includes_transcript(self):
+        """When clip has transcript_text, it appears in the observation prompt."""
+        qdrant_service, llm_service = self._create_mock_services()
+
+        rag_service = RAGService(
+            vector_service=qdrant_service,
+            llm_service=llm_service,
+        )
+
+        clip = SearchResult(
+            clip_id="clip-1",
+            video_id="vid-1",
+            level="micro",
+            start_sec=0.0,
+            end_sec=3.0,
+            score=0.9,
+            transcript_text="Attach the red wire to terminal B.",
+        )
+
+        captured_prompts = []
+        original_answer = llm_service.answer_question
+
+        def capture_prompt(video_path, question, **kwargs):
+            captured_prompts.append(question)
+            return original_answer(video_path, question, **kwargs)
+
+        llm_service.answer_question = capture_prompt
+
+        rag_service._observe_clip("dummy.mp4", "What step is shown?", clip)
+
+        assert len(captured_prompts) == 1
+        prompt = captured_prompts[0]
+        assert "Audio transcript" in prompt
+        assert "red wire" in prompt
+
+    def test_observe_clip_no_transcript(self):
+        """When clip has no transcript, prompt omits transcript context."""
+        qdrant_service, llm_service = self._create_mock_services()
+
+        rag_service = RAGService(
+            vector_service=qdrant_service,
+            llm_service=llm_service,
+        )
+
+        clip = SearchResult(
+            clip_id="clip-1",
+            video_id="vid-1",
+            level="micro",
+            start_sec=0.0,
+            end_sec=3.0,
+            score=0.9,
+        )
+
+        captured_prompts = []
+        original_answer = llm_service.answer_question
+
+        def capture_prompt(video_path, question, **kwargs):
+            captured_prompts.append(question)
+            return original_answer(video_path, question, **kwargs)
+
+        llm_service.answer_question = capture_prompt
+
+        rag_service._observe_clip("dummy.mp4", "What happens?", clip)
+
+        assert len(captured_prompts) == 1
+        assert "Audio transcript" not in captured_prompts[0]
+
+    def test_observe_clip_truncates_long_transcript(self):
+        """Long transcript_text is truncated to 400 chars."""
+        qdrant_service, llm_service = self._create_mock_services()
+
+        rag_service = RAGService(
+            vector_service=qdrant_service,
+            llm_service=llm_service,
+        )
+
+        long_text = "X" * 600
+        clip = SearchResult(
+            clip_id="clip-1",
+            video_id="vid-1",
+            level="micro",
+            start_sec=0.0,
+            end_sec=3.0,
+            score=0.9,
+            transcript_text=long_text,
+        )
+
+        captured_prompts = []
+        original_answer = llm_service.answer_question
+
+        def capture_prompt(video_path, question, **kwargs):
+            captured_prompts.append(question)
+            return original_answer(video_path, question, **kwargs)
+
+        llm_service.answer_question = capture_prompt
+
+        rag_service._observe_clip("dummy.mp4", "Question?", clip)
+
+        prompt = captured_prompts[0]
+        assert "X" * 400 in prompt
+        assert "X" * 600 not in prompt
+
+
 class TestComputeVideoId:
     """Tests for compute_video_id."""
 

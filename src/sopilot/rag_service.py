@@ -434,12 +434,19 @@ class RAGService:
         Returns:
             ClipObservation with structured output
         """
+        # Build prompt with optional transcript context
+        transcript_ctx = ""
+        if clip.transcript_text:
+            excerpt = clip.transcript_text[:400]
+            transcript_ctx = f'\nAudio transcript for this clip: "{excerpt}"\n'
+
         observation_prompt = (
-            f'You are analyzing a short video clip to answer: "{question}"\n\n'
+            f'You are analyzing a short video clip to answer: "{question}"\n'
+            f"{transcript_ctx}\n"
             "Respond ONLY with a JSON object (no markdown fences):\n"
             "{\n"
             '  "relevance": <0.0-1.0 how relevant this clip is to the question>,\n'
-            '  "observation": "<describe what you see in this clip>",\n'
+            '  "observation": "<describe what you see AND hear in this clip>",\n'
             '  "answer_candidate": "<partial answer based on this clip only>",\n'
             '  "confidence": <0.0-1.0 how confident you are>\n'
             "}"

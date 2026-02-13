@@ -336,3 +336,109 @@ class TestEventDetectionService:
 
         result = detector.detect_events("dummy.mp4", ["test"], video_id="my-video-id")
         assert result.video_id == "my-video-id"
+
+
+class TestStage2TranscriptContext:
+    """Tests for transcript_text being included in Stage 2 verification prompt."""
+
+    def test_stage2_prompt_includes_transcript(self):
+        """When clip has transcript_text, it appears in the verification prompt."""
+        qdrant_service, llm_service = _create_mock_services()
+        detector = EventDetectionService(
+            vector_service=qdrant_service,
+            llm_service=llm_service,
+        )
+
+        clip = SearchResult(
+            clip_id="clip-1",
+            video_id="video-1",
+            level="micro",
+            start_sec=0.0,
+            end_sec=3.0,
+            score=0.9,
+            transcript_text="The operator puts on safety goggles.",
+        )
+
+        # Capture the prompt passed to LLM
+        captured_prompts = []
+        original_answer = llm_service.answer_question
+
+        def capture_prompt(video_path, question, **kwargs):
+            captured_prompts.append(question)
+            return original_answer(video_path, question, **kwargs)
+
+        llm_service.answer_question = capture_prompt
+
+        detector._stage2_verify("dummy.mp4", "PPE violation", clip)
+
+        assert len(captured_prompts) == 1
+        prompt = captured_prompts[0]
+        assert "Audio transcript" in prompt
+        assert "safety goggles" in prompt
+        assert "PPE violation" in prompt
+
+    def test_stage2_prompt_no_transcript(self):
+        """When clip has no transcript_text, prompt omits transcript context."""
+        qdrant_service, llm_service = _create_mock_services()
+        detector = EventDetectionService(
+            vector_service=qdrant_service,
+            llm_service=llm_service,
+        )
+
+        clip = SearchResult(
+            clip_id="clip-1",
+            video_id="video-1",
+            level="micro",
+            start_sec=0.0,
+            end_sec=3.0,
+            score=0.9,
+        )
+
+        captured_prompts = []
+        original_answer = llm_service.answer_question
+
+        def capture_prompt(video_path, question, **kwargs):
+            captured_prompts.append(question)
+            return original_answer(video_path, question, **kwargs)
+
+        llm_service.answer_question = capture_prompt
+
+        detector._stage2_verify("dummy.mp4", "intrusion", clip)
+
+        assert len(captured_prompts) == 1
+        assert "Audio transcript" not in captured_prompts[0]
+
+    def test_stage2_prompt_truncates_long_transcript(self):
+        """Long transcript_text is truncated to 400 chars in the prompt."""
+        qdrant_service, llm_service = _create_mock_services()
+        detector = EventDetectionService(
+            vector_service=qdrant_service,
+            llm_service=llm_service,
+        )
+
+        long_text = "A" * 600
+        clip = SearchResult(
+            clip_id="clip-1",
+            video_id="video-1",
+            level="micro",
+            start_sec=0.0,
+            end_sec=3.0,
+            score=0.9,
+            transcript_text=long_text,
+        )
+
+        captured_prompts = []
+        original_answer = llm_service.answer_question
+
+        def capture_prompt(video_path, question, **kwargs):
+            captured_prompts.append(question)
+            return original_answer(video_path, question, **kwargs)
+
+        llm_service.answer_question = capture_prompt
+
+        detector._stage2_verify("dummy.mp4", "event", clip)
+
+        prompt = captured_prompts[0]
+        # Should contain truncated text (400 chars), not full 600
+        assert "A" * 400 in prompt
+        assert "A" * 600 not in prompt

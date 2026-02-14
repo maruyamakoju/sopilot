@@ -336,6 +336,7 @@ class QdrantService:
 
         results: list[SearchResult] = []
         for hit in response.points:
+            assert hit.payload is not None, "Search result should have payload"
             results.append(
                 SearchResult(
                     clip_id=str(hit.id),

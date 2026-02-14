@@ -1,0 +1,5919 @@
+{
+  "benchmark_file": "benchmarks\\real_v2.jsonl",
+  "video_map_file": "benchmarks\\video_paths.local.json",
+  "embedding_model": "ViT-B-32",
+  "transcribe": true,
+  "hierarchical": true,
+  "top_k": 10,
+  "num_queries": 20,
+  "modes": {
+    "visual_only": {
+      "mode": "visual_only",
+      "alpha": 0.0,
+      "recall_at_1": 0.7416666666666668,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr": 0.975,
+      "ndcg_at_5": 0.9846713201808635,
+      "ndcg_at_10": 0.9846713201808635,
+      "num_queries": 20,
+      "by_type": {
+        "visual": {
+          "num_queries": 8,
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit_rate": 1.0
+        },
+        "audio": {
+          "num_queries": 6,
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit_rate": 1.0
+        },
+        "mixed": {
+          "num_queries": 6,
+          "recall_at_5": 1.0,
+          "mrr": 0.9166666666666666,
+          "hit_rate": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "query_id": "v2-vis01",
+          "query_type": "visual",
+          "query_text": "red diagonal striped pattern filling the frame",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "score": 0.2922
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.1875
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.1872
+            },
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.1869
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.1849
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis02",
+          "query_type": "visual",
+          "query_text": "green circles on a dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.3101
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2436
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.1993
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.182
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.1797
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis03",
+          "query_type": "visual",
+          "query_text": "blue horizontal lines across the screen",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.3617
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.3572
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.3569
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2477
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2475
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis04",
+          "query_type": "visual",
+          "query_text": "yellow and black checkerboard grid",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.359
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.3589
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.3589
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2246
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2243
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis05",
+          "query_type": "visual",
+          "query_text": "concentric cyan rings pulsing outward",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.288
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2352
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.2309
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.2308
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2233
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis06",
+          "query_type": "visual",
+          "query_text": "magenta star shapes scattered on dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "score": 0.2973
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2963
+            },
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.2171
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.1527
+            },
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.1291
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis07",
+          "query_type": "visual",
+          "query_text": "orange zigzag lines moving across screen",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.3512
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2231
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.2144
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.2136
+            },
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "score": 0.1994
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis08",
+          "query_type": "visual",
+          "query_text": "white dots grid pattern blinking on dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.3105
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2568
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2554
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.2544
+            },
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.2356
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud01",
+          "query_type": "audio",
+          "query_text": "step one remove",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "score": 0.3015
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.2075
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.2075
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.2074
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2064
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud02",
+          "query_type": "audio",
+          "query_text": "step two clean",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.289
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.1971
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.1971
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.197
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.1697
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud03",
+          "query_type": "audio",
+          "query_text": "step five rinse",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.229
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.1909
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.1864
+            },
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "score": 0.1848
+            },
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "score": 0.1834
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud04",
+          "query_type": "audio",
+          "query_text": "step eight tighten",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.2356
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.1856
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.1488
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.1488
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.1487
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud05",
+          "query_type": "audio",
+          "query_text": "step nine calibrate",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.3512
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2144
+            },
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "score": 0.2122
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.2108
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.2089
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud06",
+          "query_type": "audio",
+          "query_text": "step ten verify",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2812
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2791
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.2791
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.1763
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.1718
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix01",
+          "query_type": "mixed",
+          "query_text": "swap step with blue line pattern and spoken instruction",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.3469
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.3412
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.3398
+            },
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.2178
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.2021
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix02",
+          "query_type": "mixed",
+          "query_text": "check step showing yellow checkerboard with verbal confirmation",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.3421
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.342
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.3419
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.1809
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.1807
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix03",
+          "query_type": "mixed",
+          "query_text": "install procedure with magenta star indicators and spoken label",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3154
+            },
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "score": 0.307
+            },
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.2404
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.1724
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.1671
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix04",
+          "query_type": "mixed",
+          "query_text": "alignment step with orange zigzag visual and verbal cue",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.3052
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.2586
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.2586
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.2585
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2407
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix05",
+          "query_type": "mixed",
+          "query_text": "purple gradient calibration phase with audio announcement",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.3336
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2375
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.2351
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.2337
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.1953
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix06",
+          "query_type": "mixed",
+          "query_text": "final verify step with teal crosshatch and spoken confirmation",
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.3269
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.3259
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.323
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.1829
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.1829
+            }
+          ]
+        }
+      ]
+    },
+    "hybrid(alpha=0.3)": {
+      "mode": "hybrid(alpha=0.3)",
+      "alpha": 0.3,
+      "recall_at_1": 0.7416666666666668,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr": 0.975,
+      "ndcg_at_5": 0.9846713201808635,
+      "ndcg_at_10": 0.9846713201808635,
+      "num_queries": 20,
+      "by_type": {
+        "visual": {
+          "num_queries": 8,
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit_rate": 1.0
+        },
+        "audio": {
+          "num_queries": 6,
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit_rate": 1.0
+        },
+        "mixed": {
+          "num_queries": 6,
+          "recall_at_5": 1.0,
+          "mrr": 0.9166666666666666,
+          "hit_rate": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "query_id": "v2-vis01",
+          "query_type": "visual",
+          "query_text": "red diagonal striped pattern filling the frame",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "score": 0.2922
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.1875
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.1872
+            },
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.1869
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.1849
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "visual_score": 0.2922,
+              "audio_score": 0.0,
+              "fused_score": 0.2922
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.1875,
+              "audio_score": 0.4678,
+              "fused_score": 0.1875
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1872,
+              "audio_score": 0.4678,
+              "fused_score": 0.1872
+            },
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "visual_score": 0.1869,
+              "audio_score": 0.4391,
+              "fused_score": 0.1869
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "visual_score": 0.1849,
+              "audio_score": 0.0,
+              "fused_score": 0.1849
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis02",
+          "query_type": "visual",
+          "query_text": "green circles on a dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.3101
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2436
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.1993
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.182
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.1797
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "visual_score": 0.3101,
+              "audio_score": 0.0,
+              "fused_score": 0.3101
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.2436,
+              "audio_score": 0.4148,
+              "fused_score": 0.2436
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1993,
+              "audio_score": 0.4148,
+              "fused_score": 0.1993
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "visual_score": 0.182,
+              "audio_score": 0.0,
+              "fused_score": 0.182
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1797,
+              "audio_score": 0.4148,
+              "fused_score": 0.1797
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis03",
+          "query_type": "visual",
+          "query_text": "blue horizontal lines across the screen",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.3617
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.3572
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.3569
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2477
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2475
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.3617,
+              "audio_score": 0.0,
+              "fused_score": 0.3617
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "visual_score": 0.3572,
+              "audio_score": 0.0,
+              "fused_score": 0.3572
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "visual_score": 0.3569,
+              "audio_score": 0.0,
+              "fused_score": 0.3569
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2477,
+              "audio_score": 0.4887,
+              "fused_score": 0.2477
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2475,
+              "audio_score": 0.4887,
+              "fused_score": 0.2475
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis04",
+          "query_type": "visual",
+          "query_text": "yellow and black checkerboard grid",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.359
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.3589
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.3589
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2246
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2243
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.359,
+              "audio_score": 0.4811,
+              "fused_score": 0.359
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "visual_score": 0.3589,
+              "audio_score": 0.0,
+              "fused_score": 0.3589
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "visual_score": 0.3589,
+              "audio_score": 0.0,
+              "fused_score": 0.3589
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2246,
+              "audio_score": 0.4474,
+              "fused_score": 0.2246
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2243,
+              "audio_score": 0.4474,
+              "fused_score": 0.2243
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis05",
+          "query_type": "visual",
+          "query_text": "concentric cyan rings pulsing outward",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.288
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2352
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.2309
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.2308
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2233
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.288,
+              "audio_score": 0.3909,
+              "fused_score": 0.288
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.2352,
+              "audio_score": 0.0,
+              "fused_score": 0.2352
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "visual_score": 0.2309,
+              "audio_score": 0.0,
+              "fused_score": 0.2309
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "visual_score": 0.2308,
+              "audio_score": 0.0,
+              "fused_score": 0.2308
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2233,
+              "audio_score": 0.3909,
+              "fused_score": 0.2233
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis06",
+          "query_type": "visual",
+          "query_text": "magenta star shapes scattered on dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "score": 0.2973
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2963
+            },
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.2171
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.1527
+            },
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.1291
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "visual_score": 0.2973,
+              "audio_score": 0.0,
+              "fused_score": 0.2973
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.2963,
+              "audio_score": 0.2733,
+              "fused_score": 0.2963
+            },
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "visual_score": 0.2171,
+              "audio_score": 0.2733,
+              "fused_score": 0.2171
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1527,
+              "audio_score": 0.2733,
+              "fused_score": 0.1527
+            },
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "visual_score": 0.1291,
+              "audio_score": 0.2657,
+              "fused_score": 0.1291
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis07",
+          "query_type": "visual",
+          "query_text": "orange zigzag lines moving across screen",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.3512
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2231
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.2144
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.2136
+            },
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "score": 0.1994
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "visual_score": 0.3512,
+              "audio_score": 0.342,
+              "fused_score": 0.3512
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.2231,
+              "audio_score": 0.0,
+              "fused_score": 0.2231
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "visual_score": 0.2144,
+              "audio_score": 0.0,
+              "fused_score": 0.2144
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "visual_score": 0.2136,
+              "audio_score": 0.0,
+              "fused_score": 0.2136
+            },
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "visual_score": 0.1994,
+              "audio_score": 0.0,
+              "fused_score": 0.1994
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis08",
+          "query_type": "visual",
+          "query_text": "white dots grid pattern blinking on dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.3105
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2568
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2554
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.2544
+            },
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.2356
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.3105,
+              "audio_score": 0.4609,
+              "fused_score": 0.3105
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2568,
+              "audio_score": 0.4609,
+              "fused_score": 0.2568
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2554,
+              "audio_score": 0.4609,
+              "fused_score": 0.2554
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "visual_score": 0.2544,
+              "audio_score": 0.0,
+              "fused_score": 0.2544
+            },
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "visual_score": 0.2356,
+              "audio_score": 0.4379,
+              "fused_score": 0.2356
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud01",
+          "query_type": "audio",
+          "query_text": "step one remove",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "score": 0.3015
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2166
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2166
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2166
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2166
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "visual_score": 0.3015,
+              "audio_score": 0.0,
+              "fused_score": 0.3015
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.7219,
+              "fused_score": 0.2166
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.2064,
+              "audio_score": 0.7219,
+              "fused_score": 0.2166
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.7219,
+              "fused_score": 0.2166
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.7219,
+              "fused_score": 0.2166
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud02",
+          "query_type": "audio",
+          "query_text": "step two clean",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.289
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.204
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.204
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.204
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.204
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "visual_score": 0.289,
+              "audio_score": 0.0,
+              "fused_score": 0.289
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.68,
+              "fused_score": 0.204
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1554,
+              "audio_score": 0.68,
+              "fused_score": 0.204
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.68,
+              "fused_score": 0.204
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.68,
+              "fused_score": 0.204
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud03",
+          "query_type": "audio",
+          "query_text": "step five rinse",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.229
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.1909
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.1864
+            },
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "score": 0.1848
+            },
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "score": 0.1834
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.229,
+              "audio_score": 0.5857,
+              "fused_score": 0.229
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "visual_score": 0.1909,
+              "audio_score": 0.0,
+              "fused_score": 0.1909
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1864,
+              "audio_score": 0.5857,
+              "fused_score": 0.1864
+            },
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "visual_score": 0.1848,
+              "audio_score": 0.0,
+              "fused_score": 0.1848
+            },
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "visual_score": 0.1834,
+              "audio_score": 0.0,
+              "fused_score": 0.1834
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud04",
+          "query_type": "audio",
+          "query_text": "step eight tighten",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.2356
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.1856
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.1782
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.1782
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.1782
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.2356,
+              "audio_score": 0.5941,
+              "fused_score": 0.2356
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "visual_score": 0.1856,
+              "audio_score": 0.0,
+              "fused_score": 0.1856
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.1782
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.1782
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.1782
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud05",
+          "query_type": "audio",
+          "query_text": "step nine calibrate",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.3512
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2144
+            },
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "score": 0.2122
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.2108
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.2089
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "visual_score": 0.3512,
+              "audio_score": 0.6118,
+              "fused_score": 0.3512
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.2144,
+              "audio_score": 0.0,
+              "fused_score": 0.2144
+            },
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "visual_score": 0.2122,
+              "audio_score": 0.0,
+              "fused_score": 0.2122
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "visual_score": 0.2108,
+              "audio_score": 0.0,
+              "fused_score": 0.2108
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "visual_score": 0.2089,
+              "audio_score": 0.0,
+              "fused_score": 0.2089
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud06",
+          "query_type": "audio",
+          "query_text": "step ten verify",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2812
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2791
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.2791
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.1951
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.1951
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2812,
+              "audio_score": 0.6504,
+              "fused_score": 0.2812
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2791,
+              "audio_score": 0.6504,
+              "fused_score": 0.2791
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "visual_score": 0.2791,
+              "audio_score": 0.0,
+              "fused_score": 0.2791
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1562,
+              "audio_score": 0.6504,
+              "fused_score": 0.1951
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1539,
+              "audio_score": 0.6504,
+              "fused_score": 0.1951
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix01",
+          "query_type": "mixed",
+          "query_text": "swap step with blue line pattern and spoken instruction",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.3469
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.3412
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.3398
+            },
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.2178
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.2021
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.3469,
+              "audio_score": 0.0,
+              "fused_score": 0.3469
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "visual_score": 0.3412,
+              "audio_score": 0.0,
+              "fused_score": 0.3412
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "visual_score": 0.3398,
+              "audio_score": 0.0,
+              "fused_score": 0.3398
+            },
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "visual_score": 0.2178,
+              "audio_score": 0.5521,
+              "fused_score": 0.2178
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "visual_score": 0.2021,
+              "audio_score": 0.0,
+              "fused_score": 0.2021
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix02",
+          "query_type": "mixed",
+          "query_text": "check step showing yellow checkerboard with verbal confirmation",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.3421
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.342
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.3419
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.1809
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.1807
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.3421,
+              "audio_score": 0.4178,
+              "fused_score": 0.3421
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "visual_score": 0.342,
+              "audio_score": 0.0,
+              "fused_score": 0.342
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "visual_score": 0.3419,
+              "audio_score": 0.0,
+              "fused_score": 0.3419
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "visual_score": 0.1809,
+              "audio_score": 0.0,
+              "fused_score": 0.1809
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.1807,
+              "audio_score": 0.4287,
+              "fused_score": 0.1807
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix03",
+          "query_type": "mixed",
+          "query_text": "install procedure with magenta star indicators and spoken label",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3154
+            },
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "score": 0.307
+            },
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.2404
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.1724
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.1671
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.3154,
+              "audio_score": 0.4472,
+              "fused_score": 0.3154
+            },
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "visual_score": 0.307,
+              "audio_score": 0.0,
+              "fused_score": 0.307
+            },
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "visual_score": 0.2404,
+              "audio_score": 0.4472,
+              "fused_score": 0.2404
+            },
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "visual_score": 0.1724,
+              "audio_score": 0.0,
+              "fused_score": 0.1724
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1671,
+              "audio_score": 0.4472,
+              "fused_score": 0.1671
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix04",
+          "query_type": "mixed",
+          "query_text": "alignment step with orange zigzag visual and verbal cue",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.3052
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.2586
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.2586
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.2585
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2407
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "visual_score": 0.3052,
+              "audio_score": 0.4798,
+              "fused_score": 0.3052
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.2586,
+              "audio_score": 0.4778,
+              "fused_score": 0.2586
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "visual_score": 0.2586,
+              "audio_score": 0.0,
+              "fused_score": 0.2586
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "visual_score": 0.2585,
+              "audio_score": 0.0,
+              "fused_score": 0.2585
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.2407,
+              "audio_score": 0.0,
+              "fused_score": 0.2407
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix05",
+          "query_type": "mixed",
+          "query_text": "purple gradient calibration phase with audio announcement",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.3336
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2375
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.2351
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.2337
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.1953
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "visual_score": 0.3336,
+              "audio_score": 0.3504,
+              "fused_score": 0.3336
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.2375,
+              "audio_score": 0.0,
+              "fused_score": 0.2375
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "visual_score": 0.2351,
+              "audio_score": 0.0,
+              "fused_score": 0.2351
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "visual_score": 0.2337,
+              "audio_score": 0.0,
+              "fused_score": 0.2337
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1953,
+              "audio_score": 0.3504,
+              "fused_score": 0.1953
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix06",
+          "query_type": "mixed",
+          "query_text": "final verify step with teal crosshatch and spoken confirmation",
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.3269
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.3259
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.323
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.1829
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.1829
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "visual_score": 0.3269,
+              "audio_score": 0.0,
+              "fused_score": 0.3269
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.3259,
+              "audio_score": 0.3896,
+              "fused_score": 0.3259
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.323,
+              "audio_score": 0.3896,
+              "fused_score": 0.323
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "visual_score": 0.1829,
+              "audio_score": 0.0,
+              "fused_score": 0.1829
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "visual_score": 0.1829,
+              "audio_score": 0.0,
+              "fused_score": 0.1829
+            }
+          ]
+        }
+      ]
+    },
+    "hybrid(alpha=0.5)": {
+      "mode": "hybrid(alpha=0.5)",
+      "alpha": 0.5,
+      "recall_at_1": 0.5166666666666666,
+      "recall_at_3": 0.775,
+      "recall_at_5": 0.9,
+      "recall_at_10": 1.0,
+      "mrr": 0.7836111111111111,
+      "ndcg_at_5": 0.8067503144464521,
+      "ndcg_at_10": 0.8368533140128502,
+      "num_queries": 20,
+      "by_type": {
+        "visual": {
+          "num_queries": 8,
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit_rate": 1.0
+        },
+        "audio": {
+          "num_queries": 6,
+          "recall_at_5": 0.6666666666666666,
+          "mrr": 0.3620370370370371,
+          "hit_rate": 0.6666666666666666
+        },
+        "mixed": {
+          "num_queries": 6,
+          "recall_at_5": 1.0,
+          "mrr": 0.9166666666666666,
+          "hit_rate": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "query_id": "v2-vis01",
+          "query_type": "visual",
+          "query_text": "red diagonal striped pattern filling the frame",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "score": 0.2922
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.2453
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2339
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2339
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2339
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "visual_score": 0.2922,
+              "audio_score": 0.0,
+              "fused_score": 0.2922
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.1561,
+              "audio_score": 0.4905,
+              "fused_score": 0.2453
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4678,
+              "fused_score": 0.2339
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4678,
+              "fused_score": 0.2339
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1872,
+              "audio_score": 0.4678,
+              "fused_score": 0.2339
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis02",
+          "query_type": "visual",
+          "query_text": "green circles on a dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.3101
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2436
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.2098
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2074
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2074
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "visual_score": 0.3101,
+              "audio_score": 0.0,
+              "fused_score": 0.3101
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.2436,
+              "audio_score": 0.4148,
+              "fused_score": 0.2436
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.0,
+              "audio_score": 0.4197,
+              "fused_score": 0.2098
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4148,
+              "fused_score": 0.2074
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1797,
+              "audio_score": 0.4148,
+              "fused_score": 0.2074
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis03",
+          "query_type": "visual",
+          "query_text": "blue horizontal lines across the screen",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.3617
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.3572
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.3569
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.2635
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2477
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.3617,
+              "audio_score": 0.0,
+              "fused_score": 0.3617
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "visual_score": 0.3572,
+              "audio_score": 0.0,
+              "fused_score": 0.3572
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "visual_score": 0.3569,
+              "audio_score": 0.0,
+              "fused_score": 0.3569
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.0,
+              "audio_score": 0.5269,
+              "fused_score": 0.2635
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2477,
+              "audio_score": 0.4887,
+              "fused_score": 0.2477
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis04",
+          "query_type": "visual",
+          "query_text": "yellow and black checkerboard grid",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.359
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.3589
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.3589
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2246
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2243
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.359,
+              "audio_score": 0.4811,
+              "fused_score": 0.359
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "visual_score": 0.3589,
+              "audio_score": 0.0,
+              "fused_score": 0.3589
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "visual_score": 0.3589,
+              "audio_score": 0.0,
+              "fused_score": 0.3589
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2246,
+              "audio_score": 0.4474,
+              "fused_score": 0.2246
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2243,
+              "audio_score": 0.4474,
+              "fused_score": 0.2243
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis05",
+          "query_type": "visual",
+          "query_text": "concentric cyan rings pulsing outward",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.288
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2352
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.2309
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.2308
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2233
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.288,
+              "audio_score": 0.3909,
+              "fused_score": 0.288
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.2352,
+              "audio_score": 0.0,
+              "fused_score": 0.2352
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "visual_score": 0.2309,
+              "audio_score": 0.0,
+              "fused_score": 0.2309
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "visual_score": 0.2308,
+              "audio_score": 0.0,
+              "fused_score": 0.2308
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2233,
+              "audio_score": 0.3909,
+              "fused_score": 0.2233
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis06",
+          "query_type": "visual",
+          "query_text": "magenta star shapes scattered on dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "score": 0.2973
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2963
+            },
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.2171
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.1527
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.1366
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "visual_score": 0.2973,
+              "audio_score": 0.0,
+              "fused_score": 0.2973
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.2963,
+              "audio_score": 0.2733,
+              "fused_score": 0.2963
+            },
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "visual_score": 0.2171,
+              "audio_score": 0.2733,
+              "fused_score": 0.2171
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1527,
+              "audio_score": 0.2733,
+              "fused_score": 0.1527
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1159,
+              "audio_score": 0.2733,
+              "fused_score": 0.1366
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis07",
+          "query_type": "visual",
+          "query_text": "orange zigzag lines moving across screen",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.3512
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2231
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.2144
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.2136
+            },
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "score": 0.1994
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "visual_score": 0.3512,
+              "audio_score": 0.342,
+              "fused_score": 0.3512
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.2231,
+              "audio_score": 0.0,
+              "fused_score": 0.2231
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "visual_score": 0.2144,
+              "audio_score": 0.0,
+              "fused_score": 0.2144
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "visual_score": 0.2136,
+              "audio_score": 0.0,
+              "fused_score": 0.2136
+            },
+            {
+              "clip_id": "468e4b0c-f50e-4931-8aae-9f8b9d7f2ad2",
+              "visual_score": 0.1994,
+              "audio_score": 0.0,
+              "fused_score": 0.1994
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis08",
+          "query_type": "visual",
+          "query_text": "white dots grid pattern blinking on dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.3105
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2568
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2554
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.2544
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.2413
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.3105,
+              "audio_score": 0.4609,
+              "fused_score": 0.3105
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2568,
+              "audio_score": 0.4609,
+              "fused_score": 0.2568
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2554,
+              "audio_score": 0.4609,
+              "fused_score": 0.2554
+            },
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "visual_score": 0.2544,
+              "audio_score": 0.0,
+              "fused_score": 0.2544
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.1857,
+              "audio_score": 0.4825,
+              "fused_score": 0.2413
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud01",
+          "query_type": "audio",
+          "query_text": "step one remove",
+          "recall_at_5": 0.0,
+          "mrr": 0.1111111111111111,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.361
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.361
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.361
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.361
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.361
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.7219,
+              "fused_score": 0.361
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.2064,
+              "audio_score": 0.7219,
+              "fused_score": 0.361
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.7219,
+              "fused_score": 0.361
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.7219,
+              "fused_score": 0.361
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1809,
+              "audio_score": 0.7219,
+              "fused_score": 0.361
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud02",
+          "query_type": "audio",
+          "query_text": "step two clean",
+          "recall_at_5": 0.0,
+          "mrr": 0.1111111111111111,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.34
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.34
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.34
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.34
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.34
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.68,
+              "fused_score": 0.34
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1554,
+              "audio_score": 0.68,
+              "fused_score": 0.34
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.68,
+              "fused_score": 0.34
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.68,
+              "fused_score": 0.34
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1697,
+              "audio_score": 0.68,
+              "fused_score": 0.34
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud03",
+          "query_type": "audio",
+          "query_text": "step five rinse",
+          "recall_at_5": 1.0,
+          "mrr": 0.25,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2928
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2928
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.2928
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2928
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2928
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1864,
+              "audio_score": 0.5857,
+              "fused_score": 0.2928
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.5857,
+              "fused_score": 0.2928
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.5857,
+              "fused_score": 0.2928
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.229,
+              "audio_score": 0.5857,
+              "fused_score": 0.2928
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.5857,
+              "fused_score": 0.2928
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud04",
+          "query_type": "audio",
+          "query_text": "step eight tighten",
+          "recall_at_5": 1.0,
+          "mrr": 0.2,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2971
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2971
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2971
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2971
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.2971
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.2971
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.2971
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.2971
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.2971
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.2356,
+              "audio_score": 0.5941,
+              "fused_score": 0.2971
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud05",
+          "query_type": "audio",
+          "query_text": "step nine calibrate",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.3512
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.3059
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3059
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.3059
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.3059
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "visual_score": 0.3512,
+              "audio_score": 0.6118,
+              "fused_score": 0.3512
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.6118,
+              "fused_score": 0.3059
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1903,
+              "audio_score": 0.6118,
+              "fused_score": 0.3059
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.6118,
+              "fused_score": 0.3059
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.6118,
+              "fused_score": 0.3059
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud06",
+          "query_type": "audio",
+          "query_text": "step ten verify",
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3252
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.3252
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.3252
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.3252
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.3252
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1562,
+              "audio_score": 0.6504,
+              "fused_score": 0.3252
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2791,
+              "audio_score": 0.6504,
+              "fused_score": 0.3252
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1539,
+              "audio_score": 0.6504,
+              "fused_score": 0.3252
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.6504,
+              "fused_score": 0.3252
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2812,
+              "audio_score": 0.6504,
+              "fused_score": 0.3252
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix01",
+          "query_type": "mixed",
+          "query_text": "swap step with blue line pattern and spoken instruction",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.3469
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.3412
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.3398
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2949
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2949
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.3469,
+              "audio_score": 0.0,
+              "fused_score": 0.3469
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "visual_score": 0.3412,
+              "audio_score": 0.0,
+              "fused_score": 0.3412
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "visual_score": 0.3398,
+              "audio_score": 0.0,
+              "fused_score": 0.3398
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.1717,
+              "audio_score": 0.5899,
+              "fused_score": 0.2949
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.5899,
+              "fused_score": 0.2949
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix02",
+          "query_type": "mixed",
+          "query_text": "check step showing yellow checkerboard with verbal confirmation",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.3421
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.342
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.3419
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2144
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2144
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.3421,
+              "audio_score": 0.4178,
+              "fused_score": 0.3421
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "visual_score": 0.342,
+              "audio_score": 0.0,
+              "fused_score": 0.342
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "visual_score": 0.3419,
+              "audio_score": 0.0,
+              "fused_score": 0.3419
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4287,
+              "fused_score": 0.2144
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.179,
+              "audio_score": 0.4287,
+              "fused_score": 0.2144
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix03",
+          "query_type": "mixed",
+          "query_text": "install procedure with magenta star indicators and spoken label",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3154
+            },
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "score": 0.307
+            },
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.2404
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2236
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2236
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.3154,
+              "audio_score": 0.4472,
+              "fused_score": 0.3154
+            },
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "visual_score": 0.307,
+              "audio_score": 0.0,
+              "fused_score": 0.307
+            },
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "visual_score": 0.2404,
+              "audio_score": 0.4472,
+              "fused_score": 0.2404
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4472,
+              "fused_score": 0.2236
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.4472,
+              "fused_score": 0.2236
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix04",
+          "query_type": "mixed",
+          "query_text": "alignment step with orange zigzag visual and verbal cue",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.3052
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.2586
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.2586
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.2585
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2489
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "visual_score": 0.3052,
+              "audio_score": 0.4798,
+              "fused_score": 0.3052
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.2586,
+              "audio_score": 0.4778,
+              "fused_score": 0.2586
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "visual_score": 0.2586,
+              "audio_score": 0.0,
+              "fused_score": 0.2586
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "visual_score": 0.2585,
+              "audio_score": 0.0,
+              "fused_score": 0.2585
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4978,
+              "fused_score": 0.2489
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix05",
+          "query_type": "mixed",
+          "query_text": "purple gradient calibration phase with audio announcement",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.3336
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.2375
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.2351
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.2337
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.1953
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "visual_score": 0.3336,
+              "audio_score": 0.3504,
+              "fused_score": 0.3336
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.2375,
+              "audio_score": 0.0,
+              "fused_score": 0.2375
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "visual_score": 0.2351,
+              "audio_score": 0.0,
+              "fused_score": 0.2351
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "visual_score": 0.2337,
+              "audio_score": 0.0,
+              "fused_score": 0.2337
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1953,
+              "audio_score": 0.3504,
+              "fused_score": 0.1953
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix06",
+          "query_type": "mixed",
+          "query_text": "final verify step with teal crosshatch and spoken confirmation",
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.3269
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.3259
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.323
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.2029
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.1948
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "visual_score": 0.3269,
+              "audio_score": 0.0,
+              "fused_score": 0.3269
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.3259,
+              "audio_score": 0.3896,
+              "fused_score": 0.3259
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.323,
+              "audio_score": 0.3896,
+              "fused_score": 0.323
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.1828,
+              "audio_score": 0.4059,
+              "fused_score": 0.2029
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.3896,
+              "fused_score": 0.1948
+            }
+          ]
+        }
+      ]
+    },
+    "hybrid(alpha=0.7)": {
+      "mode": "hybrid(alpha=0.7)",
+      "alpha": 0.7,
+      "recall_at_1": 0.2333333333333333,
+      "recall_at_3": 0.4833333333333333,
+      "recall_at_5": 0.625,
+      "recall_at_10": 1.0,
+      "mrr": 0.518531746031746,
+      "ndcg_at_5": 0.5055955927871875,
+      "ndcg_at_10": 0.6313473465718588,
+      "num_queries": 20,
+      "by_type": {
+        "visual": {
+          "num_queries": 8,
+          "recall_at_5": 0.75,
+          "mrr": 0.6597222222222222,
+          "hit_rate": 0.75
+        },
+        "audio": {
+          "num_queries": 6,
+          "recall_at_5": 0.5,
+          "mrr": 0.22314814814814818,
+          "hit_rate": 0.5
+        },
+        "mixed": {
+          "num_queries": 6,
+          "recall_at_5": 0.5833333333333334,
+          "mrr": 0.6256613756613757,
+          "hit_rate": 0.6666666666666666
+        }
+      },
+      "per_query": [
+        {
+          "query_id": "v2-vis01",
+          "query_type": "visual",
+          "query_text": "red diagonal striped pattern filling the frame",
+          "recall_at_5": 0.0,
+          "mrr": 0.1111111111111111,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.3434
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.3275
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3275
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.3275
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.3275
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.1561,
+              "audio_score": 0.4905,
+              "fused_score": 0.3434
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4678,
+              "fused_score": 0.3275
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4678,
+              "fused_score": 0.3275
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1872,
+              "audio_score": 0.4678,
+              "fused_score": 0.3275
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.4678,
+              "fused_score": 0.3275
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis02",
+          "query_type": "visual",
+          "query_text": "green circles on a dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "score": 0.3101
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.2938
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2904
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2904
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2904
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "7d41763f-d803-43d6-8466-38abf0f167be",
+              "visual_score": 0.3101,
+              "audio_score": 0.0,
+              "fused_score": 0.3101
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.0,
+              "audio_score": 0.4197,
+              "fused_score": 0.2938
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4148,
+              "fused_score": 0.2904
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1797,
+              "audio_score": 0.4148,
+              "fused_score": 0.2904
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.1791,
+              "audio_score": 0.4148,
+              "fused_score": 0.2904
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis03",
+          "query_type": "visual",
+          "query_text": "blue horizontal lines across the screen",
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.3689
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "score": 0.3617
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "score": 0.3572
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "score": 0.3569
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.3421
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.0,
+              "audio_score": 0.5269,
+              "fused_score": 0.3689
+            },
+            {
+              "clip_id": "0fc9339b-b4c4-4ee6-8fd9-cb2476d632ae",
+              "visual_score": 0.3617,
+              "audio_score": 0.0,
+              "fused_score": 0.3617
+            },
+            {
+              "clip_id": "505e3577-21f3-41f8-bbb7-739a71ec5619",
+              "visual_score": 0.3572,
+              "audio_score": 0.0,
+              "fused_score": 0.3572
+            },
+            {
+              "clip_id": "93a791ba-56fd-40da-8b63-5db8f861202d",
+              "visual_score": 0.3569,
+              "audio_score": 0.0,
+              "fused_score": 0.3569
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.2018,
+              "audio_score": 0.4887,
+              "fused_score": 0.3421
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis04",
+          "query_type": "visual",
+          "query_text": "yellow and black checkerboard grid",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.359
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.3589
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.3589
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3132
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.3132
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.359,
+              "audio_score": 0.4811,
+              "fused_score": 0.359
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "visual_score": 0.3589,
+              "audio_score": 0.0,
+              "fused_score": 0.3589
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "visual_score": 0.3589,
+              "audio_score": 0.0,
+              "fused_score": 0.3589
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4474,
+              "fused_score": 0.3132
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2246,
+              "audio_score": 0.4474,
+              "fused_score": 0.3132
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis05",
+          "query_type": "visual",
+          "query_text": "concentric cyan rings pulsing outward",
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.311
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.288
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2737
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2737
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.2737
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.0,
+              "audio_score": 0.4443,
+              "fused_score": 0.311
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.288,
+              "audio_score": 0.3909,
+              "fused_score": 0.288
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.3909,
+              "fused_score": 0.2737
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2231,
+              "audio_score": 0.3909,
+              "fused_score": 0.2737
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.3909,
+              "fused_score": 0.2737
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis06",
+          "query_type": "visual",
+          "query_text": "magenta star shapes scattered on dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "score": 0.2973
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2963
+            },
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.2171
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.1913
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.1913
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "visual_score": 0.2973,
+              "audio_score": 0.0,
+              "fused_score": 0.2973
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.2963,
+              "audio_score": 0.2733,
+              "fused_score": 0.2963
+            },
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "visual_score": 0.2171,
+              "audio_score": 0.2733,
+              "fused_score": 0.2171
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1159,
+              "audio_score": 0.2733,
+              "fused_score": 0.1913
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.1145,
+              "audio_score": 0.2733,
+              "fused_score": 0.1913
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis07",
+          "query_type": "visual",
+          "query_text": "orange zigzag lines moving across screen",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "score": 0.3512
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2461
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2461
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2461
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.2461
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86497e2e-a53d-42e4-99ed-d6b97d2c2d71",
+              "visual_score": 0.3512,
+              "audio_score": 0.342,
+              "fused_score": 0.3512
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.3515,
+              "fused_score": 0.2461
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.3515,
+              "fused_score": 0.2461
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1692,
+              "audio_score": 0.3515,
+              "fused_score": 0.2461
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.3515,
+              "fused_score": 0.2461
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis08",
+          "query_type": "visual",
+          "query_text": "white dots grid pattern blinking on dark background",
+          "recall_at_5": 0.0,
+          "mrr": 0.16666666666666666,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.3378
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.3226
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3226
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.3226
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.3226
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.1857,
+              "audio_score": 0.4825,
+              "fused_score": 0.3378
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4609,
+              "fused_score": 0.3226
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4609,
+              "fused_score": 0.3226
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2568,
+              "audio_score": 0.4609,
+              "fused_score": 0.3226
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2554,
+              "audio_score": 0.4609,
+              "fused_score": 0.3226
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud01",
+          "query_type": "audio",
+          "query_text": "step one remove",
+          "recall_at_5": 0.0,
+          "mrr": 0.1111111111111111,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.5053
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.5053
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.5053
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.5053
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.5053
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.7219,
+              "fused_score": 0.5053
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.2064,
+              "audio_score": 0.7219,
+              "fused_score": 0.5053
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.7219,
+              "fused_score": 0.5053
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.7219,
+              "fused_score": 0.5053
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1809,
+              "audio_score": 0.7219,
+              "fused_score": 0.5053
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud02",
+          "query_type": "audio",
+          "query_text": "step two clean",
+          "recall_at_5": 0.0,
+          "mrr": 0.1111111111111111,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.476
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.476
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.476
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.476
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.476
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.68,
+              "fused_score": 0.476
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1554,
+              "audio_score": 0.68,
+              "fused_score": 0.476
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.68,
+              "fused_score": 0.476
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.68,
+              "fused_score": 0.476
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1697,
+              "audio_score": 0.68,
+              "fused_score": 0.476
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud03",
+          "query_type": "audio",
+          "query_text": "step five rinse",
+          "recall_at_5": 1.0,
+          "mrr": 0.25,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.41
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.41
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.41
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.41
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.41
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1864,
+              "audio_score": 0.5857,
+              "fused_score": 0.41
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.5857,
+              "fused_score": 0.41
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.5857,
+              "fused_score": 0.41
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.229,
+              "audio_score": 0.5857,
+              "fused_score": 0.41
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.5857,
+              "fused_score": 0.41
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud04",
+          "query_type": "audio",
+          "query_text": "step eight tighten",
+          "recall_at_5": 1.0,
+          "mrr": 0.2,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.4159
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.4159
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.4159
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.4159
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.4159
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.4159
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.4159
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.4159
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.4159
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.2356,
+              "audio_score": 0.5941,
+              "fused_score": 0.4159
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud05",
+          "query_type": "audio",
+          "query_text": "step nine calibrate",
+          "recall_at_5": 0.0,
+          "mrr": 0.16666666666666666,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.4283
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.4283
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.4283
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.4283
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.4283
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.6118,
+              "fused_score": 0.4283
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1903,
+              "audio_score": 0.6118,
+              "fused_score": 0.4283
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.6118,
+              "fused_score": 0.4283
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.6118,
+              "fused_score": 0.4283
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.6118,
+              "fused_score": 0.4283
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud06",
+          "query_type": "audio",
+          "query_text": "step ten verify",
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.4553
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.4553
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.4553
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.4553
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.4553
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1562,
+              "audio_score": 0.6504,
+              "fused_score": 0.4553
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2791,
+              "audio_score": 0.6504,
+              "fused_score": 0.4553
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1539,
+              "audio_score": 0.6504,
+              "fused_score": 0.4553
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.6504,
+              "fused_score": 0.4553
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2812,
+              "audio_score": 0.6504,
+              "fused_score": 0.4553
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix01",
+          "query_type": "mixed",
+          "query_text": "swap step with blue line pattern and spoken instruction",
+          "recall_at_5": 0.0,
+          "mrr": 0.1111111111111111,
+          "hit": false,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.4129
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.4129
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.4129
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.4129
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.4129
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.1717,
+              "audio_score": 0.5899,
+              "fused_score": 0.4129
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.5899,
+              "fused_score": 0.4129
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.5899,
+              "fused_score": 0.4129
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.5899,
+              "fused_score": 0.4129
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.1713,
+              "audio_score": 0.5899,
+              "fused_score": 0.4129
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix02",
+          "query_type": "mixed",
+          "query_text": "check step showing yellow checkerboard with verbal confirmation",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.3421
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "score": 0.342
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "score": 0.3419
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3001
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.3001
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.3421,
+              "audio_score": 0.4178,
+              "fused_score": 0.3421
+            },
+            {
+              "clip_id": "747490d6-4d2f-4e4f-a235-80e8d359547c",
+              "visual_score": 0.342,
+              "audio_score": 0.0,
+              "fused_score": 0.342
+            },
+            {
+              "clip_id": "9e2a79b4-5743-4865-9243-d053d0860004",
+              "visual_score": 0.3419,
+              "audio_score": 0.0,
+              "fused_score": 0.3419
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4287,
+              "fused_score": 0.3001
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.179,
+              "audio_score": 0.4287,
+              "fused_score": 0.3001
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix03",
+          "query_type": "mixed",
+          "query_text": "install procedure with magenta star indicators and spoken label",
+          "recall_at_5": 0.5,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3154
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.313
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.313
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.313
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.313
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.3154,
+              "audio_score": 0.4472,
+              "fused_score": 0.3154
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4472,
+              "fused_score": 0.313
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.4472,
+              "fused_score": 0.313
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.4472,
+              "fused_score": 0.313
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1671,
+              "audio_score": 0.4472,
+              "fused_score": 0.313
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix04",
+          "query_type": "mixed",
+          "query_text": "alignment step with orange zigzag visual and verbal cue",
+          "recall_at_5": 0.0,
+          "mrr": 0.14285714285714285,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.3485
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3485
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.3485
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.3485
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.3485
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4978,
+              "fused_score": 0.3485
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4978,
+              "fused_score": 0.3485
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.4978,
+              "fused_score": 0.3485
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.4978,
+              "fused_score": 0.3485
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.4978,
+              "fused_score": 0.3485
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix05",
+          "query_type": "mixed",
+          "query_text": "purple gradient calibration phase with audio announcement",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "score": 0.3336
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.262
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2453
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2453
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2453
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "057cd7b7-a8bf-49ef-9279-3f36d42816a0",
+              "visual_score": 0.3336,
+              "audio_score": 0.3504,
+              "fused_score": 0.3336
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.0,
+              "audio_score": 0.3742,
+              "fused_score": 0.262
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.1857,
+              "audio_score": 0.3504,
+              "fused_score": 0.2453
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1953,
+              "audio_score": 0.3504,
+              "fused_score": 0.2453
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1493,
+              "audio_score": 0.3504,
+              "fused_score": 0.2453
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix06",
+          "query_type": "mixed",
+          "query_text": "final verify step with teal crosshatch and spoken confirmation",
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "score": 0.3269
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.3259
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.323
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.2841
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2727
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "284eb22f-487d-4685-b034-dd14b894ff28",
+              "visual_score": 0.3269,
+              "audio_score": 0.0,
+              "fused_score": 0.3269
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.3259,
+              "audio_score": 0.3896,
+              "fused_score": 0.3259
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.323,
+              "audio_score": 0.3896,
+              "fused_score": 0.323
+            },
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.1828,
+              "audio_score": 0.4059,
+              "fused_score": 0.2841
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.3896,
+              "fused_score": 0.2727
+            }
+          ]
+        }
+      ]
+    },
+    "hybrid(alpha=1.0)": {
+      "mode": "hybrid(alpha=1.0)",
+      "alpha": 1.0,
+      "recall_at_1": 0.041666666666666664,
+      "recall_at_3": 0.11666666666666665,
+      "recall_at_5": 0.31666666666666665,
+      "recall_at_10": 1.0,
+      "mrr": 0.27357142857142863,
+      "ndcg_at_5": 0.19743161741881016,
+      "ndcg_at_10": 0.43510219702826375,
+      "num_queries": 20,
+      "by_type": {
+        "visual": {
+          "num_queries": 8,
+          "recall_at_5": 0.29166666666666663,
+          "mrr": 0.3553571428571428,
+          "hit_rate": 0.375
+        },
+        "audio": {
+          "num_queries": 6,
+          "recall_at_5": 0.5,
+          "mrr": 0.22314814814814818,
+          "hit_rate": 0.5
+        },
+        "mixed": {
+          "num_queries": 6,
+          "recall_at_5": 0.16666666666666666,
+          "mrr": 0.21494708994708991,
+          "hit_rate": 0.3333333333333333
+        }
+      },
+      "per_query": [
+        {
+          "query_id": "v2-vis01",
+          "query_type": "visual",
+          "query_text": "red diagonal striped pattern filling the frame",
+          "recall_at_5": 0.0,
+          "mrr": 0.1111111111111111,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.4905
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.4678
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.4678
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.4678
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.4678
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.1561,
+              "audio_score": 0.4905,
+              "fused_score": 0.4905
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4678,
+              "fused_score": 0.4678
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4678,
+              "fused_score": 0.4678
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1872,
+              "audio_score": 0.4678,
+              "fused_score": 0.4678
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.4678,
+              "fused_score": 0.4678
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis02",
+          "query_type": "visual",
+          "query_text": "green circles on a dark background",
+          "recall_at_5": 0.0,
+          "mrr": 0.1111111111111111,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.4197
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.4148
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.4148
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.4148
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.4148
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.0,
+              "audio_score": 0.4197,
+              "fused_score": 0.4197
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4148,
+              "fused_score": 0.4148
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1797,
+              "audio_score": 0.4148,
+              "fused_score": 0.4148
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.1791,
+              "audio_score": 0.4148,
+              "fused_score": 0.4148
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.2436,
+              "audio_score": 0.4148,
+              "fused_score": 0.4148
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis03",
+          "query_type": "visual",
+          "query_text": "blue horizontal lines across the screen",
+          "recall_at_5": 0.0,
+          "mrr": 0.1111111111111111,
+          "hit": false,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.5269
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.4887
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.4887
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.4887
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.4887
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.0,
+              "audio_score": 0.5269,
+              "fused_score": 0.5269
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.2018,
+              "audio_score": 0.4887,
+              "fused_score": 0.4887
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4887,
+              "fused_score": 0.4887
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2475,
+              "audio_score": 0.4887,
+              "fused_score": 0.4887
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.4887,
+              "fused_score": 0.4887
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis04",
+          "query_type": "visual",
+          "query_text": "yellow and black checkerboard grid",
+          "recall_at_5": 0.3333333333333333,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.4811
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.4474
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.4474
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.4474
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.4474
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.359,
+              "audio_score": 0.4811,
+              "fused_score": 0.4811
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4474,
+              "fused_score": 0.4474
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2246,
+              "audio_score": 0.4474,
+              "fused_score": 0.4474
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1901,
+              "audio_score": 0.4474,
+              "fused_score": 0.4474
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4474,
+              "fused_score": 0.4474
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis05",
+          "query_type": "visual",
+          "query_text": "concentric cyan rings pulsing outward",
+          "recall_at_5": 1.0,
+          "mrr": 0.2,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.4443
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3909
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.3909
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.3909
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.3909
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.0,
+              "audio_score": 0.4443,
+              "fused_score": 0.4443
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.3909,
+              "fused_score": 0.3909
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2231,
+              "audio_score": 0.3909,
+              "fused_score": 0.3909
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.3909,
+              "fused_score": 0.3909
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.288,
+              "audio_score": 0.3909,
+              "fused_score": 0.3909
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis06",
+          "query_type": "visual",
+          "query_text": "magenta star shapes scattered on dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "score": 0.2973
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.2963
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.2733
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.2733
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.2733
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "a19ed5e3-c621-4993-a454-7326e8347b64",
+              "visual_score": 0.2973,
+              "audio_score": 0.0,
+              "fused_score": 0.2973
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.2963,
+              "audio_score": 0.2733,
+              "fused_score": 0.2963
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1159,
+              "audio_score": 0.2733,
+              "fused_score": 0.2733
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.1145,
+              "audio_score": 0.2733,
+              "fused_score": 0.2733
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.1131,
+              "audio_score": 0.2733,
+              "fused_score": 0.2733
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis07",
+          "query_type": "visual",
+          "query_text": "orange zigzag lines moving across screen",
+          "recall_at_5": 0.0,
+          "mrr": 0.14285714285714285,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.3515
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3515
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.3515
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.3515
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.3515
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.3515,
+              "fused_score": 0.3515
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.3515,
+              "fused_score": 0.3515
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1692,
+              "audio_score": 0.3515,
+              "fused_score": 0.3515
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.3515,
+              "fused_score": 0.3515
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.3515,
+              "fused_score": 0.3515
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis08",
+          "query_type": "visual",
+          "query_text": "white dots grid pattern blinking on dark background",
+          "recall_at_5": 0.0,
+          "mrr": 0.16666666666666666,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.4825
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.4609
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.4609
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.4609
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.4609
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.1857,
+              "audio_score": 0.4825,
+              "fused_score": 0.4825
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4609,
+              "fused_score": 0.4609
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4609,
+              "fused_score": 0.4609
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2568,
+              "audio_score": 0.4609,
+              "fused_score": 0.4609
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2554,
+              "audio_score": 0.4609,
+              "fused_score": 0.4609
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud01",
+          "query_type": "audio",
+          "query_text": "step one remove",
+          "recall_at_5": 0.0,
+          "mrr": 0.1111111111111111,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.7219
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.7219
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.7219
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.7219
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.7219
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.7219,
+              "fused_score": 0.7219
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.2064,
+              "audio_score": 0.7219,
+              "fused_score": 0.7219
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.7219,
+              "fused_score": 0.7219
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.7219,
+              "fused_score": 0.7219
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1809,
+              "audio_score": 0.7219,
+              "fused_score": 0.7219
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud02",
+          "query_type": "audio",
+          "query_text": "step two clean",
+          "recall_at_5": 0.0,
+          "mrr": 0.1111111111111111,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.68
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.68
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.68
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.68
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.68
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.68,
+              "fused_score": 0.68
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1554,
+              "audio_score": 0.68,
+              "fused_score": 0.68
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.68,
+              "fused_score": 0.68
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.68,
+              "fused_score": 0.68
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1697,
+              "audio_score": 0.68,
+              "fused_score": 0.68
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud03",
+          "query_type": "audio",
+          "query_text": "step five rinse",
+          "recall_at_5": 1.0,
+          "mrr": 0.25,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.5857
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.5857
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.5857
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.5857
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.5857
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1864,
+              "audio_score": 0.5857,
+              "fused_score": 0.5857
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.5857,
+              "fused_score": 0.5857
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.5857,
+              "fused_score": 0.5857
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.229,
+              "audio_score": 0.5857,
+              "fused_score": 0.5857
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.5857,
+              "fused_score": 0.5857
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud04",
+          "query_type": "audio",
+          "query_text": "step eight tighten",
+          "recall_at_5": 1.0,
+          "mrr": 0.2,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.5941
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.5941
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.5941
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.5941
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.5941
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.5941
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.5941
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.5941
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.5941,
+              "fused_score": 0.5941
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.2356,
+              "audio_score": 0.5941,
+              "fused_score": 0.5941
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud05",
+          "query_type": "audio",
+          "query_text": "step nine calibrate",
+          "recall_at_5": 0.0,
+          "mrr": 0.16666666666666666,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.6118
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.6118
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.6118
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.6118
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.6118
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.6118,
+              "fused_score": 0.6118
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1903,
+              "audio_score": 0.6118,
+              "fused_score": 0.6118
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.6118,
+              "fused_score": 0.6118
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.6118,
+              "fused_score": 0.6118
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.6118,
+              "fused_score": 0.6118
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud06",
+          "query_type": "audio",
+          "query_text": "step ten verify",
+          "recall_at_5": 1.0,
+          "mrr": 0.5,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.6504
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.6504
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.6504
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.6504
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.6504
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1562,
+              "audio_score": 0.6504,
+              "fused_score": 0.6504
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.2791,
+              "audio_score": 0.6504,
+              "fused_score": 0.6504
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1539,
+              "audio_score": 0.6504,
+              "fused_score": 0.6504
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.6504,
+              "fused_score": 0.6504
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.2812,
+              "audio_score": 0.6504,
+              "fused_score": 0.6504
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix01",
+          "query_type": "mixed",
+          "query_text": "swap step with blue line pattern and spoken instruction",
+          "recall_at_5": 0.0,
+          "mrr": 0.1111111111111111,
+          "hit": false,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.5899
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.5899
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.5899
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.5899
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.5899
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.1717,
+              "audio_score": 0.5899,
+              "fused_score": 0.5899
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.5899,
+              "fused_score": 0.5899
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.5899,
+              "fused_score": 0.5899
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.5899,
+              "fused_score": 0.5899
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.1713,
+              "audio_score": 0.5899,
+              "fused_score": 0.5899
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix02",
+          "query_type": "mixed",
+          "query_text": "check step showing yellow checkerboard with verbal confirmation",
+          "recall_at_5": 0.0,
+          "mrr": 0.14285714285714285,
+          "hit": false,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.4287
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.4287
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.4287
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.4287
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.4287
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4287,
+              "fused_score": 0.4287
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.179,
+              "audio_score": 0.4287,
+              "fused_score": 0.4287
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.4287,
+              "fused_score": 0.4287
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4287,
+              "fused_score": 0.4287
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.1807,
+              "audio_score": 0.4287,
+              "fused_score": 0.4287
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix03",
+          "query_type": "mixed",
+          "query_text": "install procedure with magenta star indicators and spoken label",
+          "recall_at_5": 0.5,
+          "mrr": 0.5,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.4472
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.4472
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.4472
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.4472
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.4472
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4472,
+              "fused_score": 0.4472
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.3154,
+              "audio_score": 0.4472,
+              "fused_score": 0.4472
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.4472,
+              "fused_score": 0.4472
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.4472,
+              "fused_score": 0.4472
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1671,
+              "audio_score": 0.4472,
+              "fused_score": 0.4472
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix04",
+          "query_type": "mixed",
+          "query_text": "alignment step with orange zigzag visual and verbal cue",
+          "recall_at_5": 0.0,
+          "mrr": 0.14285714285714285,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.4978
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.4978
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.4978
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.4978
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "score": 0.4978
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.4978,
+              "fused_score": 0.4978
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.4978,
+              "fused_score": 0.4978
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.0,
+              "audio_score": 0.4978,
+              "fused_score": 0.4978
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.4978,
+              "fused_score": 0.4978
+            },
+            {
+              "clip_id": "973161ba-a728-459c-81f7-a97f87558666",
+              "visual_score": 0.0,
+              "audio_score": 0.4978,
+              "fused_score": 0.4978
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix05",
+          "query_type": "mixed",
+          "query_text": "purple gradient calibration phase with audio announcement",
+          "recall_at_5": 0.0,
+          "mrr": 0.14285714285714285,
+          "hit": false,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.3742
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.3504
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3504
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.3504
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.3504
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.0,
+              "audio_score": 0.3742,
+              "fused_score": 0.3742
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.1857,
+              "audio_score": 0.3504,
+              "fused_score": 0.3504
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.1953,
+              "audio_score": 0.3504,
+              "fused_score": 0.3504
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.1493,
+              "audio_score": 0.3504,
+              "fused_score": 0.3504
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.0,
+              "audio_score": 0.3504,
+              "fused_score": 0.3504
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix06",
+          "query_type": "mixed",
+          "query_text": "final verify step with teal crosshatch and spoken confirmation",
+          "recall_at_5": 0.5,
+          "mrr": 0.25,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "score": 0.4059
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "score": 0.3896
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "score": 0.3896
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "score": 0.3896
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "score": 0.3896
+            }
+          ],
+          "top_5_detail": [
+            {
+              "clip_id": "9301a2b6-daf0-4346-a954-56c1434eaeb5",
+              "visual_score": 0.1828,
+              "audio_score": 0.4059,
+              "fused_score": 0.4059
+            },
+            {
+              "clip_id": "005d3a1d-ddac-4fe0-8047-c8c5b90810c0",
+              "visual_score": 0.0,
+              "audio_score": 0.3896,
+              "fused_score": 0.3896
+            },
+            {
+              "clip_id": "86f714ff-f263-48ac-9bf7-2d5b301f92f7",
+              "visual_score": 0.0,
+              "audio_score": 0.3896,
+              "fused_score": 0.3896
+            },
+            {
+              "clip_id": "7276be26-5d32-479f-a00a-a76387937e6e",
+              "visual_score": 0.323,
+              "audio_score": 0.3896,
+              "fused_score": 0.3896
+            },
+            {
+              "clip_id": "bf94f193-c834-4de9-94fe-6fda38c9e158",
+              "visual_score": 0.1606,
+              "audio_score": 0.3896,
+              "fused_score": 0.3896
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "deltas": {
+    "hybrid(alpha=0.3)": {
+      "overall": {
+        "recall_at_5": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_5": 0.0
+      },
+      "visual": {
+        "recall_at_5": 0.0,
+        "mrr": 0.0
+      },
+      "audio": {
+        "recall_at_5": 0.0,
+        "mrr": 0.0
+      },
+      "mixed": {
+        "recall_at_5": 0.0,
+        "mrr": 0.0
+      }
+    },
+    "hybrid(alpha=0.5)": {
+      "overall": {
+        "recall_at_5": -0.09999999999999998,
+        "mrr": -0.19138888888888883,
+        "ndcg_at_5": -0.17792100573441139
+      },
+      "visual": {
+        "recall_at_5": 0.0,
+        "mrr": 0.0
+      },
+      "audio": {
+        "recall_at_5": -0.33333333333333337,
+        "mrr": -0.6379629629629628
+      },
+      "mixed": {
+        "recall_at_5": 0.0,
+        "mrr": 0.0
+      }
+    },
+    "hybrid(alpha=0.7)": {
+      "overall": {
+        "recall_at_5": -0.375,
+        "mrr": -0.45646825396825397,
+        "ndcg_at_5": -0.479075727393676
+      },
+      "visual": {
+        "recall_at_5": -0.25,
+        "mrr": -0.3402777777777778
+      },
+      "audio": {
+        "recall_at_5": -0.5,
+        "mrr": -0.7768518518518518
+      },
+      "mixed": {
+        "recall_at_5": -0.41666666666666663,
+        "mrr": -0.29100529100529093
+      }
+    },
+    "hybrid(alpha=1.0)": {
+      "overall": {
+        "recall_at_5": -0.6833333333333333,
+        "mrr": -0.7014285714285713,
+        "ndcg_at_5": -0.7872397027620532
+      },
+      "visual": {
+        "recall_at_5": -0.7083333333333334,
+        "mrr": -0.6446428571428572
+      },
+      "audio": {
+        "recall_at_5": -0.5,
+        "mrr": -0.7768518518518518
+      },
+      "mixed": {
+        "recall_at_5": -0.8333333333333334,
+        "mrr": -0.7017195767195767
+      }
+    }
+  }
+}

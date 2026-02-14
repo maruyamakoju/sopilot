@@ -31,7 +31,7 @@ from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import relationship
 
-Base = declarative_base()
+Base = declarative_base()  # type: ignore[misc]
 
 
 def utc_now():
@@ -144,7 +144,7 @@ class Event(Base):
     # Detection info
     confidence = Column(Float, nullable=False)  # 0.0 - 1.0
     method = Column(String(50), nullable=False)  # zero_shot / supervised / anomaly
-    evidence_clip_ids = Column(ARRAY(UUID(as_uuid=True)))  # Array of clip UUIDs
+    evidence_clip_ids = Column(ARRAY(UUID(as_uuid=True)))  # type: ignore[var-annotated]  # Array of clip UUIDs
 
     # Status tracking
     status = Column(String(20), default="new")  # new / confirmed / false_alarm / reviewed
@@ -182,7 +182,7 @@ class Query(Base):
     confidence = Column(Float)
 
     # Retrieval metadata
-    retrieved_clip_ids = Column(ARRAY(UUID(as_uuid=True)))
+    retrieved_clip_ids = Column(ARRAY(UUID(as_uuid=True)))  # type: ignore[var-annotated]
     retrieval_scores = Column(JSONB)  # [{"clip_id": "...", "score": 0.85}, ...]
 
     # Model info

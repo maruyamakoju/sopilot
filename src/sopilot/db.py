@@ -200,6 +200,7 @@ class Database:
                 ),
             )
             self._conn.commit()
+            assert cur.lastrowid is not None, "lastrowid should not be None after INSERT"
             return int(cur.lastrowid)
 
     def finalize_video(

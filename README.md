@@ -8,6 +8,36 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
 
+> **📦 Pre-generated demo outputs**: Download from [GitHub Releases](https://github.com/maruyamakoju/sopilot/releases) to skip running demos locally.
+
+---
+
+## 🎯 Key Results
+
+### Training Convergence: 1.7 → 81.5 (+79.9 points, 100% success)
+
+<p align="center">
+  <img src="docs/assets/training_convergence.png" alt="Training Convergence" width="900"/>
+</p>
+
+**Proven**: 6-phase neural training improves scoring accuracy from random baseline (1.7±4.2) to calibrated prediction (81.5±2.0) with 30/30 samples improved.
+
+### Ablation Study: Soft-DTW Achieves 43000× Discrimination
+
+<p align="center">
+  <img src="docs/assets/ablation_alignment.png" alt="Alignment Ablation" width="800"/>
+</p>
+
+**Proven**: Soft-DTW separates perfect from degraded procedures 43000× better than cosine distance (5.9×) and Hard DTW (5.9×).
+
+### End-to-End Pipeline: 10-Panel Architecture
+
+<p align="center">
+  <img src="docs/assets/e2e_pipeline.png" alt="E2E Pipeline" width="900"/>
+</p>
+
+**Proven**: Complete pipeline from embeddings → alignment → metrics → neural scoring → explainability in single integrated system.
+
 ---
 
 ## 🚀 Quick Start
@@ -31,6 +61,29 @@ uvicorn sopilot.main:app --reload
 # API docs: http://localhost:8000/docs
 # UI: http://localhost:8000/ui
 ```
+
+---
+
+## 🎨 Quick Demo (One Command)
+
+Generate all 12 demo figures with a single command:
+
+```bash
+# Full demo suite (~30min with training convergence)
+python scripts/run_demo_suite.py
+
+# Quick mode (~2min, uses 0.1x epochs for convergence)
+python scripts/run_demo_suite.py --quick
+
+# Skip training convergence (~30s, 11 figures only)
+python scripts/run_demo_suite.py --skip-convergence
+```
+
+**Output:** `demo_outputs/` with 12 figures proving:
+- Training convergence (1.7 → 81.5, +79.9 points)
+- Soft-DTW superiority (43000× discrimination vs cosine)
+- Conformal reliability (92% coverage vs MC Dropout 74.5%)
+- Complete E2E pipeline visualization
 
 ---
 

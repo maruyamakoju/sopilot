@@ -9,7 +9,7 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
 
-> **📦 Demo outputs**: [v1.0.0](https://github.com/maruyamakoju/sopilot/releases/tag/v1.0.0) (12 figures + summaries) | **🔬 Quality metrics**: [v1.0.1](https://github.com/maruyamakoju/sopilot/releases/tag/v1.0.1) (real data validation + 76% coverage)
+> **📦 Demo outputs**: [v1.0.0](https://github.com/maruyamakoju/sopilot/releases/tag/v1.0.0) (12 figures + summaries) | **🔬 Quality metrics**: [v1.0.1](https://github.com/maruyamakoju/sopilot/releases/tag/v1.0.1) (end-to-end video validation + 76% coverage)
 
 ---
 
@@ -243,15 +243,15 @@ sopilot/
 │   ├── smoke_e2e.py                # SOPilot E2E smoke (13 checks)
 │   ├── vigil_smoke_e2e.py          # VIGIL-RAG E2E smoke
 │   ├── train_benchmark.py          # Full 6-phase training runner
-│   ├── evaluate_vigil_benchmark.py # Synthetic benchmark eval
-│   └── evaluate_vigil_real.py      # Real video benchmark
-├── tests/                          # 876 passing tests
+│   ├── evaluate_vigil_benchmark.py # Synthetic embeddings eval
+│   └── evaluate_vigil_real.py      # Video file benchmark (procedurally generated)
+├── tests/                          # 871 passing tests
 │   ├── test_nn_*.py                # Neural module unit tests
 │   ├── test_vigil_*.py             # VIGIL-RAG integration tests
 │   └── test_*.py                   # Service/API/DB tests
 ├── benchmarks/
-│   ├── vigil_benchmark_v1.jsonl    # Synthetic benchmark (20 queries)
-│   ├── real_v2.jsonl               # Real video benchmark (20 queries)
+│   ├── vigil_benchmark_v1.jsonl    # Synthetic embeddings (20 queries)
+│   ├── real_v2.jsonl               # Video benchmark (96s procedural, 20 queries)
 │   └── smoke_benchmark.jsonl       # CI gate (6 queries)
 └── docker/
     ├── Dockerfile.cpu              # CPU-only PyTorch
@@ -489,7 +489,7 @@ export VIGIL_VIDEO_LLM_MODE=qwen2.5-vl-7b  # or mock (no dependencies)
 ## 🧪 Testing
 
 ```bash
-# Full test suite (876 tests, ~6min)
+# Full test suite (871 tests, ~6min)
 pytest tests/ -v
 
 # SOPilot E2E smoke (13 checks, ~2.5s)

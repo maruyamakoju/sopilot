@@ -1,0 +1,42 @@
+{
+  "before": {
+    "mean": 1.651262432473402,
+    "std": 4.190431398757542
+  },
+  "after": {
+    "mean": 81.53232858022054,
+    "std": 1.9588793791413022,
+    "mean_uncertainty": 12.015710830688477
+  },
+  "improvement": {
+    "delta_mean": 79.88106614774713,
+    "n_improved": 30,
+    "n_total": 30
+  },
+  "phase_timings": [
+    {
+      "phase": "1a_projection",
+      "time": 5.095416199997999
+    },
+    {
+      "phase": "1b_segmenter",
+      "time": 1.709265300014522
+    },
+    {
+      "phase": "1c_asformer",
+      "time": 53.5399145000265
+    },
+    {
+      "phase": "2_scoring",
+      "time": 0.012805700011085719
+    },
+    {
+      "phase": "3_joint",
+      "time": 10.105002700001933
+    },
+    {
+      "phase": "4_calibration",
+      "time": 0.0003714000340551138
+    }
+  ]
+}

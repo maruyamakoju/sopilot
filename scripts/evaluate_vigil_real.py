@@ -89,7 +89,9 @@ def _create_embedder(model_name: str = "ViT-B-32", device: str = "cpu"):
     """Create OpenCLIP retrieval embedder."""
     from sopilot.retrieval_embeddings import RetrievalConfig, RetrievalEmbedder
 
-    config = RetrievalConfig(model_name=model_name, device=device)
+    # Use for_model() to get correct pretrained tag and embedding_dim
+    config = RetrievalConfig.for_model(model_name)
+    config.device = device
     return RetrievalEmbedder(config)
 
 

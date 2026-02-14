@@ -37,7 +37,7 @@ class RetrievalConfig:
     """Configuration for retrieval embeddings."""
 
     model_name: str = "ViT-B-32"  # OpenCLIP model
-    pretrained: str = "laion2b_s34b_b79k"  # Pretrained dataset
+    pretrained: str = "laion2b_s34b_b79k"  # Pretrained dataset (ViT-B-32 default)
     device: str = "cuda"  # cuda / cpu
     batch_size: int = 32
     embedding_dim: int = 512  # ViT-B-32 outputs 512-dim
@@ -71,7 +71,7 @@ class RetrievalConfig:
             ),
             "ViT-H-14": cls(
                 model_name="ViT-H-14",
-                pretrained="laion2b_s32b_b79k",
+                pretrained="laion2b_s32b_b79k",  # Correct: s32b not s34b
                 embedding_dim=1024,
             ),
         }

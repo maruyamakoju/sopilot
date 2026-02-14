@@ -1,0 +1,1340 @@
+{
+  "benchmark_file": "benchmarks\\real_v2.jsonl",
+  "video_map_file": "benchmarks\\video_paths.local.json",
+  "embedding_model": "ViT-H-14",
+  "transcribe": false,
+  "hierarchical": false,
+  "top_k": 10,
+  "num_queries": 20,
+  "modes": {
+    "visual_only": {
+      "mode": "visual_only",
+      "alpha": 0.0,
+      "recall_at_1": 0.7666666666666668,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr": 1.0,
+      "ndcg_at_5": 0.9959860394574094,
+      "ndcg_at_10": 0.9959860394574094,
+      "num_queries": 20,
+      "by_type": {
+        "visual": {
+          "num_queries": 8,
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit_rate": 1.0
+        },
+        "audio": {
+          "num_queries": 6,
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit_rate": 1.0
+        },
+        "mixed": {
+          "num_queries": 6,
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit_rate": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "query_id": "v2-vis01",
+          "query_type": "visual",
+          "query_text": "red diagonal striped pattern filling the frame",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.2989
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.1793
+            },
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.1781
+            },
+            {
+              "clip_id": "a5a9f07e-92e1-45f6-99ad-2deb0fde57da",
+              "score": 0.1779
+            },
+            {
+              "clip_id": "8f2a64f4-ff91-44d0-af1f-4e6888c2ffec",
+              "score": 0.1624
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis02",
+          "query_type": "visual",
+          "query_text": "green circles on a dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.3011
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.2761
+            },
+            {
+              "clip_id": "0f437aa3-5c60-44a4-b14f-b3a9c4d520ea",
+              "score": 0.2083
+            },
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.1548
+            },
+            {
+              "clip_id": "a5a9f07e-92e1-45f6-99ad-2deb0fde57da",
+              "score": 0.1529
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis03",
+          "query_type": "visual",
+          "query_text": "blue horizontal lines across the screen",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "c82b203d-8992-4f5b-b517-57736955f720",
+              "score": 0.356
+            },
+            {
+              "clip_id": "66af43e0-d576-45f1-b029-0a1fff459ee9",
+              "score": 0.3535
+            },
+            {
+              "clip_id": "6125e8c0-68ca-407f-97a6-2673759605b8",
+              "score": 0.3528
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.2509
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.2402
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis04",
+          "query_type": "visual",
+          "query_text": "yellow and black checkerboard grid",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.369
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.3685
+            },
+            {
+              "clip_id": "43d1ad40-3324-40f2-943a-dd95c4e035e4",
+              "score": 0.3684
+            },
+            {
+              "clip_id": "a5a9f07e-92e1-45f6-99ad-2deb0fde57da",
+              "score": 0.2002
+            },
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.1989
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis05",
+          "query_type": "visual",
+          "query_text": "concentric cyan rings pulsing outward",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.3734
+            },
+            {
+              "clip_id": "c82b203d-8992-4f5b-b517-57736955f720",
+              "score": 0.2069
+            },
+            {
+              "clip_id": "6125e8c0-68ca-407f-97a6-2673759605b8",
+              "score": 0.2007
+            },
+            {
+              "clip_id": "66af43e0-d576-45f1-b029-0a1fff459ee9",
+              "score": 0.1999
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.1697
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis06",
+          "query_type": "visual",
+          "query_text": "magenta star shapes scattered on dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "18ce4f83-fc31-4f13-a5c5-3ab1d7558625",
+              "score": 0.3438
+            },
+            {
+              "clip_id": "8d049fb7-9f91-4278-ae1e-e7ab9019ae54",
+              "score": 0.3436
+            },
+            {
+              "clip_id": "8f2a64f4-ff91-44d0-af1f-4e6888c2ffec",
+              "score": 0.1848
+            },
+            {
+              "clip_id": "0f437aa3-5c60-44a4-b14f-b3a9c4d520ea",
+              "score": 0.1706
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.1237
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis07",
+          "query_type": "visual",
+          "query_text": "orange zigzag lines moving across screen",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "325c48df-ae13-47f1-bdc8-3005d0b547fe",
+              "score": 0.3806
+            },
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.1988
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.1987
+            },
+            {
+              "clip_id": "66af43e0-d576-45f1-b029-0a1fff459ee9",
+              "score": 0.1913
+            },
+            {
+              "clip_id": "c82b203d-8992-4f5b-b517-57736955f720",
+              "score": 0.1868
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis08",
+          "query_type": "visual",
+          "query_text": "white dots grid pattern blinking on dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "0f437aa3-5c60-44a4-b14f-b3a9c4d520ea",
+              "score": 0.3328
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.2308
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.2174
+            },
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.2168
+            },
+            {
+              "clip_id": "a5a9f07e-92e1-45f6-99ad-2deb0fde57da",
+              "score": 0.2119
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud01",
+          "query_type": "audio",
+          "query_text": "step one remove",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.3421
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.2064
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.1828
+            },
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.175
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.1741
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud02",
+          "query_type": "audio",
+          "query_text": "step two clean",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.2605
+            },
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.1806
+            },
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.1771
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.1767
+            },
+            {
+              "clip_id": "43d1ad40-3324-40f2-943a-dd95c4e035e4",
+              "score": 0.1764
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud03",
+          "query_type": "audio",
+          "query_text": "step five rinse",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.2458
+            },
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.1869
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.1821
+            },
+            {
+              "clip_id": "66af43e0-d576-45f1-b029-0a1fff459ee9",
+              "score": 0.1462
+            },
+            {
+              "clip_id": "c82b203d-8992-4f5b-b517-57736955f720",
+              "score": 0.1402
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud04",
+          "query_type": "audio",
+          "query_text": "step eight tighten",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "0f437aa3-5c60-44a4-b14f-b3a9c4d520ea",
+              "score": 0.2602
+            },
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.1918
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.1696
+            },
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.1578
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.1573
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud05",
+          "query_type": "audio",
+          "query_text": "step nine calibrate",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "8f2a64f4-ff91-44d0-af1f-4e6888c2ffec",
+              "score": 0.3797
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.2463
+            },
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.2021
+            },
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.2015
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.2004
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud06",
+          "query_type": "audio",
+          "query_text": "step ten verify",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.2612
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.2596
+            },
+            {
+              "clip_id": "a5a9f07e-92e1-45f6-99ad-2deb0fde57da",
+              "score": 0.2593
+            },
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.1741
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.1729
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix01",
+          "query_type": "mixed",
+          "query_text": "swap step with blue line pattern and spoken instruction",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "c82b203d-8992-4f5b-b517-57736955f720",
+              "score": 0.3868
+            },
+            {
+              "clip_id": "66af43e0-d576-45f1-b029-0a1fff459ee9",
+              "score": 0.3776
+            },
+            {
+              "clip_id": "6125e8c0-68ca-407f-97a6-2673759605b8",
+              "score": 0.3764
+            },
+            {
+              "clip_id": "325c48df-ae13-47f1-bdc8-3005d0b547fe",
+              "score": 0.2566
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.2434
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix02",
+          "query_type": "mixed",
+          "query_text": "check step showing yellow checkerboard with verbal confirmation",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.3208
+            },
+            {
+              "clip_id": "43d1ad40-3324-40f2-943a-dd95c4e035e4",
+              "score": 0.3202
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.3184
+            },
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.1632
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.1617
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix03",
+          "query_type": "mixed",
+          "query_text": "install procedure with magenta star indicators and spoken label",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "8d049fb7-9f91-4278-ae1e-e7ab9019ae54",
+              "score": 0.3529
+            },
+            {
+              "clip_id": "18ce4f83-fc31-4f13-a5c5-3ab1d7558625",
+              "score": 0.3494
+            },
+            {
+              "clip_id": "8f2a64f4-ff91-44d0-af1f-4e6888c2ffec",
+              "score": 0.1775
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.1678
+            },
+            {
+              "clip_id": "0f437aa3-5c60-44a4-b14f-b3a9c4d520ea",
+              "score": 0.143
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix04",
+          "query_type": "mixed",
+          "query_text": "alignment step with orange zigzag visual and verbal cue",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "325c48df-ae13-47f1-bdc8-3005d0b547fe",
+              "score": 0.3479
+            },
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.1947
+            },
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.1807
+            },
+            {
+              "clip_id": "43d1ad40-3324-40f2-943a-dd95c4e035e4",
+              "score": 0.1798
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.1788
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix05",
+          "query_type": "mixed",
+          "query_text": "purple gradient calibration phase with audio announcement",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "8f2a64f4-ff91-44d0-af1f-4e6888c2ffec",
+              "score": 0.3669
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.1699
+            },
+            {
+              "clip_id": "66af43e0-d576-45f1-b029-0a1fff459ee9",
+              "score": 0.1648
+            },
+            {
+              "clip_id": "c82b203d-8992-4f5b-b517-57736955f720",
+              "score": 0.161
+            },
+            {
+              "clip_id": "6125e8c0-68ca-407f-97a6-2673759605b8",
+              "score": 0.1558
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix06",
+          "query_type": "mixed",
+          "query_text": "final verify step with teal crosshatch and spoken confirmation",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.3256
+            },
+            {
+              "clip_id": "a5a9f07e-92e1-45f6-99ad-2deb0fde57da",
+              "score": 0.3225
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.3215
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.1908
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.1808
+            }
+          ]
+        }
+      ]
+    },
+    "hybrid(alpha=0.7)": {
+      "mode": "hybrid(alpha=0.7)",
+      "alpha": 0.7,
+      "recall_at_1": 0.7666666666666668,
+      "recall_at_3": 1.0,
+      "recall_at_5": 1.0,
+      "recall_at_10": 1.0,
+      "mrr": 1.0,
+      "ndcg_at_5": 0.9959860394574094,
+      "ndcg_at_10": 0.9959860394574094,
+      "num_queries": 20,
+      "by_type": {
+        "visual": {
+          "num_queries": 8,
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit_rate": 1.0
+        },
+        "audio": {
+          "num_queries": 6,
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit_rate": 1.0
+        },
+        "mixed": {
+          "num_queries": 6,
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit_rate": 1.0
+        }
+      },
+      "per_query": [
+        {
+          "query_id": "v2-vis01",
+          "query_type": "visual",
+          "query_text": "red diagonal striped pattern filling the frame",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.2989
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.1793
+            },
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.1781
+            },
+            {
+              "clip_id": "a5a9f07e-92e1-45f6-99ad-2deb0fde57da",
+              "score": 0.1779
+            },
+            {
+              "clip_id": "8f2a64f4-ff91-44d0-af1f-4e6888c2ffec",
+              "score": 0.1624
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis02",
+          "query_type": "visual",
+          "query_text": "green circles on a dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.3011
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.2761
+            },
+            {
+              "clip_id": "0f437aa3-5c60-44a4-b14f-b3a9c4d520ea",
+              "score": 0.2083
+            },
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.1548
+            },
+            {
+              "clip_id": "a5a9f07e-92e1-45f6-99ad-2deb0fde57da",
+              "score": 0.1529
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis03",
+          "query_type": "visual",
+          "query_text": "blue horizontal lines across the screen",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "c82b203d-8992-4f5b-b517-57736955f720",
+              "score": 0.356
+            },
+            {
+              "clip_id": "66af43e0-d576-45f1-b029-0a1fff459ee9",
+              "score": 0.3535
+            },
+            {
+              "clip_id": "6125e8c0-68ca-407f-97a6-2673759605b8",
+              "score": 0.3528
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.2509
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.2402
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis04",
+          "query_type": "visual",
+          "query_text": "yellow and black checkerboard grid",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.369
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.3685
+            },
+            {
+              "clip_id": "43d1ad40-3324-40f2-943a-dd95c4e035e4",
+              "score": 0.3684
+            },
+            {
+              "clip_id": "a5a9f07e-92e1-45f6-99ad-2deb0fde57da",
+              "score": 0.2002
+            },
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.1989
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis05",
+          "query_type": "visual",
+          "query_text": "concentric cyan rings pulsing outward",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.3734
+            },
+            {
+              "clip_id": "c82b203d-8992-4f5b-b517-57736955f720",
+              "score": 0.2069
+            },
+            {
+              "clip_id": "6125e8c0-68ca-407f-97a6-2673759605b8",
+              "score": 0.2007
+            },
+            {
+              "clip_id": "66af43e0-d576-45f1-b029-0a1fff459ee9",
+              "score": 0.1999
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.1697
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis06",
+          "query_type": "visual",
+          "query_text": "magenta star shapes scattered on dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "18ce4f83-fc31-4f13-a5c5-3ab1d7558625",
+              "score": 0.3438
+            },
+            {
+              "clip_id": "8d049fb7-9f91-4278-ae1e-e7ab9019ae54",
+              "score": 0.3436
+            },
+            {
+              "clip_id": "8f2a64f4-ff91-44d0-af1f-4e6888c2ffec",
+              "score": 0.1848
+            },
+            {
+              "clip_id": "0f437aa3-5c60-44a4-b14f-b3a9c4d520ea",
+              "score": 0.1706
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.1237
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis07",
+          "query_type": "visual",
+          "query_text": "orange zigzag lines moving across screen",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "325c48df-ae13-47f1-bdc8-3005d0b547fe",
+              "score": 0.3806
+            },
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.1988
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.1987
+            },
+            {
+              "clip_id": "66af43e0-d576-45f1-b029-0a1fff459ee9",
+              "score": 0.1913
+            },
+            {
+              "clip_id": "c82b203d-8992-4f5b-b517-57736955f720",
+              "score": 0.1868
+            }
+          ]
+        },
+        {
+          "query_id": "v2-vis08",
+          "query_type": "visual",
+          "query_text": "white dots grid pattern blinking on dark background",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "0f437aa3-5c60-44a4-b14f-b3a9c4d520ea",
+              "score": 0.3328
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.2308
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.2174
+            },
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.2168
+            },
+            {
+              "clip_id": "a5a9f07e-92e1-45f6-99ad-2deb0fde57da",
+              "score": 0.2119
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud01",
+          "query_type": "audio",
+          "query_text": "step one remove",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.3421
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.2064
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.1828
+            },
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.175
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.1741
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud02",
+          "query_type": "audio",
+          "query_text": "step two clean",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.2605
+            },
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.1806
+            },
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.1771
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.1767
+            },
+            {
+              "clip_id": "43d1ad40-3324-40f2-943a-dd95c4e035e4",
+              "score": 0.1764
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud03",
+          "query_type": "audio",
+          "query_text": "step five rinse",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.2458
+            },
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.1869
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.1821
+            },
+            {
+              "clip_id": "66af43e0-d576-45f1-b029-0a1fff459ee9",
+              "score": 0.1462
+            },
+            {
+              "clip_id": "c82b203d-8992-4f5b-b517-57736955f720",
+              "score": 0.1402
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud04",
+          "query_type": "audio",
+          "query_text": "step eight tighten",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "0f437aa3-5c60-44a4-b14f-b3a9c4d520ea",
+              "score": 0.2602
+            },
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.1918
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.1696
+            },
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.1578
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.1573
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud05",
+          "query_type": "audio",
+          "query_text": "step nine calibrate",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "8f2a64f4-ff91-44d0-af1f-4e6888c2ffec",
+              "score": 0.3797
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.2463
+            },
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.2021
+            },
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.2015
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.2004
+            }
+          ]
+        },
+        {
+          "query_id": "v2-aud06",
+          "query_type": "audio",
+          "query_text": "step ten verify",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.2612
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.2596
+            },
+            {
+              "clip_id": "a5a9f07e-92e1-45f6-99ad-2deb0fde57da",
+              "score": 0.2593
+            },
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.1741
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.1729
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix01",
+          "query_type": "mixed",
+          "query_text": "swap step with blue line pattern and spoken instruction",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "c82b203d-8992-4f5b-b517-57736955f720",
+              "score": 0.3868
+            },
+            {
+              "clip_id": "66af43e0-d576-45f1-b029-0a1fff459ee9",
+              "score": 0.3776
+            },
+            {
+              "clip_id": "6125e8c0-68ca-407f-97a6-2673759605b8",
+              "score": 0.3764
+            },
+            {
+              "clip_id": "325c48df-ae13-47f1-bdc8-3005d0b547fe",
+              "score": 0.2566
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.2434
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix02",
+          "query_type": "mixed",
+          "query_text": "check step showing yellow checkerboard with verbal confirmation",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 3,
+          "top_5": [
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.3208
+            },
+            {
+              "clip_id": "43d1ad40-3324-40f2-943a-dd95c4e035e4",
+              "score": 0.3202
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.3184
+            },
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.1632
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.1617
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix03",
+          "query_type": "mixed",
+          "query_text": "install procedure with magenta star indicators and spoken label",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "8d049fb7-9f91-4278-ae1e-e7ab9019ae54",
+              "score": 0.3529
+            },
+            {
+              "clip_id": "18ce4f83-fc31-4f13-a5c5-3ab1d7558625",
+              "score": 0.3494
+            },
+            {
+              "clip_id": "8f2a64f4-ff91-44d0-af1f-4e6888c2ffec",
+              "score": 0.1775
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.1678
+            },
+            {
+              "clip_id": "0f437aa3-5c60-44a4-b14f-b3a9c4d520ea",
+              "score": 0.143
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix04",
+          "query_type": "mixed",
+          "query_text": "alignment step with orange zigzag visual and verbal cue",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "325c48df-ae13-47f1-bdc8-3005d0b547fe",
+              "score": 0.3479
+            },
+            {
+              "clip_id": "35b55bae-7408-4f92-aa4a-ebb7f368951e",
+              "score": 0.1947
+            },
+            {
+              "clip_id": "960a7197-ee10-4fc4-9b33-3d3dd031a689",
+              "score": 0.1807
+            },
+            {
+              "clip_id": "43d1ad40-3324-40f2-943a-dd95c4e035e4",
+              "score": 0.1798
+            },
+            {
+              "clip_id": "6bb0e84f-2eae-4885-bf36-c1494e89ce5e",
+              "score": 0.1788
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix05",
+          "query_type": "mixed",
+          "query_text": "purple gradient calibration phase with audio announcement",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 1,
+          "top_5": [
+            {
+              "clip_id": "8f2a64f4-ff91-44d0-af1f-4e6888c2ffec",
+              "score": 0.3669
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.1699
+            },
+            {
+              "clip_id": "66af43e0-d576-45f1-b029-0a1fff459ee9",
+              "score": 0.1648
+            },
+            {
+              "clip_id": "c82b203d-8992-4f5b-b517-57736955f720",
+              "score": 0.161
+            },
+            {
+              "clip_id": "6125e8c0-68ca-407f-97a6-2673759605b8",
+              "score": 0.1558
+            }
+          ]
+        },
+        {
+          "query_id": "v2-mix06",
+          "query_type": "mixed",
+          "query_text": "final verify step with teal crosshatch and spoken confirmation",
+          "recall_at_5": 1.0,
+          "mrr": 1.0,
+          "hit": true,
+          "num_relevant": 2,
+          "top_5": [
+            {
+              "clip_id": "56643d46-8530-4988-ac0b-cc5f3dbd77a5",
+              "score": 0.3256
+            },
+            {
+              "clip_id": "a5a9f07e-92e1-45f6-99ad-2deb0fde57da",
+              "score": 0.3225
+            },
+            {
+              "clip_id": "fe19bead-3a8a-4bfc-a47a-5392ca82e9f8",
+              "score": 0.3215
+            },
+            {
+              "clip_id": "ccfdb143-81b5-4be6-82d0-64a6abc89969",
+              "score": 0.1908
+            },
+            {
+              "clip_id": "c1a60519-062a-4e4d-924b-f0b0d38d1d0f",
+              "score": 0.1808
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "deltas": {
+    "hybrid(alpha=0.7)": {
+      "overall": {
+        "recall_at_5": 0.0,
+        "mrr": 0.0,
+        "ndcg_at_5": 0.0
+      },
+      "visual": {
+        "recall_at_5": 0.0,
+        "mrr": 0.0
+      },
+      "audio": {
+        "recall_at_5": 0.0,
+        "mrr": 0.0
+      },
+      "mixed": {
+        "recall_at_5": 0.0,
+        "mrr": 0.0
+      }
+    }
+  }
+}

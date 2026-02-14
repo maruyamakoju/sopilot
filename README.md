@@ -43,24 +43,48 @@
 
 ## 🚀 Quick Start
 
+### 30-Second Proof (Minimal)
+
 ```bash
 # Clone + install
 git clone https://github.com/maruyamakoju/sopilot.git
 cd sopilot
 python -m venv .venv
 source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -e "."
+
+# Quick demo (30 seconds, no heavy dependencies)
+python scripts/quick_demo.py
+```
+
+### Full Installation (For Development)
+
+```bash
+# Install with all dependencies
 pip install -e ".[dev,vigil]"
 
-# Run E2E smoke test (SOPilot scoring pipeline)
+# Run SOPilot smoke test (13 checks, ~2.5s)
 python scripts/smoke_e2e.py --verbose
 
-# Run VIGIL-RAG E2E smoke test
-python scripts/vigil_smoke_e2e.py
+# Run full test suite (871 tests, ~6min)
+python -m pytest tests/ -v
 
 # Launch API + UI
 uvicorn sopilot.main:app --reload
 # API docs: http://localhost:8000/docs
 # UI: http://localhost:8000/ui
+```
+
+### VIGIL-RAG Quick Start
+
+Requires infrastructure (Qdrant + video file):
+
+```bash
+# Start Qdrant
+docker-compose up -d qdrant
+
+# Run VIGIL-RAG smoke test
+python scripts/vigil_smoke_e2e.py --video demo_videos/maintenance_filter_swap/gold.mp4
 ```
 
 ---
@@ -537,6 +561,93 @@ If you use SOPilot or VIGIL-RAG in your research, please cite:
 - Gal & Ghahramani (2016). Dropout as a Bayesian Approximation. ICML 2016.
 - Sundararajan et al. (2017). Axiomatic Attribution for Deep Networks. ICML 2017.
 - Cuturi (2013). Sinkhorn Distances: Lightspeed Computation of Optimal Transport. NeurIPS 2013.
+
+---
+
+## 🔧 Troubleshooting
+
+### Installation Issues
+
+**Problem**: `pip install -e "."` fails with "No module named 'setuptools'"
+```bash
+# Solution: Upgrade pip and install setuptools
+pip install --upgrade pip setuptools wheel
+```
+
+**Problem**: `opencv-python-headless` fails to install on Windows
+```bash
+# Solution: Install Visual C++ redistributables, or use conda
+conda install -c conda-forge opencv
+```
+
+**Problem**: ImportError: "No module named 'sopilot'"
+```bash
+# Solution: Make sure you're in the repo root and ran pip install
+cd /path/to/sopilot
+pip install -e "."
+```
+
+### Runtime Issues
+
+**Problem**: Tests fail with "CUDA not available"
+```bash
+# Solution: This is expected if you don't have GPU. SOPilot works fine on CPU.
+# Tests automatically skip CUDA-only tests if GPU is unavailable.
+```
+
+**Problem**: `vigil_smoke_e2e.py` fails with "Connection refused"
+```bash
+# Solution: Make sure Qdrant is running
+docker-compose up -d qdrant
+
+# Or use FAISS fallback (no Docker needed)
+export VIGIL_VECTOR_BACKEND=faiss
+```
+
+**Problem**: Demo fails with "Video codec not available"
+```bash
+# Solution: Install ffmpeg
+# Ubuntu/Debian: sudo apt-get install ffmpeg
+# macOS: brew install ffmpeg
+# Windows: Download from https://ffmpeg.org/download.html
+```
+
+**Problem**: Quick demo shows low score (~10-30)
+```bash
+# This is expected for heuristic mode! Heuristic scoring is intentionally
+# conservative. For accurate scores, use neural mode with trained models.
+# See training_convergence demo for neural scoring performance (81.5 avg).
+```
+
+### Development Issues
+
+**Problem**: Coverage report shows lower than 76%
+```bash
+# Solution: Make sure you're testing the installed package, not source directly
+pip install -e "."
+pytest --cov=src/sopilot --cov-report=term
+```
+
+**Problem**: mypy shows 90+ errors
+```bash
+# This is known. Current baseline is 92 errors (mostly SQLAlchemy + Optional handling).
+# CI only gates on core modules. Full type coverage is future work.
+```
+
+**Problem**: Docker build fails with "out of memory"
+```bash
+# Solution: Increase Docker memory limit to 6GB+
+# Docker Desktop → Settings → Resources → Memory → 6GB
+```
+
+### Still Having Issues?
+
+1. **Check existing issues**: https://github.com/maruyamakoju/sopilot/issues
+2. **Create new issue**: Include:
+   - Python version (`python --version`)
+   - OS (`uname -a` or `systeminfo`)
+   - Error message (full traceback)
+   - Installation method (pip/conda/Docker)
 
 ---
 

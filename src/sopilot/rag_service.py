@@ -78,7 +78,7 @@ class RetrievalConfig:
     rerank_transcript_boost: float = 0.15  # Bonus for keyword overlap with transcript
 
     # Cross-encoder re-ranking (high accuracy, slower)
-    enable_cross_encoder: bool = True  # Use CLIP image-text similarity for re-scoring
+    enable_cross_encoder: bool = False  # DISABLED: Implementation incomplete (TODO: load keyframes)
     cross_encoder_weight: float = 0.5  # Weight for cross-encoder score (0.5 = equal blend with retrieval)
 
     # Temporal coherence boost
@@ -839,8 +839,8 @@ class RAGService:
             # Original retrieval score
             orig_score = r.score
 
-            # Cross-encoder score (default to 0 if keyframe unavailable)
-            cross_score = 0.0
+            # Cross-encoder score (fallback to original score if keyframe unavailable)
+            cross_score = orig_score  # SAFE FALLBACK: Don't degrade performance
 
             # TODO: Load keyframe image from r.clip_id via database
             # For now, use original score as fallback
@@ -848,8 +848,8 @@ class RAGService:
             # keyframe_emb = self.retrieval_embedder.encode_images([keyframe_image])[0]
             # cross_score = float(np.dot(query_emb, keyframe_emb))
 
-            # Blend scores
-            blended_score = (1 - weight) * orig_score + weight * cross_score
+            # Blend scores (currently no-op since cross_score == orig_score)
+            blended_score = (1 - weight) * orig_score + weight * cross_score  # = orig_score
 
             # Create updated result
             updated_results.append(
@@ -863,6 +863,9 @@ class RAGService:
                     transcript_text=r.transcript_text,
                 )
             )
+
+        # CRITICAL: Re-sort by updated scores
+        updated_results.sort(key=lambda r: r.score, reverse=True)
 
         logger.debug(
             "Cross-encoder re-scoring: weight=%.2f (fallback mode, using original scores)",
@@ -879,6 +882,8 @@ class RAGService:
         Clips that are temporally adjacent (end_sec == next.start_sec within 0.5s)
         get a score bonus to encourage retrieving coherent sequences.
 
+        CRITICAL: Only considers clips from the same video_id to avoid false positives.
+
         Args:
             results: Search results sorted by score
 
@@ -891,19 +896,28 @@ class RAGService:
         cfg = self.retrieval_config
         boost = cfg.temporal_coherence_boost
 
-        # Sort by time to detect consecutive clips
-        time_sorted = sorted(results, key=lambda r: r.start_sec)
+        # Group by video_id to avoid cross-video false positives
+        from collections import defaultdict
 
-        # Track which clips are consecutive
+        by_video = defaultdict(list)
+        for r in results:
+            by_video[r.video_id].append(r)
+
+        # Track which clips are consecutive (within same video only)
         consecutive_set = set()
-        for i in range(len(time_sorted) - 1):
-            curr = time_sorted[i]
-            next_clip = time_sorted[i + 1]
+        for video_id, clips in by_video.items():
+            # Sort by time within this video
+            clips_sorted = sorted(clips, key=lambda r: r.start_sec)
 
-            # Check if consecutive (within 0.5s tolerance)
-            if abs(curr.end_sec - next_clip.start_sec) < 0.5:
-                consecutive_set.add(curr.clip_id)
-                consecutive_set.add(next_clip.clip_id)
+            # Detect consecutive pairs
+            for i in range(len(clips_sorted) - 1):
+                curr = clips_sorted[i]
+                next_clip = clips_sorted[i + 1]
+
+                # Check if consecutive (within 0.5s tolerance)
+                if abs(curr.end_sec - next_clip.start_sec) < 0.5:
+                    consecutive_set.add(curr.clip_id)
+                    consecutive_set.add(next_clip.clip_id)
 
         # Apply boost
         updated_results = []
@@ -923,6 +937,9 @@ class RAGService:
                     transcript_text=r.transcript_text,
                 )
             )
+
+        # CRITICAL: Re-sort by updated scores
+        updated_results.sort(key=lambda r: r.score, reverse=True)
 
         logger.debug(
             "Temporal coherence boost: %d/%d clips boosted by %.1f%%",

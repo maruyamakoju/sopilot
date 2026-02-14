@@ -4,7 +4,7 @@
 1. **Neural SOP Scoring**: 6-phase training pipeline with Soft-DTW alignment, DILATE loss, conformal uncertainty, and explainability
 2. **VIGIL-RAG**: Hierarchical long-form video question-answering with retrieval-augmented Video-LLM generation
 
-[![Tests](https://img.shields.io/badge/tests-876%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-871%20collected-brightgreen)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
 

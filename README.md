@@ -4,11 +4,12 @@
 1. **Neural SOP Scoring**: 6-phase training pipeline with Soft-DTW alignment, DILATE loss, conformal uncertainty, and explainability
 2. **VIGIL-RAG**: Hierarchical long-form video question-answering with retrieval-augmented Video-LLM generation
 
-[![Tests](https://img.shields.io/badge/tests-871%20collected-brightgreen)]()
+[![Tests](https://img.shields.io/badge/tests-871%20passing-brightgreen)]()
+[![Coverage](https://img.shields.io/badge/coverage-76%25-yellowgreen)]()
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
 
-> **📦 Pre-generated demo outputs**: Download from [Release v1.0.0](https://github.com/maruyamakoju/sopilot/releases/tag/v1.0.0) (**demo_outputs_v1.0.zip** for Windows, **demo_outputs_v1.0.tar.gz** for Linux/Mac)
+> **📦 Demo outputs**: [v1.0.0](https://github.com/maruyamakoju/sopilot/releases/tag/v1.0.0) (12 figures + summaries) | **🔬 Quality metrics**: [v1.0.1](https://github.com/maruyamakoju/sopilot/releases/tag/v1.0.1) (real data validation + 76% coverage)
 
 ---
 

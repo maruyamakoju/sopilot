@@ -45,15 +45,16 @@ python scripts/run_demo_suite.py --skip-convergence
 
 ### 1.3 GitHub Releases
 
-**README** includes link to pre-generated outputs:
-> 📦 Pre-generated demo outputs: Download from [GitHub Releases](https://github.com/maruyamakoju/sopilot/releases)
+**✅ COMPLETE**: Release v1.0.0 created and published
 
-**Status**: Release creation is manual (requires GitHub UI or `gh` CLI).
+**Release URL**: https://github.com/maruyamakoju/sopilot/releases/tag/v1.0.0
 
-**Recommended next step** (if partner needs pre-built):
-1. Create Release v1.0.0
-2. Upload `demo_outputs.zip` (all 12 figures + 2 JSON summaries)
-3. Partner can download without running locally
+**Contents**:
+- `demo_outputs_v1.0.tar.gz` (2.1 MB)
+  - 12 PNG figures (200 DPI, publication-quality)
+  - 2 JSON summaries (ablation_summary.json, training_summary.json)
+
+**README link**: Partner can download from [GitHub Releases](https://github.com/maruyamakoju/sopilot/releases) without running locally
 
 ---
 

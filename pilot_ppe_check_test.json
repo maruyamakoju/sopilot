@@ -1,0 +1,37 @@
+{
+  "overall": {
+    "pass": false,
+    "score": 0.0,
+    "threshold": 90.0,
+    "grade": "F"
+  },
+  "deviations": [
+    {
+      "type": "execution_deviation",
+      "step": "HELMET",
+      "timestamp": "0:04-0:08",
+      "severity": "low",
+      "description": "Execution quality issue in step: Inspect and don safety helmet securely",
+      "evidence": "Low similarity to gold standard (confidence: 34.8%)"
+    }
+  ],
+  "corrective_actions": [
+    "Provide hands-on coaching for steps with execution quality issues",
+    "Review gold standard video with trainee to highlight best practices"
+  ],
+  "evaluation_time": 1.8,
+  "metadata": {
+    "sop": "ppe_check",
+    "sop_full_name": "PPE (Personal Protective Equipment) Check",
+    "gold_video": "ppe_check_gold.mp4",
+    "trainee_video": "ppe_check_trainee_1.mp4",
+    "trainee_id": "ppe_check_trainee_1"
+  },
+  "statistics": {
+    "total_deviations": 1,
+    "critical_deviations": 0,
+    "high_severity": 0,
+    "medium_severity": 0,
+    "low_severity": 1
+  }
+}

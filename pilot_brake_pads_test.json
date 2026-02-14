@@ -1,0 +1,37 @@
+{
+  "overall": {
+    "pass": false,
+    "score": 10.6,
+    "threshold": 85.0,
+    "grade": "F"
+  },
+  "deviations": [
+    {
+      "type": "execution_deviation",
+      "step": "CALIPER",
+      "timestamp": "0:24-0:28",
+      "severity": "low",
+      "description": "Execution quality issue in step: Remove caliper bolts and lift assembly away",
+      "evidence": "Low similarity to gold standard (confidence: 12.9%)"
+    }
+  ],
+  "corrective_actions": [
+    "Provide hands-on coaching for steps with execution quality issues",
+    "Review gold standard video with trainee to highlight best practices"
+  ],
+  "evaluation_time": 2.68,
+  "metadata": {
+    "sop": "brake_pads",
+    "sop_full_name": "Brake Pad Replacement",
+    "gold_video": "brake_pads_gold.mp4",
+    "trainee_video": "brake_pads_trainee_1.mp4",
+    "trainee_id": "brake_pads_trainee_1"
+  },
+  "statistics": {
+    "total_deviations": 1,
+    "critical_deviations": 0,
+    "high_severity": 0,
+    "medium_severity": 0,
+    "low_severity": 1
+  }
+}

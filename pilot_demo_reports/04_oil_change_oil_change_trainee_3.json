@@ -1,0 +1,54 @@
+{
+  "overall": {
+    "pass": false,
+    "score": 0.0,
+    "threshold": 80.0,
+    "grade": "F"
+  },
+  "deviations": [
+    {
+      "type": "step_missing",
+      "step": "SAFETY",
+      "timestamp": "0:04-0:08",
+      "severity": "critical",
+      "description": "Missing step: Put on safety glasses and gloves (CRITICAL SAFETY STEP)",
+      "evidence": "Expected at 0:04-0:08"
+    },
+    {
+      "type": "execution_deviation",
+      "step": "SAFETY",
+      "timestamp": "0:04-0:08",
+      "severity": "low",
+      "description": "Execution quality issue in step: Put on safety glasses and gloves",
+      "evidence": "Low similarity to gold standard (confidence: 35.5%)"
+    },
+    {
+      "type": "execution_deviation",
+      "step": "DRAIN",
+      "timestamp": "0:28-0:32",
+      "severity": "low",
+      "description": "Execution quality issue in step: Place drain pan and remove plug",
+      "evidence": "Low similarity to gold standard (confidence: 27.3%)"
+    }
+  ],
+  "corrective_actions": [
+    "CRITICAL: Ensure trainee completes Put on safety glasses and gloves before proceeding",
+    "Provide hands-on coaching for steps with execution quality issues",
+    "Review gold standard video with trainee to highlight best practices"
+  ],
+  "evaluation_time": 2.92,
+  "metadata": {
+    "sop": "oil_change",
+    "sop_full_name": "Oil Change Procedure",
+    "gold_video": "oil_change_gold.mp4",
+    "trainee_video": "oil_change_trainee_3.mp4",
+    "trainee_id": "oil_change_trainee_3"
+  },
+  "statistics": {
+    "total_deviations": 3,
+    "critical_deviations": 1,
+    "high_severity": 0,
+    "medium_severity": 0,
+    "low_severity": 2
+  }
+}

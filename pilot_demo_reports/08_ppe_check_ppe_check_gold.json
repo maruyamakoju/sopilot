@@ -1,0 +1,28 @@
+{
+  "overall": {
+    "pass": true,
+    "score": 100.0,
+    "threshold": 90.0,
+    "grade": "A"
+  },
+  "deviations": [],
+  "corrective_actions": [
+    "No major issues detected - trainee is ready for certification",
+    "Consider minor refinements to optimize procedure time"
+  ],
+  "evaluation_time": 1.9,
+  "metadata": {
+    "sop": "ppe_check",
+    "sop_full_name": "PPE (Personal Protective Equipment) Check",
+    "gold_video": "ppe_check_gold.mp4",
+    "trainee_video": "ppe_check_gold.mp4",
+    "trainee_id": "ppe_check_gold"
+  },
+  "statistics": {
+    "total_deviations": 0,
+    "critical_deviations": 0,
+    "high_severity": 0,
+    "medium_severity": 0,
+    "low_severity": 0
+  }
+}

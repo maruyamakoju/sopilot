@@ -1,0 +1,79 @@
+{
+  "overall": {
+    "pass": false,
+    "score": 0.0,
+    "threshold": 80.0,
+    "grade": "F"
+  },
+  "deviations": [
+    {
+      "type": "step_missing",
+      "step": "PARK",
+      "timestamp": "0:00-0:04",
+      "severity": "low",
+      "description": "Missing step: Park vehicle on level surface",
+      "evidence": "Expected at 0:00-0:04"
+    },
+    {
+      "type": "step_missing",
+      "step": "SAFETY",
+      "timestamp": "0:00-0:04",
+      "severity": "critical",
+      "description": "Missing step: Put on safety glasses and gloves (CRITICAL SAFETY STEP)",
+      "evidence": "Expected at 0:04-0:08"
+    },
+    {
+      "type": "step_missing",
+      "step": "LIFT",
+      "timestamp": "0:04-0:08",
+      "severity": "low",
+      "description": "Missing step: Lift vehicle with jack and stands",
+      "evidence": "Expected at 0:08-0:12"
+    },
+    {
+      "type": "step_missing",
+      "step": "DRAIN",
+      "timestamp": "0:20-0:40",
+      "severity": "low",
+      "description": "Missing step: Place drain pan and remove plug",
+      "evidence": "Expected at 0:24-0:40"
+    },
+    {
+      "type": "execution_deviation",
+      "step": "PARK",
+      "timestamp": "0:00-0:16",
+      "severity": "low",
+      "description": "Execution quality issue in step: Park vehicle on level surface",
+      "evidence": "Low similarity to gold standard (confidence: 16.9%)"
+    },
+    {
+      "type": "execution_deviation",
+      "step": "DRAIN",
+      "timestamp": "0:20-0:40",
+      "severity": "low",
+      "description": "Execution quality issue in step: Place drain pan and remove plug",
+      "evidence": "Low similarity to gold standard (confidence: 16.9%)"
+    }
+  ],
+  "corrective_actions": [
+    "CRITICAL: Ensure trainee completes Put on safety glasses and gloves before proceeding",
+    "Review and complete missing steps: DRAIN, LIFT, PARK",
+    "Provide hands-on coaching for steps with execution quality issues",
+    "Review gold standard video with trainee to highlight best practices"
+  ],
+  "evaluation_time": 3.16,
+  "metadata": {
+    "sop": "oil_change",
+    "sop_full_name": "Oil Change Procedure",
+    "gold_video": "oil_change_gold.mp4",
+    "trainee_video": "oil_change_trainee_2.mp4",
+    "trainee_id": "oil_change_trainee_2"
+  },
+  "statistics": {
+    "total_deviations": 6,
+    "critical_deviations": 1,
+    "high_severity": 0,
+    "medium_severity": 0,
+    "low_severity": 5
+  }
+}

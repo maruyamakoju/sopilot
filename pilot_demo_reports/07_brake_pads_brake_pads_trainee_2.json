@@ -1,0 +1,45 @@
+{
+  "overall": {
+    "pass": true,
+    "score": 87.7,
+    "threshold": 85.0,
+    "grade": "B"
+  },
+  "deviations": [
+    {
+      "type": "execution_deviation",
+      "step": "WHEEL",
+      "timestamp": "0:08-0:12",
+      "severity": "low",
+      "description": "Execution quality issue in step: Remove wheel bolts and detach tire",
+      "evidence": "Low similarity to gold standard (confidence: 24.4%)"
+    },
+    {
+      "type": "execution_deviation",
+      "step": "CALIPER",
+      "timestamp": "0:16-0:20",
+      "severity": "low",
+      "description": "Execution quality issue in step: Remove caliper bolts and lift assembly away",
+      "evidence": "Low similarity to gold standard (confidence: 17.7%)"
+    }
+  ],
+  "corrective_actions": [
+    "Provide hands-on coaching for steps with execution quality issues",
+    "Review gold standard video with trainee to highlight best practices"
+  ],
+  "evaluation_time": 2.66,
+  "metadata": {
+    "sop": "brake_pads",
+    "sop_full_name": "Brake Pad Replacement",
+    "gold_video": "brake_pads_gold.mp4",
+    "trainee_video": "brake_pads_trainee_2.mp4",
+    "trainee_id": "brake_pads_trainee_2"
+  },
+  "statistics": {
+    "total_deviations": 2,
+    "critical_deviations": 0,
+    "high_severity": 0,
+    "medium_severity": 0,
+    "low_severity": 2
+  }
+}

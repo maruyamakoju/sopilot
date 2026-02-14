@@ -8,7 +8,7 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-MIT-blue)]()
 
-> **📦 Pre-generated demo outputs**: Download from [GitHub Releases](https://github.com/maruyamakoju/sopilot/releases) to skip running demos locally.
+> **📦 Pre-generated demo outputs**: Download from [Release v1.0.0](https://github.com/maruyamakoju/sopilot/releases/tag/v1.0.0) (**demo_outputs_v1.0.zip** for Windows, **demo_outputs_v1.0.tar.gz** for Linux/Mac)
 
 ---
 

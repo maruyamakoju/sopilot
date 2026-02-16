@@ -28,6 +28,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import json
 import sys
 import time
 from pathlib import Path
@@ -41,6 +42,93 @@ from sopilot.qdrant_service import QdrantService
 from sopilot.retrieval_embeddings import RetrievalConfig, RetrievalEmbedder
 from sopilot.transcription_service import TranscriptionService
 from sopilot.vigil_helpers import index_video_all_levels, index_video_micro
+
+
+def save_chunk_manifests(video_id: str, index_result: dict, output_dir: Path = Path("chunks")):
+    """Save chunk manifests to JSON files for GT creation.
+
+    This creates {video_id}.{level}.json files with clip_id, start_sec, end_sec
+    for each chunk level. These files enable chunk-based GT creation without
+    querying the vector database.
+
+    Args:
+        video_id: Video identifier
+        index_result: Return value from index_video_all_levels() or index_video_micro()
+        output_dir: Directory to save manifest files (default: chunks/)
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    # Save micro chunks
+    if "micro_metadata" in index_result:
+        micro_chunks = []
+        for meta in index_result["micro_metadata"]:
+            chunk = {
+                "clip_id": meta.get("clip_id"),
+                "start_sec": meta.get("start_sec"),
+                "end_sec": meta.get("end_sec"),
+                "duration_sec": meta.get("end_sec", 0) - meta.get("start_sec", 0),
+            }
+            # Add transcript if available
+            if "transcript_text" in meta:
+                chunk["transcript_text"] = meta["transcript_text"]
+            micro_chunks.append(chunk)
+
+        micro_manifest = {
+            "video_id": video_id,
+            "level": "micro",
+            "total_chunks": len(micro_chunks),
+            "chunks": micro_chunks,
+        }
+        micro_path = output_dir / f"{video_id}.micro.json"
+        with open(micro_path, "w", encoding="utf-8") as f:
+            json.dump(micro_manifest, f, indent=2)
+        print(f"Saved micro manifest: {micro_path} ({len(micro_chunks)} chunks)", file=sys.stderr)
+
+    # Save meso chunks (if hierarchical)
+    if "meso_metadata" in index_result:
+        meso_chunks = []
+        for meta in index_result["meso_metadata"]:
+            chunk = {
+                "clip_id": meta.get("clip_id"),
+                "start_sec": meta.get("start_sec"),
+                "end_sec": meta.get("end_sec"),
+                "duration_sec": meta.get("end_sec", 0) - meta.get("start_sec", 0),
+            }
+            meso_chunks.append(chunk)
+
+        meso_manifest = {
+            "video_id": video_id,
+            "level": "meso",
+            "total_chunks": len(meso_chunks),
+            "chunks": meso_chunks,
+        }
+        meso_path = output_dir / f"{video_id}.meso.json"
+        with open(meso_path, "w", encoding="utf-8") as f:
+            json.dump(meso_manifest, f, indent=2)
+        print(f"Saved meso manifest: {meso_path} ({len(meso_chunks)} chunks)", file=sys.stderr)
+
+    # Save macro chunks (if hierarchical)
+    if "macro_metadata" in index_result:
+        macro_chunks = []
+        for meta in index_result["macro_metadata"]:
+            chunk = {
+                "clip_id": meta.get("clip_id"),
+                "start_sec": meta.get("start_sec"),
+                "end_sec": meta.get("end_sec"),
+                "duration_sec": meta.get("end_sec", 0) - meta.get("start_sec", 0),
+            }
+            macro_chunks.append(chunk)
+
+        macro_manifest = {
+            "video_id": video_id,
+            "level": "macro",
+            "total_chunks": len(macro_chunks),
+            "chunks": macro_chunks,
+        }
+        macro_path = output_dir / f"{video_id}.macro.json"
+        with open(macro_path, "w", encoding="utf-8") as f:
+            json.dump(macro_manifest, f, indent=2)
+        print(f"Saved macro manifest: {macro_path} ({len(macro_chunks)} chunks)", file=sys.stderr)
 
 
 def main():
@@ -116,7 +204,7 @@ def main():
         if args.hierarchical:
             # Index all levels
             print("Indexing micro + meso + macro levels...", file=sys.stderr)
-            index_video_all_levels(
+            index_result = index_video_all_levels(
                 video_path=Path(args.video),
                 video_id=args.video_id,
                 chunker=chunker,
@@ -127,7 +215,7 @@ def main():
         else:
             # Index micro only
             print("Indexing micro level only...", file=sys.stderr)
-            index_video_micro(
+            index_result = index_video_micro(
                 video_path=Path(args.video),
                 video_id=args.video_id,
                 chunker=chunker,
@@ -139,11 +227,15 @@ def main():
         elapsed = time.time() - start_time
         print(f"\n✅ Indexing complete in {elapsed:.1f}s", file=sys.stderr)
 
+        # Save chunk manifests for GT creation
+        save_chunk_manifests(args.video_id, index_result)
+
         # Print summary
         print("\nNext steps:", file=sys.stderr)
-        print(f"  1. List chunks: python scripts/list_video_chunks.py --video-id {args.video_id} --level micro", file=sys.stderr)
-        print(f"  2. Create GT: Edit benchmarks/manufacturing_v1.jsonl with relevant_clip_ids", file=sys.stderr)
-        print(f"  3. Evaluate: python scripts/evaluate_vigil_real.py --benchmark manufacturing_v1.jsonl", file=sys.stderr)
+        print(f"  1. View chunks: cat chunks/{args.video_id}.micro.json", file=sys.stderr)
+        print(f"  2. Create GT: Edit benchmarks/manufacturing_v1.jsonl with relevant_clip_ids from chunk manifest", file=sys.stderr)
+        print(f"  3. Validate: python scripts/validate_benchmark.py --benchmark manufacturing_v1.jsonl", file=sys.stderr)
+        print(f"  4. Evaluate: python scripts/evaluate_vigil_real.py --benchmark manufacturing_v1.jsonl --hierarchical", file=sys.stderr)
 
     except Exception as e:
         print(f"\n❌ Indexing failed: {e}", file=sys.stderr)

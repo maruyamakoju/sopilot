@@ -37,56 +37,35 @@ def list_chunks(video_id: str, level: str, qdrant: QdrantService) -> list[dict[s
     Returns:
         List of chunk dictionaries with clip_id, start_sec, end_sec, etc.
     """
-    # Query with a dummy vector to get all chunks
-    # Since we want all chunks, we use a large k value
+    # Use search with dummy vector to get all chunks
+    # This is a workaround - ideally we'd have a get_all_clips() method
     try:
-        # Create a zero vector of appropriate dimension
-        # For OpenCLIP ViT-B-32, this is 512-dim
-        # For ViT-H-14, this is 1024-dim
-        # We'll use a simple approach: query without vector filtering
+        import numpy as np
 
-        # Get all chunks by using the internal storage
-        # This is a workaround - ideally we'd have a get_all_clips() method
-        from qdrant_client.models import Filter, FieldCondition, MatchValue
+        # Create a dummy vector (all zeros)
+        # For OpenCLIP ViT-B-32: 512-dim
+        # For ViT-L-14: 768-dim
+        # For ViT-H-14: 1024-dim
+        # We'll try 512 first and catch dimension mismatch errors
+        dummy_vector = np.zeros(512).tolist()
 
-        # For FAISS fallback, search the metadata directly
-        if qdrant.collection_name.startswith("faiss_"):
-            # FAISS path: iterate through stored points
-            chunks = []
-            # This requires accessing internal state - not ideal
-            # Better: add get_all_clips() method to QdrantService
-            print("Warning: FAISS backend - using search workaround", file=sys.stderr)
-            # For now, use a large k value with dummy search
-            import numpy as np
-            dummy_vector = np.zeros(512).tolist()  # Assume ViT-B-32
-            results = qdrant.search(
-                query_vector=dummy_vector,
-                level=level,
-                video_id=video_id,
-                k=1000,  # Large enough to get all chunks
-            )
-            chunks = results
-        else:
-            # Qdrant path: use scroll API to get all points
-            # This would require extending QdrantService
-            print("Warning: Qdrant backend - using search workaround", file=sys.stderr)
-            import numpy as np
-            dummy_vector = np.zeros(512).tolist()
-            results = qdrant.search(
-                query_vector=dummy_vector,
-                level=level,
-                video_id=video_id,
-                k=1000,
-            )
-            chunks = results
+        # Search with large top_k to get all chunks
+        results = qdrant.search(
+            level=level,
+            query_vector=np.array(dummy_vector),
+            video_id=video_id,
+            top_k=1000,  # Large enough to get all chunks (adjust if needed)
+        )
 
         # Sort by start_sec
-        chunks.sort(key=lambda x: x.get("start_sec", 0))
+        results.sort(key=lambda x: x.get("start_sec", 0))
 
-        return chunks
+        return results
 
     except Exception as e:
         print(f"Error listing chunks: {e}", file=sys.stderr)
+        import traceback
+        traceback.print_exc()
         return []
 
 

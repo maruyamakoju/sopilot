@@ -65,6 +65,7 @@ benchmarks/video_paths.local.json
 demo_videos/partner/
 chunks/
 reports/
+validation_report.json
 
 # Windows path artifact from earlier session
 C:Users07013Desktop02081.githubworkflows/

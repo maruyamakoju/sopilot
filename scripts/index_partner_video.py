@@ -35,9 +35,10 @@ from pathlib import Path
 # Add src to path for imports
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
+from sopilot.chunking_service import ChunkingService
 from sopilot.config import get_settings
-from sopilot.embeddings import build_embedder
 from sopilot.qdrant_service import QdrantService
+from sopilot.retrieval_embeddings import RetrievalConfig, RetrievalEmbedder
 from sopilot.transcription_service import TranscriptionService
 from sopilot.vigil_helpers import index_video_all_levels, index_video_micro
 
@@ -67,8 +68,13 @@ def main():
     print(f"Using embedding model: {args.embedding_model}", file=sys.stderr)
 
     # Initialize services
+    chunker = ChunkingService()
     qdrant = QdrantService(settings)
-    embedder = build_embedder(settings, mode="clip")
+
+    # Create OpenCLIP retrieval embedder
+    retrieval_config = RetrievalConfig.for_model(args.embedding_model)
+    retrieval_config.device = "cpu"  # Can add --device arg later if needed
+    embedder = RetrievalEmbedder(retrieval_config)
 
     transcription_service = None
     if args.transcribe:
@@ -111,20 +117,22 @@ def main():
             # Index all levels
             print("Indexing micro + meso + macro levels...", file=sys.stderr)
             index_video_all_levels(
-                video_path=str(args.video),
+                video_path=Path(args.video),
                 video_id=args.video_id,
-                qdrant_service=qdrant,
+                chunker=chunker,
                 embedder=embedder,
+                qdrant_service=qdrant,
                 transcription_service=transcription_service,
             )
         else:
             # Index micro only
             print("Indexing micro level only...", file=sys.stderr)
             index_video_micro(
-                video_path=str(args.video),
+                video_path=Path(args.video),
                 video_id=args.video_id,
-                qdrant_service=qdrant,
+                chunker=chunker,
                 embedder=embedder,
+                qdrant_service=qdrant,
                 transcription_service=transcription_service,
             )
 

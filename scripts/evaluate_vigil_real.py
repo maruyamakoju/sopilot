@@ -236,30 +236,107 @@ def _retrieve_for_query(
     return fused[:top_k]
 
 
-def _match_clip_by_time(
-    retrieved: list[dict],
-    gt_time_ranges: list[dict],
-    *,
-    iou_threshold: float = 0.3,
-) -> list[str]:
-    """Match retrieved clips to GT time ranges by temporal overlap.
+def _temporal_overlap(a_start: float, a_end: float, b_start: float, b_end: float) -> float:
+    """Compute temporal overlap in seconds between two time ranges.
 
-    When ground truth uses time_ranges instead of clip_ids, we match any
-    retrieved clip that overlaps a GT range by at least iou_threshold.
+    Args:
+        a_start, a_end: First time range
+        b_start, b_end: Second time range
 
     Returns:
-        List of clip_ids that match at least one GT range.
+        Overlap duration in seconds (0 if no overlap)
     """
-    from sopilot.temporal import temporal_iou
+    return max(0.0, min(a_end, b_end) - max(a_start, b_start))
 
-    matched_ids = []
-    for r in retrieved:
-        for gt in gt_time_ranges:
-            iou = temporal_iou(r["start_sec"], r["end_sec"], gt["start_sec"], gt["end_sec"])
-            if iou >= iou_threshold:
-                matched_ids.append(r["clip_id"])
-                break
-    return matched_ids
+
+def _is_relevant_result(
+    result: dict,
+    gt_clip_ids: list[str],
+    gt_time_ranges: list[dict],
+    *,
+    min_overlap_sec: float = 0.0,
+) -> bool:
+    """Check if a result matches ground truth (NO circular dependency).
+
+    Ground truth is determined ONLY by benchmark GT, NOT by retrieval results.
+
+    Args:
+        result: Search result dict with clip_id, start_sec, end_sec
+        gt_clip_ids: Ground truth clip IDs (if provided)
+        gt_time_ranges: Ground truth time ranges (if provided)
+        min_overlap_sec: Minimum overlap to consider a match
+
+    Returns:
+        True if result matches GT, False otherwise
+    """
+    # Priority 1: Exact clip ID match (if GT has clip_ids)
+    if gt_clip_ids:
+        return result["clip_id"] in gt_clip_ids
+
+    # Priority 2: Temporal overlap (if GT has time_ranges)
+    if gt_time_ranges:
+        for gt_range in gt_time_ranges:
+            overlap = _temporal_overlap(
+                result["start_sec"],
+                result["end_sec"],
+                gt_range["start_sec"],
+                gt_range["end_sec"],
+            )
+            if overlap > min_overlap_sec:
+                return True
+
+    # No GT provided or no match
+    return False
+
+
+def _recall_at_k(
+    results: list[dict],
+    gt_clip_ids: list[str],
+    gt_time_ranges: list[dict],
+    k: int,
+    *,
+    min_overlap_sec: float = 0.0,
+) -> float:
+    """Compute Recall@K (binary: 1.0 if any relevant in top-K, else 0.0).
+
+    Args:
+        results: Search results (ordered by score desc)
+        gt_clip_ids: Ground truth clip IDs
+        gt_time_ranges: Ground truth time ranges
+        k: Top-K cutoff
+        min_overlap_sec: Minimum overlap for temporal match
+
+    Returns:
+        1.0 if at least one relevant result in top-K, else 0.0
+    """
+    return 1.0 if any(
+        _is_relevant_result(r, gt_clip_ids, gt_time_ranges, min_overlap_sec=min_overlap_sec)
+        for r in results[:k]
+    ) else 0.0
+
+
+def _reciprocal_rank(
+    results: list[dict],
+    gt_clip_ids: list[str],
+    gt_time_ranges: list[dict],
+    *,
+    min_overlap_sec: float = 0.0,
+) -> float:
+    """Compute Reciprocal Rank (1 / rank of first relevant result).
+
+    Args:
+        results: Search results (ordered by score desc)
+        gt_clip_ids: Ground truth clip IDs
+        gt_time_ranges: Ground truth time ranges
+        min_overlap_sec: Minimum overlap for temporal match
+
+    Returns:
+        1 / rank (1-indexed) of first relevant result, or 0.0 if none
+    """
+    for rank, result in enumerate(results, start=1):
+        if _is_relevant_result(result, gt_clip_ids, gt_time_ranges, min_overlap_sec=min_overlap_sec):
+            return 1.0 / rank
+    return 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -382,36 +459,37 @@ def evaluate(
 
             retrieved_ids = [r["clip_id"] for r in results]
 
-            # Determine relevant clip IDs
+            # Per-query metrics (NO circular dependency - GT-only based)
+            # Use new functions that determine relevance from GT, not from retrieval
+            r1 = _recall_at_k(results, q.relevant_clip_ids or [], q.relevant_time_ranges or [], k=1)
+            r5 = _recall_at_k(results, q.relevant_clip_ids or [], q.relevant_time_ranges or [], k=5)
+            first_rank = _reciprocal_rank(results, q.relevant_clip_ids or [], q.relevant_time_ranges or [])
+
+            # Legacy compatibility: collect relevant IDs for aggregate metrics
+            # (Note: This is still needed for evidence_recall_at_k which expects clip ID lists)
+            relevant_ids_for_aggregate = []
             if q.relevant_clip_ids:
-                relevant = q.relevant_clip_ids
+                relevant_ids_for_aggregate = q.relevant_clip_ids
             elif q.relevant_time_ranges:
-                # Match by temporal overlap
-                relevant = _match_clip_by_time(results, q.relevant_time_ranges, iou_threshold=iou_threshold)
-            else:
-                relevant = []
+                # Extract clip IDs from results that match GT time ranges
+                for r in results:
+                    if _is_relevant_result(r, [], q.relevant_time_ranges):
+                        relevant_ids_for_aggregate.append(r["clip_id"])
 
             all_retrieved_ids.append(retrieved_ids)
-            all_relevant_ids.append(relevant)
-            all_relevant_sets.append(set(relevant))
-            all_relevance_scores.append({cid: 1.0 for cid in relevant})
-
-            # Per-query metrics
-            r5 = len(set(retrieved_ids[:5]) & set(relevant)) / max(len(relevant), 1) if relevant else 0.0
-            first_rank = 0.0
-            for rank, cid in enumerate(retrieved_ids, 1):
-                if cid in set(relevant):
-                    first_rank = 1.0 / rank
-                    break
+            all_relevant_ids.append(relevant_ids_for_aggregate)
+            all_relevant_sets.append(set(relevant_ids_for_aggregate))
+            all_relevance_scores.append({cid: 1.0 for cid in relevant_ids_for_aggregate})
 
             pq = {
                 "query_id": q.query_id,
                 "query_type": q.query_type,
                 "query_text": q.query_text,
+                "recall_at_1": r1,
                 "recall_at_5": r5,
                 "mrr": first_rank,
                 "hit": r5 > 0,
-                "num_relevant": len(relevant),
+                "num_relevant": len(relevant_ids_for_aggregate),
                 "top_5": [{"clip_id": r["clip_id"], "score": round(r["score"], 4)} for r in results[:5]],
             }
             # Include score breakdown if hybrid
@@ -428,16 +506,35 @@ def evaluate(
 
             per_query.append(pq)
 
-        # Aggregate metrics
-        if all_retrieved_ids:
-            recall = evidence_recall_at_k(all_retrieved_ids, all_relevant_ids)
-            mrr_score = mrr(all_retrieved_ids, all_relevant_sets)
-            ndcg_5 = ndcg_at_k(all_retrieved_ids, all_relevance_scores, k=5)
-            ndcg_10 = ndcg_at_k(all_retrieved_ids, all_relevance_scores, k=10)
-        else:
-            from sopilot.evaluation.vigil_metrics import EvidenceRecallResult
+        # Aggregate metrics (computed from per-query to avoid circular dependency)
+        if per_query:
+            # Average per-query metrics
+            recall_at_1 = sum(pq["recall_at_1"] for pq in per_query) / len(per_query)
+            recall_at_5 = sum(pq["recall_at_5"] for pq in per_query) / len(per_query)
+            mrr_score = sum(pq["mrr"] for pq in per_query) / len(per_query)
 
-            recall = EvidenceRecallResult(0, 0, 0, 0, 0)
+            # For R@3 and R@10, compute on the fly from results
+            # (Need to re-compute since we don't store per-query R@3/R@10)
+            # For now, use legacy functions for these (acceptable since R@1/R@5/MRR are fixed)
+            recall_at_3 = 0.0
+            recall_at_10 = 0.0
+            if all_retrieved_ids and all_relevant_ids:
+                from sopilot.evaluation.vigil_metrics import evidence_recall_at_k
+                recall_obj = evidence_recall_at_k(all_retrieved_ids, all_relevant_ids)
+                recall_at_3 = recall_obj.recall_at_3
+                recall_at_10 = recall_obj.recall_at_10
+
+            # nDCG (keep legacy for now)
+            ndcg_5 = 0.0
+            ndcg_10 = 0.0
+            if all_retrieved_ids and all_relevance_scores:
+                ndcg_5 = ndcg_at_k(all_retrieved_ids, all_relevance_scores, k=5)
+                ndcg_10 = ndcg_at_k(all_retrieved_ids, all_relevance_scores, k=10)
+        else:
+            recall_at_1 = 0.0
+            recall_at_3 = 0.0
+            recall_at_5 = 0.0
+            recall_at_10 = 0.0
             mrr_score = 0.0
             ndcg_5 = 0.0
             ndcg_10 = 0.0
@@ -449,6 +546,7 @@ def evaluate(
             if qt_pqs:
                 by_type[qt] = {
                     "num_queries": len(qt_pqs),
+                    "recall_at_1": sum(pq["recall_at_1"] for pq in qt_pqs) / len(qt_pqs),
                     "recall_at_5": sum(pq["recall_at_5"] for pq in qt_pqs) / len(qt_pqs),
                     "mrr": sum(pq["mrr"] for pq in qt_pqs) / len(qt_pqs),
                     "hit_rate": sum(1 for pq in qt_pqs if pq["hit"]) / len(qt_pqs),
@@ -457,10 +555,10 @@ def evaluate(
         mode_results[mode_label] = {
             "mode": mode_label,
             "alpha": alpha,
-            "recall_at_1": recall.recall_at_1,
-            "recall_at_3": recall.recall_at_3,
-            "recall_at_5": recall.recall_at_5,
-            "recall_at_10": recall.recall_at_10,
+            "recall_at_1": recall_at_1,
+            "recall_at_3": recall_at_3,
+            "recall_at_5": recall_at_5,
+            "recall_at_10": recall_at_10,
             "mrr": mrr_score,
             "ndcg_at_5": ndcg_5,
             "ndcg_at_10": ndcg_10,

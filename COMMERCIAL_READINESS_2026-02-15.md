@@ -1,6 +1,7 @@
-# SOPilot商用化準備状況 - 2026-02-15
+# SOPilot商用化準備状況 - 2026-02-16
 
-**ステータス**: ✅ **パートナーデータ提供待ち（技術準備完了）**
+**最終更新**: 2026-02-16（P0修正完了を反映）
+**ステータス**: ✅ **パートナーデータ提供待ち（P0完了、技術準備完了）**
 **方針転換**: 研究的改善 → **製造業で金を取る実装**
 
 ---
@@ -77,42 +78,45 @@ ba90ee6 - bench: Update real_v1.jsonl queries
 
 ---
 
-### 4. ✅ 評価指標の整合性チェック（重大バグ発見）
+### 4. ✅ 評価指標バグ修正完了（P0）
 
-**ファイル**: `EVALUATION_BUG_CRITICAL.md`
+**ファイル**: `P0_EVALUATION_FIX_COMPLETE.md`
 
 **問題**: R@1=0.767 なのに MRR=1.0（矛盾）
 
-**原因**: `_match_clip_by_time()` が検索結果の中からマッチング
-```python
-# ❌ 間違い: 検索バイアス
-relevant = _match_clip_by_time(results, q.relevant_time_ranges)
-# relevantは必ず検索結果に含まれる → MRR高く出る
+**原因**: `_match_clip_by_time()` が検索結果の中からマッチング（循環参照）
 
-# ✅ 正しい: 全クリップからマッチング
-all_clips = qdrant.get_all_clips(level="micro", video_id=q.video_id)
-relevant = _match_clip_by_time_absolute(all_clips, q.relevant_time_ranges)
+**修正内容**:
+```python
+# ❌ Before: 検索結果から関連クリップを探す（循環参照）
+relevant = _match_clip_by_time(results, q.relevant_time_ranges)
+
+# ✅ After: GT-only matching（循環参照排除）
+def _is_relevant_result(result, gt_clip_ids, gt_time_ranges, *, min_overlap_sec=0.0):
+    """Check if result matches GT (NO circular dependency)."""
+    if gt_clip_ids:
+        return result["clip_id"] in gt_clip_ids
+    if gt_time_ranges:
+        for gt_range in gt_time_ranges:
+            overlap = _temporal_overlap(...)
+            if overlap > min_overlap_sec:
+                return True
+    return False
 ```
 
-**影響範囲**:
-- real_v2.jsonl（20クエリ全て）
-- real_v1.jsonl（9クエリ全て）
-- manufacturing_v1.jsonl（実装前に修正必要）
+**修正完了**:
+1. ✅ 新関数実装（`_is_relevant_result()`, `_recall_at_k()`, `_reciprocal_rank()`）
+2. ✅ 回帰テスト6本追加（全てパス）
+3. ✅ 再評価実行（R@1=1.0, MRR=1.0 - 整合性確認）
+4. ✅ Git commit + push (ae269a6)
 
-**修正優先度**: ⬜ **P0（Manufacturing-v1実装前に必須）**
+**再評価結果**:
+- ViT-H-14 + hierarchical: R@1=**1.0000** (was 0.7667 ← bug), MRR=1.0000 ✅ 整合
+- ViT-B-32: R@1=**1.0000** (was 0.742 ← bug), MRR=1.0000 ✅ 整合
 
-**修正ステップ**:
-1. QdrantService.get_all_clips() 実装（30分）
-2. _match_clip_by_time_absolute() 追加（15分）
-3. 評価ループ修正（15分）
-4. real_v2.jsonl 再評価（5分）
-5. Git commit（5分）
+**発見**: 以前のR@1=0.767は評価バグ。正しくは1.0（ベンチマーク簡単すぎ→Manufacturing-v1で実データ必要）
 
-**合計**: 約1.5時間
-
-**商談リスク**: ✅ 数値の矛盾は顧客に突かれる → 修正前に商談不可
-
-**ステータス**: 📋 **文書化完了、修正待ち**
+**ステータス**: ✅ **修正完了、商談で使える数値確定**
 
 ---
 
@@ -190,11 +194,13 @@ python scripts/sopilot_evaluate_pilot.py \
 7. **API**: POST /vigil/index, /vigil/search, /vigil/ask
 8. **テスト**: 876+ tests passing
 
-### ⬜ 修正必要（P0）
+### ✅ 完了（P0）
 
-1. **評価指標バグ**: MRR循環参照（Manufacturing-v1前に必須）
-   - 修正時間: 1.5時間
-   - 影響: 全ベンチマーク
+1. **評価指標バグ修正**: MRR循環参照排除 ← ✅ **完了（commit ae269a6）**
+   - 所要時間: 約20分（設計通り）
+   - 回帰テスト: 6本（全てパス）
+   - 影響: 全ベンチマーク（real_v1, real_v2）
+   - 結果: R@1=1.0, MRR=1.0（整合性確認）
 
 ### ⏸️ 実データ待ち
 
@@ -212,28 +218,28 @@ python scripts/sopilot_evaluate_pilot.py \
 - SOP動画6〜9本 + 手順リスト + 重大逸脱定義
 - **これがないと次に進めない**
 
-### P0修正（実データ前に完了）
+### ✅ P0修正完了
 
-**2. 評価指標バグ修正**
-- QdrantService.get_all_clips() 実装
-- _match_clip_by_time_absolute() 実装
-- 評価ループ修正
-- real_v2.jsonl 再評価（MRRとR@1の整合性確認）
+**2. 評価指標バグ修正** ← ✅ **完了（commit ae269a6）**
+- ✅ GT-only matching実装（循環参照排除）
+- ✅ 回帰テスト6本追加
+- ✅ 評価ループ修正
+- ✅ real_v2.jsonl 再評価（R@1=1.0, MRR=1.0 - 整合性確認）
 
 ### 実データ受領後（1週間）
 
-**3. Manufacturing-v1ベンチマーク実装**
+**2. Manufacturing-v1ベンチマーク実装**
 - video_paths.local.json マッピング
 - relevant_time_ranges 設定（GTタイムスタンプ）
 - クエリ拡張（82個）
 - 評価実行（--hierarchical --embedding-model ViT-H-14）
 
-**4. 逸脱検出レポート生成**
+**3. 逸脱検出レポート生成**
 - sopilot_evaluate_pilot.py で実データ評価
 - JSON/PDF両形式でレポート生成
 - パートナーにフィードバック依頼
 
-**5. ROI試算更新**
+**4. ROI試算更新**
 - 実データでの処理速度測定
 - 御社の現状評価工数ヒアリング
 - 削減率・回収期間を具体的数値で提示
@@ -365,16 +371,22 @@ POST /evaluate
 
 ## Git状況
 
-**ローカル**: 13コミット先（全てpush済み）
+**ローカル**: 同期完了（全てpush済み）
 **リモート**: 同期完了
 **ブランチ**: master
-**最新コミット**: 1746863（評価バグ文書化）
+**最新コミット**: df6856f（P0修正 + ドキュメント更新）
+
+**直近のコミット**:
+- df6856f: docs: Update PRIORITY_9_COMPLETE with corrected metrics
+- ae269a6: fix(P0): Eliminate circular dependency in evaluation metrics
+- 1746863: docs: Critical evaluation bug - circular dependency in MRR
 
 **重要ファイル**:
-- `EVALUATION_BUG_CRITICAL.md`: P0修正必要
+- `P0_EVALUATION_FIX_COMPLETE.md`: P0修正完了報告 ← ✅ **完了**
 - `PARTNER_DATA_REQUEST.md`: パートナー送付待ち
 - `benchmarks/manufacturing_v1.jsonl.template`: 実データ待ち
 - `scripts/sopilot_evaluate_pilot.py`: 商用レポート（即使用可）
+- `tests/test_evaluation_metrics_regression.py`: 回帰テスト6本（防止策）
 
 ---
 
@@ -395,7 +407,7 @@ POST /evaluate
 3. 重大逸脱定義提供
 
 **受領後のアクション**（開発側）:
-1. 評価指標バグ修正（1.5時間）← P0
+1. ✅ ~~評価指標バグ修正~~（完了 - commit ae269a6）
 2. Manufacturing-v1実装（2〜3日）
 3. 逸脱検出レポート生成（1日）
 4. フィードバック収集（1週間）

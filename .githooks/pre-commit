@@ -1,0 +1,62 @@
+#!/bin/sh
+# Pre-commit hook: Prevent accidental commit of partner data
+#
+# This hook checks for sensitive files/directories and blocks the commit
+# if any are found in the staged changes.
+
+RED='\033[0;31m'
+NC='\033[0m' # No Color
+
+# Patterns to block (case-insensitive on Windows)
+BLOCKED_PATTERNS=(
+    "demo_videos/partner/"
+    "chunks/"
+    "reports/"
+    "benchmarks/partner_private/"
+    "*_partner.jsonl"
+    "*_confidential.jsonl"
+    "validation_report.json"
+)
+
+# Check staged files
+STAGED_FILES=$(git diff --cached --name-only)
+
+for pattern in "${BLOCKED_PATTERNS[@]}"; do
+    # Check if any staged file matches the pattern
+    if echo "$STAGED_FILES" | grep -qi "$pattern"; then
+        echo "${RED}ERROR: Attempted to commit sensitive partner data!${NC}"
+        echo ""
+        echo "Blocked pattern: $pattern"
+        echo ""
+        echo "Matching files:"
+        echo "$STAGED_FILES" | grep -i "$pattern"
+        echo ""
+        echo "These files contain customer data and must NOT be committed."
+        echo "Please unstage them with: git reset HEAD <file>"
+        echo ""
+        exit 1
+    fi
+done
+
+# Check for large video files (> 10MB)
+for file in $STAGED_FILES; do
+    if [ -f "$file" ]; then
+        size=$(stat -c%s "$file" 2>/dev/null || stat -f%z "$file" 2>/dev/null || echo 0)
+        if [ "$size" -gt 10485760 ]; then  # 10MB in bytes
+            ext="${file##*.}"
+            if [ "$ext" = "mp4" ] || [ "$ext" = "avi" ] || [ "$ext" = "mov" ]; then
+                echo "${RED}ERROR: Attempted to commit large video file!${NC}"
+                echo ""
+                echo "File: $file ($(($size / 1048576))MB)"
+                echo ""
+                echo "Video files should NOT be committed to the repository."
+                echo "Please unstage with: git reset HEAD $file"
+                echo ""
+                exit 1
+            fi
+        fi
+    fi
+done
+
+# All checks passed
+exit 0

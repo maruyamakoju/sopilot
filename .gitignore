@@ -67,5 +67,10 @@ chunks/
 reports/
 validation_report.json
 
+# Partner-specific benchmarks and GT (customer confidential)
+benchmarks/partner_private/
+benchmarks/*_partner.jsonl
+benchmarks/*_confidential.jsonl
+
 # Windows path artifact from earlier session
 C:Users07013Desktop02081.githubworkflows/

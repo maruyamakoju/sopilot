@@ -30,7 +30,8 @@ benchmarks/*_confidential.jsonl  # 機密マーク付きJSONL
 
 ### Layer 2: Pre-commit Hook（機械的拒否）
 
-**場所**: `.git/hooks/pre-commit`
+**場所**: `.githooks/pre-commit` （バージョン管理済み）
+**有効化**: `git config core.hooksPath .githooks` （初回クローン時に実行）
 
 **チェック項目**:
 1. **パターンマッチング**:
@@ -210,12 +211,53 @@ echo "test" > demo_videos/partner/test.txt
 git add demo_videos/partner/test.txt  # → Should be rejected
 
 # 2. Pre-commit hookが動作しているか
-cat .git/hooks/pre-commit  # → Should exist and be executable
+cat .githooks/pre-commit  # → Should exist and be executable
+git config --get core.hooksPath  # → Should output ".githooks"
 
 # 3. 過去コミットに機密ファイルがないか
 git log --all --full-history --name-only | grep -E "(partner|confidential|chunks|reports)"
 # → Should return nothing or only .gitignore/.md files
 ```
+
+---
+
+## 再現可能なセットアップ（2026-02-16更新）
+
+### 新規クローン時の初期設定
+
+Pre-commit hookはバージョン管理されているため、新規クローンや別PCでも以下のコマンドで有効化できます：
+
+```bash
+# リポジトリをクローン
+git clone https://github.com/maruyamakoju/sopilot.git
+cd sopilot
+
+# Pre-commit hookを有効化（1コマンドのみ）
+git config core.hooksPath .githooks
+```
+
+### 確認方法
+
+```bash
+# Hookが有効か確認
+git config --get core.hooksPath
+# 出力: .githooks
+
+# Hookの内容を確認
+cat .githooks/pre-commit
+
+# テスト（機密ファイルがブロックされるか）
+echo "test" > demo_videos/partner/test.txt
+git add demo_videos/partner/test.txt
+# → ERROR: Attempted to commit sensitive partner data!
+```
+
+### 利点
+
+- ✅ `.git/hooks/` に手動コピー不要（従来の運用負荷を削減）
+- ✅ チーム全員が同じ防御レベルを自動的に共有
+- ✅ 再クローン時の設定漏れを防止
+- ✅ CI/CDでも同じhookを使用可能
 
 ---
 

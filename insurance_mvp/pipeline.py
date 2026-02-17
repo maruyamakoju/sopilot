@@ -71,11 +71,25 @@ except ImportError:
     VideoAnalysisResult = None
 
 try:
-    from insurance_mvp.insurance.fault_assessment import FaultAssessor
-    from insurance_mvp.insurance.fraud_detection import FraudDetector
+    from insurance_mvp.insurance.fault_assessment import (
+        FaultAssessmentEngine as FaultAssessor,
+        ScenarioContext,
+        ScenarioType,
+        detect_scenario_type,
+    )
+    from insurance_mvp.insurance.fraud_detection import (
+        FraudDetectionEngine as FraudDetector,
+        VideoEvidence,
+        ClaimDetails,
+    )
 except ImportError:
     FaultAssessor = None
     FraudDetector = None
+    ScenarioContext = None
+    ScenarioType = None
+    detect_scenario_type = None
+    VideoEvidence = None
+    ClaimDetails = None
 
 
 # --- Data Classes ---
@@ -431,7 +445,7 @@ class InsurancePipeline:
 
             # B3: Fault assessment
             if self.config.enable_fault_assessment and self.fault_assessor:
-                fault_assessment = self.fault_assessor.assess(vlm_result)
+                fault_assessment = self._assess_fault_from_vlm(vlm_result, clip)
             else:
                 fault_assessment = FaultAssessment(
                     fault_ratio=50.0,
@@ -442,7 +456,7 @@ class InsurancePipeline:
 
             # B3: Fraud detection
             if self.config.enable_fraud_detection and self.fraud_detector:
-                fraud_risk = self.fraud_detector.detect(vlm_result)
+                fraud_risk = self._detect_fraud_from_vlm(vlm_result, clip)
             else:
                 fraud_risk = FraudRisk(
                     risk_score=0.0,
@@ -502,6 +516,77 @@ class InsurancePipeline:
             'hazards': [],
             'evidence': []
         }
+
+    def _assess_fault_from_vlm(self, vlm_result: Dict[str, Any], clip: Any) -> FaultAssessment:
+        """Adapt VLM output to fault assessment engine.
+
+        Args:
+            vlm_result: VLM inference output
+            clip: Danger clip metadata
+
+        Returns:
+            FaultAssessment with fault ratio and reasoning
+        """
+        # Extract causal reasoning from VLM
+        causal_reasoning = vlm_result.get('causal_reasoning', vlm_result.get('reasoning', ''))
+
+        # Detect scenario type from VLM reasoning
+        scenario_type = detect_scenario_type(causal_reasoning) if detect_scenario_type else ScenarioType.UNKNOWN
+
+        # Build scenario context
+        context = ScenarioContext(
+            scenario_type=scenario_type,
+            speed_ego_kmh=clip.get('speed_kmh'),  # If available from mining
+            ego_braking=clip.get('has_braking', False),  # From audio/motion signals
+        )
+
+        # Run fault assessment
+        return self.fault_assessor.assess_fault(context)
+
+    def _detect_fraud_from_vlm(self, vlm_result: Dict[str, Any], clip: Any) -> FraudRisk:
+        """Adapt VLM output to fraud detection engine.
+
+        Args:
+            vlm_result: VLM inference output
+            clip: Danger clip metadata
+
+        Returns:
+            FraudRisk with risk score and indicators
+        """
+        # Build video evidence from VLM + clip data
+        severity = vlm_result.get('severity', 'LOW')
+        hazards = vlm_result.get('hazards', [])
+
+        # Check for collision sound in clip (from audio mining)
+        has_collision_sound = clip.get('has_crash_sound', False)
+
+        # Estimate damage from severity
+        damage_severity_map = {
+            'NONE': 'none',
+            'LOW': 'minor',
+            'MEDIUM': 'moderate',
+            'HIGH': 'severe'
+        }
+        damage_severity = damage_severity_map.get(severity, 'none')
+
+        video_evidence = VideoEvidence(
+            has_collision_sound=has_collision_sound,
+            damage_visible=(severity in ['MEDIUM', 'HIGH']),
+            damage_severity=damage_severity,
+            speed_at_impact_kmh=clip.get('speed_kmh', 40.0),  # Default estimate
+            video_duration_sec=clip.get('duration_sec', 5.0),
+        )
+
+        # Build claim details (using defaults for demo)
+        claim_details = ClaimDetails(
+            claimed_amount=10000.0,  # Default estimate
+        )
+
+        # Run fraud detection
+        return self.fraud_detector.detect_fraud(
+            video_evidence=video_evidence,
+            claim_details=claim_details
+        )
 
     def _create_error_assessment(self, clip: Any, video_id: str, error_msg: str) -> ClaimAssessment:
         """Create default assessment for failed clip"""

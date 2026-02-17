@@ -1,0 +1,98 @@
+# Insurance MVP Configuration
+# Copy this file to config.yaml and customize for your environment
+
+# Input/Output
+output_dir: results
+log_level: INFO  # DEBUG, INFO, WARNING, ERROR
+log_file: null  # Set to path for file logging (e.g., logs/pipeline.log)
+
+# Pipeline orchestration
+parallel_workers: 1  # Number of videos to process in parallel
+resume_from_checkpoint: true  # Skip already processed clips
+save_intermediate_results: true  # Save progress after each stage
+continue_on_error: true  # Continue processing other clips on failure
+max_retries: 3
+retry_delay_sec: 5.0
+
+# Feature flags
+enable_transcription: true  # Enable audio transcription (requires Whisper)
+enable_conformal: true  # Enable uncertainty quantification
+enable_fraud_detection: true  # Enable fraud risk assessment
+enable_fault_assessment: true  # Enable fault ratio assessment
+enable_profiling: false  # Enable performance profiling
+enable_metrics: true  # Enable metrics tracking
+
+# Video processing
+video:
+  max_resolution: [1280, 720]  # Max resolution before downsampling
+  fps_sampling: 2  # Extract N frames per second
+  chunk_duration_sec: 5.0  # Chunk duration for signal mining
+  min_clip_duration_sec: 2.0  # Minimum clip duration
+  max_clip_duration_sec: 30.0  # Maximum clip duration
+
+# B1: Signal Mining
+mining:
+  top_k_clips: 20  # Top K dangerous clips to extract
+
+  # Audio thresholds
+  audio_brake_threshold: 0.7
+  audio_horn_threshold: 0.6
+  audio_crash_threshold: 0.8
+
+  # Motion thresholds (optical flow)
+  motion_magnitude_threshold: 50.0
+  motion_suddenness_threshold: 0.7
+
+  # Proximity thresholds (YOLO)
+  proximity_near_distance_m: 5.0
+  proximity_confidence_threshold: 0.5
+
+  # Fusion weights (must sum to 1.0)
+  audio_weight: 0.3
+  motion_weight: 0.3
+  proximity_weight: 0.4
+
+# B2: Video-LLM (Cosmos)
+cosmos:
+  backend: qwen2.5-vl-7b  # qwen2.5-vl-7b or mock
+  model_name: Qwen/Qwen2.5-VL-7B-Instruct
+  device: auto  # auto, cuda, cpu
+
+  # Inference settings
+  max_new_tokens: 512
+  temperature: 0.1  # Low temperature for factual assessment
+  top_p: 0.9
+
+  # Video processing
+  max_pixels: 602112  # Qwen2.5-VL hard limit (768*28*28)
+  fps: 2  # Frames per second for VLM
+
+  # GPU resource management
+  max_concurrent_inferences: 2  # Limit concurrent GPU inferences
+
+# B4: Conformal Prediction
+conformal:
+  alpha: 0.1  # Miscoverage rate (0.1 = 90% confidence)
+  severity_levels: [NONE, LOW, MEDIUM, HIGH]
+  use_pretrained_calibration: true
+  calibration_data_path: null  # Path to calibration data (optional)
+
+# Whisper Transcription
+whisper:
+  backend: openai-whisper  # openai-whisper or mock
+  model_size: base  # tiny, base, small, medium, large
+  language: ja  # Language code (ja for Japanese)
+  device: auto  # auto, cuda, cpu
+
+# Environment-specific overrides
+# You can also set these via environment variables:
+#
+# INSURANCE_OUTPUT_DIR=results
+# INSURANCE_LOG_LEVEL=DEBUG
+# INSURANCE_COSMOS_BACKEND=mock
+# INSURANCE_COSMOS_DEVICE=cuda
+# INSURANCE_MINING_TOP_K=10
+# INSURANCE_ENABLE_TRANSCRIPTION=true
+# INSURANCE_ENABLE_CONFORMAL=true
+# INSURANCE_ENABLE_FRAUD=true
+# INSURANCE_PARALLEL_WORKERS=4

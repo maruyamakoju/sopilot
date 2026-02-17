@@ -1,0 +1,784 @@
+{% extends "base.html" %}
+
+{% block title %}Review Claim {{ claim_id }} - Insurance Claim Review{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* Video player container */
+    .video-container {
+        position: relative;
+        background: #000;
+        border-radius: 0.5rem;
+        overflow: hidden;
+    }
+
+    .video-js {
+        width: 100%;
+        height: 100%;
+    }
+
+    /* Timeline markers */
+    .timeline-marker {
+        position: absolute;
+        bottom: 30px;
+        width: 3px;
+        height: 20px;
+        background-color: #ef4444;
+        cursor: pointer;
+        transition: all 0.2s;
+        z-index: 1000;
+    }
+
+    .timeline-marker:hover {
+        height: 30px;
+        background-color: #dc2626;
+    }
+
+    /* Confidence meter */
+    .confidence-meter {
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .confidence-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #ef4444 0%, #f59e0b 50%, #10b981 100%);
+        transition: width 0.5s ease;
+    }
+
+    /* Prediction set chips */
+    .prediction-chip {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        background: #eff6ff;
+        color: #1e40af;
+        border: 1px solid #bfdbfe;
+    }
+
+    /* Hazard timeline */
+    .hazard-timeline {
+        position: relative;
+        padding-left: 2rem;
+    }
+
+    .hazard-timeline::before {
+        content: '';
+        position: absolute;
+        left: 0.5rem;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #e5e7eb;
+    }
+
+    .hazard-item::before {
+        content: '';
+        position: absolute;
+        left: -1.2rem;
+        top: 0.5rem;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #3b82f6;
+        border: 2px solid white;
+    }
+
+    /* Decision buttons */
+    .decision-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0.75rem 1.5rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        font-size: 1rem;
+        transition: all 0.2s;
+        cursor: pointer;
+        border: 2px solid transparent;
+    }
+
+    .decision-btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    }
+
+    .decision-btn:active {
+        transform: translateY(0);
+    }
+
+    .btn-approve {
+        background: #10b981;
+        color: white;
+    }
+
+    .btn-approve:hover {
+        background: #059669;
+    }
+
+    .btn-reject {
+        background: #ef4444;
+        color: white;
+    }
+
+    .btn-reject:hover {
+        background: #dc2626;
+    }
+
+    .btn-request-info {
+        background: #f59e0b;
+        color: white;
+    }
+
+    .btn-request-info:hover {
+        background: #d97706;
+    }
+
+    /* Fraud risk gauge */
+    .fraud-gauge {
+        position: relative;
+        width: 120px;
+        height: 120px;
+        margin: 0 auto;
+    }
+
+    .fraud-gauge-svg {
+        transform: rotate(-90deg);
+    }
+
+    .fraud-gauge-bg {
+        fill: none;
+        stroke: #e5e7eb;
+        stroke-width: 10;
+    }
+
+    .fraud-gauge-fill {
+        fill: none;
+        stroke-width: 10;
+        stroke-linecap: round;
+        transition: stroke-dashoffset 0.5s ease;
+    }
+
+    .fraud-gauge-text {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-size: 1.5rem;
+        font-weight: 700;
+    }
+
+    /* Responsive grid */
+    @media (max-width: 1280px) {
+        .review-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Loading overlay */
+    .loading-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+    }
+
+    .loading-overlay.hidden {
+        display: none;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">Claim Review</h1>
+                <p class="mt-1 text-sm text-gray-500">Claim ID: <span class="font-mono font-semibold">{{ claim_id }}</span></p>
+            </div>
+            <div class="flex items-center space-x-3">
+                <a href="/queue" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 smooth-transition">
+                    Back to Queue
+                </a>
+                <button id="refresh-btn" onclick="location.reload()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 smooth-transition">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 review-grid">
+        <!-- Left Panel: Video Player -->
+        <div class="xl:col-span-2 space-y-6">
+            <!-- Video Player -->
+            <div class="card p-0 overflow-hidden">
+                <div class="video-container" style="aspect-ratio: 16/9;">
+                    <video id="claim-video" class="video-js vjs-big-play-centered" controls preload="auto" data-setup='{}'>
+                        <source src="{{ video_url }}" type="video/mp4">
+                        <p class="vjs-no-js">
+                            To view this video please enable JavaScript, and consider upgrading to a web browser that
+                            <a href="https://videojs.com/html5-video-support/" target="_blank">supports HTML5 video</a>
+                        </p>
+                    </video>
+                </div>
+            </div>
+
+            <!-- Danger Clips Timeline -->
+            <div class="card p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Danger Clips & Evidence</h2>
+
+                {% if assessment.evidence|length > 0 %}
+                <div class="space-y-4">
+                    {% for evidence in assessment.evidence %}
+                    <div class="flex items-start space-x-4 p-4 bg-gray-50 rounded-lg hover:bg-gray-100 smooth-transition cursor-pointer"
+                         onclick="seekToTimestamp({{ evidence.timestamp_sec }})">
+                        <!-- Thumbnail -->
+                        <div class="flex-shrink-0">
+                            {% if evidence.frame_path %}
+                            <img src="{{ evidence.frame_path }}" alt="Keyframe at {{ evidence.timestamp_sec }}s"
+                                 class="w-32 h-20 object-cover rounded border border-gray-200">
+                            {% else %}
+                            <div class="w-32 h-20 bg-gray-200 rounded flex items-center justify-center">
+                                <svg class="w-8 h-8 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z" />
+                                </svg>
+                            </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Evidence Details -->
+                        <div class="flex-1 min-w-0">
+                            <div class="flex items-center justify-between">
+                                <span class="text-sm font-medium text-blue-600">{{ Utils.formatTimestamp(evidence.timestamp_sec) }}</span>
+                                <button onclick="event.stopPropagation(); seekToTimestamp({{ evidence.timestamp_sec }})"
+                                        class="text-sm text-blue-600 hover:text-blue-800 font-medium">
+                                    Jump to timestamp
+                                </button>
+                            </div>
+                            <p class="mt-1 text-sm text-gray-900">{{ evidence.description }}</p>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-sm text-gray-500 text-center py-8">No evidence clips available</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Right Panel: AI Assessment -->
+        <div class="space-y-6">
+            <!-- Severity Assessment -->
+            <div class="card p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Severity Assessment</h2>
+
+                <div class="space-y-4">
+                    <!-- Severity Badge -->
+                    <div class="text-center">
+                        <span class="badge severity-{{ assessment.severity|lower }} text-2xl px-6 py-3">
+                            {{ assessment.severity }}
+                        </span>
+                    </div>
+
+                    <!-- Confidence Meter -->
+                    <div>
+                        <div class="flex justify-between text-sm text-gray-600 mb-2">
+                            <span>Confidence</span>
+                            <span class="font-semibold">{{ (assessment.confidence * 100)|round(1) }}%</span>
+                        </div>
+                        <div class="confidence-meter">
+                            <div class="confidence-fill" style="width: {{ (assessment.confidence * 100)|round(1) }}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Prediction Set (Conformal) -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">
+                            Prediction Set (90% confidence)
+                        </label>
+                        <div class="flex flex-wrap gap-2">
+                            {% for severity in assessment.prediction_set %}
+                            <span class="prediction-chip">{{ severity }}</span>
+                            {% endfor %}
+                        </div>
+                        <p class="mt-2 text-xs text-gray-500">
+                            Model is 90% confident the true severity is in this set
+                        </p>
+                    </div>
+
+                    <!-- Review Priority -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Review Priority</label>
+                        <span class="badge badge-{{ assessment.review_priority|lower|replace('_priority', '') }}">
+                            {{ assessment.review_priority }}
+                        </span>
+                    </div>
+
+                    <!-- Causal Reasoning -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">AI Reasoning</label>
+                        <p class="text-sm text-gray-900 bg-gray-50 p-3 rounded border border-gray-200">
+                            {{ assessment.causal_reasoning }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fault Assessment -->
+            <div class="card p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Fault Assessment</h2>
+
+                <div class="space-y-4">
+                    <!-- Fault Ratio -->
+                    <div>
+                        <div class="flex justify-between text-sm text-gray-600 mb-2">
+                            <span>Fault Ratio</span>
+                            <span class="font-semibold text-2xl text-gray-900">{{ assessment.fault_assessment.fault_ratio|round(0)|int }}%</span>
+                        </div>
+                        <div class="h-3 bg-gray-200 rounded-full overflow-hidden">
+                            <div class="h-full bg-red-500 transition-all duration-500"
+                                 style="width: {{ assessment.fault_assessment.fault_ratio }}%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Scenario Type -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Scenario Type</label>
+                        <p class="text-sm text-gray-900 font-mono bg-gray-50 px-3 py-2 rounded">
+                            {{ assessment.fault_assessment.scenario_type }}
+                        </p>
+                    </div>
+
+                    <!-- Reasoning -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Reasoning</label>
+                        <p class="text-sm text-gray-900 bg-gray-50 p-3 rounded border border-gray-200">
+                            {{ assessment.fault_assessment.reasoning }}
+                        </p>
+                    </div>
+
+                    <!-- Applicable Rules -->
+                    {% if assessment.fault_assessment.applicable_rules|length > 0 %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Applicable Traffic Rules</label>
+                        <ul class="text-sm text-gray-900 space-y-1">
+                            {% for rule in assessment.fault_assessment.applicable_rules %}
+                            <li class="flex items-start">
+                                <svg class="w-4 h-4 text-green-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                                {{ rule }}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <!-- Context -->
+                    {% if assessment.fault_assessment.traffic_signal or assessment.fault_assessment.right_of_way %}
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        {% if assessment.fault_assessment.traffic_signal %}
+                        <div>
+                            <span class="text-gray-600">Traffic Signal:</span>
+                            <span class="font-semibold text-gray-900 ml-1">{{ assessment.fault_assessment.traffic_signal }}</span>
+                        </div>
+                        {% endif %}
+                        {% if assessment.fault_assessment.right_of_way %}
+                        <div>
+                            <span class="text-gray-600">Right of Way:</span>
+                            <span class="font-semibold text-gray-900 ml-1">{{ assessment.fault_assessment.right_of_way }}</span>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Fraud Risk -->
+            <div class="card p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Fraud Risk Analysis</h2>
+
+                <div class="space-y-4">
+                    <!-- Fraud Gauge -->
+                    <div class="fraud-gauge">
+                        <svg class="fraud-gauge-svg" width="120" height="120" viewBox="0 0 120 120">
+                            <circle class="fraud-gauge-bg" cx="60" cy="60" r="50"></circle>
+                            <circle class="fraud-gauge-fill"
+                                    cx="60" cy="60" r="50"
+                                    stroke="{{ 'red' if assessment.fraud_risk.risk_score > 0.7 else ('orange' if assessment.fraud_risk.risk_score > 0.4 else 'green') }}"
+                                    stroke-dasharray="{{ 314 * assessment.fraud_risk.risk_score }} 314"
+                                    stroke-dashoffset="0"></circle>
+                        </svg>
+                        <div class="fraud-gauge-text" style="color: {{ 'red' if assessment.fraud_risk.risk_score > 0.7 else ('orange' if assessment.fraud_risk.risk_score > 0.4 else 'green') }}">
+                            {{ (assessment.fraud_risk.risk_score * 100)|round(0)|int }}%
+                        </div>
+                    </div>
+
+                    <!-- Risk Level -->
+                    <div class="text-center">
+                        <span class="badge {{ 'bg-red-100 text-red-800 border-red-200' if assessment.fraud_risk.risk_score > 0.7 else ('bg-yellow-100 text-yellow-800 border-yellow-200' if assessment.fraud_risk.risk_score > 0.4 else 'bg-green-100 text-green-800 border-green-200') }}">
+                            {{ 'HIGH RISK' if assessment.fraud_risk.risk_score > 0.7 else ('MEDIUM RISK' if assessment.fraud_risk.risk_score > 0.4 else 'LOW RISK') }}
+                        </span>
+                    </div>
+
+                    <!-- Indicators -->
+                    {% if assessment.fraud_risk.indicators|length > 0 %}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Fraud Indicators</label>
+                        <ul class="text-sm text-gray-900 space-y-2">
+                            {% for indicator in assessment.fraud_risk.indicators %}
+                            <li class="flex items-start bg-red-50 p-2 rounded">
+                                <svg class="w-4 h-4 text-red-600 mr-2 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                                </svg>
+                                {{ indicator }}
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <!-- Reasoning -->
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Analysis</label>
+                        <p class="text-sm text-gray-900 bg-gray-50 p-3 rounded border border-gray-200">
+                            {{ assessment.fraud_risk.reasoning }}
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hazards -->
+            {% if assessment.hazards|length > 0 %}
+            <div class="card p-6">
+                <h2 class="text-lg font-semibold text-gray-900 mb-4">Detected Hazards</h2>
+
+                <div class="hazard-timeline space-y-4">
+                    {% for hazard in assessment.hazards %}
+                    <div class="hazard-item relative pl-6 pb-4">
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <div class="flex items-center space-x-2 mb-1">
+                                    <span class="text-sm font-semibold text-gray-900">{{ hazard.type|replace('_', ' ')|title }}</span>
+                                    <span class="text-xs text-gray-500">{{ Utils.formatTimestamp(hazard.timestamp_sec) }}</span>
+                                </div>
+                                <p class="text-sm text-gray-600 mb-1">
+                                    <span class="font-medium">Actors:</span> {{ hazard.actors|join(', ') }}
+                                </p>
+                                <p class="text-sm text-gray-600">
+                                    <span class="font-medium">Location:</span> {{ hazard.spatial_relation }}
+                                </p>
+                            </div>
+                            <button onclick="seekToTimestamp({{ hazard.timestamp_sec }})"
+                                    class="text-xs text-blue-600 hover:text-blue-800 font-medium whitespace-nowrap ml-2">
+                                Jump to
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Decision Form -->
+    <div class="card p-8 mt-6">
+        <h2 class="text-xl font-semibold text-gray-900 mb-6">Human Review Decision</h2>
+
+        <form id="decision-form" onsubmit="submitDecision(event)">
+            <!-- Decision Buttons -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <button type="button" onclick="selectDecision('APPROVE')"
+                        class="decision-btn btn-approve" id="btn-approve">
+                    <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    </svg>
+                    APPROVE
+                </button>
+                <button type="button" onclick="selectDecision('REJECT')"
+                        class="decision-btn btn-reject" id="btn-reject">
+                    <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    REJECT
+                </button>
+                <button type="button" onclick="selectDecision('REQUEST_MORE_INFO')"
+                        class="decision-btn btn-request-info" id="btn-request-info">
+                    <svg class="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    REQUEST MORE INFO
+                </button>
+            </div>
+
+            <input type="hidden" id="decision" name="decision" required>
+
+            <!-- Override Fields -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <!-- Severity Override -->
+                <div>
+                    <label for="severity-override" class="block text-sm font-medium text-gray-700 mb-2">
+                        Override Severity (Optional)
+                    </label>
+                    <select id="severity-override" name="severity_override"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Keep AI assessment</option>
+                        <option value="NONE">NONE</option>
+                        <option value="LOW">LOW</option>
+                        <option value="MEDIUM">MEDIUM</option>
+                        <option value="HIGH">HIGH</option>
+                    </select>
+                </div>
+
+                <!-- Fault Ratio Override -->
+                <div>
+                    <label for="fault-override" class="block text-sm font-medium text-gray-700 mb-2">
+                        Override Fault Ratio (Optional)
+                    </label>
+                    <div class="flex items-center space-x-2">
+                        <input type="number" id="fault-override" name="fault_ratio_override"
+                               min="0" max="100" step="1"
+                               placeholder="0-100"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                        <span class="text-sm text-gray-500">%</span>
+                    </div>
+                </div>
+
+                <!-- Fraud Override -->
+                <div>
+                    <label for="fraud-override" class="block text-sm font-medium text-gray-700 mb-2">
+                        Override Fraud Flag (Optional)
+                    </label>
+                    <select id="fraud-override" name="fraud_override"
+                            class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                        <option value="">Keep AI assessment</option>
+                        <option value="true">Flag as fraud</option>
+                        <option value="false">Not fraud</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Reasoning Text Area -->
+            <div class="mb-6">
+                <label for="reasoning" class="block text-sm font-medium text-gray-700 mb-2">
+                    Reasoning <span class="text-red-500">*</span>
+                </label>
+                <textarea id="reasoning" name="reasoning" rows="4" required
+                          placeholder="Explain your decision and any overrides..."
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 resize-none"></textarea>
+                <p class="mt-1 text-xs text-gray-500">Required for audit trail and regulatory compliance</p>
+            </div>
+
+            <!-- Comments -->
+            <div class="mb-6">
+                <label for="comments" class="block text-sm font-medium text-gray-700 mb-2">
+                    Additional Comments (Optional)
+                </label>
+                <textarea id="comments" name="comments" rows="2"
+                          placeholder="Any additional notes..."
+                          class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 resize-none"></textarea>
+            </div>
+
+            <!-- Submit Button -->
+            <div class="flex justify-end space-x-4">
+                <button type="button" onclick="window.location.href='/queue'"
+                        class="px-6 py-3 text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 font-medium smooth-transition">
+                    Cancel
+                </button>
+                <button type="submit"
+                        class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium smooth-transition">
+                    <svg class="w-5 h-5 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Submit Review
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Processing Time & Metadata -->
+    <div class="mt-6 text-sm text-gray-500 text-center">
+        <p>AI Processing Time: {{ assessment.processing_time_sec|round(2) }}s | Reviewed on: {{ assessment.timestamp|string }}</p>
+        <p class="mt-1">Recommended Action: <span class="font-semibold">{{ assessment.recommended_action }}</span></p>
+    </div>
+</div>
+
+<!-- Loading Overlay -->
+<div id="loading-overlay" class="loading-overlay hidden">
+    <div class="bg-white rounded-lg p-8 shadow-xl text-center">
+        <div class="spinner mx-auto mb-4"></div>
+        <p class="text-gray-700 font-medium">Submitting review...</p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Video player instance
+    let player;
+    let selectedDecision = null;
+    const reviewStartTime = Date.now();
+
+    // Initialize video player
+    document.addEventListener('DOMContentLoaded', function() {
+        player = videojs('claim-video', {
+            controls: true,
+            preload: 'auto',
+            fluid: true,
+            playbackRates: [0.5, 1, 1.5, 2]
+        });
+
+        player.ready(function() {
+            console.log('Video player ready');
+        });
+    });
+
+    // Seek to specific timestamp
+    function seekToTimestamp(seconds) {
+        if (player) {
+            player.currentTime(seconds);
+            player.play();
+        }
+    }
+
+    // Select decision
+    function selectDecision(decision) {
+        selectedDecision = decision;
+        document.getElementById('decision').value = decision;
+
+        // Update button styles
+        const buttons = ['btn-approve', 'btn-reject', 'btn-request-info'];
+        buttons.forEach(btnId => {
+            const btn = document.getElementById(btnId);
+            if (btnId === `btn-${decision.toLowerCase().replace('_', '-')}`) {
+                btn.style.opacity = '1';
+                btn.style.borderColor = 'currentColor';
+            } else {
+                btn.style.opacity = '0.5';
+                btn.style.borderColor = 'transparent';
+            }
+        });
+    }
+
+    // Submit decision
+    async function submitDecision(event) {
+        event.preventDefault();
+
+        if (!selectedDecision) {
+            Utils.showFlash('Please select a decision (APPROVE, REJECT, or REQUEST MORE INFO)', 'error');
+            return;
+        }
+
+        const form = event.target;
+        const formData = new FormData(form);
+
+        // Calculate review time
+        const reviewTimeSec = (Date.now() - reviewStartTime) / 1000;
+
+        // Build request payload
+        const payload = {
+            claim_id: '{{ claim_id }}',
+            reviewer_id: '{{ current_user|default("admin") }}',
+            decision: selectedDecision,
+            reasoning: formData.get('reasoning'),
+            review_time_sec: reviewTimeSec
+        };
+
+        // Add optional fields
+        if (formData.get('severity_override')) {
+            payload.severity_override = formData.get('severity_override');
+        }
+
+        if (formData.get('fault_ratio_override')) {
+            payload.fault_ratio_override = parseFloat(formData.get('fault_ratio_override'));
+        }
+
+        if (formData.get('fraud_override')) {
+            payload.fraud_override = formData.get('fraud_override') === 'true';
+        }
+
+        if (formData.get('comments')) {
+            payload.comments = formData.get('comments');
+        }
+
+        // Show loading overlay
+        document.getElementById('loading-overlay').classList.remove('hidden');
+
+        try {
+            const response = await Utils.apiCall('/api/reviews', {
+                method: 'POST',
+                body: JSON.stringify(payload)
+            });
+
+            Utils.showFlash('Review submitted successfully!', 'success');
+
+            // Redirect to queue after 1.5 seconds
+            setTimeout(() => {
+                window.location.href = '/queue';
+            }, 1500);
+
+        } catch (error) {
+            document.getElementById('loading-overlay').classList.add('hidden');
+            Utils.showFlash(`Failed to submit review: ${error.message}`, 'error');
+        }
+    }
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + 1/2/3 for quick decision selection
+        if ((e.ctrlKey || e.metaKey) && !e.shiftKey) {
+            if (e.key === '1') {
+                e.preventDefault();
+                selectDecision('APPROVE');
+            } else if (e.key === '2') {
+                e.preventDefault();
+                selectDecision('REJECT');
+            } else if (e.key === '3') {
+                e.preventDefault();
+                selectDecision('REQUEST_MORE_INFO');
+            }
+        }
+
+        // Space to play/pause video
+        if (e.code === 'Space' && e.target.tagName !== 'TEXTAREA' && e.target.tagName !== 'INPUT') {
+            e.preventDefault();
+            if (player.paused()) {
+                player.play();
+            } else {
+                player.pause();
+            }
+        }
+    });
+
+    // Warn before leaving if form has data
+    let formDirty = false;
+    document.getElementById('decision-form').addEventListener('input', function() {
+        formDirty = true;
+    });
+
+    window.addEventListener('beforeunload', function(e) {
+        if (formDirty && !selectedDecision) {
+            e.preventDefault();
+            e.returnValue = '';
+        }
+    });
+</script>
+{% endblock %}

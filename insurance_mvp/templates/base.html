@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="ja" class="h-full bg-gray-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Insurance Claim Review System - Powered by AI">
+    <title>{% block title %}Insurance Claim Review{% endblock %}</title>
+
+    <!-- TailwindCSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Inter Font -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Video.js -->
+    <link href="https://vjs.zencdn.net/8.10.0/video-js.css" rel="stylesheet">
+    <script src="https://vjs.zencdn.net/8.10.0/video.min.js"></script>
+
+    <!-- Chart.js (optional for metrics) -->
+    {% block extra_head %}{% endblock %}
+
+    <style>
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        /* Smooth transitions */
+        .smooth-transition {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Focus states for accessibility */
+        .focus-ring:focus {
+            outline: 2px solid #3b82f6;
+            outline-offset: 2px;
+        }
+
+        /* Badge styles */
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 500;
+            line-height: 1.25rem;
+        }
+
+        .badge-urgent {
+            background-color: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .badge-standard {
+            background-color: #fffbeb;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+
+        .badge-low {
+            background-color: #f0fdf4;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+        }
+
+        /* Severity badges */
+        .severity-high {
+            background-color: #fef2f2;
+            color: #991b1b;
+            border: 1px solid #fca5a5;
+        }
+
+        .severity-medium {
+            background-color: #fff7ed;
+            color: #9a3412;
+            border: 1px solid #fdba74;
+        }
+
+        .severity-low {
+            background-color: #fefce8;
+            color: #854d0e;
+            border: 1px solid #fde047;
+        }
+
+        .severity-none {
+            background-color: #f9fafb;
+            color: #374151;
+            border: 1px solid #d1d5db;
+        }
+
+        /* Loading spinner */
+        .spinner {
+            border: 3px solid #f3f4f6;
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Card shadows */
+        .card {
+            background: white;
+            border-radius: 0.5rem;
+            box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+        }
+
+        .card:hover {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+        }
+    </style>
+
+    {% block custom_styles %}{% endblock %}
+</head>
+<body class="h-full antialiased">
+    <!-- Skip to main content for accessibility -->
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 bg-blue-600 text-white px-4 py-2 rounded">
+        Skip to main content
+    </a>
+
+    <!-- Navigation -->
+    <nav class="bg-white border-b border-gray-200 sticky top-0 z-50" role="navigation" aria-label="Main navigation">
+        <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <!-- Logo & Brand -->
+                <div class="flex items-center">
+                    <div class="flex-shrink-0 flex items-center">
+                        <svg class="h-8 w-8 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                        </svg>
+                        <span class="ml-3 text-xl font-semibold text-gray-900">Insurance Claim Review</span>
+                    </div>
+
+                    <!-- Navigation Links -->
+                    <div class="hidden sm:ml-10 sm:flex sm:space-x-8">
+                        <a href="/queue"
+                           class="{% block nav_queue %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endblock %} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium smooth-transition"
+                           aria-current="{% if request.path == '/queue' %}page{% endif %}">
+                            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                            </svg>
+                            Review Queue
+                        </a>
+                        <a href="/metrics"
+                           class="{% block nav_metrics %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endblock %} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium smooth-transition"
+                           aria-current="{% if request.path == '/metrics' %}page{% endif %}">
+                            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Dashboard
+                        </a>
+                    </div>
+                </div>
+
+                <!-- User Menu -->
+                <div class="flex items-center">
+                    <div class="flex-shrink-0">
+                        <span class="text-sm text-gray-700">Reviewer: <strong>{{ current_user|default('admin') }}</strong></span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash Messages -->
+    {% block flash_messages %}
+    <div id="flash-container" class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 mt-4" role="alert" aria-live="polite">
+        <!-- Messages will be inserted here via JavaScript or template -->
+    </div>
+    {% endblock %}
+
+    <!-- Main Content -->
+    <main id="main-content" class="flex-1" role="main">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t border-gray-200 mt-12" role="contentinfo">
+        <div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div class="flex justify-between items-center text-sm text-gray-500">
+                <div>
+                    <p>&copy; 2026 SOPilot Insurance Review System. All rights reserved.</p>
+                </div>
+                <div class="flex space-x-6">
+                    <a href="/docs" class="hover:text-gray-700 smooth-transition">Documentation</a>
+                    <a href="/privacy" class="hover:text-gray-700 smooth-transition">Privacy Policy</a>
+                    <a href="/support" class="hover:text-gray-700 smooth-transition">Support</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Global JavaScript -->
+    <script>
+        // Utility functions
+        const Utils = {
+            // Format timestamp
+            formatTimestamp(seconds) {
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            },
+
+            // Format date
+            formatDate(dateString) {
+                const date = new Date(dateString);
+                return date.toLocaleString('ja-JP', {
+                    year: 'numeric',
+                    month: '2-digit',
+                    day: '2-digit',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            },
+
+            // Show flash message
+            showFlash(message, type = 'info') {
+                const container = document.getElementById('flash-container');
+                const colors = {
+                    success: 'bg-green-50 text-green-800 border-green-200',
+                    error: 'bg-red-50 text-red-800 border-red-200',
+                    warning: 'bg-yellow-50 text-yellow-800 border-yellow-200',
+                    info: 'bg-blue-50 text-blue-800 border-blue-200'
+                };
+
+                const flash = document.createElement('div');
+                flash.className = `${colors[type]} border px-4 py-3 rounded relative mb-4 smooth-transition`;
+                flash.innerHTML = `
+                    <span class="block sm:inline">${message}</span>
+                    <button onclick="this.parentElement.remove()" class="absolute top-0 bottom-0 right-0 px-4 py-3">
+                        <svg class="fill-current h-6 w-6" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                            <title>Close</title>
+                            <path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/>
+                        </svg>
+                    </button>
+                `;
+
+                container.appendChild(flash);
+
+                // Auto-remove after 5 seconds
+                setTimeout(() => {
+                    flash.style.opacity = '0';
+                    setTimeout(() => flash.remove(), 300);
+                }, 5000);
+            },
+
+            // API call wrapper
+            async apiCall(url, options = {}) {
+                try {
+                    const response = await fetch(url, {
+                        ...options,
+                        headers: {
+                            'Content-Type': 'application/json',
+                            ...options.headers
+                        }
+                    });
+
+                    if (!response.ok) {
+                        const error = await response.json();
+                        throw new Error(error.detail || 'API request failed');
+                    }
+
+                    return await response.json();
+                } catch (error) {
+                    console.error('API Error:', error);
+                    this.showFlash(error.message, 'error');
+                    throw error;
+                }
+            }
+        };
+
+        // Make Utils globally available
+        window.Utils = Utils;
+    </script>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

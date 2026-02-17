@@ -1,0 +1,663 @@
+{% extends "base.html" %}
+
+{% block title %}Review Queue - Insurance Claim Review{% endblock %}
+
+{% block nav_queue %}border-blue-500 text-gray-900{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* Table styling */
+    .queue-table {
+        width: 100%;
+        border-collapse: separate;
+        border-spacing: 0;
+    }
+
+    .queue-table thead th {
+        position: sticky;
+        top: 0;
+        background: white;
+        z-index: 10;
+        border-bottom: 2px solid #e5e7eb;
+        font-weight: 600;
+        text-align: left;
+        padding: 0.75rem 1rem;
+        font-size: 0.875rem;
+        color: #374151;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .queue-table tbody tr {
+        border-bottom: 1px solid #e5e7eb;
+        transition: background-color 0.2s;
+        cursor: pointer;
+    }
+
+    .queue-table tbody tr:hover {
+        background-color: #f9fafb;
+    }
+
+    .queue-table tbody tr:last-child {
+        border-bottom: none;
+    }
+
+    .queue-table tbody td {
+        padding: 1rem;
+        vertical-align: middle;
+    }
+
+    /* Priority indicator */
+    .priority-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 0.5rem;
+    }
+
+    .priority-urgent .priority-dot {
+        background-color: #ef4444;
+        animation: pulse 2s infinite;
+    }
+
+    .priority-standard .priority-dot {
+        background-color: #f59e0b;
+    }
+
+    .priority-low .priority-dot {
+        background-color: #10b981;
+    }
+
+    @keyframes pulse {
+        0%, 100% {
+            opacity: 1;
+        }
+        50% {
+            opacity: 0.5;
+        }
+    }
+
+    /* Filter pills */
+    .filter-pill {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.5rem 1rem;
+        border-radius: 9999px;
+        font-size: 0.875rem;
+        font-weight: 500;
+        border: 2px solid transparent;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .filter-pill:hover {
+        background-color: #f3f4f6;
+    }
+
+    .filter-pill.active {
+        background-color: #dbeafe;
+        border-color: #3b82f6;
+        color: #1e40af;
+    }
+
+    /* Search input */
+    .search-input {
+        width: 100%;
+        max-width: 400px;
+        padding: 0.625rem 1rem 0.625rem 2.5rem;
+        border: 1px solid #d1d5db;
+        border-radius: 0.5rem;
+        font-size: 0.875rem;
+        transition: all 0.2s;
+    }
+
+    .search-input:focus {
+        outline: none;
+        border-color: #3b82f6;
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+    }
+
+    .search-icon {
+        position: absolute;
+        left: 0.75rem;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 1.25rem;
+        height: 1.25rem;
+        color: #9ca3af;
+    }
+
+    /* Empty state */
+    .empty-state {
+        text-align: center;
+        padding: 4rem 2rem;
+    }
+
+    .empty-state-icon {
+        width: 4rem;
+        height: 4rem;
+        margin: 0 auto 1rem;
+        color: #d1d5db;
+    }
+
+    /* Stats cards */
+    .stat-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    .stat-value {
+        font-size: 2rem;
+        font-weight: 700;
+        color: #111827;
+    }
+
+    .stat-label {
+        font-size: 0.875rem;
+        color: #6b7280;
+        margin-top: 0.25rem;
+    }
+
+    .stat-change {
+        font-size: 0.75rem;
+        font-weight: 500;
+        margin-top: 0.5rem;
+    }
+
+    .stat-change.positive {
+        color: #10b981;
+    }
+
+    .stat-change.negative {
+        color: #ef4444;
+    }
+
+    /* Responsive table wrapper */
+    .table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Sort indicators */
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .sortable:hover {
+        color: #3b82f6;
+    }
+
+    .sort-icon {
+        display: inline-block;
+        margin-left: 0.25rem;
+        opacity: 0.3;
+        transition: opacity 0.2s;
+    }
+
+    .sortable.active .sort-icon {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header -->
+    <div class="mb-6">
+        <h1 class="text-3xl font-bold text-gray-900">Review Queue</h1>
+        <p class="mt-1 text-sm text-gray-500">Pending insurance claim reviews sorted by priority</p>
+    </div>
+
+    <!-- Stats Overview -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div class="stat-card">
+            <div class="stat-value" id="stat-total">{{ queue_items|length }}</div>
+            <div class="stat-label">Total Pending</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-red-600" id="stat-urgent">
+                {{ queue_items|selectattr('review_priority', 'equalto', 'URGENT')|list|length }}
+            </div>
+            <div class="stat-label">Urgent</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-orange-600" id="stat-standard">
+                {{ queue_items|selectattr('review_priority', 'equalto', 'STANDARD')|list|length }}
+            </div>
+            <div class="stat-label">Standard</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value text-green-600" id="stat-low">
+                {{ queue_items|selectattr('review_priority', 'equalto', 'LOW_PRIORITY')|list|length }}
+            </div>
+            <div class="stat-label">Low Priority</div>
+        </div>
+    </div>
+
+    <!-- Filters & Search -->
+    <div class="card p-6 mb-6">
+        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+            <!-- Priority Filters -->
+            <div class="flex flex-wrap gap-2">
+                <span class="text-sm font-medium text-gray-700 mr-2 self-center">Filter by Priority:</span>
+                <button class="filter-pill active" data-filter="all" onclick="filterQueue('all')">
+                    All <span class="ml-1.5 badge bg-gray-100 text-gray-700 text-xs px-2 py-0.5">{{ queue_items|length }}</span>
+                </button>
+                <button class="filter-pill" data-filter="URGENT" onclick="filterQueue('URGENT')">
+                    <span class="priority-dot" style="background-color: #ef4444;"></span>
+                    Urgent
+                </button>
+                <button class="filter-pill" data-filter="STANDARD" onclick="filterQueue('STANDARD')">
+                    <span class="priority-dot" style="background-color: #f59e0b;"></span>
+                    Standard
+                </button>
+                <button class="filter-pill" data-filter="LOW_PRIORITY" onclick="filterQueue('LOW_PRIORITY')">
+                    <span class="priority-dot" style="background-color: #10b981;"></span>
+                    Low
+                </button>
+            </div>
+
+            <!-- Search -->
+            <div class="relative">
+                <svg class="search-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+                <input type="text"
+                       id="search-input"
+                       class="search-input"
+                       placeholder="Search by Claim ID or Video ID..."
+                       oninput="searchQueue(this.value)"
+                       aria-label="Search claims">
+            </div>
+        </div>
+    </div>
+
+    <!-- Queue Table -->
+    <div class="card overflow-hidden">
+        <div class="table-wrapper">
+            <table class="queue-table">
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortTable('priority')" data-sort="priority">
+                            Priority
+                            <span class="sort-icon">▼</span>
+                        </th>
+                        <th class="sortable" onclick="sortTable('claim_id')" data-sort="claim_id">
+                            Claim ID
+                            <span class="sort-icon">▼</span>
+                        </th>
+                        <th class="sortable" onclick="sortTable('video_id')" data-sort="video_id">
+                            Video ID
+                            <span class="sort-icon">▼</span>
+                        </th>
+                        <th class="sortable" onclick="sortTable('severity')" data-sort="severity">
+                            Severity
+                            <span class="sort-icon">▼</span>
+                        </th>
+                        <th class="sortable" onclick="sortTable('confidence')" data-sort="confidence">
+                            Confidence
+                            <span class="sort-icon">▼</span>
+                        </th>
+                        <th class="sortable" onclick="sortTable('fraud_risk')" data-sort="fraud_risk">
+                            Fraud Risk
+                            <span class="sort-icon">▼</span>
+                        </th>
+                        <th class="sortable" onclick="sortTable('timestamp')" data-sort="timestamp">
+                            Upload Time
+                            <span class="sort-icon">▼</span>
+                        </th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="queue-tbody">
+                    {% if queue_items|length > 0 %}
+                        {% for item in queue_items %}
+                        <tr class="queue-row priority-{{ item.review_priority|lower|replace('_priority', '') }}"
+                            data-priority="{{ item.review_priority }}"
+                            data-claim-id="{{ item.claim_id }}"
+                            data-video-id="{{ item.video_id }}"
+                            data-severity="{{ item.severity }}"
+                            data-confidence="{{ item.confidence }}"
+                            data-fraud-risk="{{ item.fraud_risk.risk_score }}"
+                            data-timestamp="{{ item.timestamp }}"
+                            onclick="window.location.href='/review/{{ item.claim_id }}'">
+                            <!-- Priority -->
+                            <td>
+                                <div class="flex items-center">
+                                    <span class="priority-dot"></span>
+                                    <span class="badge badge-{{ item.review_priority|lower|replace('_priority', '') }}">
+                                        {{ item.review_priority|replace('_', ' ') }}
+                                    </span>
+                                </div>
+                            </td>
+
+                            <!-- Claim ID -->
+                            <td>
+                                <span class="font-mono text-sm font-semibold text-gray-900">{{ item.claim_id }}</span>
+                            </td>
+
+                            <!-- Video ID -->
+                            <td>
+                                <span class="font-mono text-sm text-gray-600">{{ item.video_id[:16] }}...</span>
+                            </td>
+
+                            <!-- Severity -->
+                            <td>
+                                <span class="badge severity-{{ item.severity|lower }}">
+                                    {{ item.severity }}
+                                </span>
+                            </td>
+
+                            <!-- Confidence -->
+                            <td>
+                                <div class="flex items-center">
+                                    <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden mr-2">
+                                        <div class="h-full bg-blue-600"
+                                             style="width: {{ (item.confidence * 100)|round(0) }}%"></div>
+                                    </div>
+                                    <span class="text-sm text-gray-700 font-medium">
+                                        {{ (item.confidence * 100)|round(0)|int }}%
+                                    </span>
+                                </div>
+                            </td>
+
+                            <!-- Fraud Risk -->
+                            <td>
+                                <div class="flex items-center">
+                                    <div class="w-16 h-2 bg-gray-200 rounded-full overflow-hidden mr-2">
+                                        <div class="h-full {{ 'bg-red-600' if item.fraud_risk.risk_score > 0.7 else ('bg-orange-600' if item.fraud_risk.risk_score > 0.4 else 'bg-green-600') }}"
+                                             style="width: {{ (item.fraud_risk.risk_score * 100)|round(0) }}%"></div>
+                                    </div>
+                                    <span class="text-sm font-medium {{ 'text-red-600' if item.fraud_risk.risk_score > 0.7 else ('text-orange-600' if item.fraud_risk.risk_score > 0.4 else 'text-green-600') }}">
+                                        {{ (item.fraud_risk.risk_score * 100)|round(0)|int }}%
+                                    </span>
+                                </div>
+                            </td>
+
+                            <!-- Upload Time -->
+                            <td>
+                                <span class="text-sm text-gray-700">{{ item.timestamp|string|truncate(19, True, '') }}</span>
+                            </td>
+
+                            <!-- Actions -->
+                            <td>
+                                <a href="/review/{{ item.claim_id }}"
+                                   onclick="event.stopPropagation()"
+                                   class="inline-flex items-center px-3 py-1.5 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700 smooth-transition">
+                                    <svg class="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                    </svg>
+                                    Review
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="8">
+                                <div class="empty-state">
+                                    <svg class="empty-state-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                    <h3 class="text-lg font-semibold text-gray-900 mb-2">No claims in queue</h3>
+                                    <p class="text-sm text-gray-500">All claims have been reviewed or no new claims have been submitted.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pagination (if needed) -->
+        {% if total_pages > 1 %}
+        <div class="border-t border-gray-200 px-6 py-4">
+            <div class="flex items-center justify-between">
+                <div class="text-sm text-gray-700">
+                    Showing <span class="font-medium">{{ ((current_page - 1) * per_page + 1) }}</span> to
+                    <span class="font-medium">{{ min(current_page * per_page, total_items) }}</span> of
+                    <span class="font-medium">{{ total_items }}</span> results
+                </div>
+                <div class="flex space-x-2">
+                    {% if current_page > 1 %}
+                    <a href="?page={{ current_page - 1 }}"
+                       class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                        Previous
+                    </a>
+                    {% endif %}
+                    {% if current_page < total_pages %}
+                    <a href="?page={{ current_page + 1 }}"
+                       class="px-3 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50">
+                        Next
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Auto-refresh indicator -->
+    <div class="mt-4 text-center">
+        <p class="text-sm text-gray-500">
+            Auto-refresh: <span id="refresh-countdown" class="font-semibold">30</span>s
+            <button onclick="toggleAutoRefresh()" id="refresh-toggle" class="ml-2 text-blue-600 hover:text-blue-800">
+                Pause
+            </button>
+        </p>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let currentFilter = 'all';
+    let currentSort = 'priority';
+    let sortDirection = 'asc';
+    let autoRefreshEnabled = true;
+    let refreshInterval;
+    let countdown = 30;
+
+    // Filter queue
+    function filterQueue(filter) {
+        currentFilter = filter;
+
+        // Update active filter pill
+        document.querySelectorAll('.filter-pill').forEach(pill => {
+            pill.classList.remove('active');
+        });
+        document.querySelector(`.filter-pill[data-filter="${filter}"]`).classList.add('active');
+
+        // Filter rows
+        const rows = document.querySelectorAll('.queue-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const priority = row.dataset.priority;
+            if (filter === 'all' || priority === filter) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        // Update empty state
+        updateEmptyState(visibleCount);
+    }
+
+    // Search queue
+    function searchQueue(query) {
+        query = query.toLowerCase().trim();
+        const rows = document.querySelectorAll('.queue-row');
+        let visibleCount = 0;
+
+        rows.forEach(row => {
+            const claimId = row.dataset.claimId.toLowerCase();
+            const videoId = row.dataset.videoId.toLowerCase();
+
+            const matchesSearch = !query || claimId.includes(query) || videoId.includes(query);
+            const matchesFilter = currentFilter === 'all' || row.dataset.priority === currentFilter;
+
+            if (matchesSearch && matchesFilter) {
+                row.style.display = '';
+                visibleCount++;
+            } else {
+                row.style.display = 'none';
+            }
+        });
+
+        updateEmptyState(visibleCount);
+    }
+
+    // Sort table
+    function sortTable(column) {
+        const tbody = document.getElementById('queue-tbody');
+        const rows = Array.from(tbody.querySelectorAll('.queue-row'));
+
+        // Toggle direction if same column
+        if (currentSort === column) {
+            sortDirection = sortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            sortDirection = 'asc';
+            currentSort = column;
+        }
+
+        // Update sort indicators
+        document.querySelectorAll('.sortable').forEach(th => {
+            th.classList.remove('active');
+            const icon = th.querySelector('.sort-icon');
+            if (icon) {
+                icon.textContent = '▼';
+            }
+        });
+
+        const activeTh = document.querySelector(`.sortable[data-sort="${column}"]`);
+        activeTh.classList.add('active');
+        const activeIcon = activeTh.querySelector('.sort-icon');
+        activeIcon.textContent = sortDirection === 'asc' ? '▼' : '▲';
+
+        // Sort rows
+        rows.sort((a, b) => {
+            let aVal, bVal;
+
+            switch (column) {
+                case 'priority':
+                    const priorityOrder = { 'URGENT': 0, 'STANDARD': 1, 'LOW_PRIORITY': 2 };
+                    aVal = priorityOrder[a.dataset.priority];
+                    bVal = priorityOrder[b.dataset.priority];
+                    break;
+                case 'severity':
+                    const severityOrder = { 'HIGH': 0, 'MEDIUM': 1, 'LOW': 2, 'NONE': 3 };
+                    aVal = severityOrder[a.dataset.severity];
+                    bVal = severityOrder[b.dataset.severity];
+                    break;
+                case 'confidence':
+                case 'fraud_risk':
+                    aVal = parseFloat(a.dataset[column]);
+                    bVal = parseFloat(b.dataset[column]);
+                    break;
+                case 'timestamp':
+                    aVal = new Date(a.dataset.timestamp);
+                    bVal = new Date(b.dataset.timestamp);
+                    break;
+                default:
+                    aVal = a.dataset[column];
+                    bVal = b.dataset[column];
+            }
+
+            if (aVal < bVal) return sortDirection === 'asc' ? -1 : 1;
+            if (aVal > bVal) return sortDirection === 'asc' ? 1 : -1;
+            return 0;
+        });
+
+        // Re-append rows
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
+    // Update empty state
+    function updateEmptyState(visibleCount) {
+        const tbody = document.getElementById('queue-tbody');
+        let emptyRow = tbody.querySelector('.empty-state')?.closest('tr');
+
+        if (visibleCount === 0 && !emptyRow) {
+            emptyRow = document.createElement('tr');
+            emptyRow.innerHTML = `
+                <td colspan="8">
+                    <div class="empty-state">
+                        <svg class="empty-state-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        <h3 class="text-lg font-semibold text-gray-900 mb-2">No matching claims</h3>
+                        <p class="text-sm text-gray-500">Try adjusting your filters or search query.</p>
+                    </div>
+                </td>
+            `;
+            tbody.appendChild(emptyRow);
+        } else if (visibleCount > 0 && emptyRow) {
+            emptyRow.remove();
+        }
+    }
+
+    // Auto-refresh
+    function startAutoRefresh() {
+        refreshInterval = setInterval(() => {
+            if (!autoRefreshEnabled) return;
+
+            countdown--;
+            document.getElementById('refresh-countdown').textContent = countdown;
+
+            if (countdown <= 0) {
+                location.reload();
+            }
+        }, 1000);
+    }
+
+    function toggleAutoRefresh() {
+        autoRefreshEnabled = !autoRefreshEnabled;
+        const toggle = document.getElementById('refresh-toggle');
+
+        if (autoRefreshEnabled) {
+            toggle.textContent = 'Pause';
+            countdown = 30;
+        } else {
+            toggle.textContent = 'Resume';
+        }
+    }
+
+    // Initialize
+    document.addEventListener('DOMContentLoaded', function() {
+        // Default sort by priority
+        sortTable('priority');
+
+        // Start auto-refresh
+        startAutoRefresh();
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            // Cmd/Ctrl + K to focus search
+            if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+                e.preventDefault();
+                document.getElementById('search-input').focus();
+            }
+
+            // Escape to clear search
+            if (e.key === 'Escape') {
+                document.getElementById('search-input').value = '';
+                searchQueue('');
+            }
+        });
+    });
+
+    // Update stats when filtering
+    function updateStats() {
+        const visibleRows = document.querySelectorAll('.queue-row[style=""]').length;
+        document.getElementById('stat-total').textContent = visibleRows;
+    }
+</script>
+{% endblock %}

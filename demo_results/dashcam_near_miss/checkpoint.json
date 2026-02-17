@@ -1,0 +1,86 @@
+[
+  {
+    "severity": "MEDIUM",
+    "confidence": 0.75,
+    "prediction_set": [
+      "MEDIUM"
+    ],
+    "review_priority": "STANDARD",
+    "fault_assessment": {
+      "fault_ratio": 50.0,
+      "reasoning": "Fault assessment disabled",
+      "applicable_rules": [],
+      "scenario_type": "unknown",
+      "traffic_signal": null,
+      "right_of_way": null
+    },
+    "fraud_risk": {
+      "risk_score": 0.0,
+      "indicators": [],
+      "reasoning": "Fraud detection disabled"
+    },
+    "hazards": [],
+    "evidence": [],
+    "causal_reasoning": "Mock VLM result for testing",
+    "recommended_action": "REVIEW",
+    "video_id": "dashcam_near_miss",
+    "processing_time_sec": 0.0,
+    "timestamp": "2026-02-17T02:34:17.621453"
+  },
+  {
+    "severity": "MEDIUM",
+    "confidence": 0.75,
+    "prediction_set": [
+      "MEDIUM"
+    ],
+    "review_priority": "STANDARD",
+    "fault_assessment": {
+      "fault_ratio": 50.0,
+      "reasoning": "Fault assessment disabled",
+      "applicable_rules": [],
+      "scenario_type": "unknown",
+      "traffic_signal": null,
+      "right_of_way": null
+    },
+    "fraud_risk": {
+      "risk_score": 0.0,
+      "indicators": [],
+      "reasoning": "Fraud detection disabled"
+    },
+    "hazards": [],
+    "evidence": [],
+    "causal_reasoning": "Mock VLM result for testing",
+    "recommended_action": "REVIEW",
+    "video_id": "dashcam_near_miss",
+    "processing_time_sec": 0.0,
+    "timestamp": "2026-02-17T02:34:17.622453"
+  },
+  {
+    "severity": "MEDIUM",
+    "confidence": 0.75,
+    "prediction_set": [
+      "MEDIUM"
+    ],
+    "review_priority": "STANDARD",
+    "fault_assessment": {
+      "fault_ratio": 50.0,
+      "reasoning": "Fault assessment disabled",
+      "applicable_rules": [],
+      "scenario_type": "unknown",
+      "traffic_signal": null,
+      "right_of_way": null
+    },
+    "fraud_risk": {
+      "risk_score": 0.0,
+      "indicators": [],
+      "reasoning": "Fraud detection disabled"
+    },
+    "hazards": [],
+    "evidence": [],
+    "causal_reasoning": "Mock VLM result for testing",
+    "recommended_action": "REVIEW",
+    "video_id": "dashcam_near_miss",
+    "processing_time_sec": 0.0,
+    "timestamp": "2026-02-17T02:34:17.622453"
+  }
+]

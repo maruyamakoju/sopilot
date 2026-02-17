@@ -1,0 +1,642 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Insurance Claim Review{% endblock %}
+
+{% block nav_metrics %}border-blue-500 text-gray-900{% endblock %}
+
+{% block extra_head %}
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block custom_styles %}
+<style>
+    /* Grid layout */
+    .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 1.5rem;
+    }
+
+    /* Metric card */
+    .metric-card {
+        background: white;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
+        transition: all 0.3s;
+    }
+
+    .metric-card:hover {
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        transform: translateY(-2px);
+    }
+
+    .metric-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .metric-title {
+        font-size: 0.875rem;
+        font-weight: 600;
+        color: #6b7280;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+    }
+
+    .metric-icon {
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: #111827;
+        line-height: 1;
+    }
+
+    .metric-change {
+        display: flex;
+        align-items: center;
+        margin-top: 0.5rem;
+        font-size: 0.875rem;
+        font-weight: 500;
+    }
+
+    .metric-change.positive {
+        color: #10b981;
+    }
+
+    .metric-change.negative {
+        color: #ef4444;
+    }
+
+    .metric-change.neutral {
+        color: #6b7280;
+    }
+
+    /* Chart container */
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-top: 1rem;
+    }
+
+    .chart-container-large {
+        height: 400px;
+    }
+
+    /* Status indicator */
+    .status-indicator {
+        display: inline-flex;
+        align-items: center;
+        padding: 0.25rem 0.75rem;
+        border-radius: 9999px;
+        font-size: 0.75rem;
+        font-weight: 600;
+    }
+
+    .status-healthy {
+        background: #d1fae5;
+        color: #065f46;
+    }
+
+    .status-warning {
+        background: #fef3c7;
+        color: #92400e;
+    }
+
+    .status-error {
+        background: #fee2e2;
+        color: #991b1b;
+    }
+
+    /* Real-time pulse */
+    .live-indicator {
+        display: inline-flex;
+        align-items: center;
+        font-size: 0.75rem;
+        color: #10b981;
+        font-weight: 600;
+    }
+
+    .live-dot {
+        width: 8px;
+        height: 8px;
+        background: #10b981;
+        border-radius: 50%;
+        margin-right: 0.5rem;
+        animation: pulse-dot 2s infinite;
+    }
+
+    @keyframes pulse-dot {
+        0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+        }
+        50% {
+            opacity: 0.5;
+            transform: scale(1.1);
+        }
+    }
+
+    /* Table in metrics */
+    .metrics-table {
+        width: 100%;
+        margin-top: 1rem;
+        font-size: 0.875rem;
+    }
+
+    .metrics-table th {
+        text-align: left;
+        padding: 0.75rem;
+        font-weight: 600;
+        color: #6b7280;
+        border-bottom: 2px solid #e5e7eb;
+    }
+
+    .metrics-table td {
+        padding: 0.75rem;
+        border-bottom: 1px solid #f3f4f6;
+    }
+
+    .metrics-table tr:last-child td {
+        border-bottom: none;
+    }
+
+    /* Progress bar */
+    .progress-bar {
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        transition: width 0.5s ease;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-screen-2xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+    <!-- Header -->
+    <div class="mb-6">
+        <div class="flex items-center justify-between">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-900">System Dashboard</h1>
+                <p class="mt-1 text-sm text-gray-500">Real-time metrics and performance monitoring</p>
+            </div>
+            <div class="flex items-center space-x-4">
+                <span class="live-indicator">
+                    <span class="live-dot"></span>
+                    LIVE
+                </span>
+                <button onclick="refreshMetrics()" class="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 smooth-transition">
+                    <svg class="w-4 h-4 inline mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Refresh
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Key Metrics -->
+    <div class="metrics-grid mb-6">
+        <!-- Processing Rate -->
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Processing Rate</span>
+                <div class="metric-icon bg-blue-100 text-blue-600">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+            </div>
+            <div class="metric-value" id="processing-rate">{{ metrics.processing_rate|default(0)|round(1) }}</div>
+            <div class="text-sm text-gray-600 mt-1">claims/hour</div>
+            <div class="metric-change positive">
+                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd" />
+                </svg>
+                +15% from yesterday
+            </div>
+        </div>
+
+        <!-- Queue Depth -->
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Queue Depth</span>
+                <div class="metric-icon bg-yellow-100 text-yellow-600">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                </div>
+            </div>
+            <div class="metric-value" id="queue-depth">{{ metrics.queue_depth|default(0) }}</div>
+            <div class="text-sm text-gray-600 mt-1">pending reviews</div>
+            <div class="metric-change negative">
+                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M12 13a1 1 0 100 2h5a1 1 0 001-1V9a1 1 0 10-2 0v2.586l-4.293-4.293a1 1 0 00-1.414 0L8 9.586 3.707 5.293a1 1 0 00-1.414 1.414l5 5a1 1 0 001.414 0L11 9.414 14.586 13H12z" clip-rule="evenodd" />
+                </svg>
+                -8% from yesterday
+            </div>
+        </div>
+
+        <!-- Average Review Time -->
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">Avg Review Time</span>
+                <div class="metric-icon bg-green-100 text-green-600">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+            <div class="metric-value" id="avg-review-time">{{ metrics.avg_review_time|default(0)|round(1) }}</div>
+            <div class="text-sm text-gray-600 mt-1">minutes</div>
+            <div class="metric-change positive">
+                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd" />
+                </svg>
+                12% faster
+            </div>
+        </div>
+
+        <!-- Accuracy -->
+        <div class="metric-card">
+            <div class="metric-header">
+                <span class="metric-title">AI Accuracy</span>
+                <div class="metric-icon bg-purple-100 text-purple-600">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                </div>
+            </div>
+            <div class="metric-value" id="accuracy">{{ (metrics.accuracy|default(0) * 100)|round(1) }}%</div>
+            <div class="text-sm text-gray-600 mt-1">agreement with human reviewers</div>
+            <div class="metric-change neutral">
+                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M3 3a1 1 0 000 2v8a2 2 0 002 2h2.586l-1.293 1.293a1 1 0 101.414 1.414L10 15.414l2.293 2.293a1 1 0 001.414-1.414L12.414 15H15a2 2 0 002-2V5a1 1 0 100-2H3zm11.707 4.707a1 1 0 00-1.414-1.414L10 9.586 8.707 8.293a1 1 0 00-1.414 0l-2 2a1 1 0 101.414 1.414L8 10.414l1.293 1.293a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                </svg>
+                Stable
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Severity Distribution -->
+        <div class="card p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-2">Severity Distribution</h2>
+            <p class="text-sm text-gray-500 mb-4">Last 30 days</p>
+            <div class="chart-container">
+                <canvas id="severity-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Processing Trend -->
+        <div class="card p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-2">Processing Volume</h2>
+            <p class="text-sm text-gray-500 mb-4">Last 7 days</p>
+            <div class="chart-container">
+                <canvas id="volume-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+        <!-- Accuracy Trend -->
+        <div class="card p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-2">AI Accuracy Trend</h2>
+            <p class="text-sm text-gray-500 mb-4">Model agreement with human reviewers</p>
+            <div class="chart-container">
+                <canvas id="accuracy-chart"></canvas>
+            </div>
+        </div>
+
+        <!-- Decision Distribution -->
+        <div class="card p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-2">Review Decisions</h2>
+            <p class="text-sm text-gray-500 mb-4">Last 30 days</p>
+            <div class="chart-container">
+                <canvas id="decision-chart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- System Health -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <!-- API Health -->
+        <div class="card p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">API Health</h2>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Status</span>
+                    <span class="status-indicator status-healthy" id="api-status">Healthy</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Response Time</span>
+                    <span class="text-sm font-semibold text-gray-900" id="api-response-time">45ms</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Success Rate</span>
+                    <span class="text-sm font-semibold text-green-600" id="api-success-rate">99.8%</span>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm text-gray-600 mb-1">
+                        <span>Uptime</span>
+                        <span class="font-semibold text-gray-900" id="api-uptime">99.95%</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill bg-green-600" style="width: 99.95%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Model Health -->
+        <div class="card p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Model Health</h2>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Status</span>
+                    <span class="status-indicator status-healthy" id="model-status">Healthy</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Inference Time</span>
+                    <span class="text-sm font-semibold text-gray-900" id="model-inference-time">2.3s</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">GPU Utilization</span>
+                    <span class="text-sm font-semibold text-blue-600" id="gpu-utilization">73%</span>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm text-gray-600 mb-1">
+                        <span>Memory Usage</span>
+                        <span class="font-semibold text-gray-900" id="memory-usage">18.5 / 24 GB</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill bg-blue-600" style="width: 77%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Queue Health -->
+        <div class="card p-6">
+            <h2 class="text-lg font-semibold text-gray-900 mb-4">Queue Health</h2>
+            <div class="space-y-4">
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Status</span>
+                    <span class="status-indicator status-warning" id="queue-status">Warning</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Oldest Claim</span>
+                    <span class="text-sm font-semibold text-gray-900" id="oldest-claim">2h 15m</span>
+                </div>
+                <div class="flex items-center justify-between">
+                    <span class="text-sm text-gray-600">Wait Time (avg)</span>
+                    <span class="text-sm font-semibold text-yellow-600" id="avg-wait-time">45min</span>
+                </div>
+                <div>
+                    <div class="flex justify-between text-sm text-gray-600 mb-1">
+                        <span>Capacity</span>
+                        <span class="font-semibold text-gray-900" id="queue-capacity">156 / 500</span>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill bg-yellow-600" style="width: 31.2%"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity -->
+    <div class="card p-6">
+        <h2 class="text-lg font-semibold text-gray-900 mb-4">Recent Activity</h2>
+        <table class="metrics-table">
+            <thead>
+                <tr>
+                    <th>Time</th>
+                    <th>Claim ID</th>
+                    <th>Event</th>
+                    <th>Reviewer</th>
+                    <th>Decision</th>
+                    <th>Duration</th>
+                </tr>
+            </thead>
+            <tbody id="activity-tbody">
+                {% if recent_activity %}
+                    {% for activity in recent_activity %}
+                    <tr>
+                        <td class="text-gray-600">{{ activity.timestamp|string|truncate(19, True, '') }}</td>
+                        <td class="font-mono text-sm">{{ activity.claim_id }}</td>
+                        <td>
+                            <span class="badge {{ 'bg-green-100 text-green-800' if activity.event == 'REVIEWED' else 'bg-blue-100 text-blue-800' }}">
+                                {{ activity.event }}
+                            </span>
+                        </td>
+                        <td class="text-gray-900">{{ activity.reviewer }}</td>
+                        <td>
+                            <span class="badge {{ 'bg-green-100 text-green-800' if activity.decision == 'APPROVE' else ('bg-red-100 text-red-800' if activity.decision == 'REJECT' else 'bg-yellow-100 text-yellow-800') }}">
+                                {{ activity.decision }}
+                            </span>
+                        </td>
+                        <td class="text-gray-600">{{ activity.duration|round(1) }}min</td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="6" class="text-center text-gray-500 py-8">No recent activity</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Chart.js default config
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.color = '#6b7280';
+
+    // Severity Distribution Chart
+    const severityCtx = document.getElementById('severity-chart').getContext('2d');
+    const severityChart = new Chart(severityCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['NONE', 'LOW', 'MEDIUM', 'HIGH'],
+            datasets: [{
+                data: {{ metrics.severity_distribution|default([25, 35, 30, 10])|tojson }},
+                backgroundColor: ['#d1d5db', '#fde047', '#fb923c', '#ef4444'],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Volume Chart
+    const volumeCtx = document.getElementById('volume-chart').getContext('2d');
+    const volumeChart = new Chart(volumeCtx, {
+        type: 'line',
+        data: {
+            labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+            datasets: [{
+                label: 'Claims Processed',
+                data: {{ metrics.volume_trend|default([45, 52, 48, 65, 59, 42, 38])|tojson }},
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+
+    // Accuracy Chart
+    const accuracyCtx = document.getElementById('accuracy-chart').getContext('2d');
+    const accuracyChart = new Chart(accuracyCtx, {
+        type: 'line',
+        data: {
+            labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4'],
+            datasets: [{
+                label: 'Accuracy %',
+                data: {{ metrics.accuracy_trend|default([85, 87, 89, 91])|tojson }},
+                borderColor: '#10b981',
+                backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                fill: true,
+                tension: 0.4
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: false,
+                    min: 80,
+                    max: 100,
+                    ticks: {
+                        callback: function(value) {
+                            return value + '%';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Decision Chart
+    const decisionCtx = document.getElementById('decision-chart').getContext('2d');
+    const decisionChart = new Chart(decisionCtx, {
+        type: 'bar',
+        data: {
+            labels: ['Approve', 'Reject', 'Request Info'],
+            datasets: [{
+                label: 'Count',
+                data: {{ metrics.decision_distribution|default([120, 35, 18])|tojson }},
+                backgroundColor: ['#10b981', '#ef4444', '#f59e0b']
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                y: {
+                    beginAtZero: true,
+                    ticks: {
+                        precision: 0
+                    }
+                }
+            }
+        }
+    });
+
+    // Refresh metrics
+    async function refreshMetrics() {
+        try {
+            const data = await Utils.apiCall('/api/metrics');
+
+            // Update metric values
+            document.getElementById('processing-rate').textContent = data.processing_rate.toFixed(1);
+            document.getElementById('queue-depth').textContent = data.queue_depth;
+            document.getElementById('avg-review-time').textContent = data.avg_review_time.toFixed(1);
+            document.getElementById('accuracy').textContent = (data.accuracy * 100).toFixed(1) + '%';
+
+            // Update charts
+            severityChart.data.datasets[0].data = data.severity_distribution;
+            severityChart.update();
+
+            volumeChart.data.datasets[0].data = data.volume_trend;
+            volumeChart.update();
+
+            accuracyChart.data.datasets[0].data = data.accuracy_trend;
+            accuracyChart.update();
+
+            decisionChart.data.datasets[0].data = data.decision_distribution;
+            decisionChart.update();
+
+            Utils.showFlash('Metrics updated successfully', 'success');
+        } catch (error) {
+            console.error('Failed to refresh metrics:', error);
+        }
+    }
+
+    // Auto-refresh every 30 seconds
+    setInterval(refreshMetrics, 30000);
+
+    // Initial load
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('Dashboard loaded');
+    });
+</script>
+{% endblock %}

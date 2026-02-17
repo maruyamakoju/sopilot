@@ -1,0 +1,204 @@
+{
+  "video_id": "dashcam_near_miss",
+  "timestamp": "2026-02-17T02:34:17.623452",
+  "config": {
+    "video_path": null,
+    "video_dir": null,
+    "output_dir": "demo_results",
+    "parallel_workers": 1,
+    "resume_from_checkpoint": true,
+    "save_intermediate_results": true,
+    "continue_on_error": true,
+    "max_retries": 3,
+    "retry_delay_sec": 5.0,
+    "log_level": "INFO",
+    "log_file": null,
+    "video": {
+      "max_resolution": [
+        1280,
+        720
+      ],
+      "fps_sampling": 2,
+      "chunk_duration_sec": 5.0,
+      "min_clip_duration_sec": 2.0,
+      "max_clip_duration_sec": 30.0
+    },
+    "mining": {
+      "top_k_clips": 5,
+      "audio_brake_threshold": 0.7,
+      "audio_horn_threshold": 0.6,
+      "audio_crash_threshold": 0.8,
+      "motion_magnitude_threshold": 50.0,
+      "motion_suddenness_threshold": 0.7,
+      "proximity_near_distance_m": 5.0,
+      "proximity_confidence_threshold": 0.5,
+      "audio_weight": 0.3,
+      "motion_weight": 0.3,
+      "proximity_weight": 0.4
+    },
+    "cosmos": {
+      "backend": "mock",
+      "model_name": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "device": "cpu",
+      "max_new_tokens": 512,
+      "temperature": 0.1,
+      "top_p": 0.9,
+      "max_pixels": 602112,
+      "fps": 2,
+      "max_concurrent_inferences": 2
+    },
+    "conformal": {
+      "alpha": 0.1,
+      "severity_levels": [
+        "NONE",
+        "LOW",
+        "MEDIUM",
+        "HIGH"
+      ],
+      "use_pretrained_calibration": true,
+      "calibration_data_path": null
+    },
+    "whisper": {
+      "backend": "openai-whisper",
+      "model_size": "base",
+      "language": "ja",
+      "device": "auto"
+    },
+    "enable_transcription": false,
+    "enable_conformal": true,
+    "enable_fraud_detection": true,
+    "enable_fault_assessment": true,
+    "enable_profiling": false,
+    "enable_metrics": true
+  },
+  "danger_clips": [
+    {
+      "clip_id": "dashcam_near_miss_clip_0",
+      "start_sec": 0.0,
+      "end_sec": 5.0,
+      "danger_score": 0.8,
+      "video_path": "C:\\Users\\07013\\AppData\\Local\\Temp\\tmp0dpu31if\\dashcam_near_miss.mp4"
+    },
+    {
+      "clip_id": "dashcam_near_miss_clip_1",
+      "start_sec": 10.0,
+      "end_sec": 15.0,
+      "danger_score": 0.7000000000000001,
+      "video_path": "C:\\Users\\07013\\AppData\\Local\\Temp\\tmp0dpu31if\\dashcam_near_miss.mp4"
+    },
+    {
+      "clip_id": "dashcam_near_miss_clip_2",
+      "start_sec": 20.0,
+      "end_sec": 25.0,
+      "danger_score": 0.6000000000000001,
+      "video_path": "C:\\Users\\07013\\AppData\\Local\\Temp\\tmp0dpu31if\\dashcam_near_miss.mp4"
+    }
+  ],
+  "assessments": [
+    {
+      "severity": "MEDIUM",
+      "confidence": 0.75,
+      "prediction_set": [
+        "HIGH",
+        "LOW",
+        "MEDIUM",
+        "NONE"
+      ],
+      "review_priority": "URGENT",
+      "fault_assessment": {
+        "fault_ratio": 50.0,
+        "reasoning": "Fault assessment disabled",
+        "applicable_rules": [],
+        "scenario_type": "unknown",
+        "traffic_signal": null,
+        "right_of_way": null
+      },
+      "fraud_risk": {
+        "risk_score": 0.0,
+        "indicators": [],
+        "reasoning": "Fraud detection disabled"
+      },
+      "hazards": [],
+      "evidence": [],
+      "causal_reasoning": "Mock VLM result for testing",
+      "recommended_action": "REVIEW",
+      "video_id": "dashcam_near_miss",
+      "processing_time_sec": 0.0,
+      "timestamp": "2026-02-17T02:34:17.621453"
+    },
+    {
+      "severity": "MEDIUM",
+      "confidence": 0.75,
+      "prediction_set": [
+        "HIGH",
+        "LOW",
+        "MEDIUM",
+        "NONE"
+      ],
+      "review_priority": "URGENT",
+      "fault_assessment": {
+        "fault_ratio": 50.0,
+        "reasoning": "Fault assessment disabled",
+        "applicable_rules": [],
+        "scenario_type": "unknown",
+        "traffic_signal": null,
+        "right_of_way": null
+      },
+      "fraud_risk": {
+        "risk_score": 0.0,
+        "indicators": [],
+        "reasoning": "Fraud detection disabled"
+      },
+      "hazards": [],
+      "evidence": [],
+      "causal_reasoning": "Mock VLM result for testing",
+      "recommended_action": "REVIEW",
+      "video_id": "dashcam_near_miss",
+      "processing_time_sec": 0.0,
+      "timestamp": "2026-02-17T02:34:17.622453"
+    },
+    {
+      "severity": "MEDIUM",
+      "confidence": 0.75,
+      "prediction_set": [
+        "HIGH",
+        "LOW",
+        "MEDIUM",
+        "NONE"
+      ],
+      "review_priority": "URGENT",
+      "fault_assessment": {
+        "fault_ratio": 50.0,
+        "reasoning": "Fault assessment disabled",
+        "applicable_rules": [],
+        "scenario_type": "unknown",
+        "traffic_signal": null,
+        "right_of_way": null
+      },
+      "fraud_risk": {
+        "risk_score": 0.0,
+        "indicators": [],
+        "reasoning": "Fraud detection disabled"
+      },
+      "hazards": [],
+      "evidence": [],
+      "causal_reasoning": "Mock VLM result for testing",
+      "recommended_action": "REVIEW",
+      "video_id": "dashcam_near_miss",
+      "processing_time_sec": 0.0,
+      "timestamp": "2026-02-17T02:34:17.622453"
+    }
+  ],
+  "summary": {
+    "total_clips": 3,
+    "severity_distribution": {
+      "MEDIUM": 3
+    },
+    "priority_distribution": {
+      "URGENT": 3
+    },
+    "avg_confidence": 0.75,
+    "avg_fault_ratio": 50.0,
+    "avg_fraud_score": 0.0
+  }
+}

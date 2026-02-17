@@ -1,0 +1,75 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Insurance Assessment Report - dashcam_near_miss</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        h1 { color: #333; }
+        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #4CAF50; color: white; }
+        .HIGH { background-color: #ffcccc; }
+        .MEDIUM { background-color: #ffffcc; }
+        .LOW { background-color: #ccffcc; }
+        .URGENT { font-weight: bold; color: red; }
+        .STANDARD { color: orange; }
+        .LOW_PRIORITY { color: green; }
+    </style>
+</head>
+<body>
+    <h1>Insurance Assessment Report</h1>
+    <p><strong>Video ID:</strong> dashcam_near_miss</p>
+    <p><strong>Generated:</strong> 2026-02-17T02:34:17.624452</p>
+    <p><strong>Total Clips:</strong> 3</p>
+
+    <h2>Assessments</h2>
+    <table>
+        <tr>
+            <th>#</th>
+            <th>Severity</th>
+            <th>Confidence</th>
+            <th>Prediction Set</th>
+            <th>Priority</th>
+            <th>Fault Ratio</th>
+            <th>Fraud Score</th>
+            <th>Action</th>
+        </tr>
+
+        <tr class="MEDIUM">
+            <td>1</td>
+            <td>MEDIUM</td>
+            <td>0.75</td>
+            <td>{HIGH, LOW, MEDIUM, NONE}</td>
+            <td class="URGENT">URGENT</td>
+            <td>50.0%</td>
+            <td>0.00</td>
+            <td>REVIEW</td>
+        </tr>
+
+        <tr class="MEDIUM">
+            <td>2</td>
+            <td>MEDIUM</td>
+            <td>0.75</td>
+            <td>{HIGH, LOW, MEDIUM, NONE}</td>
+            <td class="URGENT">URGENT</td>
+            <td>50.0%</td>
+            <td>0.00</td>
+            <td>REVIEW</td>
+        </tr>
+
+        <tr class="MEDIUM">
+            <td>3</td>
+            <td>MEDIUM</td>
+            <td>0.75</td>
+            <td>{HIGH, LOW, MEDIUM, NONE}</td>
+            <td class="URGENT">URGENT</td>
+            <td>50.0%</td>
+            <td>0.00</td>
+            <td>REVIEW</td>
+        </tr>
+
+    </table>
+</body>
+</html>

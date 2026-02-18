@@ -22,7 +22,7 @@ from sqlalchemy import (
     Index,
     Enum as SQLEnum,
 )
-from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship, Session
 from sqlalchemy.pool import StaticPool
 
@@ -66,14 +66,14 @@ class Claim(Base):
     )
 
     @property
-    def metadata(self) -> Dict[str, Any]:
+    def extra_data(self) -> Dict[str, Any]:
         """Parse metadata JSON"""
         if self.metadata_json:
             return json.loads(self.metadata_json)
         return {}
 
-    @metadata.setter
-    def metadata(self, value: Dict[str, Any]):
+    @extra_data.setter
+    def extra_data(self, value: Dict[str, Any]):
         """Store metadata as JSON"""
         self.metadata_json = json.dumps(value) if value else None
 
@@ -283,7 +283,7 @@ class ClaimRepository:
             upload_time=datetime.utcnow(),
         )
         if metadata:
-            claim.metadata = metadata
+            claim.extra_data = metadata
 
         self.session.add(claim)
         self.session.commit()

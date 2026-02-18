@@ -173,9 +173,13 @@ async def shutdown_event():
 
 # Dependency: Database Session
 
-def get_db() -> Session:
+def get_db():
     """FastAPI dependency for database session"""
-    return next(db_manager.get_session_dependency())
+    session = db_manager.SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 # Exception Handlers
@@ -188,7 +192,7 @@ async def http_exception_handler(request, exc: HTTPException):
         content=ErrorResponse(
             error=exc.__class__.__name__,
             message=exc.detail,
-        ).dict(),
+        ).model_dump(mode="json"),
     )
 
 
@@ -202,7 +206,7 @@ async def general_exception_handler(request, exc: Exception):
             error="InternalServerError",
             message="An unexpected error occurred",
             detail=str(exc) if config.DEV_MODE else None,
-        ).dict(),
+        ).model_dump(mode="json"),
     )
 
 
@@ -225,8 +229,9 @@ async def health_check():
     # Check database connection
     db_connected = False
     try:
+        from sqlalchemy import text
         with db_manager.get_session() as session:
-            session.execute("SELECT 1")
+            session.execute(text("SELECT 1"))
         db_connected = True
     except Exception as e:
         logger.error(f"Database health check failed: {e}")

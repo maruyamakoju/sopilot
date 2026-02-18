@@ -362,9 +362,9 @@ def test_bearer_token_auth(client, test_api_key):
 
 
 def test_invalid_bearer_token(client):
-    """Test invalid Bearer token"""
+    """Test invalid Bearer token on endpoint requiring auth"""
     response = client.get(
-        "/metrics",
+        "/claims/nonexistent/status",
         headers={"Authorization": "Bearer invalid_token"}
     )
     assert response.status_code == 401

@@ -41,6 +41,7 @@ from insurance_mvp.insurance.schema import (
     HazardDetail,
     create_default_claim_assessment
 )
+from insurance_mvp.report_generator import ReportGenerator
 from insurance_mvp.conformal.split_conformal import (
     SplitConformal,
     ConformalConfig,
@@ -689,13 +690,29 @@ class InsurancePipeline:
 
         self.logger.info(f"Saved JSON results: {json_path}")
 
-        # Save HTML (simple report)
+        # Save HTML (professional report)
         html_path = output_dir / "report.html"
-        html_content = self._generate_html_report(video_id, assessments)
-        with open(html_path, 'w', encoding='utf-8') as f:
-            f.write(html_content)
-
-        self.logger.info(f"Saved HTML report: {html_path}")
+        try:
+            report_gen = ReportGenerator()
+            if assessments:
+                report_gen.generate_multi_clip_report(
+                    assessments=assessments,
+                    video_id=video_id,
+                    output_path=html_path
+                )
+                self.logger.info(f"Saved professional HTML report: {html_path}")
+            else:
+                # Fallback to basic template if no assessments
+                html_content = self._generate_html_report(video_id, [])
+                with open(html_path, 'w', encoding='utf-8') as f:
+                    f.write(html_content)
+                self.logger.info(f"Saved basic HTML report: {html_path}")
+        except Exception as e:
+            self.logger.warning(f"Professional report generation failed ({e}), using fallback")
+            html_content = self._generate_html_report(video_id, assessments)
+            with open(html_path, 'w', encoding='utf-8') as f:
+                f.write(html_content)
+            self.logger.info(f"Saved fallback HTML report: {html_path}")
 
         return str(json_path), str(html_path)
 

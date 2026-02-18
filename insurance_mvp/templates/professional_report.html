@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Insurance Claim Assessment - {{ video_id }}</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-900);
+            background: var(--gray-50);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 32px 40px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .header .meta {
+            opacity: 0.9;
+            font-size: 14px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .hero {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            padding: 32px 40px;
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .hero-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--gray-200);
+            text-align: center;
+        }
+
+        .hero-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+
+        .hero-value {
+            font-size: 32px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .severity-HIGH { color: var(--danger); }
+        .severity-MEDIUM { color: var(--warning); }
+        .severity-LOW { color: var(--success); }
+        .severity-NONE { color: var(--gray-600); }
+
+        .hero-sub {
+            font-size: 13px;
+            color: var(--gray-600);
+            margin-top: 4px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-urgent {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-standard {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-low {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .section {
+            padding: 32px 40px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .section-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .metric {
+            background: var(--gray-50);
+            padding: 16px;
+            border-radius: 6px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .metric-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-bottom: 4px;
+        }
+
+        .metric-value {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .prediction-set {
+            background: #dbeafe;
+            color: #1e40af;
+            padding: 8px 16px;
+            border-radius: 6px;
+            font-family: 'Courier New', monospace;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .reasoning-box {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 12px;
+            position: relative;
+        }
+
+        .reasoning-box::before {
+            content: '\201C';
+            position: absolute;
+            top: -10px;
+            left: 16px;
+            font-size: 48px;
+            color: var(--gray-300);
+            line-height: 1;
+        }
+
+        .reasoning-text {
+            color: var(--gray-700);
+            font-size: 15px;
+            line-height: 1.7;
+            margin-top: 8px;
+            white-space: pre-wrap;
+        }
+
+        .rules-list {
+            list-style: none;
+            margin-top: 12px;
+        }
+
+        .rules-list li {
+            padding: 10px 16px;
+            background: var(--gray-50);
+            border-left: 3px solid var(--success);
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+
+        .rules-list li::before {
+            content: '✓';
+            color: var(--success);
+            font-weight: bold;
+            margin-right: 8px;
+        }
+
+        .red-flags-list {
+            list-style: none;
+            margin-top: 12px;
+        }
+
+        .red-flags-list li {
+            padding: 10px 16px;
+            background: #fee2e2;
+            border-left: 3px solid var(--danger);
+            margin-bottom: 8px;
+            border-radius: 4px;
+            font-size: 14px;
+            color: #991b1b;
+        }
+
+        .red-flags-list li::before {
+            content: '⚠';
+            margin-right: 8px;
+        }
+
+        .action-box {
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+            margin-top: 16px;
+        }
+
+        .action-label {
+            font-size: 13px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--primary-dark);
+            margin-bottom: 8px;
+        }
+
+        .action-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .footer {
+            padding: 24px 40px;
+            background: var(--gray-50);
+            border-top: 1px solid var(--gray-200);
+            text-align: center;
+            color: var(--gray-600);
+            font-size: 13px;
+        }
+
+        .footer-logo {
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                border-radius: 0;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .hero {
+                grid-template-columns: 1fr;
+            }
+            .metric-grid {
+                grid-template-columns: 1fr;
+            }
+            .header, .section, .footer {
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>Insurance Claim Assessment Report</h1>
+            <div class="meta">
+                <span>📹 Video ID: {{ video_id }}</span>
+                <span>📅 Generated: {{ timestamp }}</span>
+                <span>⏱️ Processing Time: {{ processing_time }}s</span>
+            </div>
+        </div>
+
+        <!-- Hero Cards -->
+        <div class="hero">
+            <div class="hero-card">
+                <div class="hero-label">Severity Level</div>
+                <div class="hero-value severity-{{ severity }}">{{ severity }}</div>
+                <div class="hero-sub">Confidence: {{ confidence }}%</div>
+            </div>
+
+            <div class="hero-card">
+                <div class="hero-label">Fault Ratio</div>
+                <div class="hero-value">{{ fault_ratio }}%</div>
+                <div class="hero-sub">{{ at_fault_party }}</div>
+            </div>
+
+            <div class="hero-card">
+                <div class="hero-label">Fraud Risk</div>
+                <div class="hero-value">{{ fraud_score }}</div>
+                <div class="hero-sub">{{ fraud_level }}</div>
+            </div>
+        </div>
+
+        <!-- Severity Assessment Section -->
+        <div class="section">
+            <h2 class="section-title">Severity Assessment</h2>
+
+            <div class="metric-grid">
+                <div class="metric">
+                    <div class="metric-label">Severity Level</div>
+                    <div class="metric-value severity-{{ severity }}">{{ severity }}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Confidence Score</div>
+                    <div class="metric-value">{{ confidence }}%</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Review Priority</div>
+                    <div class="metric-value">
+                        <span class="badge badge-{{ review_priority_class }}">{{ review_priority }}</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="metric">
+                <div class="metric-label">Conformal Prediction Set (90% confidence)</div>
+                <div class="prediction-set">{{ prediction_set }}</div>
+            </div>
+        </div>
+
+        <!-- Fault Assessment Section -->
+        <div class="section">
+            <h2 class="section-title">Fault Assessment</h2>
+
+            <div class="metric-grid">
+                <div class="metric">
+                    <div class="metric-label">Fault Ratio</div>
+                    <div class="metric-value">{{ fault_ratio }}%</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">At-Fault Party</div>
+                    <div class="metric-value">{{ at_fault_party }}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Scenario Type</div>
+                    <div class="metric-value">{{ scenario_type }}</div>
+                </div>
+            </div>
+
+            {% if applicable_rules %}
+            <div class="rules-section">
+                <strong>Applicable Traffic Rules:</strong>
+                <ul class="rules-list">
+                    {% for rule in applicable_rules %}
+                    <li>{{ rule }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="reasoning-box">
+                <strong>Fault Reasoning:</strong>
+                <div class="reasoning-text">{{ fault_reasoning }}</div>
+            </div>
+        </div>
+
+        <!-- Fraud Detection Section -->
+        <div class="section">
+            <h2 class="section-title">Fraud Detection Analysis</h2>
+
+            <div class="metric-grid">
+                <div class="metric">
+                    <div class="metric-label">Fraud Risk Score</div>
+                    <div class="metric-value">{{ fraud_score }}</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-label">Risk Level</div>
+                    <div class="metric-value">{{ fraud_level }}</div>
+                </div>
+            </div>
+
+            {% if red_flags %}
+            <div class="red-flags-section">
+                <strong>🚩 Red Flags Detected:</strong>
+                <ul class="red-flags-list">
+                    {% for flag in red_flags %}
+                    <li>{{ flag }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div class="reasoning-box">
+                <strong>Fraud Analysis:</strong>
+                <div class="reasoning-text">{{ fraud_reasoning }}</div>
+            </div>
+        </div>
+
+        <!-- Causal Reasoning Section -->
+        <div class="section">
+            <h2 class="section-title">AI Causal Reasoning</h2>
+
+            <div class="reasoning-box">
+                <div class="reasoning-text">{{ causal_reasoning }}</div>
+            </div>
+        </div>
+
+        <!-- Recommended Action Section -->
+        <div class="section">
+            <h2 class="section-title">Recommended Action</h2>
+
+            <div class="action-box">
+                <div class="action-label">Recommended Next Step</div>
+                <div class="action-value">{{ recommended_action }}</div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-logo">Insurance MVP</div>
+            <div>AI-Powered Insurance Claim Assessment System</div>
+            <div>Contract-Grade Professional Quality</div>
+        </div>
+    </div>
+</body>
+</html>

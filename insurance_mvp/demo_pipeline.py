@@ -18,6 +18,7 @@ from datetime import datetime
 from insurance_mvp.config import PipelineConfig, CosmosBackend, DeviceType
 from insurance_mvp.pipeline import InsurancePipeline, VideoResult
 from insurance_mvp.insurance.schema import ClaimAssessment
+from insurance_mvp.report_generator import ReportGenerator
 
 
 def create_mock_video(video_path: Path, duration_sec: int = 30):

@@ -28,7 +28,7 @@ import cv2
 import numpy as np
 from pydantic import ValidationError
 
-from .prompt import get_claim_assessment_prompt
+from .prompt import get_claim_assessment_prompt, get_system_prompt
 from .schema import ClaimAssessment, Evidence, FaultAssessment, FraudRisk, HazardDetail, create_default_claim_assessment
 
 # Optional dependencies
@@ -536,8 +536,13 @@ class VideoLLMClient:
             # Convert Path objects to strings
             frame_strs = [str(p.absolute()) for p in frame_paths]
 
-            # Prepare messages
+            # Prepare messages with system prompt for better role grounding
+            system_prompt = get_system_prompt()
             messages = [
+                {
+                    "role": "system",
+                    "content": system_prompt,
+                },
                 {
                     "role": "user",
                     "content": [

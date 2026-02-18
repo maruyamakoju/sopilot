@@ -1,145 +1,128 @@
 """Insurance-specific prompts for Video-LLM claim assessment.
 
-Calibrated prompts designed to prevent over-prediction of HIGH severity
-and ensure balanced distribution across severity levels.
-
-Expected distribution:
-- NONE: ~20% (minor incidents, no damage)
-- LOW: ~40% (minor damage, simple scenarios)
-- MEDIUM: ~25% (moderate damage, multiple actors)
-- HIGH: ~15% (severe damage, injury risk, complex scenarios)
+Prompts designed for accurate severity classification based on
+visual evidence observed in dashcam footage. Uses chain-of-thought
+(observe → classify) to ground severity in actual video content.
 """
 
-# Insurance claim assessment prompt with calibrated severity guidance
-CLAIM_ASSESSMENT_PROMPT = """You are an expert insurance claim assessor analyzing dashcam footage from a vehicle incident.
+# System prompt -defines the model's role and output format
+SYSTEM_PROMPT = """You are an expert automotive insurance claim assessor. Your job is to watch dashcam video footage and produce a structured JSON assessment of the incident.
 
-**YOUR TASK:**
-Analyze the video clip and provide a comprehensive insurance claim assessment in JSON format.
+You must be accurate and evidence-based. Classify severity based ONLY on what you actually observe in the video frames -visible collisions, vehicle damage, pedestrian involvement, speed of impact, etc. Do not guess or assume things not shown in the video.
 
-**SEVERITY LEVELS (Be Conservative - Most Claims are LOW):**
+Your output must be valid JSON with no additional text before or after the JSON object."""
 
-**NONE (20% of cases):**
-- No visible damage or collision
-- Near-miss events with no contact
-- Traffic violations without impact
-- Example: Car cuts into lane but no collision occurs
 
-**LOW (40% of cases - MOST COMMON):**
-- Minor cosmetic damage (scratches, small dents)
-- Low-speed collisions (parking lot bumps, rear-end at stop)
-- Single vehicle involved, no injury risk
-- Example: Backing into a pole, minor fender-bender
+# Main claim assessment prompt -visual evidence-driven
+CLAIM_ASSESSMENT_PROMPT = """Analyze this dashcam footage and provide an insurance claim assessment.
 
-**MEDIUM (25% of cases):**
-- Moderate damage requiring repair (body panels, bumpers)
-- Multiple vehicles involved
-- Medium-speed collisions
-- Minor injury risk (airbag deployment)
-- Example: T-bone at intersection, highway lane change collision
+**STEP 1 -OBSERVE:** Carefully examine every frame. Note:
+- Is there a collision or contact between vehicles?
+- What is the speed at the moment of impact (if any)?
+- Is there visible vehicle damage (dents, broken glass, deformation)?
+- Are pedestrians or cyclists involved?
+- Are there near-miss events without actual contact?
+- Is this just normal driving with no incident?
 
-**HIGH (15% of cases - RESERVE FOR SERIOUS INCIDENTS):**
-- Severe structural damage
-- High-speed collisions
-- Multiple vehicles with injury risk
-- Pedestrian/cyclist involvement
-- Total loss potential
-- Example: Head-on collision, rollover, pedestrian strike
+**STEP 2 -CLASSIFY SEVERITY based on your observations:**
 
-**IMPORTANT:** Most dashcam incidents are LOW severity. Only escalate to HIGH if there's clear evidence of severe damage or injury risk.
+NONE -No incident detected:
+- Normal driving, no collision, no near-miss
+- Routine traffic flow with no notable events
 
-**FAULT ASSESSMENT:**
-- Provide a fault ratio (0-100%) where 100% means the insured is fully at fault
-- Consider: right of way, traffic signals, road markings, speed, following distance
-- Common scenarios:
-  * Rear-end collision: Usually 100% fault for following vehicle
-  * T-bone at red light: 100% fault for red light runner
-  * Lane change collision: Usually fault for vehicle changing lanes
-  * Parking lot: Often shared fault 50/50
+LOW -Minor incident:
+- Very low-speed contact (parking lot bump, nudge while stopped)
+- Cosmetic-only damage (small scratch, paint transfer)
+- No injury risk whatsoever
 
-**FRAUD RISK INDICATORS:**
-- Staged accidents (deliberate braking, positioned witnesses)
-- Inconsistent damage patterns
-- Prior claims history (if visible in context)
-- Suspicious behavior (driver remains too calm, pre-positioned cameras)
-- Risk score: 0.0 (no suspicion) to 1.0 (highly suspicious)
+MEDIUM -Moderate incident:
+- Clear collision at moderate speed
+- Visible vehicle damage (bent bumper, cracked body panel)
+- Emergency braking to avoid collision (near-miss with close call)
+- Multiple vehicles involved in contact
 
-**IMPORTANT: The example below shows the JSON FORMAT ONLY. You MUST replace ALL values with your own analysis of the actual video. Do NOT copy the example values.**
+HIGH -Serious incident:
+- High-speed collision with strong impact force
+- Severe vehicle deformation or structural damage
+- Airbag deployment visible
+- Pedestrian or cyclist struck by vehicle
+- Vehicle rollover or spin-out
+- Debris scattered across the road
 
-**OUTPUT FORMAT (STRICT JSON):**
+**STEP 3 -PRODUCE JSON with your assessment:**
+
 ```json
 {
-  "severity": "MEDIUM",
-  "confidence": 0.72,
-  "prediction_set": ["MEDIUM", "HIGH"],
+  "severity": "NONE or LOW or MEDIUM or HIGH",
+  "confidence": 0.85,
+  "prediction_set": ["MEDIUM"],
   "review_priority": "STANDARD",
   "fault_assessment": {
-    "fault_ratio": 40.0,
-    "reasoning": "Describe the fault allocation based on what you see in the video",
-    "applicable_rules": ["Relevant Traffic Rule"],
-    "scenario_type": "intersection",
+    "fault_ratio": 50.0,
+    "reasoning": "Your fault analysis based on the video",
+    "applicable_rules": ["Traffic rules that apply"],
+    "scenario_type": "rear_end or intersection or lane_change or parking or pedestrian or other",
     "traffic_signal": null,
-    "right_of_way": "Describe who had right of way"
+    "right_of_way": "Who had right of way"
   },
   "fraud_risk": {
     "risk_score": 0.05,
     "indicators": [],
-    "reasoning": "Explain your fraud assessment based on the video"
+    "reasoning": "Your fraud assessment"
   },
   "hazards": [
     {
-      "type": "collision",
+      "type": "collision or near_miss or hazard",
       "actors": ["vehicle_A", "vehicle_B"],
-      "spatial_relation": "front",
-      "timestamp_sec": 8.5
+      "spatial_relation": "front or rear or side",
+      "timestamp_sec": 10.0
     }
   ],
   "evidence": [
     {
-      "timestamp_sec": 8.5,
-      "description": "Describe what you observe at this timestamp"
+      "timestamp_sec": 10.0,
+      "description": "What you observe at this moment"
     }
   ],
-  "causal_reasoning": "Provide your detailed analysis of what happened in the video and why",
-  "recommended_action": "REVIEW"
+  "causal_reasoning": "Detailed explanation of what happened and why",
+  "recommended_action": "APPROVE or REVIEW or REJECT"
 }
 ```
 
-**PREDICTION SET RULES:**
-- confidence >= 0.9: Single label in prediction_set
-- 0.7 <= confidence < 0.9: Two adjacent labels (e.g., ["LOW", "MEDIUM"])
-- confidence < 0.7: Three labels for maximum uncertainty
+**IMPORTANT RULES:**
+- severity must be exactly one of: NONE, LOW, MEDIUM, HIGH
+- If you see a clear collision with impact, severity is at minimum MEDIUM
+- If you see severe damage, high speed, or pedestrian involvement, severity is HIGH
+- If you see only normal driving with no events, severity is NONE
+- confidence: 0.0 to 1.0 (how certain you are of the severity)
+- fault_ratio: 0 to 100 (100 = insured driver fully at fault)
+- fraud_risk.risk_score: 0.0 to 1.0
+- prediction_set: list of possible severities given your confidence
+- review_priority: URGENT (HIGH severity or low confidence), STANDARD (MEDIUM), LOW_PRIORITY (NONE/LOW)
+- recommended_action: APPROVE (clear, no issues), REVIEW (needs human check), REJECT (fraud suspected)
 
-**REVIEW PRIORITY:**
-- URGENT: HIGH severity, fraud_risk > 0.6, or confidence < 0.5
-- STANDARD: MEDIUM severity or fraud_risk 0.3-0.6
-- LOW_PRIORITY: NONE/LOW severity with confidence > 0.8 and fraud_risk < 0.3
+**DO NOT copy the example values. Analyze the actual video and provide YOUR assessment.**
 
-**RECOMMENDED ACTION:**
-- APPROVE: Clear low severity, high confidence, no fraud indicators
-- REVIEW: Medium severity, moderate confidence, or minor fraud indicators
-- REJECT: Clear fraud indicators or inconsistent evidence
-- REQUEST_MORE_INFO: Poor video quality, missing context
-
-Now analyze the dashcam footage and provide your assessment:"""
+Provide your JSON assessment:"""
 
 
 # Simplified prompt for quick severity classification (no full assessment)
-QUICK_SEVERITY_PROMPT = """You are an expert insurance assessor. Watch this dashcam video and classify the incident severity.
+QUICK_SEVERITY_PROMPT = """Watch this dashcam video and classify the incident severity.
 
-**SEVERITY LEVELS:**
-- NONE: No collision, near-miss only
-- LOW: Minor damage, low-speed collision (MOST COMMON - 40%)
-- MEDIUM: Moderate damage, multiple vehicles
-- HIGH: Severe damage, injury risk (RARE - only 15%)
+Severity levels:
+- NONE: No collision or incident, just normal driving
+- LOW: Minor contact, cosmetic damage only
+- MEDIUM: Clear collision with visible damage
+- HIGH: Severe collision, major damage, or pedestrian involvement
 
-**BE CONSERVATIVE:** Most incidents are LOW. Only use HIGH for serious collisions.
+First describe what you see, then classify.
 
-Respond with JSON:
+Respond with JSON only:
 ```json
 {
-  "severity": "LOW",
+  "severity": "NONE or LOW or MEDIUM or HIGH",
   "confidence": 0.85,
-  "reasoning": "Low-speed rear-end collision with minor cosmetic damage"
+  "reasoning": "What you observed in the video"
 }
 ```
 
@@ -210,23 +193,26 @@ FRAUD_DETECTION_PROMPT = """You are a fraud detection specialist for insurance c
 Analyze the footage:"""
 
 
+def get_system_prompt() -> str:
+    """Get the system prompt for the VLM.
+
+    Returns:
+        System prompt defining the assessor role
+    """
+    return SYSTEM_PROMPT
+
+
 def get_claim_assessment_prompt(include_calibration: bool = True) -> str:
     """Get the main claim assessment prompt.
 
     Args:
-        include_calibration: If True, includes severity distribution guidance
-                           to prevent over-prediction of HIGH severity.
+        include_calibration: Legacy parameter, kept for API compatibility.
+                           No longer affects the prompt (calibration bias removed).
 
     Returns:
         Formatted prompt string
     """
-    if include_calibration:
-        return CLAIM_ASSESSMENT_PROMPT
-    else:
-        # Remove calibration percentages for blind testing
-        return CLAIM_ASSESSMENT_PROMPT.replace("(20% of cases)", "").replace(
-            "(40% of cases - MOST COMMON)", ""
-        ).replace("(25% of cases)", "").replace("(15% of cases - RESERVE FOR SERIOUS INCIDENTS)", "")
+    return CLAIM_ASSESSMENT_PROMPT
 
 
 def get_quick_severity_prompt() -> str:

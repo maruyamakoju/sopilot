@@ -1,0 +1,53 @@
+# Insurance MVP PoC — Streamlit Dashboard
+#
+# Usage:
+#   Plan B (Replay / Mock — no GPU):
+#     docker compose -f docker-compose.poc.yml up --build
+#
+#   Plan A (Real GPU inference):
+#     docker compose -f docker-compose.poc.yml --profile gpu up --build
+#
+# Dashboard: http://localhost:8501
+
+services:
+  dashboard:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.poc
+    container_name: insurance-poc-dashboard
+    ports:
+      - "${DASHBOARD_PORT:-8501}:8501"
+    environment:
+      INSURANCE_VLM_BACKEND: "${INSURANCE_VLM_BACKEND:-mock}"
+    volumes:
+      # Demo videos (read-only)
+      - ./data/dashcam_demo:/app/data/dashcam_demo:ro
+      # Reports output
+      - ./reports:/app/reports
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8501/_stcore/health"]
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    restart: unless-stopped
+
+  dashboard-gpu:
+    extends:
+      service: dashboard
+    profiles: ["gpu"]
+    container_name: insurance-poc-dashboard-gpu
+    environment:
+      INSURANCE_VLM_BACKEND: real
+    volumes:
+      - ./data/dashcam_demo:/app/data/dashcam_demo:ro
+      - ./reports:/app/reports
+      # HuggingFace model cache (persist across restarts)
+      - ${HF_HOME:-~/.cache/huggingface}:/home/appuser/.cache/huggingface
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

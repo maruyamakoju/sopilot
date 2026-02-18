@@ -359,6 +359,76 @@ class TestDefaultAssessment:
         assert default.recommended_action == "REVIEW"
 
 
+class TestPromptDesign:
+    """Test prompt design properties for accurate severity classification."""
+
+    def test_system_prompt_exists(self):
+        """System prompt is non-empty and defines role."""
+        from insurance_mvp.cosmos.prompt import get_system_prompt
+        prompt = get_system_prompt()
+        assert len(prompt) > 100
+        assert "insurance" in prompt.lower()
+        assert "JSON" in prompt
+
+    def test_no_calibration_bias(self):
+        """Main prompt must NOT contain calibration bias."""
+        from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
+        prompt = get_claim_assessment_prompt()
+        # These phrases caused the model to always predict LOW
+        assert "Most Claims are LOW" not in prompt
+        assert "Be Conservative" not in prompt
+        assert "MOST COMMON" not in prompt
+        assert "40%" not in prompt
+        assert "20% of cases" not in prompt
+        assert "15% of cases" not in prompt
+
+    def test_chain_of_thought(self):
+        """Prompt uses chain-of-thought (observe -> classify -> output)."""
+        from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
+        prompt = get_claim_assessment_prompt()
+        assert "STEP 1" in prompt
+        assert "STEP 2" in prompt
+        assert "STEP 3" in prompt
+
+    def test_all_severity_levels_defined(self):
+        """All 4 severity levels have criteria in the prompt."""
+        from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
+        prompt = get_claim_assessment_prompt()
+        for level in ["NONE", "LOW", "MEDIUM", "HIGH"]:
+            assert level in prompt
+
+    def test_visual_evidence_criteria(self):
+        """Prompt contains visual observation criteria."""
+        from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
+        prompt = get_claim_assessment_prompt()
+        # Visual cue keywords that ground severity in what the model sees
+        assert "collision" in prompt.lower()
+        assert "deformation" in prompt.lower()
+        assert "pedestrian" in prompt.lower()
+
+    def test_severity_escalation_rules(self):
+        """Prompt contains explicit rules for severity escalation."""
+        from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
+        prompt = get_claim_assessment_prompt()
+        # Key rule: collision = minimum MEDIUM
+        assert "minimum MEDIUM" in prompt or "at minimum MEDIUM" in prompt
+
+    def test_quick_prompt_no_bias(self):
+        """Quick severity prompt has no calibration bias."""
+        from insurance_mvp.cosmos.prompt import get_quick_severity_prompt
+        prompt = get_quick_severity_prompt()
+        assert "MOST COMMON" not in prompt
+        assert "Be Conservative" not in prompt.upper()
+        assert "40%" not in prompt
+
+    def test_include_calibration_param_ignored(self):
+        """include_calibration parameter is accepted but has no effect."""
+        from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
+        p1 = get_claim_assessment_prompt(include_calibration=True)
+        p2 = get_claim_assessment_prompt(include_calibration=False)
+        assert p1 == p2
+
+
 class TestModelCaching:
     """Test model caching (singleton pattern)."""
 

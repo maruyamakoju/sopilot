@@ -54,9 +54,9 @@ class ReportGenerator:
             "severity": assessment.severity,
             "confidence": int(assessment.confidence * 100),
             "fault_ratio": assessment.fault_assessment.fault_ratio,
-            "at_fault_party": assessment.fault_assessment.at_fault_party or "N/A",
+            "at_fault_party": self._derive_at_fault_party(assessment.fault_assessment.fault_ratio),
             "fraud_score": f"{assessment.fraud_risk.risk_score:.2f}",
-            "fraud_level": assessment.fraud_risk.risk_level,
+            "fraud_level": self._derive_fraud_level(assessment.fraud_risk.risk_score),
 
             # Severity section
             "prediction_set": ', '.join(sorted(assessment.prediction_set)),
@@ -69,7 +69,7 @@ class ReportGenerator:
             "fault_reasoning": assessment.fault_assessment.reasoning or "No reasoning provided",
 
             # Fraud section
-            "red_flags": assessment.fraud_risk.red_flags,
+            "red_flags": assessment.fraud_risk.indicators,
             "fraud_reasoning": assessment.fraud_risk.reasoning or "No fraud indicators detected",
 
             # Causal reasoning
@@ -85,6 +85,24 @@ class ReportGenerator:
         # Save to file
         output_path.parent.mkdir(parents=True, exist_ok=True)
         output_path.write_text(html_content, encoding='utf-8')
+
+    @staticmethod
+    def _derive_at_fault_party(fault_ratio: float) -> str:
+        if fault_ratio >= 75.0:
+            return "Ego Vehicle"
+        elif fault_ratio <= 25.0:
+            return "Other Vehicle"
+        else:
+            return "Shared"
+
+    @staticmethod
+    def _derive_fraud_level(risk_score: float) -> str:
+        if risk_score >= 0.65:
+            return "HIGH"
+        elif risk_score >= 0.4:
+            return "MEDIUM"
+        else:
+            return "LOW"
 
     def generate_multi_clip_report(
         self,

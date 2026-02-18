@@ -86,7 +86,7 @@ class FraudDetectionConfig:
     def __init__(
         self,
         # Thresholds
-        high_risk_threshold: float = 0.7,
+        high_risk_threshold: float = 0.65,
         medium_risk_threshold: float = 0.4,
         # Weights for different indicators (sum to ~1.0)
         weight_audio_visual_mismatch: float = 0.25,

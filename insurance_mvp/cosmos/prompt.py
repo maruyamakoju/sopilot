@@ -63,42 +63,44 @@ Analyze the video clip and provide a comprehensive insurance claim assessment in
 - Suspicious behavior (driver remains too calm, pre-positioned cameras)
 - Risk score: 0.0 (no suspicion) to 1.0 (highly suspicious)
 
+**IMPORTANT: The example below shows the JSON FORMAT ONLY. You MUST replace ALL values with your own analysis of the actual video. Do NOT copy the example values.**
+
 **OUTPUT FORMAT (STRICT JSON):**
 ```json
 {
-  "severity": "LOW",
-  "confidence": 0.85,
-  "prediction_set": ["LOW", "MEDIUM"],
+  "severity": "MEDIUM",
+  "confidence": 0.72,
+  "prediction_set": ["MEDIUM", "HIGH"],
   "review_priority": "STANDARD",
   "fault_assessment": {
-    "fault_ratio": 75.0,
-    "reasoning": "Following too closely, failed to maintain safe distance",
-    "applicable_rules": ["Following Distance Rule", "Duty to Avoid Collision"],
-    "scenario_type": "rear_end",
+    "fault_ratio": 40.0,
+    "reasoning": "Describe the fault allocation based on what you see in the video",
+    "applicable_rules": ["Relevant Traffic Rule"],
+    "scenario_type": "intersection",
     "traffic_signal": null,
-    "right_of_way": "Lead vehicle had right of way"
+    "right_of_way": "Describe who had right of way"
   },
   "fraud_risk": {
-    "risk_score": 0.1,
+    "risk_score": 0.05,
     "indicators": [],
-    "reasoning": "No fraud indicators detected, accident appears genuine"
+    "reasoning": "Explain your fraud assessment based on the video"
   },
   "hazards": [
     {
       "type": "collision",
-      "actors": ["insured_vehicle", "lead_vehicle"],
+      "actors": ["vehicle_A", "vehicle_B"],
       "spatial_relation": "front",
-      "timestamp_sec": 12.5
+      "timestamp_sec": 8.5
     }
   ],
   "evidence": [
     {
-      "timestamp_sec": 12.5,
-      "description": "Impact occurs - insured vehicle strikes rear of lead vehicle"
+      "timestamp_sec": 8.5,
+      "description": "Describe what you observe at this timestamp"
     }
   ],
-  "causal_reasoning": "Driver failed to brake in time when lead vehicle stopped suddenly. Following distance was insufficient for reaction time at observed speed.",
-  "recommended_action": "APPROVE"
+  "causal_reasoning": "Provide your detailed analysis of what happened in the video and why",
+  "recommended_action": "REVIEW"
 }
 ```
 

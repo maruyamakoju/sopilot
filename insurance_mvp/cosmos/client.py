@@ -66,13 +66,14 @@ class VLMConfig:
         model_name: ModelName = "qwen2.5-vl-7b",
         device: str = "cuda",
         dtype: str = "bfloat16",
-        fps: float = 4.0,
-        max_frames: int = 32,
-        max_new_tokens: int = 1024,
+        fps: float = 2.0,
+        max_frames: int = 16,
+        max_new_tokens: int = 512,
         temperature: float = 0.3,
-        timeout_sec: float = 1200.0,
+        timeout_sec: float = 300.0,
         min_pixels: int = 256 * 28 * 28,
-        max_pixels: int = 768 * 28 * 28,
+        max_pixels: int = 512 * 28 * 28,
+        quantize: str | None = None,
     ):
         """Initialize VLM configuration.
 
@@ -87,6 +88,7 @@ class VLMConfig:
             timeout_sec: Inference timeout in seconds
             min_pixels: Minimum pixels for dynamic resolution (Qwen only)
             max_pixels: Maximum pixels for dynamic resolution (Qwen only)
+            quantize: Quantization mode (None, "int4", "int8"). Requires bitsandbytes.
         """
         self.model_name = model_name
         self.device = device
@@ -98,6 +100,7 @@ class VLMConfig:
         self.timeout_sec = timeout_sec
         self.min_pixels = min_pixels
         self.max_pixels = max_pixels
+        self.quantize = quantize
 
 
 class VideoLLMClient:
@@ -121,6 +124,32 @@ class VideoLLMClient:
 
         if config.model_name != "mock":
             self._ensure_model_loaded()
+
+    def health_check(self) -> dict:
+        """Check model readiness and return status.
+
+        Returns:
+            Dict with status, model_name, model_loaded, and backend info.
+        """
+        import os
+
+        backend = os.getenv("INSURANCE_VLM_BACKEND", self.config.model_name)
+        result = {
+            "status": "ok" if self.config.model_name == "mock" or self._model is not None else "not_loaded",
+            "model_name": self.config.model_name,
+            "model_loaded": self._model is not None,
+            "backend": backend,
+            "device": self.config.device,
+            "is_mock": self.config.model_name == "mock",
+        }
+
+        if self._model is not None:
+            result["status"] = "ok"
+            cache_key = f"{self.config.model_name}_{self.config.device}_{self.config.dtype}"
+            result["cached"] = cache_key in self._model_cache
+
+        logger.info("Health check: %s", result["status"])
+        return result
 
     def _ensure_model_loaded(self) -> None:
         """Load model and processor (with caching).
@@ -197,12 +226,36 @@ class VideoLLMClient:
             else:
                 torch_dtype = torch.float32
 
+            # Build quantization config if requested
+            quantization_config = None
+            if self.config.quantize in ("int4", "int8"):
+                try:
+                    from transformers import BitsAndBytesConfig
+                    if self.config.quantize == "int4":
+                        quantization_config = BitsAndBytesConfig(
+                            load_in_4bit=True,
+                            bnb_4bit_compute_dtype=torch_dtype,
+                            bnb_4bit_quant_type="nf4",
+                        )
+                        logger.info("Using int4 quantization (NF4)")
+                    else:
+                        quantization_config = BitsAndBytesConfig(load_in_8bit=True)
+                        logger.info("Using int8 quantization")
+                except ImportError:
+                    logger.warning("bitsandbytes not installed, skipping quantization")
+
             # Load model
             logger.info("Loading Qwen2.5-VL-7B-Instruct...")
+            load_kwargs = {
+                "torch_dtype": torch_dtype,
+                "device_map": "auto" if self.config.device == "cuda" else "cpu",
+            }
+            if quantization_config is not None:
+                load_kwargs["quantization_config"] = quantization_config
+
             self._model = Qwen2_5_VLForConditionalGeneration.from_pretrained(
                 "Qwen/Qwen2.5-VL-7B-Instruct",
-                torch_dtype=torch_dtype,
-                device_map="auto" if self.config.device == "cuda" else "cpu",
+                **load_kwargs,
             )
 
             # Load processor
@@ -409,20 +462,18 @@ class VideoLLMClient:
             hazards = [
                 {
                     "type": "collision",
-                    "severity": "HIGH",
+                    "actors": ["insured_vehicle", "lead_vehicle"],
+                    "spatial_relation": "front",
                     "timestamp_sec": rng.uniform(19.0, 21.0),
-                    "description": "Rear-end impact with lead vehicle",
-                    "contributing_factors": ["Insufficient following distance", "Delayed reaction time"]
                 }
             ]
         elif is_near_miss:
             hazards = [
                 {
-                    "type": "pedestrian_hazard",
-                    "severity": "MEDIUM",
+                    "type": "near_miss",
+                    "actors": ["insured_vehicle", "pedestrian"],
+                    "spatial_relation": "front",
                     "timestamp_sec": rng.uniform(14.0, 16.0),
-                    "description": "Pedestrian crossing vehicle path",
-                    "contributing_factors": ["Unexpected pedestrian movement"]
                 }
             ]
 

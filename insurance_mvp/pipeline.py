@@ -467,11 +467,31 @@ class InsurancePipeline:
 
         processing_time = time.time() - start_time
 
+        severity = vlm_result.get('severity', 'LOW')
+
+        # Severity-aware fault ratio adjustment:
+        # No collision → no fault to assign
+        if severity == 'NONE':
+            fault_assessment = FaultAssessment(
+                fault_ratio=0.0,
+                reasoning="No incident detected — fault assessment not applicable",
+                applicable_rules=[],
+                scenario_type=fault_assessment.scenario_type,
+            )
+        elif severity in ('LOW', 'MEDIUM') and 'near' in vlm_result.get('reasoning', '').lower():
+            # Near-miss: no contact occurred, reduce fault significantly
+            fault_assessment = FaultAssessment(
+                fault_ratio=min(fault_assessment.fault_ratio, 20.0),
+                reasoning=f"Near-miss (no contact): {fault_assessment.reasoning}",
+                applicable_rules=fault_assessment.applicable_rules,
+                scenario_type=fault_assessment.scenario_type,
+            )
+
         # Construct ClaimAssessment
         assessment = ClaimAssessment(
-            severity=vlm_result.get('severity', 'LOW'),
+            severity=severity,
             confidence=vlm_result.get('confidence', 0.5),
-            prediction_set={vlm_result.get('severity', 'LOW')},  # Will be updated in stage 4
+            prediction_set={severity},  # Will be updated in stage 4
             review_priority="STANDARD",  # Will be updated in stage 5
             fault_assessment=fault_assessment,
             fraud_risk=fraud_risk,
@@ -509,14 +529,49 @@ class InsurancePipeline:
                     raise
 
     def _mock_vlm_result(self, clip: Any) -> Dict[str, Any]:
-        """Generate mock VLM result for testing"""
-        return {
-            'severity': 'MEDIUM',
-            'confidence': 0.75,
-            'reasoning': 'Mock VLM result for testing',
-            'hazards': [],
-            'evidence': []
-        }
+        """Generate scenario-aware mock VLM result for testing.
+
+        Infers scenario from video filename to return appropriate severity,
+        confidence, and reasoning instead of static defaults.
+        """
+        video_path = str(clip.get('video_path', '')).lower()
+        filename = Path(video_path).stem if video_path else ''
+
+        if 'collision' in filename or 'crash' in filename:
+            return {
+                'severity': 'HIGH',
+                'confidence': 0.92,
+                'reasoning': 'Mock: Rear-end collision detected with significant impact',
+                'causal_reasoning': 'rear-end collision: ego vehicle struck the vehicle ahead',
+                'hazards': [{'type': 'collision', 'actors': ['car', 'car']}],
+                'evidence': [{'timestamp_sec': 20.0, 'description': 'Impact detected'}],
+            }
+        elif 'near_miss' in filename or 'near-miss' in filename:
+            return {
+                'severity': 'MEDIUM',
+                'confidence': 0.80,
+                'reasoning': 'Mock: Near-miss event with pedestrian avoidance',
+                'causal_reasoning': 'near-miss: ego vehicle braked to avoid pedestrian',
+                'hazards': [{'type': 'near_miss', 'actors': ['car', 'pedestrian']}],
+                'evidence': [{'timestamp_sec': 15.0, 'description': 'Emergency braking'}],
+            }
+        elif 'normal' in filename or 'safe' in filename:
+            return {
+                'severity': 'NONE',
+                'confidence': 0.95,
+                'reasoning': 'Mock: Normal driving with no incidents detected',
+                'causal_reasoning': 'normal driving conditions, no hazards observed',
+                'hazards': [],
+                'evidence': [],
+            }
+        else:
+            return {
+                'severity': 'MEDIUM',
+                'confidence': 0.75,
+                'reasoning': 'Mock: Unable to determine scenario from filename',
+                'hazards': [],
+                'evidence': [],
+            }
 
     def _assess_fault_from_vlm(self, vlm_result: Dict[str, Any], clip: Any) -> FaultAssessment:
         """Adapt VLM output to fault assessment engine.

@@ -131,8 +131,8 @@ class TestVideoLLMClient:
         # Sample entire video (5 seconds @ 30 FPS = 150 frames)
         frame_paths = client._sample_frames(test_video, start_sec=0.0, end_sec=None)
 
-        # Should sample at 4 FPS for 5 seconds = 20 frames
-        assert len(frame_paths) == 20
+        # Should sample at 2 FPS for 5 seconds = 10 frames
+        assert len(frame_paths) == 10
 
         # Cleanup
         temp_dir = frame_paths[0].parent

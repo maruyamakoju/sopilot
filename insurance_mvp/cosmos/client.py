@@ -582,6 +582,7 @@ class VideoLLMClient:
                     max_new_tokens=self.config.max_new_tokens,
                     temperature=self.config.temperature if self.config.temperature > 0 else None,
                     do_sample=self.config.temperature > 0,
+                    repetition_penalty=1.1,
                 )
 
             # Decode
@@ -836,10 +837,5 @@ def create_client(model_name: ModelName = "qwen2.5-vl-7b", device: str = "cuda")
         model_name=model_name,
         device=device,
         dtype="bfloat16" if model_name == "qwen2.5-vl-7b" else "float16",
-        fps=4.0,  # 4 FPS for insurance dashcam analysis
-        max_frames=32,
-        max_new_tokens=1024,  # Enough for structured JSON output
-        temperature=0.3,  # Conservative sampling
-        timeout_sec=1200.0,  # 20 minutes max
     )
     return VideoLLMClient(config)

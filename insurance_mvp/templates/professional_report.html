@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="{{ lang }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -303,6 +303,44 @@
             margin-bottom: 4px;
         }
 
+        .executive-summary {
+            padding: 24px 40px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-bottom: 2px solid var(--primary);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .severity-indicator {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .severity-indicator.HIGH { background: var(--danger); }
+        .severity-indicator.MEDIUM { background: var(--warning); }
+        .severity-indicator.LOW { background: var(--success); }
+        .severity-indicator.NONE { background: var(--gray-300); }
+
+        .summary-text {
+            font-size: 16px;
+            color: var(--gray-700);
+            line-height: 1.6;
+        }
+
+        .summary-action {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            white-space: nowrap;
+            padding: 8px 20px;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
         @media print {
             body {
                 background: white;
@@ -331,30 +369,37 @@
     <div class="container">
         <!-- Header -->
         <div class="header">
-            <h1>Insurance Claim Assessment Report</h1>
+            <h1>{{ _("Insurance Claim Assessment Report") }}</h1>
             <div class="meta">
-                <span>📹 Video ID: {{ video_id }}</span>
-                <span>📅 Generated: {{ timestamp }}</span>
-                <span>⏱️ Processing Time: {{ processing_time }}s</span>
+                <span>{{ _("Video ID") }}: {{ video_id }}</span>
+                <span>{{ _("Generated") }}: {{ timestamp }}</span>
+                <span>{{ _("Processing Time") }}: {{ processing_time }}s</span>
             </div>
+        </div>
+
+        <!-- Executive Summary -->
+        <div class="executive-summary">
+            <div class="severity-indicator {{ severity }}"></div>
+            <div class="summary-text">{{ executive_summary }}</div>
+            <div class="summary-action">{{ _(recommended_action) }}</div>
         </div>
 
         <!-- Hero Cards -->
         <div class="hero">
             <div class="hero-card">
-                <div class="hero-label">Severity Level</div>
+                <div class="hero-label">{{ _("Severity Level") }}</div>
                 <div class="hero-value severity-{{ severity }}">{{ severity }}</div>
-                <div class="hero-sub">Confidence: {{ confidence }}%</div>
+                <div class="hero-sub">{{ _("Confidence") }}: {{ confidence }}%</div>
             </div>
 
             <div class="hero-card">
-                <div class="hero-label">Fault Ratio</div>
+                <div class="hero-label">{{ _("Fault Ratio") }}</div>
                 <div class="hero-value">{{ fault_ratio }}%</div>
-                <div class="hero-sub">{{ at_fault_party }}</div>
+                <div class="hero-sub">{{ _(at_fault_party) }}</div>
             </div>
 
             <div class="hero-card">
-                <div class="hero-label">Fraud Risk</div>
+                <div class="hero-label">{{ _("Fraud Risk") }}</div>
                 <div class="hero-value">{{ fraud_score }}</div>
                 <div class="hero-sub">{{ fraud_level }}</div>
             </div>
@@ -362,53 +407,53 @@
 
         <!-- Severity Assessment Section -->
         <div class="section">
-            <h2 class="section-title">Severity Assessment</h2>
+            <h2 class="section-title">{{ _("Severity Assessment") }}</h2>
 
             <div class="metric-grid">
                 <div class="metric">
-                    <div class="metric-label">Severity Level</div>
+                    <div class="metric-label">{{ _("Severity Level") }}</div>
                     <div class="metric-value severity-{{ severity }}">{{ severity }}</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-label">Confidence Score</div>
+                    <div class="metric-label">{{ _("Confidence Score") }}</div>
                     <div class="metric-value">{{ confidence }}%</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-label">Review Priority</div>
+                    <div class="metric-label">{{ _("Review Priority") }}</div>
                     <div class="metric-value">
-                        <span class="badge badge-{{ review_priority_class }}">{{ review_priority }}</span>
+                        <span class="badge badge-{{ review_priority_class }}">{{ _(review_priority) }}</span>
                     </div>
                 </div>
             </div>
 
             <div class="metric">
-                <div class="metric-label">Conformal Prediction Set (90% confidence)</div>
+                <div class="metric-label">{{ _("Conformal Prediction Set (90% confidence)") }}</div>
                 <div class="prediction-set">{{ prediction_set }}</div>
             </div>
         </div>
 
         <!-- Fault Assessment Section -->
         <div class="section">
-            <h2 class="section-title">Fault Assessment</h2>
+            <h2 class="section-title">{{ _("Fault Assessment") }}</h2>
 
             <div class="metric-grid">
                 <div class="metric">
-                    <div class="metric-label">Fault Ratio</div>
+                    <div class="metric-label">{{ _("Fault Ratio") }}</div>
                     <div class="metric-value">{{ fault_ratio }}%</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-label">At-Fault Party</div>
-                    <div class="metric-value">{{ at_fault_party }}</div>
+                    <div class="metric-label">{{ _("At-Fault Party") }}</div>
+                    <div class="metric-value">{{ _(at_fault_party) }}</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-label">Scenario Type</div>
+                    <div class="metric-label">{{ _("Scenario Type") }}</div>
                     <div class="metric-value">{{ scenario_type }}</div>
                 </div>
             </div>
 
             {% if applicable_rules %}
             <div class="rules-section">
-                <strong>Applicable Traffic Rules:</strong>
+                <strong>{{ _("Applicable Traffic Rules") }}:</strong>
                 <ul class="rules-list">
                     {% for rule in applicable_rules %}
                     <li>{{ rule }}</li>
@@ -418,29 +463,29 @@
             {% endif %}
 
             <div class="reasoning-box">
-                <strong>Fault Reasoning:</strong>
+                <strong>{{ _("Fault Reasoning") }}:</strong>
                 <div class="reasoning-text">{{ fault_reasoning }}</div>
             </div>
         </div>
 
         <!-- Fraud Detection Section -->
         <div class="section">
-            <h2 class="section-title">Fraud Detection Analysis</h2>
+            <h2 class="section-title">{{ _("Fraud Detection Analysis") }}</h2>
 
             <div class="metric-grid">
                 <div class="metric">
-                    <div class="metric-label">Fraud Risk Score</div>
+                    <div class="metric-label">{{ _("Fraud Risk Score") }}</div>
                     <div class="metric-value">{{ fraud_score }}</div>
                 </div>
                 <div class="metric">
-                    <div class="metric-label">Risk Level</div>
+                    <div class="metric-label">{{ _("Risk Level") }}</div>
                     <div class="metric-value">{{ fraud_level }}</div>
                 </div>
             </div>
 
             {% if red_flags %}
             <div class="red-flags-section">
-                <strong>🚩 Red Flags Detected:</strong>
+                <strong>{{ _("Red Flags Detected") }}:</strong>
                 <ul class="red-flags-list">
                     {% for flag in red_flags %}
                     <li>{{ flag }}</li>
@@ -450,14 +495,14 @@
             {% endif %}
 
             <div class="reasoning-box">
-                <strong>Fraud Analysis:</strong>
+                <strong>{{ _("Fraud Analysis") }}:</strong>
                 <div class="reasoning-text">{{ fraud_reasoning }}</div>
             </div>
         </div>
 
         <!-- Causal Reasoning Section -->
         <div class="section">
-            <h2 class="section-title">AI Causal Reasoning</h2>
+            <h2 class="section-title">{{ _("AI Causal Reasoning") }}</h2>
 
             <div class="reasoning-box">
                 <div class="reasoning-text">{{ causal_reasoning }}</div>
@@ -466,19 +511,19 @@
 
         <!-- Recommended Action Section -->
         <div class="section">
-            <h2 class="section-title">Recommended Action</h2>
+            <h2 class="section-title">{{ _("Recommended Action") }}</h2>
 
             <div class="action-box">
-                <div class="action-label">Recommended Next Step</div>
-                <div class="action-value">{{ recommended_action }}</div>
+                <div class="action-label">{{ _("Recommended Next Step") }}</div>
+                <div class="action-value">{{ _(recommended_action) }}</div>
             </div>
         </div>
 
         <!-- Footer -->
         <div class="footer">
-            <div class="footer-logo">Insurance MVP</div>
-            <div>AI-Powered Insurance Claim Assessment System</div>
-            <div>Contract-Grade Professional Quality</div>
+            <div class="footer-logo">Insurance MVP v1.0</div>
+            <div>{{ _("AI-Powered Insurance Claim Assessment System") }}</div>
+            <div>{{ _("Contract-Grade Professional Quality") }}</div>
         </div>
     </div>
 </body>

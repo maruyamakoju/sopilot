@@ -3,8 +3,6 @@
 Covers configure_logging, get_logger, LogContext, log_execution_time.
 """
 
-import logging
-
 import pytest
 
 from sopilot.logging_config import (
@@ -12,7 +10,6 @@ from sopilot.logging_config import (
     configure_logging,
     get_logger,
     log_execution_time,
-    STRUCTLOG_AVAILABLE,
 )
 
 
@@ -117,6 +114,7 @@ class TestLogExecutionTime:
 
     def test_decorator_preserves_return(self):
         """Decorated function returns its value."""
+
         @log_execution_time()
         def add(a, b):
             return a + b
@@ -125,6 +123,7 @@ class TestLogExecutionTime:
 
     def test_decorator_preserves_exception(self):
         """Decorated function re-raises exceptions."""
+
         @log_execution_time()
         def fail():
             raise RuntimeError("boom")
@@ -144,6 +143,7 @@ class TestLogExecutionTime:
 
     def test_decorator_with_event_name(self):
         """Custom event name is accepted."""
+
         @log_execution_time(event_name="my_event")
         def noop():
             pass
@@ -152,6 +152,7 @@ class TestLogExecutionTime:
 
     def test_decorator_preserves_function_name(self):
         """Decorated function retains its name."""
+
         @log_execution_time()
         def my_function():
             pass

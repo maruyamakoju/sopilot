@@ -4,7 +4,6 @@ Covers Prometheus metric helpers: counters, histograms, gauges, context managers
 """
 
 from sopilot.metrics import (
-    PROMETHEUS_AVAILABLE,
     collect_gpu_metrics,
     increment_job_counter,
     set_build_info,

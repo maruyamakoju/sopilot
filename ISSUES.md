@@ -44,14 +44,14 @@ Domain adaptation training pipeline untested.
 ### ~~[P2-2] Add tests for `nn/constants.py`~~ ✅ DONE (2026-02-12)
 Added `tests/test_nn_constants_unit.py` with 3 tests.
 
-### [P2-3] Add tests for `logging_config.py`
-Structured logging setup and `LogContext` context manager untested.
+### ~~[P2-3] Add tests for `logging_config.py`~~ ✅ DONE (2026-02-18)
+Added `tests/test_logging_config.py` (22 tests): configure_logging, get_logger, LogContext, log_execution_time.
 
-### [P2-4] Add tests for `metrics.py`
-Prometheus metrics collection (`track_job_duration`, `collect_gpu_metrics`) untested.
+### ~~[P2-4] Add tests for `metrics.py`~~ ✅ DONE (2026-02-18)
+Added `tests/test_metrics.py` (20 tests): job counters, duration trackers, gauge updates, build info, GPU metrics.
 
-### [P2-5] Add tests for `main.py`
-Entry point module untested. Verify `create_app()` wiring and `run()` function.
+### ~~[P2-5] Add tests for `main.py`~~ ✅ DONE (2026-02-18)
+Added `tests/test_main.py` (3 tests): app creation, routes, run() function.
 
 ---
 
@@ -60,14 +60,14 @@ Entry point module untested. Verify `create_app()` wiring and `run()` function.
 ### [P3-1] Pin exact CI dependency versions
 Currently using `>=` minimum bounds. Consider adding a `requirements-lock.txt` or using `pip-compile` for reproducible CI builds.
 
-### [P3-2] Add pre-commit hooks
-Configure pre-commit with ruff check + ruff format for automatic linting on commit.
+### ~~[P3-2] Add pre-commit hooks~~ ✅ DONE (2026-02-18)
+`.pre-commit-config.yaml` with ruff check --fix + ruff format. pre-commit added to dev deps.
 
 ### [P3-3] Add type checking
 Consider adding `mypy` or `pyright` to CI. The 6 `# type: ignore` comments are all justified (optional dependency guards).
 
-### [P3-4] Coverage reporting
-Add `pytest-cov` to CI with a minimum coverage threshold.
+### ~~[P3-4] Coverage reporting~~ ✅ DONE (2026-02-18)
+pytest-cov added to dev deps. Insurance CI: `--cov-fail-under=60` (current: 74%). SOPilot CI: `--cov-fail-under=75`.
 
 ### ~~[P3-5] Docker / container support~~ ✅ DONE (2026-02-13)
 Multi-stage Dockerfile (root=CPU-only, docker/Dockerfile.cpu=with PyTorch, docker/Dockerfile.gpu=CUDA 12.1). docker-compose.yml with API+worker+redis+qdrant+postgres. .env.example with all vars.

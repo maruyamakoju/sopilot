@@ -5,16 +5,17 @@ Adapted from SOPilot's nn/conformal.py for insurance video review use case.
 Reference: Vovk et al. (2005) "Algorithmic Learning in a Random World"
 """
 
-import numpy as np
-from typing import List, Set, Tuple
 from dataclasses import dataclass
+
+import numpy as np
 
 
 @dataclass
 class ConformalConfig:
     """Configuration for conformal prediction"""
+
     alpha: float = 0.1  # Miscoverage rate (10% = 90% confidence)
-    severity_levels: List[str] = None  # ["NONE", "LOW", "MEDIUM", "HIGH"]
+    severity_levels: list[str] = None  # ["NONE", "LOW", "MEDIUM", "HIGH"]
 
     def __post_init__(self):
         if self.severity_levels is None:
@@ -65,7 +66,7 @@ class SplitConformal:
 
         self._calibrated = True
 
-    def predict_set(self, scores: np.ndarray) -> List[Set[str]]:
+    def predict_set(self, scores: np.ndarray) -> list[set[str]]:
         """
         Predict conformal prediction sets.
 
@@ -97,7 +98,7 @@ class SplitConformal:
 
         return prediction_sets
 
-    def predict_set_single(self, scores: np.ndarray) -> Set[str]:
+    def predict_set_single(self, scores: np.ndarray) -> set[str]:
         """Predict conformal set for a single instance"""
         return self.predict_set(scores.reshape(1, -1))[0]
 
@@ -112,7 +113,7 @@ class SplitConformal:
         n_test = len(y_true)
         n_covered = 0
 
-        for pred_set, true_label_idx in zip(prediction_sets, y_true):
+        for pred_set, true_label_idx in zip(prediction_sets, y_true, strict=False):
             true_label = self.config.severity_levels[int(true_label_idx)]
             if true_label in pred_set:
                 n_covered += 1
@@ -129,6 +130,7 @@ class SplitConformal:
 
 # Convenience functions for insurance use case
 
+
 def severity_to_ordinal(severity: str) -> int:
     """Convert severity string to ordinal integer"""
     mapping = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
@@ -141,7 +143,7 @@ def ordinal_to_severity(ordinal: int) -> str:
     return mapping.get(ordinal, "NONE")
 
 
-def compute_review_priority(severity: str, prediction_set: Set[str]) -> str:
+def compute_review_priority(severity: str, prediction_set: set[str]) -> str:
     """
     Compute human review priority based on severity and uncertainty.
 

@@ -4,13 +4,12 @@ Generates contract-quality HTML reports from ClaimAssessment data.
 Supports English and Japanese localization.
 """
 
-from pathlib import Path
 from datetime import datetime
-from typing import Optional
+from pathlib import Path
+
 from jinja2 import Environment, FileSystemLoader
 
 from .insurance.schema import ClaimAssessment
-
 
 # Translation table: English → Japanese
 _TRANSLATIONS_JA = {
@@ -65,7 +64,7 @@ _TRANSLATIONS_JA = {
 class ReportGenerator:
     """Generate professional HTML reports from assessment data."""
 
-    def __init__(self, template_dir: Optional[Path] = None, lang: str = "en"):
+    def __init__(self, template_dir: Path | None = None, lang: str = "en"):
         """Initialize report generator.
 
         Args:
@@ -110,15 +109,12 @@ class ReportGenerator:
         data = {
             # Language
             "lang": self.lang,
-
             # Executive summary
             "executive_summary": executive_summary,
-
             # Header
             "video_id": video_id,
             "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             "processing_time": f"{assessment.processing_time_sec:.1f}",
-
             # Hero cards
             "severity": assessment.severity,
             "confidence": int(assessment.confidence * 100),
@@ -126,24 +122,19 @@ class ReportGenerator:
             "at_fault_party": self._derive_at_fault_party(assessment.fault_assessment.fault_ratio),
             "fraud_score": f"{assessment.fraud_risk.risk_score:.2f}",
             "fraud_level": self._derive_fraud_level(assessment.fraud_risk.risk_score),
-
             # Severity section
-            "prediction_set": ', '.join(sorted(assessment.prediction_set)),
+            "prediction_set": ", ".join(sorted(assessment.prediction_set)),
             "review_priority": assessment.review_priority,
             "review_priority_class": assessment.review_priority.lower(),
-
             # Fault section
             "scenario_type": assessment.fault_assessment.scenario_type or "unknown",
             "applicable_rules": assessment.fault_assessment.applicable_rules,
             "fault_reasoning": assessment.fault_assessment.reasoning or "No reasoning provided",
-
             # Fraud section
             "red_flags": assessment.fraud_risk.indicators,
             "fraud_reasoning": assessment.fraud_risk.reasoning or "No fraud indicators detected",
-
             # Causal reasoning
             "causal_reasoning": assessment.causal_reasoning or "No causal reasoning available",
-
             # Recommendation
             "recommended_action": assessment.recommended_action,
         }
@@ -153,7 +144,7 @@ class ReportGenerator:
 
         # Save to file
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(html_content, encoding='utf-8')
+        output_path.write_text(html_content, encoding="utf-8")
 
     def _generate_executive_summary(self, assessment: ClaimAssessment) -> str:
         """Generate 1-2 sentence executive summary."""
@@ -220,16 +211,9 @@ class ReportGenerator:
 
         # Sort by severity
         severity_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "NONE": 3}
-        sorted_assessments = sorted(
-            assessments,
-            key=lambda a: (severity_order.get(a.severity, 4), -a.confidence)
-        )
+        sorted_assessments = sorted(assessments, key=lambda a: (severity_order.get(a.severity, 4), -a.confidence))
 
         # Use most severe assessment
         primary_assessment = sorted_assessments[0]
 
-        self.generate_report(
-            assessment=primary_assessment,
-            video_id=video_id,
-            output_path=output_path
-        )
+        self.generate_report(assessment=primary_assessment, video_id=video_id, output_path=output_path)

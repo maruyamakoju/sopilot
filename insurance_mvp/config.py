@@ -7,15 +7,17 @@ Loads configuration from multiple sources with priority:
 """
 
 import os
-import yaml
-from pathlib import Path
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass, field
 from enum import Enum
+from pathlib import Path
+from typing import Any
+
+import yaml
 
 
 class DeviceType(str, Enum):
     """Device type for model inference"""
+
     CUDA = "cuda"
     CPU = "cpu"
     AUTO = "auto"
@@ -23,12 +25,14 @@ class DeviceType(str, Enum):
 
 class CosmosBackend(str, Enum):
     """Video-LLM backend"""
+
     QWEN25VL = "qwen2.5-vl-7b"
     MOCK = "mock"
 
 
 class WhisperBackend(str, Enum):
     """Whisper transcription backend"""
+
     OPENAI_WHISPER = "openai-whisper"
     MOCK = "mock"
 
@@ -36,6 +40,7 @@ class WhisperBackend(str, Enum):
 @dataclass
 class VideoConfig:
     """Video processing configuration"""
+
     max_resolution: tuple = (1280, 720)  # Max resolution before downsampling
     fps_sampling: int = 2  # Extract N frames per second
     chunk_duration_sec: float = 5.0  # Chunk duration for mining
@@ -46,6 +51,7 @@ class VideoConfig:
 @dataclass
 class MiningConfig:
     """B1: Signal mining configuration"""
+
     top_k_clips: int = 20  # Top K dangerous clips to extract
 
     # Audio thresholds
@@ -70,6 +76,7 @@ class MiningConfig:
 @dataclass
 class CosmosConfig:
     """B2: Video-LLM inference configuration"""
+
     backend: CosmosBackend = CosmosBackend.QWEN25VL
     model_name: str = "Qwen/Qwen2.5-VL-7B-Instruct"
     device: DeviceType = DeviceType.AUTO
@@ -90,17 +97,19 @@ class CosmosConfig:
 @dataclass
 class ConformalConfig:
     """B4: Conformal prediction configuration"""
+
     alpha: float = 0.1  # 90% confidence (1 - alpha)
-    severity_levels: List[str] = field(default_factory=lambda: ["NONE", "LOW", "MEDIUM", "HIGH"])
+    severity_levels: list[str] = field(default_factory=lambda: ["NONE", "LOW", "MEDIUM", "HIGH"])
 
     # Calibration
     use_pretrained_calibration: bool = True
-    calibration_data_path: Optional[str] = None
+    calibration_data_path: str | None = None
 
 
 @dataclass
 class WhisperConfig:
     """Whisper transcription configuration"""
+
     backend: WhisperBackend = WhisperBackend.OPENAI_WHISPER
     model_size: str = "base"  # tiny, base, small, medium, large
     language: str = "ja"  # Japanese for dashcam videos
@@ -112,8 +121,8 @@ class PipelineConfig:
     """Pipeline orchestration configuration"""
 
     # Input/Output
-    video_path: Optional[str] = None
-    video_dir: Optional[str] = None
+    video_path: str | None = None
+    video_dir: str | None = None
     output_dir: str = "results"
 
     # Processing
@@ -128,7 +137,7 @@ class PipelineConfig:
 
     # Logging
     log_level: str = "INFO"  # DEBUG, INFO, WARNING, ERROR
-    log_file: Optional[str] = None  # If None, log to console only
+    log_file: str | None = None  # If None, log to console only
 
     # Component configs
     video: VideoConfig = field(default_factory=VideoConfig)
@@ -152,19 +161,19 @@ class ConfigLoader:
     """Loads configuration from YAML and environment variables"""
 
     @staticmethod
-    def load_from_yaml(yaml_path: str) -> Dict[str, Any]:
+    def load_from_yaml(yaml_path: str) -> dict[str, Any]:
         """Load configuration from YAML file"""
         yaml_path_obj = Path(yaml_path)
         if not yaml_path_obj.exists():
             raise FileNotFoundError(f"Config file not found: {yaml_path}")
 
-        with open(yaml_path_obj, 'r', encoding='utf-8') as f:
+        with open(yaml_path_obj, encoding="utf-8") as f:
             config_dict = yaml.safe_load(f)
 
         return config_dict or {}
 
     @staticmethod
-    def load_from_env() -> Dict[str, Any]:
+    def load_from_env() -> dict[str, Any]:
         """Load configuration from environment variables"""
         env_config = {}
 
@@ -175,23 +184,18 @@ class ConfigLoader:
             "INSURANCE_LOG_FILE": ("log_file", str),
             "INSURANCE_PARALLEL_WORKERS": ("parallel_workers", int),
             "INSURANCE_CONTINUE_ON_ERROR": ("continue_on_error", lambda x: x.lower() == "true"),
-
             # Cosmos
             "INSURANCE_COSMOS_BACKEND": ("cosmos.backend", str),
             "INSURANCE_COSMOS_DEVICE": ("cosmos.device", str),
             "INSURANCE_COSMOS_MAX_CONCURRENT": ("cosmos.max_concurrent_inferences", int),
-
             # Mining
             "INSURANCE_MINING_TOP_K": ("mining.top_k_clips", int),
-
             # Conformal
             "INSURANCE_CONFORMAL_ALPHA": ("conformal.alpha", float),
-
             # Whisper
             "INSURANCE_WHISPER_BACKEND": ("whisper.backend", str),
             "INSURANCE_WHISPER_MODEL": ("whisper.model_size", str),
             "INSURANCE_WHISPER_DEVICE": ("whisper.device", str),
-
             # Feature flags
             "INSURANCE_ENABLE_TRANSCRIPTION": ("enable_transcription", lambda x: x.lower() == "true"),
             "INSURANCE_ENABLE_CONFORMAL": ("enable_conformal", lambda x: x.lower() == "true"),
@@ -205,7 +209,7 @@ class ConfigLoader:
                 try:
                     converted_value = converter(value)
                     # Support nested keys like "cosmos.backend"
-                    keys = config_key.split('.')
+                    keys = config_key.split(".")
                     current = env_config
                     for key in keys[:-1]:
                         if key not in current:
@@ -218,7 +222,7 @@ class ConfigLoader:
         return env_config
 
     @staticmethod
-    def merge_configs(*configs: Dict[str, Any]) -> Dict[str, Any]:
+    def merge_configs(*configs: dict[str, Any]) -> dict[str, Any]:
         """Merge multiple config dictionaries (later configs override earlier ones)"""
         merged = {}
 
@@ -228,7 +232,7 @@ class ConfigLoader:
         return merged
 
     @staticmethod
-    def _deep_merge(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    def _deep_merge(base: dict[str, Any], override: dict[str, Any]) -> dict[str, Any]:
         """Deep merge two dictionaries"""
         result = base.copy()
 
@@ -241,7 +245,7 @@ class ConfigLoader:
         return result
 
     @staticmethod
-    def dict_to_config(config_dict: Dict[str, Any]) -> PipelineConfig:
+    def dict_to_config(config_dict: dict[str, Any]) -> PipelineConfig:
         """Convert dictionary to PipelineConfig dataclass"""
 
         # Extract nested configs
@@ -275,16 +279,13 @@ class ConfigLoader:
             mining=mining_config,
             cosmos=cosmos_config,
             conformal=conformal_config,
-            whisper=whisper_config
+            whisper=whisper_config,
         )
 
         return config
 
 
-def load_config(
-    yaml_path: Optional[str] = None,
-    override_dict: Optional[Dict[str, Any]] = None
-) -> PipelineConfig:
+def load_config(yaml_path: str | None = None, override_dict: dict[str, Any] | None = None) -> PipelineConfig:
     """
     Load configuration from multiple sources.
 
@@ -318,12 +319,7 @@ def load_config(
     env_config = loader.load_from_env()
 
     # Merge configs (later overrides earlier)
-    merged_config = loader.merge_configs(
-        default_config,
-        yaml_config,
-        env_config,
-        override_dict or {}
-    )
+    merged_config = loader.merge_configs(default_config, yaml_config, env_config, override_dict or {})
 
     # Convert to PipelineConfig
     config = loader.dict_to_config(merged_config)
@@ -351,5 +347,5 @@ def save_config(config: PipelineConfig, yaml_path: str):
     yaml_path_obj = Path(yaml_path)
     yaml_path_obj.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(yaml_path_obj, 'w', encoding='utf-8') as f:
+    with open(yaml_path_obj, "w", encoding="utf-8") as f:
         yaml.dump(config_dict, f, default_flow_style=False, allow_unicode=True, indent=2)

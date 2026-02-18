@@ -18,7 +18,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import cv2
 import numpy as np
@@ -75,7 +74,7 @@ class ProximityAnalyzer:
     3. Object type weighting - pedestrians/cyclists prioritized
     """
 
-    def __init__(self, config: Optional[ProximityConfig] = None):
+    def __init__(self, config: ProximityConfig | None = None):
         self.config = config or ProximityConfig()
         self.model = None
 
@@ -87,9 +86,7 @@ class ProximityAnalyzer:
         try:
             from ultralytics import YOLO
         except ImportError as e:
-            raise RuntimeError(
-                "ultralytics not installed. Install with: pip install ultralytics"
-            ) from e
+            raise RuntimeError("ultralytics not installed. Install with: pip install ultralytics") from e
 
         logger.info(f"Loading YOLOv8 model: {self.config.model_name}")
 
@@ -294,7 +291,7 @@ class ProximityAnalyzer:
         """
         per_sec = np.zeros(n_seconds, dtype=np.float32)
 
-        for ts, val in zip(timestamps, values):
+        for ts, val in zip(timestamps, values, strict=False):
             sec_idx = int(np.floor(ts))
             if 0 <= sec_idx < n_seconds:
                 # Use max pooling (keep highest danger within each second)
@@ -329,9 +326,9 @@ class ProximityAnalyzer:
 
 def visualize_detections(
     video_path: Path | str,
-    output_path: Optional[Path | str] = None,
-    config: Optional[ProximityConfig] = None,
-) -> Optional[Path]:
+    output_path: Path | str | None = None,
+    config: ProximityConfig | None = None,
+) -> Path | None:
     """
     Generate object detection visualization video for debugging.
 

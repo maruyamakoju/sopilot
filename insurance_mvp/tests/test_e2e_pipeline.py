@@ -5,16 +5,14 @@ Uses @pytest.mark.slow for CI-skippable tests.
 """
 
 import json
-import pytest
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
-from unittest.mock import Mock, patch
 
-from insurance_mvp.config import PipelineConfig, CosmosBackend
-from insurance_mvp.pipeline import InsurancePipeline, VideoResult
+import pytest
+from insurance_mvp.config import CosmosBackend, PipelineConfig
 from insurance_mvp.insurance.schema import ClaimAssessment, FaultAssessment, FraudRisk
-
+from insurance_mvp.pipeline import InsurancePipeline
 
 # ---------------------------------------------------------------------------
 # Ground truth from data/dashcam_demo/metadata.json
@@ -42,6 +40,7 @@ GROUND_TRUTH = {
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_pipeline(output_dir: str) -> InsurancePipeline:
     """Create pipeline configured for testing."""
@@ -99,6 +98,7 @@ def _make_assessment_from_gt(video_id: str, gt: dict) -> ClaimAssessment:
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 @pytest.fixture
 def e2e_dir():
     """Temp dir for E2E test outputs."""
@@ -110,6 +110,7 @@ def e2e_dir():
 # ============================================================================
 # TestE2EPipeline
 # ============================================================================
+
 
 class TestE2EPipeline:
     """E2E pipeline tests using mock VLM backend."""
@@ -212,7 +213,7 @@ class TestE2EPipeline:
         result = pipeline.process_video(str(video_path), video_id="json_test")
 
         if result.output_json_path and Path(result.output_json_path).exists():
-            with open(result.output_json_path, "r", encoding="utf-8") as f:
+            with open(result.output_json_path, encoding="utf-8") as f:
                 data = json.load(f)
             assert "video_id" in data
             assert "assessments" in data

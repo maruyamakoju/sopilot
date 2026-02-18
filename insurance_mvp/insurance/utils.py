@@ -6,15 +6,13 @@ Helper functions for video processing, metadata extraction, and evidence handlin
 from __future__ import annotations
 
 import logging
+from datetime import timedelta
 from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-from datetime import datetime, timedelta
 
 import cv2
 import numpy as np
 
 from .schema import Evidence
-
 
 logger = logging.getLogger(__name__)
 
@@ -123,9 +121,9 @@ def extract_video_metadata(video_path: str) -> VideoMetadata:
 
 def extract_keyframes(
     video_path: str,
-    timestamps_sec: List[float],
-    output_dir: Optional[str] = None,
-) -> List[Evidence]:
+    timestamps_sec: list[float],
+    output_dir: str | None = None,
+) -> list[Evidence]:
     """Extract keyframes at specified timestamps as evidence.
 
     Args:
@@ -251,7 +249,7 @@ def parse_timestamp(timestamp_str: str) -> float:
         else:
             raise ValueError(f"Invalid timestamp format: {timestamp_str}")
     except ValueError as e:
-        raise ValueError(f"Cannot parse timestamp '{timestamp_str}': {e}")
+        raise ValueError(f"Cannot parse timestamp '{timestamp_str}': {e}") from e
 
 
 def calculate_frame_difference(
@@ -318,7 +316,7 @@ def detect_scene_changes(
     video_path: str,
     threshold: float = 0.3,
     min_gap_sec: float = 1.0,
-) -> List[float]:
+) -> list[float]:
     """Detect scene changes in video using frame differencing.
 
     Args:
@@ -446,7 +444,7 @@ def estimate_motion_intensity(
                 )
 
                 # Calculate flow magnitude
-                magnitude = np.sqrt(flow[..., 0]**2 + flow[..., 1]**2)
+                magnitude = np.sqrt(flow[..., 0] ** 2 + flow[..., 1] ** 2)
                 avg_magnitude = np.mean(magnitude)
                 motion_magnitudes.append(avg_magnitude)
 
@@ -471,7 +469,7 @@ def estimate_motion_intensity(
         cap.release()
 
 
-def calculate_video_quality_score(video_path: str, num_samples: int = 10) -> Dict[str, float]:
+def calculate_video_quality_score(video_path: str, num_samples: int = 10) -> dict[str, float]:
     """Calculate video quality metrics.
 
     Estimates:

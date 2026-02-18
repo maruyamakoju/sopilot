@@ -9,16 +9,13 @@ Usage:
 """
 
 import argparse
-import json
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
-from datetime import datetime
 
-from insurance_mvp.config import PipelineConfig, CosmosBackend, DeviceType
-from insurance_mvp.pipeline import InsurancePipeline, VideoResult
+from insurance_mvp.config import CosmosBackend, DeviceType, PipelineConfig
 from insurance_mvp.insurance.schema import ClaimAssessment
-from insurance_mvp.report_generator import ReportGenerator
+from insurance_mvp.pipeline import InsurancePipeline
 
 
 def create_mock_video(video_path: Path, duration_sec: int = 30):
@@ -26,7 +23,7 @@ def create_mock_video(video_path: Path, duration_sec: int = 30):
     # Just create a placeholder file
     # In production, this would be a real video file
     video_path.parent.mkdir(parents=True, exist_ok=True)
-    with open(video_path, 'wb') as f:
+    with open(video_path, "wb") as f:
         # Write a minimal file header (not a real video, just for testing)
         f.write(b"MOCK_VIDEO_FILE\n")
         f.write(f"Duration: {duration_sec}s\n".encode())
@@ -51,13 +48,13 @@ def print_assessment_summary(assessment: ClaimAssessment, idx: int):
     print(f"Fault Ratio:      {assessment.fault_assessment.fault_ratio:.1f}%")
     print(f"Fraud Score:      {assessment.fraud_risk.risk_score:.2f}")
     print(f"Recommended:      {assessment.recommended_action}")
-    print(f"\nReasoning:")
+    print("\nReasoning:")
     print(f"  {assessment.causal_reasoning}")
     if assessment.fault_assessment.reasoning:
-        print(f"\nFault Assessment:")
+        print("\nFault Assessment:")
         print(f"  {assessment.fault_assessment.reasoning}")
     if assessment.fraud_risk.reasoning:
-        print(f"\nFraud Analysis:")
+        print("\nFraud Analysis:")
         print(f"  {assessment.fraud_risk.reasoning}")
 
 
@@ -121,7 +118,7 @@ def run_demo(output_dir: str = "demo_results", verbose: bool = False):
 
         pipeline = InsurancePipeline(config)
         print("[OK] Pipeline initialized")
-        print(f"  Components loaded:")
+        print("  Components loaded:")
         print(f"    - Signal fuser:     {'[OK]' if pipeline.signal_fuser else '[X] (mock mode)'}")
         print(f"    - Cosmos client:    {'[OK]' if pipeline.cosmos_client else '[X] (mock mode)'}")
         print(f"    - Fault assessor:   {'[OK]' if pipeline.fault_assessor else '[X] (mock mode)'}")
@@ -225,7 +222,7 @@ def run_demo(output_dir: str = "demo_results", verbose: bool = False):
             avg_fault = sum(a.fault_assessment.fault_ratio for a in all_assessments) / len(all_assessments)
             avg_fraud = sum(a.fraud_risk.risk_score for a in all_assessments) / len(all_assessments)
 
-            print(f"\nAverage Scores:")
+            print("\nAverage Scores:")
             print(f"  Confidence:   {avg_confidence:.2f}")
             print(f"  Fault Ratio:  {avg_fault:.1f}%")
             print(f"  Fraud Score:  {avg_fraud:.2f}")
@@ -233,12 +230,12 @@ def run_demo(output_dir: str = "demo_results", verbose: bool = False):
         # Final summary
         print_section("Demo Complete!", "=")
         print(f"Results saved to: {output_dir}/")
-        print(f"\nTo view HTML reports:")
-        print(f"  # Windows")
+        print("\nTo view HTML reports:")
+        print("  # Windows")
         print(f"  start {output_dir}\\<video_id>\\report.html")
-        print(f"\n  # Linux/Mac")
+        print("\n  # Linux/Mac")
         print(f"  open {output_dir}/<video_id>/report.html")
-        print(f"\nTo view JSON results:")
+        print("\nTo view JSON results:")
         print(f"  cat {output_dir}/<video_id>/results.json | jq .")
 
     finally:
@@ -257,20 +254,16 @@ Examples:
   python demo_pipeline.py
   python demo_pipeline.py --output-dir my_demo/
   python demo_pipeline.py --verbose
-"""
+""",
     )
 
     parser.add_argument(
         "--output-dir",
         type=str,
         default="demo_results",
-        help="Output directory for demo results (default: demo_results)"
+        help="Output directory for demo results (default: demo_results)",
     )
-    parser.add_argument(
-        "--verbose",
-        action="store_true",
-        help="Enable verbose logging"
-    )
+    parser.add_argument("--verbose", action="store_true", help="Enable verbose logging")
 
     args = parser.parse_args()
 

@@ -3,9 +3,10 @@
 This demonstrates the complete workflow from video to structured assessment.
 """
 
+from pathlib import Path
+
 import cv2
 import numpy as np
-from pathlib import Path
 
 from insurance_mvp.cosmos import create_client
 
@@ -21,8 +22,6 @@ def example_basic_usage():
 
     # Create a dummy video file for the example
     import tempfile
-    import cv2
-    import numpy as np
 
     with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as f:
         video_path = Path(f.name)
@@ -30,7 +29,7 @@ def example_basic_usage():
     # Create simple test video
     fourcc = cv2.VideoWriter_fourcc(*"mp4v")
     writer = cv2.VideoWriter(str(video_path), fourcc, 30.0, (640, 480))
-    for i in range(90):  # 3 seconds
+    for _i in range(90):  # 3 seconds
         frame = np.zeros((480, 640, 3), dtype=np.uint8)
         writer.write(frame)
     writer.release()
@@ -41,7 +40,7 @@ def example_basic_usage():
     video_path.unlink(missing_ok=True)
 
     # Display results
-    print(f"\n[OK] Assessment complete!")
+    print("\n[OK] Assessment complete!")
     print(f"  Video ID: {assessment.video_id}")
     print(f"  Severity: {assessment.severity}")
     print(f"  Confidence: {assessment.confidence:.2%}")
@@ -87,7 +86,7 @@ def example_custom_config():
     print("Example 3: Custom Configuration")
     print("=" * 80)
 
-    from insurance_mvp.cosmos import VLMConfig, VideoLLMClient
+    from insurance_mvp.cosmos import VideoLLMClient, VLMConfig
 
     # Create custom configuration
     config = VLMConfig(

@@ -12,7 +12,6 @@ References:
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Tuple
 from dataclasses import dataclass
 from enum import Enum
 
@@ -20,12 +19,12 @@ import numpy as np
 
 from .schema import FaultAssessment
 
-
 logger = logging.getLogger(__name__)
 
 
 class ScenarioType(str, Enum):
     """Standard collision scenario types."""
+
     REAR_END = "rear_end"
     HEAD_ON = "head_on"
     SIDE_SWIPE = "side_swipe"
@@ -40,6 +39,7 @@ class ScenarioType(str, Enum):
 
 class TrafficSignal(str, Enum):
     """Traffic signal states."""
+
     RED = "red"
     YELLOW = "yellow"
     GREEN = "green"
@@ -50,16 +50,17 @@ class TrafficSignal(str, Enum):
 @dataclass
 class ScenarioContext:
     """Context information for fault assessment."""
+
     scenario_type: ScenarioType
     traffic_signal: TrafficSignal = TrafficSignal.UNKNOWN
-    speed_ego_kmh: Optional[float] = None
-    speed_other_kmh: Optional[float] = None
+    speed_ego_kmh: float | None = None
+    speed_other_kmh: float | None = None
     ego_lane_change: bool = False
     other_lane_change: bool = False
     ego_braking: bool = False
     other_braking: bool = False
-    ego_right_of_way: Optional[bool] = None
-    witness_statements: List[str] = None
+    ego_right_of_way: bool | None = None
+    witness_statements: list[str] = None
     weather_conditions: str = "clear"
     road_conditions: str = "dry"
 
@@ -140,7 +141,7 @@ class FaultAssessmentEngine:
         >>> print(f"Fault: {assessment.fault_ratio}%")
     """
 
-    def __init__(self, config: Optional[FaultAssessmentConfig] = None):
+    def __init__(self, config: FaultAssessmentConfig | None = None):
         """Initialize fault assessment engine.
 
         Args:
@@ -215,10 +216,14 @@ class FaultAssessmentEngine:
             applicable_rules=rules,
             scenario_type=context.scenario_type.value,
             traffic_signal=context.traffic_signal.value if context.traffic_signal != TrafficSignal.UNKNOWN else None,
-            right_of_way="ego" if context.ego_right_of_way is True else "other" if context.ego_right_of_way is False else None,
+            right_of_way="ego"
+            if context.ego_right_of_way is True
+            else "other"
+            if context.ego_right_of_way is False
+            else None,
         )
 
-    def _assess_rear_end(self, context: ScenarioContext) -> Tuple[float, List[str], List[str]]:
+    def _assess_rear_end(self, context: ScenarioContext) -> tuple[float, list[str], list[str]]:
         """Assess rear-end collision.
 
         Standard rule: Rear vehicle is typically 100% at fault.
@@ -230,20 +235,20 @@ class FaultAssessmentEngine:
         if context.other_braking and context.speed_other_kmh is not None and context.speed_other_kmh < 10.0:
             fault = self.config.rear_end_sudden_stop
             reasoning = [
-                f"Rear-end collision with sudden stop by front vehicle.",
+                "Rear-end collision with sudden stop by front vehicle.",
                 f"Fault reduced to {fault}% due to unsafe stop.",
             ]
             rules.append("Front vehicle has duty not to stop suddenly without cause")
         else:
             fault = self.config.rear_end_default
             reasoning = [
-                f"Rear-end collision.",
+                "Rear-end collision.",
                 f"Rear vehicle is {fault}% at fault for failing to maintain safe distance.",
             ]
 
         return fault, reasoning, rules
 
-    def _assess_head_on(self, context: ScenarioContext) -> Tuple[float, List[str], List[str]]:
+    def _assess_head_on(self, context: ScenarioContext) -> tuple[float, list[str], list[str]]:
         """Assess head-on collision.
 
         Standard rule: 50-50 split unless one vehicle crossed center line.
@@ -276,7 +281,7 @@ class FaultAssessmentEngine:
 
         return fault, reasoning, rules
 
-    def _assess_side_swipe(self, context: ScenarioContext) -> Tuple[float, List[str], List[str]]:
+    def _assess_side_swipe(self, context: ScenarioContext) -> tuple[float, list[str], list[str]]:
         """Assess side-swipe collision.
 
         Standard rule: Lane-changing vehicle is typically at fault.
@@ -286,13 +291,13 @@ class FaultAssessmentEngine:
         if context.ego_lane_change and not context.other_lane_change:
             fault = self.config.side_swipe_lane_change
             reasoning = [
-                f"Side-swipe collision while ego vehicle changing lanes.",
+                "Side-swipe collision while ego vehicle changing lanes.",
                 f"Ego vehicle is {fault}% at fault for unsafe lane change.",
             ]
         elif context.other_lane_change and not context.ego_lane_change:
             fault = 100.0 - self.config.side_swipe_lane_change
             reasoning = [
-                f"Side-swipe collision while other vehicle changing lanes.",
+                "Side-swipe collision while other vehicle changing lanes.",
                 f"Other vehicle is {100 - fault}% at fault for unsafe lane change.",
             ]
         else:
@@ -305,7 +310,7 @@ class FaultAssessmentEngine:
 
         return fault, reasoning, rules
 
-    def _assess_left_turn(self, context: ScenarioContext) -> Tuple[float, List[str], List[str]]:
+    def _assess_left_turn(self, context: ScenarioContext) -> tuple[float, list[str], list[str]]:
         """Assess left turn collision.
 
         Standard rule: Left-turning vehicle has lower priority.
@@ -336,7 +341,7 @@ class FaultAssessmentEngine:
 
         return fault, reasoning, rules
 
-    def _assess_right_turn(self, context: ScenarioContext) -> Tuple[float, List[str], List[str]]:
+    def _assess_right_turn(self, context: ScenarioContext) -> tuple[float, list[str], list[str]]:
         """Assess right turn collision.
 
         Standard rule: Right-turning vehicle must yield to pedestrians and cross traffic.
@@ -359,11 +364,11 @@ class FaultAssessmentEngine:
 
         return fault, reasoning, rules
 
-    def _assess_lane_change(self, context: ScenarioContext) -> Tuple[float, List[str], List[str]]:
+    def _assess_lane_change(self, context: ScenarioContext) -> tuple[float, list[str], list[str]]:
         """Assess lane change collision (similar to side-swipe)."""
         return self._assess_side_swipe(context)
 
-    def _assess_intersection(self, context: ScenarioContext) -> Tuple[float, List[str], List[str]]:
+    def _assess_intersection(self, context: ScenarioContext) -> tuple[float, list[str], list[str]]:
         """Assess intersection collision.
 
         Priority: Traffic signal > Stop signs > Right-of-way rules.
@@ -409,7 +414,7 @@ class FaultAssessmentEngine:
 
         return fault, reasoning, rules
 
-    def _assess_parking_lot(self, context: ScenarioContext) -> Tuple[float, List[str], List[str]]:
+    def _assess_parking_lot(self, context: ScenarioContext) -> tuple[float, list[str], list[str]]:
         """Assess parking lot collision.
 
         Special rules apply in parking lots (lower speed, heightened duty).
@@ -430,7 +435,7 @@ class FaultAssessmentEngine:
 
         return fault, reasoning, rules
 
-    def _assess_pedestrian(self, context: ScenarioContext) -> Tuple[float, List[str], List[str]]:
+    def _assess_pedestrian(self, context: ScenarioContext) -> tuple[float, list[str], list[str]]:
         """Assess vehicle-pedestrian collision.
 
         Vehicles have extremely high duty of care to pedestrians.
@@ -455,7 +460,7 @@ class FaultAssessmentEngine:
 
         return fault, reasoning, rules
 
-    def _assess_unknown(self, context: ScenarioContext) -> Tuple[float, List[str], List[str]]:
+    def _assess_unknown(self, context: ScenarioContext) -> tuple[float, list[str], list[str]]:
         """Assess unknown/unclear scenario.
 
         Conservative default: 50-50 split pending investigation.
@@ -472,7 +477,7 @@ class FaultAssessmentEngine:
         self,
         base_fault: float,
         context: ScenarioContext,
-    ) -> Tuple[float, List[str]]:
+    ) -> tuple[float, list[str]]:
         """Apply contextual adjustments to base fault.
 
         Args:

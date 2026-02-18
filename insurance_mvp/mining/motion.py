@@ -16,7 +16,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import cv2
 import numpy as np
@@ -54,7 +53,7 @@ class MotionAnalyzer:
     2. Flow variance - motion irregularity (chaotic multi-vehicle scenarios)
     """
 
-    def __init__(self, config: Optional[MotionConfig] = None):
+    def __init__(self, config: MotionConfig | None = None):
         self.config = config or MotionConfig()
 
     def analyze(self, video_path: Path | str) -> np.ndarray:
@@ -200,7 +199,7 @@ class MotionAnalyzer:
         """
         per_sec = np.zeros(n_seconds, dtype=np.float32)
 
-        for ts, val in zip(timestamps, values):
+        for ts, val in zip(timestamps, values, strict=False):
             sec_idx = int(np.floor(ts))
             if 0 <= sec_idx < n_seconds:
                 # Use max pooling (keep highest motion within each second)
@@ -234,8 +233,8 @@ class MotionAnalyzer:
 
 
 def compute_flow_visualization(
-    video_path: Path | str, output_path: Optional[Path | str] = None, frame_skip: int = 5
-) -> Optional[Path]:
+    video_path: Path | str, output_path: Path | str | None = None, frame_skip: int = 5
+) -> Path | None:
     """
     Generate optical flow visualization video for debugging.
 

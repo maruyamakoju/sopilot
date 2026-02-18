@@ -3,69 +3,66 @@
 Production-ready REST API for insurance claim review system.
 """
 
-import os
-import logging
 import hashlib
+import logging
+import os
 import time
-from datetime import datetime, date
+from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, List
 
 import uvicorn
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, File, UploadFile, Depends, HTTPException, status, Query
+from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
+from insurance_mvp.api.auth import (
+    APIKey,
+    check_rate_limit,
+    get_api_key,
+    get_api_key_optional,
+    initialize_dev_keys,
+    initialize_dev_reviewers,
+    require_permission,
+)
+from insurance_mvp.api.background import (
+    get_worker,
+    initialize_worker,
+    shutdown_worker,
+)
+from insurance_mvp.api.database import (
+    AssessmentRepository,
+    AuditLogRepository,
+    Claim,
+    ClaimRepository,
+    DatabaseManager,
+    ReviewRepository,
+)
 from insurance_mvp.api.models import (
-    # Requests
-    UploadRequest,
-    ReviewDecisionRequest,
-    # Responses
-    UploadResponse,
-    StatusResponse,
     AssessmentResponse,
-    QueueResponse,
-    QueueItem,
-    ReviewDecisionResponse,
     AuditHistoryResponse,
     AuditLogEntry,
-    MetricsResponse,
-    ErrorResponse,
-    HealthResponse,
     # Enums
     ClaimStatus,
-    ReviewPriority,
-    Severity,
+    ErrorResponse,
     EventType,
     # Supporting models
     EvidenceItem,
-    HazardItem,
     FaultAssessmentResponse,
     FraudRiskResponse,
-)
-from insurance_mvp.api.database import (
-    DatabaseManager,
-    ClaimRepository,
-    AssessmentRepository,
-    ReviewRepository,
-    AuditLogRepository,
-    Claim,
-)
-from insurance_mvp.api.auth import (
-    get_api_key,
-    get_api_key_optional,
-    require_permission,
-    check_rate_limit,
-    initialize_dev_keys,
-    initialize_dev_reviewers,
-    APIKey,
-)
-from insurance_mvp.api.background import (
-    initialize_worker,
-    get_worker,
-    shutdown_worker,
+    HazardItem,
+    HealthResponse,
+    MetricsResponse,
+    QueueItem,
+    QueueResponse,
+    ReviewDecisionRequest,
+    ReviewDecisionResponse,
+    ReviewPriority,
+    Severity,
+    StatusResponse,
+    # Requests
+    UploadResponse,
 )
 
 # Configure logging
@@ -78,6 +75,7 @@ logger = logging.getLogger(__name__)
 
 # Application Configuration
 
+
 class Config:
     """Application configuration"""
 
@@ -88,14 +86,14 @@ class Config:
     # Storage
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./data/uploads")
     MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "500"))
-    ALLOWED_EXTENSIONS: List[str] = [".mp4", ".avi", ".mov", ".mkv"]
+    ALLOWED_EXTENSIONS: list[str] = [".mp4", ".avi", ".mov", ".mkv"]
 
     # Worker
     WORKER_MAX_THREADS: int = int(os.getenv("WORKER_MAX_THREADS", "4"))
     USE_PIPELINE: bool = os.getenv("USE_PIPELINE", "false").lower() == "true"
 
     # API
-    CORS_ORIGINS: List[str] = os.getenv("CORS_ORIGINS", "*").split(",")
+    CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "*").split(",")
     API_VERSION: str = "1.0.0"
     API_TITLE: str = "Insurance MVP API"
 
@@ -110,7 +108,7 @@ config = Config()
 
 # Database and Worker Initialization
 
-db_manager: Optional[DatabaseManager] = None
+db_manager: DatabaseManager | None = None
 app_start_time: datetime = datetime.utcnow()
 
 
@@ -175,6 +173,7 @@ app.add_middleware(
 
 # Dependency: Database Session
 
+
 def get_db():
     """FastAPI dependency for database session"""
     session = db_manager.SessionLocal()
@@ -185,6 +184,7 @@ def get_db():
 
 
 # Exception Handlers
+
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request, exc: HTTPException):
@@ -214,6 +214,7 @@ async def general_exception_handler(request, exc: Exception):
 
 # Health Check
 
+
 @app.get(
     "/health",
     response_model=HealthResponse,
@@ -232,6 +233,7 @@ async def health_check():
     db_connected = False
     try:
         from sqlalchemy import text
+
         with db_manager.get_session() as session:
             session.execute(text("SELECT 1"))
         db_connected = True
@@ -257,6 +259,7 @@ async def health_check():
 
 # Claims Endpoints
 
+
 @app.post(
     "/claims/upload",
     response_model=UploadResponse,
@@ -267,8 +270,8 @@ async def health_check():
 )
 async def upload_claim(
     video: UploadFile = File(..., description="Dashcam video file"),
-    claim_number: Optional[str] = Query(None, description="Optional claim reference number"),
-    claimant_id: Optional[str] = Query(None, description="Optional claimant ID"),
+    claim_number: str | None = Query(None, description="Optional claim reference number"),
+    claimant_id: str | None = Query(None, description="Optional claimant ID"),
     db: Session = Depends(get_db),
     api_key: APIKey = Depends(get_api_key),
 ):
@@ -499,6 +502,7 @@ async def get_claim_assessment(
 
     # Parse JSON fields
     import json
+
     prediction_set = json.loads(assessment.prediction_set) if assessment.prediction_set else []
     applicable_rules = json.loads(assessment.applicable_rules) if assessment.applicable_rules else []
     fraud_indicators = json.loads(assessment.fraud_indicators) if assessment.fraud_indicators else []
@@ -535,6 +539,7 @@ async def get_claim_assessment(
 
 # Review Endpoints
 
+
 @app.get(
     "/reviews/queue",
     response_model=QueueResponse,
@@ -542,7 +547,7 @@ async def get_claim_assessment(
     summary="Get review queue",
 )
 async def get_review_queue(
-    priority: Optional[ReviewPriority] = Query(None, description="Filter by priority"),
+    priority: ReviewPriority | None = Query(None, description="Filter by priority"),
     limit: int = Query(100, ge=1, le=1000, description="Maximum items to return"),
     offset: int = Query(0, ge=0, description="Offset for pagination"),
     db: Session = Depends(get_db),
@@ -570,21 +575,24 @@ async def get_review_queue(
             continue
 
         import json
+
         prediction_set = json.loads(assessment.prediction_set) if assessment.prediction_set else []
         hazards = json.loads(assessment.hazards_json) if assessment.hazards_json else []
 
-        queue_items.append(QueueItem(
-            claim_id=claim.id,
-            upload_time=claim.upload_time,
-            review_priority=ReviewPriority(assessment.review_priority),
-            severity=Severity(assessment.severity),
-            confidence=assessment.confidence,
-            fraud_risk_score=assessment.fraud_risk_score,
-            prediction_set_size=len(prediction_set),
-            hazard_count=len(hazards),
-            fault_ratio=assessment.fault_ratio,
-            recommended_action=assessment.recommended_action,
-        ))
+        queue_items.append(
+            QueueItem(
+                claim_id=claim.id,
+                upload_time=claim.upload_time,
+                review_priority=ReviewPriority(assessment.review_priority),
+                severity=Severity(assessment.severity),
+                confidence=assessment.confidence,
+                fraud_risk_score=assessment.fraud_risk_score,
+                prediction_set_size=len(prediction_set),
+                hazard_count=len(hazards),
+                fault_ratio=assessment.fault_ratio,
+                recommended_action=assessment.recommended_action,
+            )
+        )
 
     # Sort by priority
     priority_order = {ReviewPriority.URGENT: 0, ReviewPriority.STANDARD: 1, ReviewPriority.LOW_PRIORITY: 2}
@@ -764,22 +772,25 @@ async def get_claim_history(
 
     # Convert to response format
     import json
+
     events = []
     for log in logs:
         before_state = json.loads(log.before_state) if log.before_state else None
         after_state = json.loads(log.after_state) if log.after_state else None
 
-        events.append(AuditLogEntry(
-            log_id=log.id,
-            claim_id=log.claim_id,
-            event_type=log.event_type,
-            actor_type=log.actor_type,
-            actor_id=log.actor_id,
-            explanation=log.explanation,
-            before_state=before_state,
-            after_state=after_state,
-            timestamp=log.timestamp,
-        ))
+        events.append(
+            AuditLogEntry(
+                log_id=log.id,
+                claim_id=log.claim_id,
+                event_type=log.event_type,
+                actor_type=log.actor_type,
+                actor_id=log.actor_id,
+                explanation=log.explanation,
+                before_state=before_state,
+                after_state=after_state,
+                timestamp=log.timestamp,
+            )
+        )
 
     return AuditHistoryResponse(
         claim_id=claim_id,
@@ -789,6 +800,7 @@ async def get_claim_history(
 
 
 # Metrics Endpoint
+
 
 @app.get(
     "/metrics",
@@ -821,21 +833,23 @@ async def get_metrics(
 
     # Processing metrics
     from datetime import datetime, timedelta
+
     hour_ago = datetime.utcnow() - timedelta(hours=1)
     claims_last_hour = db.query(Claim).filter(Claim.upload_time >= hour_ago).count()
     processing_rate = claims_last_hour  # claims per hour
 
     # Average processing time (completed claims only)
-    completed_claims = db.query(Claim).filter(
-        Claim.processing_completed.isnot(None),
-        Claim.processing_started.isnot(None),
-    ).all()
+    completed_claims = (
+        db.query(Claim)
+        .filter(
+            Claim.processing_completed.isnot(None),
+            Claim.processing_started.isnot(None),
+        )
+        .all()
+    )
 
     if completed_claims:
-        processing_times = [
-            (c.processing_completed - c.processing_started).total_seconds()
-            for c in completed_claims
-        ]
+        processing_times = [(c.processing_completed - c.processing_started).total_seconds() for c in completed_claims]
         avg_processing_time = sum(processing_times) / len(processing_times)
     else:
         avg_processing_time = 0.0
@@ -860,6 +874,7 @@ async def get_metrics(
 
     # Average review time
     from insurance_mvp.api.database import Review
+
     recent_reviews = db.query(Review).order_by(Review.timestamp.desc()).limit(100).all()
     if recent_reviews:
         avg_review_time = sum(r.review_time_sec for r in recent_reviews) / len(recent_reviews)
@@ -880,6 +895,7 @@ async def get_metrics(
 
     # AI metrics (average across all assessments)
     from insurance_mvp.api.database import Assessment
+
     assessments = db.query(Assessment).limit(1000).all()
 
     if assessments:
@@ -916,6 +932,7 @@ async def get_metrics(
 # Development Endpoints (only in dev mode)
 
 if config.DEV_MODE:
+
     @app.post("/dev/reset", tags=["Development"], summary="Reset database (dev only)")
     async def dev_reset_database(api_key: APIKey = Depends(require_permission("admin"))):
         """
@@ -930,6 +947,7 @@ if config.DEV_MODE:
 
 
 # Main Entry Point
+
 
 def main():
     """Run development server"""

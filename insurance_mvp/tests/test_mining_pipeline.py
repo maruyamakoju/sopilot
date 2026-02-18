@@ -5,18 +5,16 @@ Tests the full multimodal hazard mining pipeline end-to-end.
 
 import numpy as np
 import pytest
-from pathlib import Path
-
 from insurance_mvp.mining import (
     AudioAnalyzer,
     AudioConfig,
+    FusionConfig,
+    HazardClip,
     MotionAnalyzer,
     MotionConfig,
     ProximityAnalyzer,
     ProximityConfig,
     SignalFuser,
-    FusionConfig,
-    HazardClip,
 )
 
 

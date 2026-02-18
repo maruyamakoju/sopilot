@@ -4,24 +4,25 @@ Simple API key authentication for MVP.
 Production systems should use OAuth2/JWT.
 """
 
-import secrets
 import hashlib
-from typing import Optional, Dict, Any
+import secrets
 from datetime import datetime
+from typing import Any
 
 from fastapi import HTTPException, Security, status
-from fastapi.security import APIKeyHeader, HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.security import APIKeyHeader, HTTPAuthorizationCredentials, HTTPBearer
 from pydantic import BaseModel
-
 
 # API Key Configuration
 
+
 class APIKey(BaseModel):
     """API Key metadata"""
+
     key_hash: str
     name: str
     created_at: datetime
-    permissions: Dict[str, bool]
+    permissions: dict[str, bool]
     active: bool = True
 
 
@@ -33,9 +34,9 @@ class APIKeyStore:
     """
 
     def __init__(self):
-        self._keys: Dict[str, APIKey] = {}
+        self._keys: dict[str, APIKey] = {}
 
-    def generate_key(self, name: str, permissions: Optional[Dict[str, bool]] = None) -> str:
+    def generate_key(self, name: str, permissions: dict[str, bool] | None = None) -> str:
         """
         Generate new API key.
 
@@ -65,7 +66,7 @@ class APIKeyStore:
 
         return api_key
 
-    def validate_key(self, api_key: str) -> Optional[APIKey]:
+    def validate_key(self, api_key: str) -> APIKey | None:
         """
         Validate API key and return metadata.
 
@@ -116,15 +117,13 @@ def initialize_dev_keys():
     """
     # Full access key (for testing)
     dev_key = api_key_store.generate_key(
-        name="dev-full-access",
-        permissions={"read": True, "write": True, "admin": True}
+        name="dev-full-access", permissions={"read": True, "write": True, "admin": True}
     )
     print(f"[DEV] Full access API key: {dev_key}")
 
     # Read-only key
     readonly_key = api_key_store.generate_key(
-        name="dev-readonly",
-        permissions={"read": True, "write": False, "admin": False}
+        name="dev-readonly", permissions={"read": True, "write": False, "admin": False}
     )
     print(f"[DEV] Read-only API key: {readonly_key}")
 
@@ -141,8 +140,8 @@ bearer_scheme = HTTPBearer(auto_error=False)
 
 
 async def get_api_key(
-    api_key_header: Optional[str] = Security(api_key_header),
-    bearer_token: Optional[HTTPAuthorizationCredentials] = Security(bearer_scheme),
+    api_key_header: str | None = Security(api_key_header),
+    bearer_token: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
 ) -> APIKey:
     """
     Validate API key from header or bearer token.
@@ -180,9 +179,9 @@ async def get_api_key(
 
 
 async def get_api_key_optional(
-    api_key_header: Optional[str] = Security(api_key_header),
-    bearer_token: Optional[HTTPAuthorizationCredentials] = Security(bearer_scheme),
-) -> Optional[APIKey]:
+    api_key_header: str | None = Security(api_key_header),
+    bearer_token: HTTPAuthorizationCredentials | None = Security(bearer_scheme),
+) -> APIKey | None:
     """
     Optional authentication (for public endpoints with optional enhanced access).
 
@@ -196,6 +195,7 @@ async def get_api_key_optional(
 
 # Permission Checks
 
+
 def require_permission(permission: str):
     """
     Dependency factory for permission checks.
@@ -205,6 +205,7 @@ def require_permission(permission: str):
         async def admin_reset():
             return {"message": "Database reset"}
     """
+
     async def check_permission(api_key: APIKey = Security(get_api_key)):
         if not api_key.permissions.get(permission, False):
             raise HTTPException(
@@ -218,6 +219,7 @@ def require_permission(permission: str):
 
 # Rate Limiting (Simple Token Bucket)
 
+
 class RateLimiter:
     """
     Simple in-memory rate limiter using token bucket algorithm.
@@ -227,7 +229,7 @@ class RateLimiter:
 
     def __init__(self, requests_per_minute: int = 60):
         self.requests_per_minute = requests_per_minute
-        self.buckets: Dict[str, Dict[str, Any]] = {}
+        self.buckets: dict[str, dict[str, Any]] = {}
 
     def check_rate_limit(self, identifier: str) -> bool:
         """
@@ -251,10 +253,7 @@ class RateLimiter:
 
         # Refill tokens based on time elapsed
         time_elapsed = (now - bucket["last_update"]).total_seconds() / 60.0
-        bucket["tokens"] = min(
-            self.requests_per_minute,
-            bucket["tokens"] + time_elapsed * self.requests_per_minute
-        )
+        bucket["tokens"] = min(self.requests_per_minute, bucket["tokens"] + time_elapsed * self.requests_per_minute)
         bucket["last_update"] = now
 
         # Check if token available
@@ -287,6 +286,7 @@ async def check_rate_limit(api_key: APIKey = Security(get_api_key)):
 
 # Reviewer Authentication (for human review endpoints)
 
+
 class ReviewerStore:
     """
     Simple reviewer authentication.
@@ -295,7 +295,7 @@ class ReviewerStore:
     """
 
     def __init__(self):
-        self._reviewers: Dict[str, Dict[str, Any]] = {}
+        self._reviewers: dict[str, dict[str, Any]] = {}
 
     def create_reviewer(self, reviewer_id: str, name: str, password: str) -> bool:
         """Create reviewer account (hashed password)"""
@@ -330,7 +330,8 @@ def initialize_dev_reviewers():
 
 # Audit Logging Helper
 
-def get_actor_info(api_key: Optional[APIKey] = None) -> tuple[str, str]:
+
+def get_actor_info(api_key: APIKey | None = None) -> tuple[str, str]:
     """
     Extract actor info for audit logging.
 

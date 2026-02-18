@@ -15,11 +15,10 @@ from pathlib import Path
 import cv2
 import numpy as np
 import pytest
-
 from insurance_mvp.cosmos import (
     ClaimAssessment,
-    VLMConfig,
     VideoLLMClient,
+    VLMConfig,
     create_client,
     create_default_claim_assessment,
 )
@@ -63,9 +62,7 @@ class TestVLMConfig:
 
     def test_custom_config(self):
         """Test custom configuration."""
-        config = VLMConfig(
-            model_name="mock", device="cpu", fps=2.0, max_frames=16, temperature=0.5, timeout_sec=600.0
-        )
+        config = VLMConfig(model_name="mock", device="cpu", fps=2.0, max_frames=16, temperature=0.5, timeout_sec=600.0)
         assert config.model_name == "mock"
         assert config.device == "cpu"
         assert config.fps == 2.0
@@ -365,6 +362,7 @@ class TestPromptDesign:
     def test_system_prompt_exists(self):
         """System prompt is non-empty and defines role."""
         from insurance_mvp.cosmos.prompt import get_system_prompt
+
         prompt = get_system_prompt()
         assert len(prompt) > 100
         assert "insurance" in prompt.lower()
@@ -373,6 +371,7 @@ class TestPromptDesign:
     def test_no_calibration_bias(self):
         """Main prompt must NOT contain calibration bias."""
         from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
+
         prompt = get_claim_assessment_prompt()
         # These phrases caused the model to always predict LOW
         assert "Most Claims are LOW" not in prompt
@@ -385,6 +384,7 @@ class TestPromptDesign:
     def test_chain_of_thought(self):
         """Prompt uses chain-of-thought (observe -> classify -> output)."""
         from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
+
         prompt = get_claim_assessment_prompt()
         assert "STEP 1" in prompt
         assert "STEP 2" in prompt
@@ -393,6 +393,7 @@ class TestPromptDesign:
     def test_all_severity_levels_defined(self):
         """All 4 severity levels have criteria in the prompt."""
         from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
+
         prompt = get_claim_assessment_prompt()
         for level in ["NONE", "LOW", "MEDIUM", "HIGH"]:
             assert level in prompt
@@ -400,6 +401,7 @@ class TestPromptDesign:
     def test_visual_evidence_criteria(self):
         """Prompt contains visual observation criteria."""
         from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
+
         prompt = get_claim_assessment_prompt()
         # Visual cue keywords that ground severity in what the model sees
         assert "collision" in prompt.lower()
@@ -409,6 +411,7 @@ class TestPromptDesign:
     def test_severity_escalation_rules(self):
         """Prompt contains explicit rules for severity escalation."""
         from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
+
         prompt = get_claim_assessment_prompt()
         # Key rule: collision = minimum MEDIUM
         assert "minimum MEDIUM" in prompt or "at minimum MEDIUM" in prompt
@@ -416,6 +419,7 @@ class TestPromptDesign:
     def test_quick_prompt_no_bias(self):
         """Quick severity prompt has no calibration bias."""
         from insurance_mvp.cosmos.prompt import get_quick_severity_prompt
+
         prompt = get_quick_severity_prompt()
         assert "MOST COMMON" not in prompt
         assert "Be Conservative" not in prompt.upper()
@@ -424,6 +428,7 @@ class TestPromptDesign:
     def test_include_calibration_param_ignored(self):
         """include_calibration parameter is accepted but has no effect."""
         from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
+
         p1 = get_claim_assessment_prompt(include_calibration=True)
         p2 = get_claim_assessment_prompt(include_calibration=False)
         assert p1 == p2

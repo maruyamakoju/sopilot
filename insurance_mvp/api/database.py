@@ -5,37 +5,39 @@ Supports both SQLite (development) and PostgreSQL (production).
 """
 
 import json
-from datetime import datetime
-from typing import Optional, List, Dict, Any
 from contextlib import contextmanager
+from datetime import datetime
+from typing import Any
 
 from sqlalchemy import (
-    create_engine,
-    Column,
-    Integer,
-    String,
-    Float,
-    DateTime,
-    Text,
     Boolean,
+    Column,
+    DateTime,
+    Float,
     ForeignKey,
     Index,
+    Integer,
+    String,
+    Text,
+    create_engine,
+)
+from sqlalchemy import (
     Enum as SQLEnum,
 )
-from sqlalchemy.orm import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship, Session
+from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from insurance_mvp.api.models import ClaimStatus, EventType
-
 
 Base = declarative_base()
 
 
 # ORM Models
 
+
 class Claim(Base):
     """Claims table - stores uploaded videos and processing status"""
+
     __tablename__ = "claims"
 
     id = Column(String(64), primary_key=True)
@@ -61,25 +63,26 @@ class Claim(Base):
 
     # Indexes for common queries
     __table_args__ = (
-        Index('idx_status_upload_time', 'status', 'upload_time'),
-        Index('idx_upload_time_desc', upload_time.desc()),
+        Index("idx_status_upload_time", "status", "upload_time"),
+        Index("idx_upload_time_desc", upload_time.desc()),
     )
 
     @property
-    def extra_data(self) -> Dict[str, Any]:
+    def extra_data(self) -> dict[str, Any]:
         """Parse metadata JSON"""
         if self.metadata_json:
             return json.loads(self.metadata_json)
         return {}
 
     @extra_data.setter
-    def extra_data(self, value: Dict[str, Any]):
+    def extra_data(self, value: dict[str, Any]):
         """Store metadata as JSON"""
         self.metadata_json = json.dumps(value) if value else None
 
 
 class Assessment(Base):
     """Assessments table - stores AI evaluation results"""
+
     __tablename__ = "assessments"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -122,13 +125,14 @@ class Assessment(Base):
 
     # Indexes
     __table_args__ = (
-        Index('idx_review_priority_timestamp', 'review_priority', 'timestamp'),
-        Index('idx_fraud_risk_desc', fraud_risk_score.desc()),
+        Index("idx_review_priority_timestamp", "review_priority", "timestamp"),
+        Index("idx_fraud_risk_desc", fraud_risk_score.desc()),
     )
 
 
 class Review(Base):
     """Reviews table - stores human review decisions"""
+
     __tablename__ = "reviews"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -152,13 +156,12 @@ class Review(Base):
     claim = relationship("Claim", back_populates="reviews")
 
     # Indexes
-    __table_args__ = (
-        Index('idx_reviewer_timestamp', 'reviewer_id', 'timestamp'),
-    )
+    __table_args__ = (Index("idx_reviewer_timestamp", "reviewer_id", "timestamp"),)
 
 
 class AuditLog(Base):
     """Audit log table - immutable log of all claim events"""
+
     __tablename__ = "audit_logs"
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -170,7 +173,7 @@ class AuditLog(Base):
 
     explanation = Column(Text, nullable=False)
     before_state = Column(Text, nullable=True)  # JSON
-    after_state = Column(Text, nullable=True)   # JSON
+    after_state = Column(Text, nullable=True)  # JSON
 
     timestamp = Column(DateTime, nullable=False, default=datetime.utcnow, index=True)
 
@@ -179,12 +182,13 @@ class AuditLog(Base):
 
     # Indexes
     __table_args__ = (
-        Index('idx_claim_timestamp', 'claim_id', 'timestamp'),
-        Index('idx_event_type_timestamp', 'event_type', 'timestamp'),
+        Index("idx_claim_timestamp", "claim_id", "timestamp"),
+        Index("idx_event_type_timestamp", "event_type", "timestamp"),
     )
 
 
 # Database Manager
+
 
 class DatabaseManager:
     """Database connection and session management"""
@@ -257,6 +261,7 @@ class DatabaseManager:
 
 # Database Operations (Repository Pattern)
 
+
 class ClaimRepository:
     """Repository for claim operations"""
 
@@ -267,10 +272,10 @@ class ClaimRepository:
         self,
         claim_id: str,
         video_path: str,
-        claim_number: Optional[str] = None,
-        claimant_id: Optional[str] = None,
-        metadata: Optional[Dict[str, Any]] = None,
-        video_hash: Optional[str] = None,
+        claim_number: str | None = None,
+        claimant_id: str | None = None,
+        metadata: dict[str, Any] | None = None,
+        video_hash: str | None = None,
     ) -> Claim:
         """Create new claim"""
         claim = Claim(
@@ -290,11 +295,11 @@ class ClaimRepository:
         self.session.refresh(claim)
         return claim
 
-    def get_by_id(self, claim_id: str) -> Optional[Claim]:
+    def get_by_id(self, claim_id: str) -> Claim | None:
         """Get claim by ID"""
         return self.session.query(Claim).filter(Claim.id == claim_id).first()
 
-    def get_by_hash(self, video_hash: str) -> Optional[Claim]:
+    def get_by_hash(self, video_hash: str) -> Claim | None:
         """Get claim by video hash (for deduplication)"""
         return self.session.query(Claim).filter(Claim.video_hash == video_hash).first()
 
@@ -302,8 +307,8 @@ class ClaimRepository:
         self,
         claim_id: str,
         status: ClaimStatus,
-        progress_percent: Optional[float] = None,
-        error_message: Optional[str] = None,
+        progress_percent: float | None = None,
+        error_message: str | None = None,
     ):
         """Update claim status"""
         claim = self.get_by_id(claim_id)
@@ -327,10 +332,10 @@ class ClaimRepository:
 
     def get_queue(
         self,
-        status: Optional[ClaimStatus] = None,
+        status: ClaimStatus | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[Claim]:
+    ) -> list[Claim]:
         """Get claims for review queue"""
         query = self.session.query(Claim)
 
@@ -350,6 +355,7 @@ class ClaimRepository:
     def count_today(self) -> int:
         """Count claims uploaded today"""
         from datetime import date
+
         today = datetime.combine(date.today(), datetime.min.time())
         return self.session.query(Claim).filter(Claim.upload_time >= today).count()
 
@@ -360,7 +366,7 @@ class AssessmentRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def create_from_dict(self, claim_id: str, assessment_data: Dict[str, Any]) -> Assessment:
+    def create_from_dict(self, claim_id: str, assessment_data: dict[str, Any]) -> Assessment:
         """Create assessment from dictionary (from ClaimAssessment model)"""
         assessment = Assessment(
             claim_id=claim_id,
@@ -390,7 +396,7 @@ class AssessmentRepository:
         self.session.refresh(assessment)
         return assessment
 
-    def get_by_claim_id(self, claim_id: str) -> Optional[Assessment]:
+    def get_by_claim_id(self, claim_id: str) -> Assessment | None:
         """Get assessment for claim"""
         return self.session.query(Assessment).filter(Assessment.claim_id == claim_id).first()
 
@@ -408,10 +414,10 @@ class ReviewRepository:
         decision: str,
         reasoning: str,
         review_time_sec: float,
-        severity_override: Optional[str] = None,
-        fault_ratio_override: Optional[float] = None,
-        fraud_override: Optional[bool] = None,
-        comments: Optional[str] = None,
+        severity_override: str | None = None,
+        fault_ratio_override: float | None = None,
+        fraud_override: bool | None = None,
+        comments: str | None = None,
     ) -> Review:
         """Create review"""
         review = Review(
@@ -431,13 +437,14 @@ class ReviewRepository:
         self.session.refresh(review)
         return review
 
-    def get_by_claim_id(self, claim_id: str) -> List[Review]:
+    def get_by_claim_id(self, claim_id: str) -> list[Review]:
         """Get all reviews for claim"""
         return self.session.query(Review).filter(Review.claim_id == claim_id).order_by(Review.timestamp.desc()).all()
 
     def count_today(self) -> int:
         """Count reviews today"""
         from datetime import date
+
         today = datetime.combine(date.today(), datetime.min.time())
         return self.session.query(Review).filter(Review.timestamp >= today).count()
 
@@ -455,8 +462,8 @@ class AuditLogRepository:
         actor_type: str,
         actor_id: str,
         explanation: str,
-        before_state: Optional[Dict[str, Any]] = None,
-        after_state: Optional[Dict[str, Any]] = None,
+        before_state: dict[str, Any] | None = None,
+        after_state: dict[str, Any] | None = None,
     ) -> AuditLog:
         """Create audit log entry"""
         log = AuditLog(
@@ -474,7 +481,7 @@ class AuditLogRepository:
         self.session.refresh(log)
         return log
 
-    def get_by_claim_id(self, claim_id: str, limit: int = 100) -> List[AuditLog]:
+    def get_by_claim_id(self, claim_id: str, limit: int = 100) -> list[AuditLog]:
         """Get audit logs for claim"""
         return (
             self.session.query(AuditLog)

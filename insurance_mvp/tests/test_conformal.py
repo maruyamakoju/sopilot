@@ -4,21 +4,20 @@ Covers: SplitConformal calibration/prediction, convenience functions,
 and compute_review_priority logic.
 """
 
-import pytest
 import numpy as np
-
+import pytest
 from insurance_mvp.conformal.split_conformal import (
-    SplitConformal,
     ConformalConfig,
-    severity_to_ordinal,
-    ordinal_to_severity,
+    SplitConformal,
     compute_review_priority,
+    ordinal_to_severity,
+    severity_to_ordinal,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_synthetic_calibration(n: int = 100, noise: float = 0.1, rng_seed: int = 42):
     """Generate synthetic calibration data.
@@ -40,6 +39,7 @@ def _make_synthetic_calibration(n: int = 100, noise: float = 0.1, rng_seed: int 
 # ============================================================================
 # TestSplitConformal
 # ============================================================================
+
 
 class TestSplitConformal:
     """Core SplitConformal calibration and prediction tests."""
@@ -180,15 +180,19 @@ class TestSplitConformal:
 # TestConvenienceFunctions
 # ============================================================================
 
+
 class TestConvenienceFunctions:
     """Test severity_to_ordinal and ordinal_to_severity."""
 
-    @pytest.mark.parametrize("severity,expected", [
-        ("NONE", 0),
-        ("LOW", 1),
-        ("MEDIUM", 2),
-        ("HIGH", 3),
-    ])
+    @pytest.mark.parametrize(
+        "severity,expected",
+        [
+            ("NONE", 0),
+            ("LOW", 1),
+            ("MEDIUM", 2),
+            ("HIGH", 3),
+        ],
+    )
     def test_severity_to_ordinal(self, severity, expected):
         assert severity_to_ordinal(severity) == expected
 
@@ -197,12 +201,15 @@ class TestConvenienceFunctions:
         assert severity_to_ordinal("UNKNOWN") == 0
         assert severity_to_ordinal("CRITICAL") == 0
 
-    @pytest.mark.parametrize("ordinal,expected", [
-        (0, "NONE"),
-        (1, "LOW"),
-        (2, "MEDIUM"),
-        (3, "HIGH"),
-    ])
+    @pytest.mark.parametrize(
+        "ordinal,expected",
+        [
+            (0, "NONE"),
+            (1, "LOW"),
+            (2, "MEDIUM"),
+            (3, "HIGH"),
+        ],
+    )
     def test_ordinal_to_severity(self, ordinal, expected):
         assert ordinal_to_severity(ordinal) == expected
 
@@ -222,6 +229,7 @@ class TestConvenienceFunctions:
 # ============================================================================
 # TestComputeReviewPriority
 # ============================================================================
+
 
 class TestComputeReviewPriority:
     """Test review priority computation logic."""

@@ -38,7 +38,7 @@ For testing without GPU:
     ```
 """
 
-from .client import ModelName, VLMConfig, VideoLLMClient, create_client
+from .client import ModelName, VideoLLMClient, VLMConfig, create_client
 from .prompt import (
     get_claim_assessment_prompt,
     get_fault_assessment_prompt,

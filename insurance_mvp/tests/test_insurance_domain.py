@@ -3,34 +3,33 @@
 Comprehensive tests for fault assessment, fraud detection, and utilities.
 """
 
-import pytest
-from pathlib import Path
 from datetime import datetime, timedelta
 
+import pytest
 from insurance_mvp.insurance import (
+    ClaimDetails,
+    ClaimHistory,
+    FaultAssessmentConfig,
     # Fault Assessment
     FaultAssessmentEngine,
-    FaultAssessmentConfig,
+    FraudDetectionConfig,
+    # Fraud Detection
+    FraudDetectionEngine,
+    FraudIndicator,
     ScenarioContext,
     ScenarioType,
     TrafficSignal,
-    detect_scenario_type,
-    # Fraud Detection
-    FraudDetectionEngine,
-    FraudDetectionConfig,
-    FraudIndicator,
     VideoEvidence,
-    ClaimHistory,
-    ClaimDetails,
+    detect_scenario_type,
     # Utils
     format_timestamp,
     parse_timestamp,
 )
 
-
 # ============================================================================
 # Fault Assessment Tests
 # ============================================================================
+
 
 class TestFaultAssessment:
     """Test suite for fault assessment engine."""
@@ -222,6 +221,7 @@ class TestFaultAssessment:
 # Fraud Detection Tests
 # ============================================================================
 
+
 class TestFraudDetection:
     """Test suite for fraud detection engine."""
 
@@ -363,9 +363,7 @@ class TestFraudDetection:
     def test_claim_amount_outlier(self):
         """Test fraud detection for unusually high claim amount."""
         # Set claim stats with lower mean
-        engine = FraudDetectionEngine(
-            claim_amount_stats={"mean": 5000.0, "std": 2000.0}
-        )
+        engine = FraudDetectionEngine(claim_amount_stats={"mean": 5000.0, "std": 2000.0})
         video = VideoEvidence(has_collision_sound=True, damage_visible=True)
         claim = ClaimDetails(claimed_amount=20000.0)  # 7.5 std devs above mean
         result = engine.detect_fraud(video, claim)
@@ -454,6 +452,7 @@ class TestFraudDetection:
 # Utility Function Tests
 # ============================================================================
 
+
 class TestUtils:
     """Test suite for utility functions."""
 
@@ -503,6 +502,7 @@ class TestUtils:
 # ============================================================================
 # Integration Tests
 # ============================================================================
+
 
 class TestIntegration:
     """Integration tests combining multiple components."""

@@ -22,12 +22,10 @@ from pathlib import Path
 
 import cv2
 import numpy as np
-
 from insurance_mvp.mining import (
     AudioAnalyzer,
     AudioConfig,
     FusionConfig,
-    HazardClip,
     MotionAnalyzer,
     MotionConfig,
     ProximityAnalyzer,
@@ -230,7 +228,7 @@ def main():
     t0 = time.time()
     audio_scores = audio_analyzer.analyze(args.video_path)
     t1 = time.time()
-    logger.info(f"  ✓ Audio analysis complete ({t1-t0:.1f}s)")
+    logger.info(f"  ✓ Audio analysis complete ({t1 - t0:.1f}s)")
     logger.info(f"    Mean: {audio_scores.mean():.3f}, Max: {audio_scores.max():.3f}")
     logger.info("")
 
@@ -239,7 +237,7 @@ def main():
     t0 = time.time()
     motion_scores = motion_analyzer.analyze(args.video_path)
     t1 = time.time()
-    logger.info(f"  ✓ Motion analysis complete ({t1-t0:.1f}s)")
+    logger.info(f"  ✓ Motion analysis complete ({t1 - t0:.1f}s)")
     logger.info(f"    Mean: {motion_scores.mean():.3f}, Max: {motion_scores.max():.3f}")
     logger.info("")
 
@@ -249,7 +247,7 @@ def main():
         t0 = time.time()
         proximity_scores = proximity_analyzer.analyze(args.video_path)
         t1 = time.time()
-        logger.info(f"  ✓ Proximity analysis complete ({t1-t0:.1f}s)")
+        logger.info(f"  ✓ Proximity analysis complete ({t1 - t0:.1f}s)")
         logger.info(f"    Mean: {proximity_scores.mean():.3f}, Max: {proximity_scores.max():.3f}")
     else:
         logger.info("Step 3/4: Skipping proximity analysis (--skip-proximity)")
@@ -267,7 +265,7 @@ def main():
         video_duration_sec=video_duration,
     )
     t1 = time.time()
-    logger.info(f"  ✓ Fusion complete ({t1-t0:.1f}s)")
+    logger.info(f"  ✓ Fusion complete ({t1 - t0:.1f}s)")
     logger.info(f"    Extracted {len(clips)} hazard clips")
     logger.info("")
 
@@ -336,7 +334,7 @@ def main():
         clips_dir.mkdir(exist_ok=True)
 
         for i, clip in enumerate(clips[:10]):  # Extract top 10
-            clip_path = clips_dir / f"clip_{i+1:02d}_score_{clip.score:.3f}.mp4"
+            clip_path = clips_dir / f"clip_{i + 1:02d}_score_{clip.score:.3f}.mp4"
             success = extract_clip(
                 args.video_path,
                 clip.start_sec,
@@ -344,7 +342,7 @@ def main():
                 clip_path,
             )
             if success:
-                logger.info(f"  ✓ Extracted clip {i+1}: {clip_path.name}")
+                logger.info(f"  ✓ Extracted clip {i + 1}: {clip_path.name}")
 
     logger.info("")
     logger.info("=" * 80)
@@ -358,7 +356,7 @@ def main():
         logger.info("Top 5 hazard clips:")
         for i, clip in enumerate(clips[:5]):
             logger.info(
-                f"  {i+1}. [{clip.start_sec:6.1f}s - {clip.end_sec:6.1f}s] "
+                f"  {i + 1}. [{clip.start_sec:6.1f}s - {clip.end_sec:6.1f}s] "
                 f"score={clip.score:.3f} "
                 f"(audio={clip.audio_score:.2f}, motion={clip.motion_score:.2f}, "
                 f"proximity={clip.proximity_score:.2f})"

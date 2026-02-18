@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import numpy as np
 from scipy.signal import find_peaks
@@ -54,10 +53,7 @@ class FusionConfig:
         # Validate weights sum to 1.0
         total_weight = self.audio_weight + self.motion_weight + self.proximity_weight
         if not np.isclose(total_weight, 1.0):
-            logger.warning(
-                f"Fusion weights sum to {total_weight:.3f}, not 1.0. "
-                f"Normalizing weights."
-            )
+            logger.warning(f"Fusion weights sum to {total_weight:.3f}, not 1.0. Normalizing weights.")
             self.audio_weight /= total_weight
             self.motion_weight /= total_weight
             self.proximity_weight /= total_weight
@@ -94,7 +90,7 @@ class SignalFuser:
     4. Clip extraction with temporal padding
     """
 
-    def __init__(self, config: Optional[FusionConfig] = None):
+    def __init__(self, config: FusionConfig | None = None):
         self.config = config or FusionConfig()
 
     def fuse_and_extract(
@@ -143,9 +139,7 @@ class SignalFuser:
         )
 
         logger.info(
-            f"Fused signal: mean={fused_scores.mean():.3f}, "
-            f"max={fused_scores.max():.3f}, "
-            f"std={fused_scores.std():.3f}"
+            f"Fused signal: mean={fused_scores.mean():.3f}, max={fused_scores.max():.3f}, std={fused_scores.std():.3f}"
         )
 
         # Find peaks
@@ -166,14 +160,11 @@ class SignalFuser:
         top_peak_indices = peak_indices[top_k_idx]
         top_peak_scores = peak_scores[top_k_idx]
 
-        logger.info(
-            f"Selected top-{top_k} peaks: "
-            f"scores=[{top_peak_scores.min():.3f}, {top_peak_scores.max():.3f}]"
-        )
+        logger.info(f"Selected top-{top_k} peaks: scores=[{top_peak_scores.min():.3f}, {top_peak_scores.max():.3f}]")
 
         # Create initial clips
         clips = []
-        for peak_idx, peak_score in zip(top_peak_indices, top_peak_scores):
+        for peak_idx, peak_score in zip(top_peak_indices, top_peak_scores, strict=False):
             # Extract clip around peak
             peak_sec = float(peak_idx)
 
@@ -209,10 +200,7 @@ class SignalFuser:
         # Merge nearby clips
         merged_clips = self._merge_nearby_clips(clips)
 
-        logger.info(
-            f"Extracted {len(merged_clips)} clips after merging "
-            f"(before: {len(clips)})"
-        )
+        logger.info(f"Extracted {len(merged_clips)} clips after merging (before: {len(clips)})")
 
         # Sort by score (descending)
         merged_clips.sort(key=lambda c: c.score, reverse=True)
@@ -220,7 +208,7 @@ class SignalFuser:
         # Log top clips
         for i, clip in enumerate(merged_clips[:5]):
             logger.info(
-                f"Clip {i+1}: [{clip.start_sec:.1f}s, {clip.end_sec:.1f}s], "
+                f"Clip {i + 1}: [{clip.start_sec:.1f}s, {clip.end_sec:.1f}s], "
                 f"score={clip.score:.3f}, "
                 f"audio={clip.audio_score:.3f}, "
                 f"motion={clip.motion_score:.3f}, "
@@ -298,8 +286,8 @@ class SignalFuser:
         motion_scores: np.ndarray,
         proximity_scores: np.ndarray,
         clips: list[HazardClip],
-        output_path: Optional[Path | str] = None,
-    ) -> Optional[Path]:
+        output_path: Path | str | None = None,
+    ) -> Path | None:
         """
         Generate signal visualization plot for debugging.
 
@@ -360,7 +348,7 @@ class SignalFuser:
 
         # Plot clip ranges
         axes[4].set_ylim([0, 1])
-        for i, clip in enumerate(clips):
+        for _i, clip in enumerate(clips):
             axes[4].barh(
                 0.5,
                 clip.end_sec - clip.start_sec,

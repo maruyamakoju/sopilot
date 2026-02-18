@@ -19,14 +19,12 @@ References:
 from __future__ import annotations
 
 import logging
-from typing import Dict, List, Optional, Set, Tuple
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import numpy as np
 
 from .schema import FraudRisk
-
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +32,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class FraudIndicator:
     """Individual fraud indicator with severity."""
+
     type: str  # e.g., "no_collision_sound", "damage_inconsistent"
     description: str
     severity: float = 0.0  # 0.0 to 1.0
@@ -43,13 +42,14 @@ class FraudIndicator:
 @dataclass
 class VideoEvidence:
     """Video analysis results for fraud detection."""
+
     has_collision_sound: bool = False
     has_pre_collision_braking: bool = False
     damage_visible: bool = False
     damage_severity: str = "none"  # none, minor, moderate, severe
     vehicle_positioned_suspiciously: bool = False
-    speed_at_impact_kmh: Optional[float] = None
-    impact_force_estimated: Optional[float] = None  # Relative scale 0-10
+    speed_at_impact_kmh: float | None = None
+    impact_force_estimated: float | None = None  # Relative scale 0-10
     video_quality: str = "good"  # poor, fair, good, excellent
     video_duration_sec: float = 0.0
     suspicious_edits: bool = False
@@ -58,11 +58,12 @@ class VideoEvidence:
 @dataclass
 class ClaimHistory:
     """Historical claim data for pattern analysis."""
+
     vehicle_id: str
     num_previous_claims: int = 0
     claims_last_year: int = 0
     claims_last_month: int = 0
-    previous_claim_dates: List[datetime] = field(default_factory=list)
+    previous_claim_dates: list[datetime] = field(default_factory=list)
     previous_fraud_flags: int = 0
     total_claimed_amount: float = 0.0
     average_claim_amount: float = 0.0
@@ -71,6 +72,7 @@ class ClaimHistory:
 @dataclass
 class ClaimDetails:
     """Current claim details."""
+
     claimed_amount: float
     injury_claimed: bool = False
     property_damage_claimed: float = 0.0
@@ -174,8 +176,8 @@ class FraudDetectionEngine:
 
     def __init__(
         self,
-        config: Optional[FraudDetectionConfig] = None,
-        claim_amount_stats: Optional[Dict[str, float]] = None,
+        config: FraudDetectionConfig | None = None,
+        claim_amount_stats: dict[str, float] | None = None,
     ):
         """Initialize fraud detection engine.
 
@@ -187,7 +189,7 @@ class FraudDetectionEngine:
         self.config = config or FraudDetectionConfig()
         self.claim_amount_stats = claim_amount_stats or {
             "mean": 8000.0,  # Industry average ~$8k
-            "std": 5000.0,   # Industry std dev ~$5k
+            "std": 5000.0,  # Industry std dev ~$5k
         }
 
         logger.info(
@@ -201,7 +203,7 @@ class FraudDetectionEngine:
         self,
         video_evidence: VideoEvidence,
         claim_details: ClaimDetails,
-        claim_history: Optional[ClaimHistory] = None,
+        claim_history: ClaimHistory | None = None,
     ) -> FraudRisk:
         """Detect fraud risk for an insurance claim.
 
@@ -221,7 +223,7 @@ class FraudDetectionEngine:
         )
 
         # Collect all fraud indicators
-        indicators: List[FraudIndicator] = []
+        indicators: list[FraudIndicator] = []
 
         # 1. Audio/Visual Consistency Check
         av_indicators = self._check_audio_visual_consistency(video_evidence)
@@ -256,18 +258,18 @@ class FraudDetectionEngine:
 
         # Extract indicator descriptions
         indicator_descriptions = [
-            f"{ind.type}: {ind.description} (severity={ind.severity:.2f})"
-            for ind in indicators
-            if ind.severity > 0.0
+            f"{ind.type}: {ind.description} (severity={ind.severity:.2f})" for ind in indicators if ind.severity > 0.0
         ]
 
         logger.info(
             "fraud_detection_complete",
             fraud_score=round(fraud_score, 3),
             num_indicators=len(indicator_descriptions),
-            risk_level="HIGH" if fraud_score >= self.config.high_risk_threshold
-                      else "MEDIUM" if fraud_score >= self.config.medium_risk_threshold
-                      else "LOW",
+            risk_level="HIGH"
+            if fraud_score >= self.config.high_risk_threshold
+            else "MEDIUM"
+            if fraud_score >= self.config.medium_risk_threshold
+            else "LOW",
         )
 
         return FraudRisk(
@@ -276,7 +278,7 @@ class FraudDetectionEngine:
             reasoning=reasoning,
         )
 
-    def _check_audio_visual_consistency(self, video: VideoEvidence) -> List[FraudIndicator]:
+    def _check_audio_visual_consistency(self, video: VideoEvidence) -> list[FraudIndicator]:
         """Check for audio/visual mismatches.
 
         Red flags:
@@ -289,26 +291,30 @@ class FraudDetectionEngine:
         # No collision sound but damage claimed
         if video.damage_visible and not video.has_collision_sound:
             severity = 0.8 if video.damage_severity in ["moderate", "severe"] else 0.5
-            indicators.append(FraudIndicator(
-                type="audio_visual_mismatch",
-                description="Visible damage but no collision sound detected in video",
-                severity=severity,
-                confidence=0.9,
-            ))
+            indicators.append(
+                FraudIndicator(
+                    type="audio_visual_mismatch",
+                    description="Visible damage but no collision sound detected in video",
+                    severity=severity,
+                    confidence=0.9,
+                )
+            )
 
         # Collision sound but no visible damage (less suspicious)
         if video.has_collision_sound and not video.damage_visible:
             if video.speed_at_impact_kmh and video.speed_at_impact_kmh > self.config.min_speed_for_damage_kmh:
-                indicators.append(FraudIndicator(
-                    type="audio_visual_mismatch",
-                    description=f"Collision sound at {video.speed_at_impact_kmh:.0f} km/h but no visible damage",
-                    severity=0.3,
-                    confidence=0.7,
-                ))
+                indicators.append(
+                    FraudIndicator(
+                        type="audio_visual_mismatch",
+                        description=f"Collision sound at {video.speed_at_impact_kmh:.0f} km/h but no visible damage",
+                        severity=0.3,
+                        confidence=0.7,
+                    )
+                )
 
         return indicators
 
-    def _check_damage_consistency(self, video: VideoEvidence) -> List[FraudIndicator]:
+    def _check_damage_consistency(self, video: VideoEvidence) -> list[FraudIndicator]:
         """Check if damage is consistent with video evidence.
 
         Red flags:
@@ -323,43 +329,51 @@ class FraudDetectionEngine:
 
             # High speed but no damage
             if speed > self.config.min_speed_for_damage_kmh and not video.damage_visible:
-                indicators.append(FraudIndicator(
-                    type="damage_inconsistency",
-                    description=f"Impact at {speed:.0f} km/h but no visible damage",
-                    severity=min(0.7, speed / 50.0),  # Higher speed = more suspicious
-                    confidence=0.8,
-                ))
+                indicators.append(
+                    FraudIndicator(
+                        type="damage_inconsistency",
+                        description=f"Impact at {speed:.0f} km/h but no visible damage",
+                        severity=min(0.7, speed / 50.0),  # Higher speed = more suspicious
+                        confidence=0.8,
+                    )
+                )
 
             # Low speed but severe damage
             if speed < self.config.max_speed_no_damage_kmh and video.damage_severity == "severe":
-                indicators.append(FraudIndicator(
-                    type="damage_inconsistency",
-                    description=f"Severe damage claimed at low speed ({speed:.0f} km/h)",
-                    severity=0.9,
-                    confidence=0.85,
-                ))
+                indicators.append(
+                    FraudIndicator(
+                        type="damage_inconsistency",
+                        description=f"Severe damage claimed at low speed ({speed:.0f} km/h)",
+                        severity=0.9,
+                        confidence=0.85,
+                    )
+                )
 
         # Damage claimed but video quality too poor to verify
         if video.damage_visible and video.video_quality == "poor":
-            indicators.append(FraudIndicator(
-                type="damage_inconsistency",
-                description="Damage claimed but video quality insufficient for verification",
-                severity=0.4,
-                confidence=0.6,
-            ))
+            indicators.append(
+                FraudIndicator(
+                    type="damage_inconsistency",
+                    description="Damage claimed but video quality insufficient for verification",
+                    severity=0.4,
+                    confidence=0.6,
+                )
+            )
 
         # Video shows signs of editing
         if video.suspicious_edits:
-            indicators.append(FraudIndicator(
-                type="video_tampering",
-                description="Video shows signs of editing or tampering",
-                severity=0.95,
-                confidence=0.9,
-            ))
+            indicators.append(
+                FraudIndicator(
+                    type="video_tampering",
+                    description="Video shows signs of editing or tampering",
+                    severity=0.95,
+                    confidence=0.9,
+                )
+            )
 
         return indicators
 
-    def _check_suspicious_positioning(self, video: VideoEvidence) -> List[FraudIndicator]:
+    def _check_suspicious_positioning(self, video: VideoEvidence) -> list[FraudIndicator]:
         """Check for suspicious vehicle positioning before collision.
 
         Red flags:
@@ -370,25 +384,29 @@ class FraudDetectionEngine:
         indicators = []
 
         if video.vehicle_positioned_suspiciously:
-            indicators.append(FraudIndicator(
-                type="suspicious_positioning",
-                description="Vehicle appeared to be pre-positioned before collision",
-                severity=0.75,
-                confidence=0.7,
-            ))
+            indicators.append(
+                FraudIndicator(
+                    type="suspicious_positioning",
+                    description="Vehicle appeared to be pre-positioned before collision",
+                    severity=0.75,
+                    confidence=0.7,
+                )
+            )
 
         # No braking before collision (could indicate intentional)
         if not video.has_pre_collision_braking and video.speed_at_impact_kmh and video.speed_at_impact_kmh > 20.0:
-            indicators.append(FraudIndicator(
-                type="suspicious_positioning",
-                description=f"No braking detected before impact at {video.speed_at_impact_kmh:.0f} km/h",
-                severity=0.5,
-                confidence=0.6,
-            ))
+            indicators.append(
+                FraudIndicator(
+                    type="suspicious_positioning",
+                    description=f"No braking detected before impact at {video.speed_at_impact_kmh:.0f} km/h",
+                    severity=0.5,
+                    confidence=0.6,
+                )
+            )
 
         return indicators
 
-    def _check_claim_history(self, history: ClaimHistory) -> List[FraudIndicator]:
+    def _check_claim_history(self, history: ClaimHistory) -> list[FraudIndicator]:
         """Check claim history for fraud patterns.
 
         Red flags:
@@ -402,50 +420,55 @@ class FraudDetectionEngine:
         # Too many claims per year
         if history.claims_last_year >= self.config.suspicious_claims_per_year:
             severity = min(1.0, history.claims_last_year / (self.config.suspicious_claims_per_year * 2))
-            indicators.append(FraudIndicator(
-                type="claim_frequency",
-                description=f"Unusually high claim frequency: {history.claims_last_year} claims in past year",
-                severity=severity,
-                confidence=0.9,
-            ))
+            indicators.append(
+                FraudIndicator(
+                    type="claim_frequency",
+                    description=f"Unusually high claim frequency: {history.claims_last_year} claims in past year",
+                    severity=severity,
+                    confidence=0.9,
+                )
+            )
 
         # Too many claims per month
         if history.claims_last_month >= self.config.suspicious_claims_per_month:
-            indicators.append(FraudIndicator(
-                type="claim_frequency",
-                description=f"Suspicious claim clustering: {history.claims_last_month} claims in past month",
-                severity=0.85,
-                confidence=0.95,
-            ))
+            indicators.append(
+                FraudIndicator(
+                    type="claim_frequency",
+                    description=f"Suspicious claim clustering: {history.claims_last_month} claims in past month",
+                    severity=0.85,
+                    confidence=0.95,
+                )
+            )
 
         # Previous fraud flags
         if history.previous_fraud_flags > 0:
             severity = min(1.0, 0.5 + (history.previous_fraud_flags * 0.2))
-            indicators.append(FraudIndicator(
-                type="fraud_history",
-                description=f"Vehicle has {history.previous_fraud_flags} previous fraud flag(s)",
-                severity=severity,
-                confidence=1.0,
-            ))
+            indicators.append(
+                FraudIndicator(
+                    type="fraud_history",
+                    description=f"Vehicle has {history.previous_fraud_flags} previous fraud flag(s)",
+                    severity=severity,
+                    confidence=1.0,
+                )
+            )
 
         # Check for claim clustering (multiple claims within short window)
         if len(history.previous_claim_dates) >= 2:
             claim_dates = sorted(history.previous_claim_dates)
-            min_gap_days = min(
-                (claim_dates[i+1] - claim_dates[i]).days
-                for i in range(len(claim_dates) - 1)
-            )
+            min_gap_days = min((claim_dates[i + 1] - claim_dates[i]).days for i in range(len(claim_dates) - 1))
             if min_gap_days < self.config.claim_cluster_days:
-                indicators.append(FraudIndicator(
-                    type="claim_clustering",
-                    description=f"Multiple claims within {min_gap_days} days",
-                    severity=0.7,
-                    confidence=0.8,
-                ))
+                indicators.append(
+                    FraudIndicator(
+                        type="claim_clustering",
+                        description=f"Multiple claims within {min_gap_days} days",
+                        severity=0.7,
+                        confidence=0.8,
+                    )
+                )
 
         return indicators
 
-    def _check_claim_amount_anomaly(self, claim: ClaimDetails) -> List[FraudIndicator]:
+    def _check_claim_amount_anomaly(self, claim: ClaimDetails) -> list[FraudIndicator]:
         """Check if claim amount is statistically anomalous.
 
         Uses z-score to detect outliers (claims far above average).
@@ -461,30 +484,34 @@ class FraudDetectionEngine:
         # Unusually high claim
         if z_score > self.config.claim_amount_outlier_threshold:
             severity = min(1.0, (z_score - self.config.claim_amount_outlier_threshold) / 3.0)
-            indicators.append(FraudIndicator(
-                type="claim_amount_anomaly",
-                description=(
-                    f"Claimed amount ${claim.claimed_amount:,.0f} is {z_score:.1f} "
-                    f"standard deviations above average (${mean:,.0f})"
-                ),
-                severity=severity,
-                confidence=0.7,
-            ))
+            indicators.append(
+                FraudIndicator(
+                    type="claim_amount_anomaly",
+                    description=(
+                        f"Claimed amount ${claim.claimed_amount:,.0f} is {z_score:.1f} "
+                        f"standard deviations above average (${mean:,.0f})"
+                    ),
+                    severity=severity,
+                    confidence=0.7,
+                )
+            )
 
         # Disproportionate medical claim
         if claim.injury_claimed and claim.medical_claimed > 0:
             medical_ratio = claim.medical_claimed / claim.claimed_amount
             if medical_ratio > 0.8:  # Medical > 80% of total claim
-                indicators.append(FraudIndicator(
-                    type="claim_amount_anomaly",
-                    description=f"Medical claims are {medical_ratio*100:.0f}% of total (unusually high)",
-                    severity=0.6,
-                    confidence=0.65,
-                ))
+                indicators.append(
+                    FraudIndicator(
+                        type="claim_amount_anomaly",
+                        description=f"Medical claims are {medical_ratio * 100:.0f}% of total (unusually high)",
+                        severity=0.6,
+                        confidence=0.65,
+                    )
+                )
 
         return indicators
 
-    def _check_reporting_timing(self, claim: ClaimDetails) -> List[FraudIndicator]:
+    def _check_reporting_timing(self, claim: ClaimDetails) -> list[FraudIndicator]:
         """Check for suspicious reporting timing.
 
         Red flags:
@@ -498,31 +525,35 @@ class FraudDetectionEngine:
         # Suspicious delay
         if hours > self.config.suspicious_delay_hours:
             severity = min(0.7, hours / (self.config.suspicious_delay_hours * 2))
-            indicators.append(FraudIndicator(
-                type="timing_anomaly",
-                description=f"Claim reported {hours:.1f} hours after incident (unusually delayed)",
-                severity=severity,
-                confidence=0.6,
-            ))
+            indicators.append(
+                FraudIndicator(
+                    type="timing_anomaly",
+                    description=f"Claim reported {hours:.1f} hours after incident (unusually delayed)",
+                    severity=severity,
+                    confidence=0.6,
+                )
+            )
 
         # Suspiciously quick (could indicate pre-planning)
         if hours < self.config.suspicious_quick_report_hours:
-            indicators.append(FraudIndicator(
-                type="timing_anomaly",
-                description=f"Claim reported within {hours*60:.0f} minutes (unusually quick)",
-                severity=0.4,
-                confidence=0.5,
-            ))
+            indicators.append(
+                FraudIndicator(
+                    type="timing_anomaly",
+                    description=f"Claim reported within {hours * 60:.0f} minutes (unusually quick)",
+                    severity=0.4,
+                    confidence=0.5,
+                )
+            )
 
         return indicators
 
-    def _calculate_fraud_score(self, indicators: List[FraudIndicator]) -> float:
+    def _calculate_fraud_score(self, indicators: list[FraudIndicator]) -> float:
         """Calculate overall fraud score from indicators.
 
         Uses weighted sum of indicator severities, adjusted by confidence.
         """
         # Group indicators by type
-        indicator_map: Dict[str, List[FraudIndicator]] = {}
+        indicator_map: dict[str, list[FraudIndicator]] = {}
         for ind in indicators:
             if ind.type not in indicator_map:
                 indicator_map[ind.type] = []
@@ -568,7 +599,7 @@ class FraudDetectionEngine:
         # Clamp to [0, 1]
         return np.clip(weighted_score, 0.0, 1.0)
 
-    def _generate_reasoning(self, score: float, indicators: List[FraudIndicator]) -> str:
+    def _generate_reasoning(self, score: float, indicators: list[FraudIndicator]) -> str:
         """Generate human-readable reasoning for fraud assessment."""
         if score >= self.config.high_risk_threshold:
             risk_level = "HIGH FRAUD RISK"
@@ -588,10 +619,7 @@ class FraudDetectionEngine:
         )[:3]
 
         if top_indicators:
-            indicator_summary = " ".join([
-                f"({i+1}) {ind.description}."
-                for i, ind in enumerate(top_indicators)
-            ])
+            indicator_summary = " ".join([f"({i + 1}) {ind.description}." for i, ind in enumerate(top_indicators)])
             reasoning = f"{risk_level} (score={score:.2f}). Key indicators: {indicator_summary} {recommendation}"
         else:
             reasoning = f"{risk_level} (score={score:.2f}). No significant fraud indicators detected. {recommendation}"

@@ -15,6 +15,7 @@ Features:
 
 from __future__ import annotations
 
+import contextlib
 import json
 import logging
 import re
@@ -25,11 +26,10 @@ from pathlib import Path
 from typing import Any, Literal
 
 import cv2
-import numpy as np
 from pydantic import ValidationError
 
 from .prompt import get_claim_assessment_prompt, get_system_prompt
-from .schema import ClaimAssessment, Evidence, FaultAssessment, FraudRisk, HazardDetail, create_default_claim_assessment
+from .schema import ClaimAssessment, create_default_claim_assessment
 
 # Optional dependencies
 try:
@@ -207,12 +207,11 @@ class VideoLLMClient:
         """
         if not TRANSFORMERS_AVAILABLE:
             raise RuntimeError(
-                "Qwen2.5-VL requires transformers>=4.45.0. "
-                "Install with: pip install transformers>=4.45.0"
+                "Qwen2.5-VL requires transformers>=4.45.0. Install with: pip install transformers>=4.45.0"
             )
 
         if not QWEN_UTILS_AVAILABLE:
-            raise RuntimeError("Qwen2.5-VL requires qwen-vl-utils. " "Install with: pip install qwen-vl-utils")
+            raise RuntimeError("Qwen2.5-VL requires qwen-vl-utils. Install with: pip install qwen-vl-utils")
 
         if not TORCH_AVAILABLE:
             raise RuntimeError("Qwen2.5-VL requires torch. Install with: pip install torch")
@@ -231,6 +230,7 @@ class VideoLLMClient:
             if self.config.quantize in ("int4", "int8"):
                 try:
                     from transformers import BitsAndBytesConfig
+
                     if self.config.quantize == "int4":
                         quantization_config = BitsAndBytesConfig(
                             load_in_4bit=True,
@@ -397,17 +397,17 @@ class VideoLLMClient:
         Returns:
             Realistic JSON response based on prompt analysis
         """
-        import random
         import hashlib
+        import random
 
         # Analyze prompt for scenario hints
         prompt_lower = prompt.lower()
 
         # Determine scenario from keywords in prompt
-        is_collision = any(word in prompt_lower for word in ['collision', 'crash', 'impact', 'hit'])
-        is_near_miss = any(word in prompt_lower for word in ['near-miss', 'near miss', 'avoid', 'brake'])
-        is_pedestrian = any(word in prompt_lower for word in ['pedestrian', 'person', 'walker'])
-        has_danger = any(word in prompt_lower for word in ['danger', 'hazard', 'risk', 'emergency'])
+        is_collision = any(word in prompt_lower for word in ["collision", "crash", "impact", "hit"])
+        is_near_miss = any(word in prompt_lower for word in ["near-miss", "near miss", "avoid", "brake"])
+        is_pedestrian = any(word in prompt_lower for word in ["pedestrian", "person", "walker"])
+        has_danger = any(word in prompt_lower for word in ["danger", "hazard", "risk", "emergency"])
 
         # Use prompt hash for deterministic randomness (same video = same output)
         seed = int(hashlib.md5(prompt.encode()).hexdigest()[:8], 16)
@@ -415,46 +415,52 @@ class VideoLLMClient:
 
         # Scenario-based severity and reasoning
         if is_collision and not is_near_miss:
-            severity = rng.choice(['HIGH', 'HIGH', 'MEDIUM'])  # Bias toward HIGH
+            severity = rng.choice(["HIGH", "HIGH", "MEDIUM"])  # Bias toward HIGH
             confidence = rng.uniform(0.82, 0.94)
-            prediction_set = ['HIGH', 'MEDIUM'] if severity == 'HIGH' else ['MEDIUM', 'HIGH', 'LOW']
-            review_priority = 'URGENT'
+            prediction_set = ["HIGH", "MEDIUM"] if severity == "HIGH" else ["MEDIUM", "HIGH", "LOW"]
+            review_priority = "URGENT"
 
-            causal_reasoning = rng.choice([
-                "Video analysis reveals rear-end collision scenario. The dashcam footage shows the ego vehicle approaching a slowing vehicle ahead. At approximately 18-20 seconds, brake lights are visible on the lead vehicle, followed by emergency braking. Impact occurs at the 20-second mark with visible forward jolt. The collision appears to be caused by insufficient following distance combined with delayed reaction time.",
-                "Analysis of the video indicates a high-severity rear-end collision. The footage clearly shows the lead vehicle's brake lights activating around the 15-18 second mark. Despite this warning, the ego vehicle continues at speed until the last moment, resulting in significant impact force. Weather and road conditions appear clear, suggesting the collision was preventable with proper attention and following distance.",
-                "The video evidence demonstrates a classic rear-end collision scenario. Frame-by-frame analysis shows: (1) Lead vehicle begins decelerating at 15s mark, (2) Brake lights clearly visible from 16-20s, (3) Ego vehicle maintains speed until 19s, (4) Emergency braking initiated too late at 19.5s, (5) Impact at 20s with substantial force. The primary causal factor appears to be inadequate following distance and possible driver distraction."
-            ])
+            causal_reasoning = rng.choice(
+                [
+                    "Video analysis reveals rear-end collision scenario. The dashcam footage shows the ego vehicle approaching a slowing vehicle ahead. At approximately 18-20 seconds, brake lights are visible on the lead vehicle, followed by emergency braking. Impact occurs at the 20-second mark with visible forward jolt. The collision appears to be caused by insufficient following distance combined with delayed reaction time.",
+                    "Analysis of the video indicates a high-severity rear-end collision. The footage clearly shows the lead vehicle's brake lights activating around the 15-18 second mark. Despite this warning, the ego vehicle continues at speed until the last moment, resulting in significant impact force. Weather and road conditions appear clear, suggesting the collision was preventable with proper attention and following distance.",
+                    "The video evidence demonstrates a classic rear-end collision scenario. Frame-by-frame analysis shows: (1) Lead vehicle begins decelerating at 15s mark, (2) Brake lights clearly visible from 16-20s, (3) Ego vehicle maintains speed until 19s, (4) Emergency braking initiated too late at 19.5s, (5) Impact at 20s with substantial force. The primary causal factor appears to be inadequate following distance and possible driver distraction.",
+                ]
+            )
 
-            recommended_action = 'REVIEW'
+            recommended_action = "REVIEW"
 
         elif is_near_miss or (has_danger and is_pedestrian):
-            severity = rng.choice(['MEDIUM', 'MEDIUM', 'LOW'])  # Bias toward MEDIUM
+            severity = rng.choice(["MEDIUM", "MEDIUM", "LOW"])  # Bias toward MEDIUM
             confidence = rng.uniform(0.75, 0.88)
-            prediction_set = ['MEDIUM', 'LOW'] if severity == 'MEDIUM' else ['LOW', 'MEDIUM', 'NONE']
-            review_priority = 'STANDARD'
+            prediction_set = ["MEDIUM", "LOW"] if severity == "MEDIUM" else ["LOW", "MEDIUM", "NONE"]
+            review_priority = "STANDARD"
 
-            causal_reasoning = rng.choice([
-                "The dashcam footage captures a near-miss incident involving a pedestrian. At the 14-15 second mark, a pedestrian enters the vehicle's path from the right side. The driver demonstrates appropriate defensive driving by applying emergency brakes, bringing the vehicle to a stop approximately 2-3 meters before the pedestrian's position. While no collision occurred, the incident represents a moderate hazard that warrants documentation.",
-                "Video analysis shows a pedestrian avoidance scenario. The footage indicates good situational awareness by the driver, who identified the pedestrian hazard early and responded with controlled braking. Deceleration begins at 14s, with the vehicle coming to a complete stop well before any collision risk. This represents effective defensive driving in response to an unexpected pedestrian crossing.",
-                "The video demonstrates successful hazard avoidance involving a pedestrian crossing. Analysis reveals: (1) Pedestrian enters frame at 13s, (2) Driver initiates braking response at 14s, (3) Vehicle decelerates smoothly from approximately 45 km/h to full stop, (4) Final distance to pedestrian approximately 3 meters. The incident classification is near-miss with no fault attributed to the driver."
-            ])
+            causal_reasoning = rng.choice(
+                [
+                    "The dashcam footage captures a near-miss incident involving a pedestrian. At the 14-15 second mark, a pedestrian enters the vehicle's path from the right side. The driver demonstrates appropriate defensive driving by applying emergency brakes, bringing the vehicle to a stop approximately 2-3 meters before the pedestrian's position. While no collision occurred, the incident represents a moderate hazard that warrants documentation.",
+                    "Video analysis shows a pedestrian avoidance scenario. The footage indicates good situational awareness by the driver, who identified the pedestrian hazard early and responded with controlled braking. Deceleration begins at 14s, with the vehicle coming to a complete stop well before any collision risk. This represents effective defensive driving in response to an unexpected pedestrian crossing.",
+                    "The video demonstrates successful hazard avoidance involving a pedestrian crossing. Analysis reveals: (1) Pedestrian enters frame at 13s, (2) Driver initiates braking response at 14s, (3) Vehicle decelerates smoothly from approximately 45 km/h to full stop, (4) Final distance to pedestrian approximately 3 meters. The incident classification is near-miss with no fault attributed to the driver.",
+                ]
+            )
 
-            recommended_action = 'DOCUMENT'
+            recommended_action = "DOCUMENT"
 
         else:  # Normal driving
-            severity = rng.choice(['NONE', 'NONE', 'LOW'])  # Bias toward NONE
+            severity = rng.choice(["NONE", "NONE", "LOW"])  # Bias toward NONE
             confidence = rng.uniform(0.88, 0.96)
-            prediction_set = ['NONE'] if severity == 'NONE' else ['LOW', 'NONE']
-            review_priority = 'LOW'
+            prediction_set = ["NONE"] if severity == "NONE" else ["LOW", "NONE"]
+            review_priority = "LOW"
 
-            causal_reasoning = rng.choice([
-                "The dashcam footage shows standard highway driving with no incidents or violations observed. The vehicle maintains consistent speed, appropriate lane position, and safe following distances throughout the recorded period. Traffic conditions are normal with moderate density. No hazardous situations, sudden maneuvers, or safety concerns are evident in the video. This represents routine, safe driving behavior.",
-                "Analysis of the video reveals normal driving conditions with no noteworthy events. The driver maintains steady speed appropriate for highway conditions, executes smooth lane changes when necessary, and demonstrates proper following distance. No aggressive driving, traffic violations, or hazardous situations are detected. The footage is consistent with standard safe driving practices.",
-                "The video documentation shows routine highway travel. Frame analysis indicates: (1) Consistent speed of 80-90 km/h appropriate for highway, (2) Proper lane discipline maintained, (3) Safe following distances observed, (4) No sudden braking or evasive maneuvers, (5) Clear weather and good visibility throughout. No incidents or concerns identified."
-            ])
+            causal_reasoning = rng.choice(
+                [
+                    "The dashcam footage shows standard highway driving with no incidents or violations observed. The vehicle maintains consistent speed, appropriate lane position, and safe following distances throughout the recorded period. Traffic conditions are normal with moderate density. No hazardous situations, sudden maneuvers, or safety concerns are evident in the video. This represents routine, safe driving behavior.",
+                    "Analysis of the video reveals normal driving conditions with no noteworthy events. The driver maintains steady speed appropriate for highway conditions, executes smooth lane changes when necessary, and demonstrates proper following distance. No aggressive driving, traffic violations, or hazardous situations are detected. The footage is consistent with standard safe driving practices.",
+                    "The video documentation shows routine highway travel. Frame analysis indicates: (1) Consistent speed of 80-90 km/h appropriate for highway, (2) Proper lane discipline maintained, (3) Safe following distances observed, (4) No sudden braking or evasive maneuvers, (5) Clear weather and good visibility throughout. No incidents or concerns identified.",
+                ]
+            )
 
-            recommended_action = 'APPROVE'
+            recommended_action = "APPROVE"
 
         # Generate scenario-appropriate hazards
         hazards = []
@@ -494,7 +500,7 @@ class VideoLLMClient:
                 "fraud_risk": {
                     "risk_score": 0.0,  # Will be overridden by FraudDetectionEngine
                     "indicators": [],
-                    "reasoning": "Video evidence consistent with described scenario"
+                    "reasoning": "Video evidence consistent with described scenario",
                 },
                 "hazards": hazards,
                 "evidence": [],
@@ -518,8 +524,6 @@ class VideoLLMClient:
             RuntimeError: If inference fails
         """
         import signal
-
-        from PIL import Image
 
         def timeout_handler(signum, frame):
             raise TimeoutError(f"Inference exceeded {self.config.timeout_sec} seconds")
@@ -554,7 +558,7 @@ class VideoLLMClient:
                         },
                         {"type": "text", "text": prompt},
                     ],
-                }
+                },
             ]
 
             # Apply chat template
@@ -613,10 +617,8 @@ class VideoLLMClient:
 
         finally:
             # Cancel timeout
-            try:
+            with contextlib.suppress(AttributeError):
                 signal.alarm(0)
-            except AttributeError:
-                pass
 
     def _parse_json_response(self, raw_output: str, video_id: str, processing_time: float) -> ClaimAssessment:
         """Parse Video-LLM JSON output with 7-step repair pipeline.

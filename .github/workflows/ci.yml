@@ -18,10 +18,10 @@ jobs:
         run: pip install ruff
 
       - name: Ruff check
-        run: ruff check src/ tests/ scripts/
+        run: ruff check src/ tests/ scripts/ insurance_mvp/
 
       - name: Ruff format check
-        run: ruff format --check src/ tests/ scripts/
+        run: ruff format --check src/ tests/ scripts/ insurance_mvp/
 
       - name: Install mypy + dependencies
         run: pip install mypy types-requests
@@ -73,9 +73,36 @@ jobs:
           path: htmlcov/
           retention-days: 30
 
+  insurance:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgl1 libglib2.0-0
+
+      - name: Install project with insurance deps
+        run: pip install -e ".[dev,insurance]"
+
+      - name: Run insurance MVP tests
+        run: python -m pytest insurance_mvp/tests/ -v --tb=short
+
+      - name: Run insurance E2E benchmark (mock)
+        run: python scripts/insurance_e2e_benchmark.py
+
   smoke:
     runs-on: ubuntu-latest
-    needs: [test]
+    needs: [test, insurance]
     steps:
       - uses: actions/checkout@v4
 

@@ -5,7 +5,6 @@ to/from JSON for Video-LLM structured output.
 """
 
 from datetime import datetime
-from typing import List, Optional, Set
 
 from pydantic import BaseModel, Field
 
@@ -15,14 +14,14 @@ class Evidence(BaseModel):
 
     timestamp_sec: float = Field(description="Timestamp in seconds")
     description: str = Field(description="What happened at this timestamp")
-    frame_path: Optional[str] = Field(default=None, description="Path to keyframe image")
+    frame_path: str | None = Field(default=None, description="Path to keyframe image")
 
 
 class HazardDetail(BaseModel):
     """Hazard detected in video."""
 
     type: str = Field(description="Hazard type: collision, near_miss, traffic_violation, etc.")
-    actors: List[str] = Field(description="Actors involved: car, pedestrian, bicycle, etc.")
+    actors: list[str] = Field(description="Actors involved: car, pedestrian, bicycle, etc.")
     spatial_relation: str = Field(description="Spatial relationship: front, left, right, etc.")
     timestamp_sec: float = Field(description="When hazard occurred")
 
@@ -32,19 +31,19 @@ class FaultAssessment(BaseModel):
 
     fault_ratio: float = Field(ge=0.0, le=100.0, description="Fault percentage (0-100%)")
     reasoning: str = Field(description="Why this fault ratio")
-    applicable_rules: List[str] = Field(default_factory=list, description="Traffic rules applied")
+    applicable_rules: list[str] = Field(default_factory=list, description="Traffic rules applied")
 
     # Context
     scenario_type: str = Field(description="rear_end, head_on, side_swipe, etc.")
-    traffic_signal: Optional[str] = Field(default=None, description="red, yellow, green")
-    right_of_way: Optional[str] = Field(default=None, description="Who had right of way")
+    traffic_signal: str | None = Field(default=None, description="red, yellow, green")
+    right_of_way: str | None = Field(default=None, description="Who had right of way")
 
 
 class FraudRisk(BaseModel):
     """Fraud risk assessment."""
 
     risk_score: float = Field(ge=0.0, le=1.0, description="Fraud risk (0.0-1.0)")
-    indicators: List[str] = Field(default_factory=list, description="Fraud indicators detected")
+    indicators: list[str] = Field(default_factory=list, description="Fraud indicators detected")
     reasoning: str = Field(description="Why suspicious")
 
 
@@ -56,7 +55,7 @@ class ClaimAssessment(BaseModel):
     confidence: float = Field(ge=0.0, le=1.0, description="Model confidence (0.0-1.0)")
 
     # Conformal prediction (uncertainty quantification)
-    prediction_set: Set[str] = Field(description="Conformal prediction set, e.g., {MEDIUM, HIGH}")
+    prediction_set: set[str] = Field(description="Conformal prediction set, e.g., {MEDIUM, HIGH}")
     review_priority: str = Field(description="URGENT, STANDARD, LOW_PRIORITY")
 
     # Fault assessment
@@ -66,8 +65,8 @@ class ClaimAssessment(BaseModel):
     fraud_risk: FraudRisk
 
     # Hazards and evidence
-    hazards: List[HazardDetail] = Field(default_factory=list)
-    evidence: List[Evidence] = Field(default_factory=list)
+    hazards: list[HazardDetail] = Field(default_factory=list)
+    evidence: list[Evidence] = Field(default_factory=list)
 
     # Reasoning
     causal_reasoning: str = Field(description="Why this severity")
@@ -87,13 +86,13 @@ class ReviewDecision(BaseModel):
     decision: str = Field(description="APPROVE, REJECT, REQUEST_MORE_INFO")
 
     # Overrides
-    severity_override: Optional[str] = None
-    fault_ratio_override: Optional[float] = None
-    fraud_override: Optional[bool] = None
+    severity_override: str | None = None
+    fault_ratio_override: float | None = None
+    fraud_override: bool | None = None
 
     # Reasoning
     reasoning: str
-    comments: Optional[str] = None
+    comments: str | None = None
 
     # Metadata
     review_time_sec: float
@@ -107,8 +106,8 @@ class AuditLog(BaseModel):
     event_type: str = Field(description="AI_ASSESSMENT, HUMAN_REVIEW, DECISION_CHANGE, etc.")
 
     # Before/After
-    before_state: Optional[dict] = None
-    after_state: Optional[dict] = None
+    before_state: dict | None = None
+    after_state: dict | None = None
 
     # Actor
     actor_type: str = Field(description="AI, HUMAN")

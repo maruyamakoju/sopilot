@@ -16,7 +16,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional
 
 import cv2
 import numpy as np
@@ -52,7 +51,7 @@ class AudioAnalyzer:
     3. Horn-band FFT - horn detection via frequency analysis
     """
 
-    def __init__(self, config: Optional[AudioConfig] = None):
+    def __init__(self, config: AudioConfig | None = None):
         self.config = config or AudioConfig()
 
     def analyze(self, video_path: Path | str) -> np.ndarray:

@@ -18,42 +18,38 @@ Features:
 
 import json
 import logging
+import threading
 import time
 import traceback
-from pathlib import Path
-from typing import List, Dict, Any, Optional, Tuple
-from dataclasses import dataclass, asdict
-from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import asdict, dataclass
+from datetime import datetime
 from enum import Enum
-import threading
+from pathlib import Path
+from typing import Any
 
 import numpy as np
 from tqdm import tqdm
 
 # Insurance MVP components
 from insurance_mvp.config import PipelineConfig, load_config
+from insurance_mvp.conformal.split_conformal import (
+    ConformalConfig,
+    SplitConformal,
+    compute_review_priority,
+    severity_to_ordinal,
+)
 from insurance_mvp.insurance.schema import (
     ClaimAssessment,
     FaultAssessment,
     FraudRisk,
-    Evidence,
-    HazardDetail,
-    create_default_claim_assessment
 )
 from insurance_mvp.report_generator import ReportGenerator
-from insurance_mvp.conformal.split_conformal import (
-    SplitConformal,
-    ConformalConfig,
-    compute_review_priority,
-    severity_to_ordinal,
-    ordinal_to_severity
-)
 
 # Import components (will implement stubs for missing ones)
 try:
-    from insurance_mvp.mining.fuse import SignalFuser, DangerClip
     from insurance_mvp.mining.audio import AudioAnalyzer
+    from insurance_mvp.mining.fuse import DangerClip, SignalFuser
     from insurance_mvp.mining.motion import MotionAnalyzer
     from insurance_mvp.mining.proximity import ProximityAnalyzer
 except ImportError:
@@ -74,14 +70,18 @@ except ImportError:
 try:
     from insurance_mvp.insurance.fault_assessment import (
         FaultAssessmentEngine as FaultAssessor,
+    )
+    from insurance_mvp.insurance.fault_assessment import (
         ScenarioContext,
         ScenarioType,
         detect_scenario_type,
     )
     from insurance_mvp.insurance.fraud_detection import (
-        FraudDetectionEngine as FraudDetector,
-        VideoEvidence,
         ClaimDetails,
+        VideoEvidence,
+    )
+    from insurance_mvp.insurance.fraud_detection import (
+        FraudDetectionEngine as FraudDetector,
     )
 except ImportError:
     FaultAssessor = None
@@ -95,9 +95,11 @@ except ImportError:
 
 # --- Data Classes ---
 
+
 @dataclass
 class PipelineMetrics:
     """Pipeline performance metrics"""
+
     total_videos: int = 0
     successful_videos: int = 0
     failed_videos: int = 0
@@ -119,25 +121,27 @@ class PipelineMetrics:
 @dataclass
 class VideoResult:
     """Result of processing a single video"""
+
     video_id: str
     video_path: str
     success: bool
-    error_message: Optional[str] = None
+    error_message: str | None = None
 
     # Stage outputs
-    danger_clips: List[Any] = None  # List[DangerClip]
-    assessments: List[ClaimAssessment] = None
+    danger_clips: list[Any] = None  # List[DangerClip]
+    assessments: list[ClaimAssessment] = None
 
     # Final outputs
-    output_json_path: Optional[str] = None
-    output_html_path: Optional[str] = None
+    output_json_path: str | None = None
+    output_html_path: str | None = None
 
     # Timing
     processing_time_sec: float = 0.0
-    stage_timings: Dict[str, float] = None
+    stage_timings: dict[str, float] = None
 
 
 # --- Pipeline Implementation ---
+
 
 class InsurancePipeline:
     """
@@ -170,8 +174,7 @@ class InsurancePipeline:
         console_handler = logging.StreamHandler()
         console_handler.setLevel(logging.INFO)
         formatter = logging.Formatter(
-            '%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-            datefmt='%Y-%m-%d %H:%M:%S'
+            "%(asctime)s - %(name)s - %(levelname)s - %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
         )
         console_handler.setFormatter(formatter)
         logger.addHandler(console_handler)
@@ -180,7 +183,7 @@ class InsurancePipeline:
         if self.config.log_file:
             log_path = Path(self.config.log_file)
             log_path.parent.mkdir(parents=True, exist_ok=True)
-            file_handler = logging.FileHandler(log_path, encoding='utf-8')
+            file_handler = logging.FileHandler(log_path, encoding="utf-8")
             file_handler.setLevel(logging.DEBUG)
             file_handler.setFormatter(formatter)
             logger.addHandler(file_handler)
@@ -210,7 +213,7 @@ class InsurancePipeline:
             self.cosmos_client = CosmosClient(
                 backend=self.config.cosmos.backend.value,
                 model_name=self.config.cosmos.model_name,
-                device=self.config.cosmos.device.value
+                device=self.config.cosmos.device.value,
             )
             self.logger.info(f"Cosmos client initialized: {self.config.cosmos.backend.value}")
         else:
@@ -236,8 +239,7 @@ class InsurancePipeline:
         if self.config.enable_conformal:
             self.conformal_predictor = SplitConformal(
                 ConformalConfig(
-                    alpha=self.config.conformal.alpha,
-                    severity_levels=self.config.conformal.severity_levels
+                    alpha=self.config.conformal.alpha, severity_levels=self.config.conformal.severity_levels
                 )
             )
             # Load pretrained calibration if available
@@ -274,7 +276,7 @@ class InsurancePipeline:
 
     # --- Core Pipeline Stages ---
 
-    def process_video(self, video_path: str, video_id: Optional[str] = None) -> VideoResult:
+    def process_video(self, video_path: str, video_id: str | None = None) -> VideoResult:
         """
         Process a single video through the complete pipeline.
 
@@ -291,7 +293,7 @@ class InsurancePipeline:
                 video_id=video_id or video_path_obj.stem,
                 video_path=str(video_path),
                 success=False,
-                error_message=f"Video file not found: {video_path}"
+                error_message=f"Video file not found: {video_path}",
             )
 
         if video_id is None:
@@ -306,7 +308,7 @@ class InsurancePipeline:
             self.logger.info(f"[{video_id}] Stage 1: Multimodal signal mining...")
             stage_start = time.time()
             danger_clips = self._stage1_mining(video_path, video_id)
-            stage_timings['mining'] = time.time() - stage_start
+            stage_timings["mining"] = time.time() - stage_start
             self.logger.info(f"[{video_id}] Mined {len(danger_clips)} danger clips")
 
             if not danger_clips:
@@ -318,34 +320,34 @@ class InsurancePipeline:
                     danger_clips=[],
                     assessments=[],
                     processing_time_sec=time.time() - start_time,
-                    stage_timings=stage_timings
+                    stage_timings=stage_timings,
                 )
 
             # Stage 2: Video-LLM Inference
             self.logger.info(f"[{video_id}] Stage 2: Video-LLM inference on {len(danger_clips)} clips...")
             stage_start = time.time()
             assessments = self._stage2_vlm_inference(danger_clips, video_id)
-            stage_timings['vlm_inference'] = time.time() - stage_start
+            stage_timings["vlm_inference"] = time.time() - stage_start
             self.logger.info(f"[{video_id}] Completed {len(assessments)} assessments")
 
             # Stage 3: Severity Ranking
             self.logger.info(f"[{video_id}] Stage 3: Severity ranking...")
             stage_start = time.time()
             assessments = self._stage3_ranking(assessments)
-            stage_timings['ranking'] = time.time() - stage_start
+            stage_timings["ranking"] = time.time() - stage_start
 
             # Stage 4: Conformal Prediction
             if self.config.enable_conformal and self.conformal_predictor:
                 self.logger.info(f"[{video_id}] Stage 4: Conformal prediction...")
                 stage_start = time.time()
                 assessments = self._stage4_conformal(assessments)
-                stage_timings['conformal'] = time.time() - stage_start
+                stage_timings["conformal"] = time.time() - stage_start
 
             # Stage 5: Review Priority Assignment
             self.logger.info(f"[{video_id}] Stage 5: Review priority assignment...")
             stage_start = time.time()
             assessments = self._stage5_review_priority(assessments)
-            stage_timings['review_priority'] = time.time() - stage_start
+            stage_timings["review_priority"] = time.time() - stage_start
 
             # Save results
             output_json, output_html = self._save_results(video_id, danger_clips, assessments)
@@ -362,7 +364,7 @@ class InsurancePipeline:
                 output_json_path=output_json,
                 output_html_path=output_html,
                 processing_time_sec=processing_time,
-                stage_timings=stage_timings
+                stage_timings=stage_timings,
             )
 
         except Exception as e:
@@ -374,10 +376,10 @@ class InsurancePipeline:
                 success=False,
                 error_message=str(e),
                 processing_time_sec=time.time() - start_time,
-                stage_timings=stage_timings
+                stage_timings=stage_timings,
             )
 
-    def _stage1_mining(self, video_path: str, video_id: str) -> List[Any]:
+    def _stage1_mining(self, video_path: str, video_id: str) -> list[Any]:
         """Stage 1: Multimodal signal mining → Top-K danger clips"""
         if not self.signal_fuser:
             self.logger.warning("Signal fuser not available. Returning mock danger clips.")
@@ -385,8 +387,7 @@ class InsurancePipeline:
 
         try:
             danger_clips = self.signal_fuser.extract_danger_clips(
-                video_path=video_path,
-                top_k=self.config.mining.top_k_clips
+                video_path=video_path, top_k=self.config.mining.top_k_clips
             )
             return danger_clips
         except Exception as e:
@@ -395,20 +396,20 @@ class InsurancePipeline:
                 return []
             raise
 
-    def _mock_danger_clips(self, video_path: str, video_id: str) -> List[Dict]:
+    def _mock_danger_clips(self, video_path: str, video_id: str) -> list[dict]:
         """Generate mock danger clips for testing"""
         return [
             {
-                'clip_id': f"{video_id}_clip_{i}",
-                'start_sec': i * 10.0,
-                'end_sec': (i * 10.0) + 5.0,
-                'danger_score': 0.8 - (i * 0.1),
-                'video_path': video_path
+                "clip_id": f"{video_id}_clip_{i}",
+                "start_sec": i * 10.0,
+                "end_sec": (i * 10.0) + 5.0,
+                "danger_score": 0.8 - (i * 0.1),
+                "video_path": video_path,
             }
             for i in range(min(3, self.config.mining.top_k_clips))
         ]
 
-    def _stage2_vlm_inference(self, danger_clips: List[Any], video_id: str) -> List[ClaimAssessment]:
+    def _stage2_vlm_inference(self, danger_clips: list[Any], video_id: str) -> list[ClaimAssessment]:
         """Stage 2: Video-LLM inference → ClaimAssessment per clip"""
         assessments = []
 
@@ -433,7 +434,7 @@ class InsurancePipeline:
 
     def _process_single_clip(self, clip: Any, video_id: str) -> ClaimAssessment:
         """Process a single clip with VLM and domain logic"""
-        clip_id = clip.get('clip_id', 'unknown')
+        clip_id = clip.get("clip_id", "unknown")
         start_time = time.time()
 
         # GPU resource management
@@ -452,33 +453,29 @@ class InsurancePipeline:
                     fault_ratio=50.0,
                     reasoning="Fault assessment disabled",
                     applicable_rules=[],
-                    scenario_type="unknown"
+                    scenario_type="unknown",
                 )
 
             # B3: Fraud detection
             if self.config.enable_fraud_detection and self.fraud_detector:
                 fraud_risk = self._detect_fraud_from_vlm(vlm_result, clip)
             else:
-                fraud_risk = FraudRisk(
-                    risk_score=0.0,
-                    indicators=[],
-                    reasoning="Fraud detection disabled"
-                )
+                fraud_risk = FraudRisk(risk_score=0.0, indicators=[], reasoning="Fraud detection disabled")
 
         processing_time = time.time() - start_time
 
-        severity = vlm_result.get('severity', 'LOW')
+        severity = vlm_result.get("severity", "LOW")
 
         # Severity-aware fault ratio adjustment:
         # No collision → no fault to assign
-        if severity == 'NONE':
+        if severity == "NONE":
             fault_assessment = FaultAssessment(
                 fault_ratio=0.0,
                 reasoning="No incident detected — fault assessment not applicable",
                 applicable_rules=[],
                 scenario_type=fault_assessment.scenario_type,
             )
-        elif severity in ('LOW', 'MEDIUM') and 'near' in vlm_result.get('reasoning', '').lower():
+        elif severity in ("LOW", "MEDIUM") and "near" in vlm_result.get("reasoning", "").lower():
             # Near-miss: no contact occurred, reduce fault significantly
             fault_assessment = FaultAssessment(
                 fault_ratio=min(fault_assessment.fault_ratio, 20.0),
@@ -490,35 +487,31 @@ class InsurancePipeline:
         # Construct ClaimAssessment
         assessment = ClaimAssessment(
             severity=severity,
-            confidence=vlm_result.get('confidence', 0.5),
+            confidence=vlm_result.get("confidence", 0.5),
             prediction_set={severity},  # Will be updated in stage 4
             review_priority="STANDARD",  # Will be updated in stage 5
             fault_assessment=fault_assessment,
             fraud_risk=fraud_risk,
             hazards=[],  # TODO: Extract from VLM result
             evidence=[],  # TODO: Extract from VLM result
-            causal_reasoning=vlm_result.get('reasoning', ''),
+            causal_reasoning=vlm_result.get("reasoning", ""),
             recommended_action="REVIEW",
             video_id=video_id,
-            processing_time_sec=processing_time
+            processing_time_sec=processing_time,
         )
 
         return assessment
 
-    def _vlm_inference_with_retry(self, clip: Any) -> Dict[str, Any]:
+    def _vlm_inference_with_retry(self, clip: Any) -> dict[str, Any]:
         """VLM inference with retry logic"""
         for attempt in range(self.config.max_retries):
             try:
                 # Extract clip video path and time range
-                video_path = clip.get('video_path')
-                start_sec = clip.get('start_sec', 0.0)
-                end_sec = clip.get('end_sec', 5.0)
+                video_path = clip.get("video_path")
+                start_sec = clip.get("start_sec", 0.0)
+                end_sec = clip.get("end_sec", 5.0)
 
-                result = self.cosmos_client.analyze_clip(
-                    video_path=video_path,
-                    start_sec=start_sec,
-                    end_sec=end_sec
-                )
+                result = self.cosmos_client.analyze_clip(video_path=video_path, start_sec=start_sec, end_sec=end_sec)
                 return result
 
             except Exception as e:
@@ -528,52 +521,52 @@ class InsurancePipeline:
                 else:
                     raise
 
-    def _mock_vlm_result(self, clip: Any) -> Dict[str, Any]:
+    def _mock_vlm_result(self, clip: Any) -> dict[str, Any]:
         """Generate scenario-aware mock VLM result for testing.
 
         Infers scenario from video filename to return appropriate severity,
         confidence, and reasoning instead of static defaults.
         """
-        video_path = str(clip.get('video_path', '')).lower()
-        filename = Path(video_path).stem if video_path else ''
+        video_path = str(clip.get("video_path", "")).lower()
+        filename = Path(video_path).stem if video_path else ""
 
-        if 'collision' in filename or 'crash' in filename:
+        if "collision" in filename or "crash" in filename:
             return {
-                'severity': 'HIGH',
-                'confidence': 0.92,
-                'reasoning': 'Mock: Rear-end collision detected with significant impact',
-                'causal_reasoning': 'rear-end collision: ego vehicle struck the vehicle ahead',
-                'hazards': [{'type': 'collision', 'actors': ['car', 'car']}],
-                'evidence': [{'timestamp_sec': 20.0, 'description': 'Impact detected'}],
+                "severity": "HIGH",
+                "confidence": 0.92,
+                "reasoning": "Mock: Rear-end collision detected with significant impact",
+                "causal_reasoning": "rear-end collision: ego vehicle struck the vehicle ahead",
+                "hazards": [{"type": "collision", "actors": ["car", "car"]}],
+                "evidence": [{"timestamp_sec": 20.0, "description": "Impact detected"}],
             }
-        elif 'near_miss' in filename or 'near-miss' in filename:
+        elif "near_miss" in filename or "near-miss" in filename:
             return {
-                'severity': 'MEDIUM',
-                'confidence': 0.80,
-                'reasoning': 'Mock: Near-miss event with pedestrian avoidance',
-                'causal_reasoning': 'near-miss: ego vehicle braked to avoid pedestrian',
-                'hazards': [{'type': 'near_miss', 'actors': ['car', 'pedestrian']}],
-                'evidence': [{'timestamp_sec': 15.0, 'description': 'Emergency braking'}],
+                "severity": "MEDIUM",
+                "confidence": 0.80,
+                "reasoning": "Mock: Near-miss event with pedestrian avoidance",
+                "causal_reasoning": "near-miss: ego vehicle braked to avoid pedestrian",
+                "hazards": [{"type": "near_miss", "actors": ["car", "pedestrian"]}],
+                "evidence": [{"timestamp_sec": 15.0, "description": "Emergency braking"}],
             }
-        elif 'normal' in filename or 'safe' in filename:
+        elif "normal" in filename or "safe" in filename:
             return {
-                'severity': 'NONE',
-                'confidence': 0.95,
-                'reasoning': 'Mock: Normal driving with no incidents detected',
-                'causal_reasoning': 'normal driving conditions, no hazards observed',
-                'hazards': [],
-                'evidence': [],
+                "severity": "NONE",
+                "confidence": 0.95,
+                "reasoning": "Mock: Normal driving with no incidents detected",
+                "causal_reasoning": "normal driving conditions, no hazards observed",
+                "hazards": [],
+                "evidence": [],
             }
         else:
             return {
-                'severity': 'MEDIUM',
-                'confidence': 0.75,
-                'reasoning': 'Mock: Unable to determine scenario from filename',
-                'hazards': [],
-                'evidence': [],
+                "severity": "MEDIUM",
+                "confidence": 0.75,
+                "reasoning": "Mock: Unable to determine scenario from filename",
+                "hazards": [],
+                "evidence": [],
             }
 
-    def _assess_fault_from_vlm(self, vlm_result: Dict[str, Any], clip: Any) -> FaultAssessment:
+    def _assess_fault_from_vlm(self, vlm_result: dict[str, Any], clip: Any) -> FaultAssessment:
         """Adapt VLM output to fault assessment engine.
 
         Args:
@@ -584,7 +577,7 @@ class InsurancePipeline:
             FaultAssessment with fault ratio and reasoning
         """
         # Extract causal reasoning from VLM
-        causal_reasoning = vlm_result.get('causal_reasoning', vlm_result.get('reasoning', ''))
+        causal_reasoning = vlm_result.get("causal_reasoning", vlm_result.get("reasoning", ""))
 
         # Detect scenario type from VLM reasoning
         scenario_type = detect_scenario_type(causal_reasoning) if detect_scenario_type else ScenarioType.UNKNOWN
@@ -592,14 +585,14 @@ class InsurancePipeline:
         # Build scenario context
         context = ScenarioContext(
             scenario_type=scenario_type,
-            speed_ego_kmh=clip.get('speed_kmh'),  # If available from mining
-            ego_braking=clip.get('has_braking', False),  # From audio/motion signals
+            speed_ego_kmh=clip.get("speed_kmh"),  # If available from mining
+            ego_braking=clip.get("has_braking", False),  # From audio/motion signals
         )
 
         # Run fault assessment
         return self.fault_assessor.assess_fault(context)
 
-    def _detect_fraud_from_vlm(self, vlm_result: Dict[str, Any], clip: Any) -> FraudRisk:
+    def _detect_fraud_from_vlm(self, vlm_result: dict[str, Any], clip: Any) -> FraudRisk:
         """Adapt VLM output to fraud detection engine.
 
         Args:
@@ -610,27 +603,22 @@ class InsurancePipeline:
             FraudRisk with risk score and indicators
         """
         # Build video evidence from VLM + clip data
-        severity = vlm_result.get('severity', 'LOW')
-        hazards = vlm_result.get('hazards', [])
+        severity = vlm_result.get("severity", "LOW")
+        hazards = vlm_result.get("hazards", [])
 
         # Check for collision sound in clip (from audio mining)
-        has_collision_sound = clip.get('has_crash_sound', False)
+        has_collision_sound = clip.get("has_crash_sound", False)
 
         # Estimate damage from severity
-        damage_severity_map = {
-            'NONE': 'none',
-            'LOW': 'minor',
-            'MEDIUM': 'moderate',
-            'HIGH': 'severe'
-        }
-        damage_severity = damage_severity_map.get(severity, 'none')
+        damage_severity_map = {"NONE": "none", "LOW": "minor", "MEDIUM": "moderate", "HIGH": "severe"}
+        damage_severity = damage_severity_map.get(severity, "none")
 
         video_evidence = VideoEvidence(
             has_collision_sound=has_collision_sound,
-            damage_visible=(severity in ['MEDIUM', 'HIGH']),
+            damage_visible=(severity in ["MEDIUM", "HIGH"]),
             damage_severity=damage_severity,
-            speed_at_impact_kmh=clip.get('speed_kmh', 40.0),  # Default estimate
-            video_duration_sec=clip.get('duration_sec', 5.0),
+            speed_at_impact_kmh=clip.get("speed_kmh", 40.0),  # Default estimate
+            video_duration_sec=clip.get("duration_sec", 5.0),
         )
 
         # Build claim details (using defaults for demo)
@@ -639,10 +627,7 @@ class InsurancePipeline:
         )
 
         # Run fraud detection
-        return self.fraud_detector.detect_fraud(
-            video_evidence=video_evidence,
-            claim_details=claim_details
-        )
+        return self.fraud_detector.detect_fraud(video_evidence=video_evidence, claim_details=claim_details)
 
     def _create_error_assessment(self, clip: Any, video_id: str, error_msg: str) -> ClaimAssessment:
         """Create default assessment for failed clip"""
@@ -655,33 +640,26 @@ class InsurancePipeline:
                 fault_ratio=50.0,
                 reasoning=f"Error during processing: {error_msg}",
                 applicable_rules=[],
-                scenario_type="error"
+                scenario_type="error",
             ),
-            fraud_risk=FraudRisk(
-                risk_score=0.0,
-                indicators=[],
-                reasoning="Not evaluated due to error"
-            ),
+            fraud_risk=FraudRisk(risk_score=0.0, indicators=[], reasoning="Not evaluated due to error"),
             hazards=[],
             evidence=[],
             causal_reasoning=f"Processing error: {error_msg}",
             recommended_action="REVIEW",
             video_id=video_id,
-            processing_time_sec=0.0
+            processing_time_sec=0.0,
         )
 
-    def _stage3_ranking(self, assessments: List[ClaimAssessment]) -> List[ClaimAssessment]:
+    def _stage3_ranking(self, assessments: list[ClaimAssessment]) -> list[ClaimAssessment]:
         """Stage 3: Sort clips by severity (HIGH → MEDIUM → LOW → NONE)"""
         severity_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "NONE": 3}
 
-        sorted_assessments = sorted(
-            assessments,
-            key=lambda a: (severity_order.get(a.severity, 4), -a.confidence)
-        )
+        sorted_assessments = sorted(assessments, key=lambda a: (severity_order.get(a.severity, 4), -a.confidence))
 
         return sorted_assessments
 
-    def _stage4_conformal(self, assessments: List[ClaimAssessment]) -> List[ClaimAssessment]:
+    def _stage4_conformal(self, assessments: list[ClaimAssessment]) -> list[ClaimAssessment]:
         """Stage 4: Add conformal prediction sets"""
         if not self.conformal_predictor or not self.conformal_predictor._calibrated:
             self.logger.warning("Conformal predictor not calibrated. Skipping.")
@@ -702,7 +680,7 @@ class InsurancePipeline:
 
         return assessments
 
-    def _stage5_review_priority(self, assessments: List[ClaimAssessment]) -> List[ClaimAssessment]:
+    def _stage5_review_priority(self, assessments: list[ClaimAssessment]) -> list[ClaimAssessment]:
         """Stage 5: Compute review priority based on severity and uncertainty"""
         for assessment in assessments:
             priority = compute_review_priority(assessment.severity, assessment.prediction_set)
@@ -710,21 +688,18 @@ class InsurancePipeline:
 
         return assessments
 
-    def _save_checkpoint(self, video_id: str, assessments: List[ClaimAssessment]):
+    def _save_checkpoint(self, video_id: str, assessments: list[ClaimAssessment]):
         """Save intermediate checkpoint"""
         output_dir = Path(self.config.output_dir) / video_id
         output_dir.mkdir(parents=True, exist_ok=True)
 
         checkpoint_path = output_dir / "checkpoint.json"
-        with open(checkpoint_path, 'w', encoding='utf-8') as f:
+        with open(checkpoint_path, "w", encoding="utf-8") as f:
             json.dump([self._serialize_object(a) for a in assessments], f, indent=2, default=str)
 
     def _save_results(
-        self,
-        video_id: str,
-        danger_clips: List[Any],
-        assessments: List[ClaimAssessment]
-    ) -> Tuple[str, str]:
+        self, video_id: str, danger_clips: list[Any], assessments: list[ClaimAssessment]
+    ) -> tuple[str, str]:
         """Save final results as JSON and HTML"""
         output_dir = Path(self.config.output_dir) / video_id
         output_dir.mkdir(parents=True, exist_ok=True)
@@ -732,15 +707,15 @@ class InsurancePipeline:
         # Save JSON
         json_path = output_dir / "results.json"
         results_dict = {
-            'video_id': video_id,
-            'timestamp': datetime.utcnow().isoformat(),
-            'config': self._serialize_object(self.config),
-            'danger_clips': [self._clip_to_dict(c) for c in danger_clips],
-            'assessments': [self._serialize_object(a) for a in assessments],
-            'summary': self._generate_summary(assessments)
+            "video_id": video_id,
+            "timestamp": datetime.utcnow().isoformat(),
+            "config": self._serialize_object(self.config),
+            "danger_clips": [self._clip_to_dict(c) for c in danger_clips],
+            "assessments": [self._serialize_object(a) for a in assessments],
+            "summary": self._generate_summary(assessments),
         }
 
-        with open(json_path, 'w', encoding='utf-8') as f:
+        with open(json_path, "w", encoding="utf-8") as f:
             json.dump(results_dict, f, indent=2, default=str, ensure_ascii=False)
 
         self.logger.info(f"Saved JSON results: {json_path}")
@@ -750,22 +725,18 @@ class InsurancePipeline:
         try:
             report_gen = ReportGenerator()
             if assessments:
-                report_gen.generate_multi_clip_report(
-                    assessments=assessments,
-                    video_id=video_id,
-                    output_path=html_path
-                )
+                report_gen.generate_multi_clip_report(assessments=assessments, video_id=video_id, output_path=html_path)
                 self.logger.info(f"Saved professional HTML report: {html_path}")
             else:
                 # Fallback to basic template if no assessments
                 html_content = self._generate_html_report(video_id, [])
-                with open(html_path, 'w', encoding='utf-8') as f:
+                with open(html_path, "w", encoding="utf-8") as f:
                     f.write(html_content)
                 self.logger.info(f"Saved basic HTML report: {html_path}")
         except Exception as e:
             self.logger.warning(f"Professional report generation failed ({e}), using fallback")
             html_content = self._generate_html_report(video_id, assessments)
-            with open(html_path, 'w', encoding='utf-8') as f:
+            with open(html_path, "w", encoding="utf-8") as f:
                 f.write(html_content)
             self.logger.info(f"Saved fallback HTML report: {html_path}")
 
@@ -775,7 +746,7 @@ class InsurancePipeline:
         """Recursively serialize objects to JSON-compatible format"""
         if obj is None or isinstance(obj, (str, int, float, bool)):
             return obj
-        elif isinstance(obj, (datetime, )):
+        elif isinstance(obj, (datetime,)):
             return obj.isoformat()
         elif isinstance(obj, set):
             return sorted(list(obj))  # Convert set to sorted list
@@ -783,7 +754,7 @@ class InsurancePipeline:
             return [self._serialize_object(item) for item in obj]
         elif isinstance(obj, dict):
             return {k: self._serialize_object(v) for k, v in obj.items()}
-        elif hasattr(obj, '__dataclass_fields__'):
+        elif hasattr(obj, "__dataclass_fields__"):
             # It's a dataclass - convert to dict manually
             result = {}
             for field_name in obj.__dataclass_fields__:
@@ -792,26 +763,26 @@ class InsurancePipeline:
             return result
         elif isinstance(obj, Enum):
             return obj.value
-        elif hasattr(obj, '__dict__'):
+        elif hasattr(obj, "__dict__"):
             # Regular object with __dict__
             return self._serialize_object(obj.__dict__)
         else:
             return str(obj)
 
-    def _clip_to_dict(self, clip: Any) -> Dict[str, Any]:
+    def _clip_to_dict(self, clip: Any) -> dict[str, Any]:
         """Convert clip to dictionary"""
         if isinstance(clip, dict):
             return clip
-        elif hasattr(clip, '__dataclass_fields__'):
+        elif hasattr(clip, "__dataclass_fields__"):
             # It's a dataclass
             return self._serialize_object(clip)
-        elif hasattr(clip, '__dict__'):
+        elif hasattr(clip, "__dict__"):
             # Regular object with __dict__
             return clip.__dict__
         else:
-            return {'clip': str(clip)}
+            return {"clip": str(clip)}
 
-    def _generate_summary(self, assessments: List[ClaimAssessment]) -> Dict[str, Any]:
+    def _generate_summary(self, assessments: list[ClaimAssessment]) -> dict[str, Any]:
         """Generate summary statistics"""
         if not assessments:
             return {}
@@ -825,15 +796,15 @@ class InsurancePipeline:
             priority_counts[a.review_priority] = priority_counts.get(a.review_priority, 0) + 1
 
         return {
-            'total_clips': len(assessments),
-            'severity_distribution': severity_counts,
-            'priority_distribution': priority_counts,
-            'avg_confidence': sum(a.confidence for a in assessments) / len(assessments),
-            'avg_fault_ratio': sum(a.fault_assessment.fault_ratio for a in assessments) / len(assessments),
-            'avg_fraud_score': sum(a.fraud_risk.risk_score for a in assessments) / len(assessments),
+            "total_clips": len(assessments),
+            "severity_distribution": severity_counts,
+            "priority_distribution": priority_counts,
+            "avg_confidence": sum(a.confidence for a in assessments) / len(assessments),
+            "avg_fault_ratio": sum(a.fault_assessment.fault_ratio for a in assessments) / len(assessments),
+            "avg_fraud_score": sum(a.fraud_risk.risk_score for a in assessments) / len(assessments),
         }
 
-    def _generate_html_report(self, video_id: str, assessments: List[ClaimAssessment]) -> str:
+    def _generate_html_report(self, video_id: str, assessments: list[ClaimAssessment]) -> str:
         """Generate simple HTML report"""
         html = f"""
 <!DOCTYPE html>
@@ -876,7 +847,7 @@ class InsurancePipeline:
 """
 
         for i, assessment in enumerate(assessments, 1):
-            pred_set_str = ', '.join(sorted(assessment.prediction_set))
+            pred_set_str = ", ".join(sorted(assessment.prediction_set))
             html += f"""
         <tr class="{assessment.severity}">
             <td>{i}</td>
@@ -899,7 +870,7 @@ class InsurancePipeline:
 
     # --- Batch Processing ---
 
-    def process_batch(self, video_paths: List[str]) -> List[VideoResult]:
+    def process_batch(self, video_paths: list[str]) -> list[VideoResult]:
         """
         Process multiple videos in parallel.
 
@@ -924,17 +895,9 @@ class InsurancePipeline:
         else:
             # Parallel processing
             with ThreadPoolExecutor(max_workers=self.config.parallel_workers) as executor:
-                futures = {
-                    executor.submit(self.process_video, video_path): video_path
-                    for video_path in video_paths
-                }
+                futures = {executor.submit(self.process_video, video_path): video_path for video_path in video_paths}
 
-                for future in tqdm(
-                    as_completed(futures),
-                    total=len(futures),
-                    desc="Processing videos",
-                    unit="video"
-                ):
+                for future in tqdm(as_completed(futures), total=len(futures), desc="Processing videos", unit="video"):
                     try:
                         result = future.result()
                         results.append(result)
@@ -944,9 +907,7 @@ class InsurancePipeline:
                         self.logger.error(f"Unexpected error processing {video_path}: {e}")
 
         self.metrics.total_processing_time_sec = time.time() - start_time
-        self.metrics.avg_processing_time_per_video = (
-            self.metrics.total_processing_time_sec / len(video_paths)
-        )
+        self.metrics.avg_processing_time_per_video = self.metrics.total_processing_time_sec / len(video_paths)
 
         self._save_batch_summary(results)
         self._print_summary()
@@ -965,28 +926,28 @@ class InsurancePipeline:
         if result.danger_clips:
             self.metrics.total_clips_mined += len(result.danger_clips)
 
-    def _save_batch_summary(self, results: List[VideoResult]):
+    def _save_batch_summary(self, results: list[VideoResult]):
         """Save batch processing summary"""
         output_dir = Path(self.config.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)
 
         summary_path = output_dir / "batch_summary.json"
         summary = {
-            'timestamp': datetime.utcnow().isoformat(),
-            'metrics': asdict(self.metrics),
-            'results': [
+            "timestamp": datetime.utcnow().isoformat(),
+            "metrics": asdict(self.metrics),
+            "results": [
                 {
-                    'video_id': r.video_id,
-                    'success': r.success,
-                    'error_message': r.error_message,
-                    'processing_time_sec': r.processing_time_sec,
-                    'num_clips': len(r.assessments) if r.assessments else 0
+                    "video_id": r.video_id,
+                    "success": r.success,
+                    "error_message": r.error_message,
+                    "processing_time_sec": r.processing_time_sec,
+                    "num_clips": len(r.assessments) if r.assessments else 0,
                 }
                 for r in results
-            ]
+            ],
         }
 
-        with open(summary_path, 'w', encoding='utf-8') as f:
+        with open(summary_path, "w", encoding="utf-8") as f:
             json.dump(summary, f, indent=2, default=str)
 
         self.logger.info(f"Saved batch summary: {summary_path}")
@@ -1009,6 +970,7 @@ class InsurancePipeline:
 
 # --- CLI Interface ---
 
+
 def main():
     """CLI entry point"""
     import argparse
@@ -1029,7 +991,7 @@ Examples:
 
   # Override config via CLI
   python -m insurance_mvp.pipeline --video-path data/dashcam001.mp4 --cosmos-backend mock
-"""
+""",
     )
 
     parser.add_argument("--video-path", type=str, help="Path to single video file")

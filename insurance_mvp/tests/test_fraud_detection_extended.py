@@ -9,31 +9,27 @@ Covers edge cases not in test_insurance_domain.py:
 - Reasoning generation
 """
 
-import pytest
 from datetime import datetime, timedelta
 
 from insurance_mvp.insurance.fraud_detection import (
-    FraudDetectionEngine,
-    FraudDetectionConfig,
-    FraudIndicator,
-    VideoEvidence,
     ClaimDetails,
     ClaimHistory,
+    FraudDetectionConfig,
+    FraudDetectionEngine,
+    VideoEvidence,
 )
-
 
 # ============================================================================
 # TestEdgeCases
 # ============================================================================
+
 
 class TestEdgeCases:
     """Boundary and edge-case tests."""
 
     def test_zero_std_zscore(self):
         """std=0 → z_score=0 (no crash)."""
-        engine = FraudDetectionEngine(
-            claim_amount_stats={"mean": 5000.0, "std": 0.0}
-        )
+        engine = FraudDetectionEngine(claim_amount_stats={"mean": 5000.0, "std": 0.0})
         video = VideoEvidence(has_collision_sound=True, damage_visible=True)
         claim = ClaimDetails(claimed_amount=50000.0)
         result = engine.detect_fraud(video, claim)
@@ -59,9 +55,11 @@ class TestEdgeCases:
 
     def test_time_to_report_zero(self):
         """time_to_report=0.0 → quick report indicator (< 0.5 threshold)."""
-        engine = FraudDetectionEngine(FraudDetectionConfig(
-            suspicious_quick_report_hours=0.5,
-        ))
+        engine = FraudDetectionEngine(
+            FraudDetectionConfig(
+                suspicious_quick_report_hours=0.5,
+            )
+        )
         video = VideoEvidence(has_collision_sound=True, damage_visible=True)
         claim = ClaimDetails(claimed_amount=8000.0, time_to_report_hours=0.0)
         result = engine.detect_fraud(video, claim)
@@ -69,17 +67,16 @@ class TestEdgeCases:
 
     def test_time_to_report_exactly_threshold(self):
         """time_to_report=72.0 → NOT delayed (> required, not >=)."""
-        engine = FraudDetectionEngine(FraudDetectionConfig(
-            suspicious_delay_hours=72.0,
-        ))
+        engine = FraudDetectionEngine(
+            FraudDetectionConfig(
+                suspicious_delay_hours=72.0,
+            )
+        )
         video = VideoEvidence(has_collision_sound=True, damage_visible=True)
         claim = ClaimDetails(claimed_amount=8000.0, time_to_report_hours=72.0)
         result = engine.detect_fraud(video, claim)
         # 72.0 is NOT > 72.0, so no delay indicator
-        assert not any(
-            "timing_anomaly" in ind and "delayed" in ind
-            for ind in result.indicators
-        )
+        assert not any("timing_anomaly" in ind and "delayed" in ind for ind in result.indicators)
 
     def test_no_history(self):
         """claim_history=None → history checks skipped."""
@@ -115,6 +112,7 @@ class TestEdgeCases:
 # ============================================================================
 # TestWeightConfiguration
 # ============================================================================
+
 
 class TestWeightConfiguration:
     """Test custom weight configurations."""
@@ -160,7 +158,9 @@ class TestWeightConfiguration:
         )
         claim = ClaimDetails(claimed_amount=50000.0, time_to_report_hours=200.0)
         history = ClaimHistory(
-            vehicle_id="X", claims_last_year=10, previous_fraud_flags=3,
+            vehicle_id="X",
+            claims_last_year=10,
+            previous_fraud_flags=3,
         )
         result = engine.detect_fraud(video, claim, history)
         assert result.risk_score == 0.0
@@ -190,6 +190,7 @@ class TestWeightConfiguration:
 # TestScoreCalculation
 # ============================================================================
 
+
 class TestScoreCalculation:
     """Test fraud score calculation mechanics."""
 
@@ -203,14 +204,16 @@ class TestScoreCalculation:
 
     def test_score_clamp_above_one(self):
         """Extreme indicators → capped at 1.0."""
-        engine = FraudDetectionEngine(FraudDetectionConfig(
-            weight_audio_visual_mismatch=1.0,
-            weight_damage_inconsistency=1.0,
-            weight_suspicious_positioning=1.0,
-            weight_claim_history=1.0,
-            weight_claim_amount_anomaly=1.0,
-            weight_timing_anomaly=1.0,
-        ))
+        engine = FraudDetectionEngine(
+            FraudDetectionConfig(
+                weight_audio_visual_mismatch=1.0,
+                weight_damage_inconsistency=1.0,
+                weight_suspicious_positioning=1.0,
+                weight_claim_history=1.0,
+                weight_claim_amount_anomaly=1.0,
+                weight_timing_anomaly=1.0,
+            )
+        )
         video = VideoEvidence(
             has_collision_sound=False,
             damage_visible=True,
@@ -247,15 +250,12 @@ class TestScoreCalculation:
             damage_visible=True,
             damage_severity="severe",
             speed_at_impact_kmh=5.0,  # Low speed + severe damage
-            suspicious_edits=True,     # Tampering
+            suspicious_edits=True,  # Tampering
         )
         claim = ClaimDetails(claimed_amount=8000.0, time_to_report_hours=2.0)
         result = engine.detect_fraud(video, claim)
         # Both types contribute to damage_inconsistency weight
-        damage_related = [
-            ind for ind in result.indicators
-            if "damage_inconsistency" in ind or "video_tampering" in ind
-        ]
+        damage_related = [ind for ind in result.indicators if "damage_inconsistency" in ind or "video_tampering" in ind]
         assert len(damage_related) >= 2
 
     def test_multiple_audio_visual_averaged(self):
@@ -276,15 +276,18 @@ class TestScoreCalculation:
 # TestReasoningGeneration
 # ============================================================================
 
+
 class TestReasoningGeneration:
     """Test human-readable reasoning generation."""
 
     def test_high_risk_reasoning(self):
         """score >= 0.65 → 'HIGH FRAUD RISK'."""
-        engine = FraudDetectionEngine(FraudDetectionConfig(
-            weight_audio_visual_mismatch=1.0,
-            weight_damage_inconsistency=1.0,
-        ))
+        engine = FraudDetectionEngine(
+            FraudDetectionConfig(
+                weight_audio_visual_mismatch=1.0,
+                weight_damage_inconsistency=1.0,
+            )
+        )
         video = VideoEvidence(
             has_collision_sound=False,
             damage_visible=True,
@@ -348,6 +351,7 @@ class TestReasoningGeneration:
         result = engine.detect_fraud(video, claim, history)
         # Count enumerated indicators "(1)", "(2)", "(3)" — max 3
         import re
+
         indicator_numbers = re.findall(r"\(\d+\)", result.reasoning)
         assert len(indicator_numbers) <= 3
 
@@ -368,6 +372,7 @@ class TestReasoningGeneration:
 # ============================================================================
 # TestPoorVideoQuality
 # ============================================================================
+
 
 class TestPoorVideoQuality:
     """Test video quality impact on fraud detection."""
@@ -394,8 +399,5 @@ class TestPoorVideoQuality:
         )
         claim = ClaimDetails(claimed_amount=8000.0)
         result = engine.detect_fraud(video, claim)
-        quality_indicators = [
-            ind for ind in result.indicators
-            if "quality" in ind.lower()
-        ]
+        quality_indicators = [ind for ind in result.indicators if "quality" in ind.lower()]
         assert len(quality_indicators) == 0

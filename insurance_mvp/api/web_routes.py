@@ -3,22 +3,22 @@
 Production-quality web interface with Jinja2 templates.
 """
 
-from fastapi import APIRouter, Request, HTTPException, Depends
-from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
-from pathlib import Path
-from sqlalchemy.orm import Session
 import json
 from datetime import datetime, timedelta
-from typing import Optional
+from pathlib import Path
 
-from insurance_mvp.api.database import ClaimRepository, AssessmentRepository, ReviewRepository
-from insurance_mvp.api.models import ClaimStatus, ReviewPriority, Severity
-from insurance_mvp.api.auth import get_api_key_optional, APIKey
+from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi.responses import HTMLResponse
+from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import Session
+
+from insurance_mvp.api.database import AssessmentRepository, ClaimRepository, ReviewRepository
+from insurance_mvp.api.models import ClaimStatus
 
 # Initialize templates
 template_dir = Path(__file__).parent.parent / "templates"
 templates = Jinja2Templates(directory=str(template_dir))
+
 
 # Custom Jinja2 filters
 def format_timestamp(seconds: float) -> str:
@@ -27,14 +27,16 @@ def format_timestamp(seconds: float) -> str:
     secs = int(seconds % 60)
     return f"{mins}:{secs:02d}"
 
+
 def format_datetime(dt: datetime) -> str:
     """Format datetime for display"""
     if isinstance(dt, str):
-        dt = datetime.fromisoformat(dt.replace('Z', '+00:00'))
+        dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
     return dt.strftime("%Y-%m-%d %H:%M")
 
-templates.env.filters['format_timestamp'] = format_timestamp
-templates.env.filters['format_datetime'] = format_datetime
+
+templates.env.filters["format_timestamp"] = format_timestamp
+templates.env.filters["format_datetime"] = format_datetime
 
 # Create router
 router = APIRouter(tags=["Web UI"])
@@ -44,6 +46,7 @@ router = APIRouter(tags=["Web UI"])
 def get_db():
     """Get database session (will be overridden by main app)"""
     from insurance_mvp.api.main import get_db as main_get_db
+
     return main_get_db()
 
 
@@ -86,10 +89,7 @@ async def queue_page(request: Request, db: Session = Depends(get_db)):
 
     # Sort by priority
     priority_order = {"URGENT": 0, "STANDARD": 1, "LOW_PRIORITY": 2}
-    queue_items.sort(key=lambda x: (
-        priority_order.get(x["review_priority"], 3),
-        x["timestamp"]
-    ))
+    queue_items.sort(key=lambda x: (priority_order.get(x["review_priority"], 3), x["timestamp"]))
 
     return templates.TemplateResponse(
         "queue.html",
@@ -120,10 +120,7 @@ async def review_page(request: Request, claim_id: str, db: Session = Depends(get
     assessment = assessment_repo.get_by_claim_id(claim_id)
 
     if not assessment:
-        raise HTTPException(
-            status_code=404,
-            detail=f"Assessment not available. Status: {claim.status.value}"
-        )
+        raise HTTPException(status_code=404, detail=f"Assessment not available. Status: {claim.status.value}")
 
     # Build assessment dict for template
     assessment_dict = _build_assessment_dict(claim, assessment)
@@ -146,7 +143,7 @@ async def review_page(request: Request, claim_id: str, db: Session = Depends(get
 @router.get("/metrics", response_class=HTMLResponse)
 async def metrics_page(request: Request, db: Session = Depends(get_db)):
     """Metrics dashboard page"""
-    from insurance_mvp.api.database import Claim, Assessment, Review
+    from insurance_mvp.api.database import Assessment, Claim, Review
 
     # Calculate metrics
     claim_repo = ClaimRepository(db)
@@ -166,8 +163,7 @@ async def metrics_page(request: Request, db: Session = Depends(get_db)):
     # Review metrics
     recent_reviews = db.query(Review).order_by(Review.timestamp.desc()).limit(100).all()
     avg_review_time = (
-        sum(r.review_time_sec for r in recent_reviews) / len(recent_reviews)
-        if recent_reviews else 0.0
+        sum(r.review_time_sec for r in recent_reviews) / len(recent_reviews) if recent_reviews else 0.0
     ) / 60.0  # Convert to minutes
 
     # AI accuracy (estimate from agreement with human reviews)
@@ -190,12 +186,9 @@ async def metrics_page(request: Request, db: Session = Depends(get_db)):
     # Volume trend (last 7 days)
     volume_trend = []
     for i in range(7):
-        day_start = datetime.utcnow().replace(hour=0, minute=0, second=0) - timedelta(days=6-i)
+        day_start = datetime.utcnow().replace(hour=0, minute=0, second=0) - timedelta(days=6 - i)
         day_end = day_start + timedelta(days=1)
-        day_count = db.query(Claim).filter(
-            Claim.upload_time >= day_start,
-            Claim.upload_time < day_end
-        ).count()
+        day_count = db.query(Claim).filter(Claim.upload_time >= day_start, Claim.upload_time < day_end).count()
         volume_trend.append(day_count)
 
     # Accuracy trend (weekly)
@@ -211,14 +204,16 @@ async def metrics_page(request: Request, db: Session = Depends(get_db)):
     recent_activity = []
     for review in recent_reviews[:10]:
         claim = claim_repo.get_by_id(review.claim_id)
-        recent_activity.append({
-            "timestamp": review.timestamp,
-            "claim_id": review.claim_id,
-            "event": "REVIEWED",
-            "reviewer": review.reviewer_id,
-            "decision": review.decision,
-            "duration": review.review_time_sec / 60.0,  # minutes
-        })
+        recent_activity.append(
+            {
+                "timestamp": review.timestamp,
+                "claim_id": review.claim_id,
+                "event": "REVIEWED",
+                "reviewer": review.reviewer_id,
+                "decision": review.decision,
+                "duration": review.review_time_sec / 60.0,  # minutes
+            }
+        )
 
     metrics = {
         "processing_rate": processing_rate,
@@ -243,6 +238,7 @@ async def metrics_page(request: Request, db: Session = Depends(get_db)):
 
 
 # Helper functions
+
 
 def _build_queue_item_dict(claim) -> dict:
     """Build queue item dictionary from claim and assessment"""

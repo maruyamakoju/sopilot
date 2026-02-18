@@ -3,31 +3,30 @@
 Validates field constraints, serialization, and factory functions.
 """
 
-import pytest
 from datetime import datetime
-from pydantic import ValidationError
 
-from insurance_mvp.insurance.schema import (
-    Evidence,
-    HazardDetail,
-    FaultAssessment,
-    FraudRisk,
-    ClaimAssessment,
-    ReviewDecision,
-    AuditLog,
-    create_default_claim_assessment,
-)
+import pytest
 
 # Use the cosmos schema for completeness (it's the same models re-exported)
 from insurance_mvp.cosmos.schema import (
-    ClaimAssessment as CosmosClaimAssessment,
     create_default_claim_assessment as cosmos_default,
 )
-
+from insurance_mvp.insurance.schema import (
+    AuditLog,
+    ClaimAssessment,
+    Evidence,
+    FaultAssessment,
+    FraudRisk,
+    HazardDetail,
+    ReviewDecision,
+    create_default_claim_assessment,
+)
+from pydantic import ValidationError
 
 # ============================================================================
 # TestEvidence
 # ============================================================================
+
 
 class TestEvidence:
     """Evidence model validation."""
@@ -46,6 +45,7 @@ class TestEvidence:
 # ============================================================================
 # TestHazardDetail
 # ============================================================================
+
 
 class TestHazardDetail:
     """HazardDetail model validation."""
@@ -74,6 +74,7 @@ class TestHazardDetail:
 # ============================================================================
 # TestFaultAssessment
 # ============================================================================
+
 
 class TestFaultAssessment:
     """FaultAssessment model validation."""
@@ -143,6 +144,7 @@ class TestFaultAssessment:
 # TestFraudRisk
 # ============================================================================
 
+
 class TestFraudRisk:
     """FraudRisk model validation."""
 
@@ -178,6 +180,7 @@ class TestFraudRisk:
 # ============================================================================
 # TestClaimAssessment
 # ============================================================================
+
 
 class TestClaimAssessment:
     """ClaimAssessment model validation."""
@@ -247,6 +250,7 @@ class TestClaimAssessment:
 # TestReviewDecision
 # ============================================================================
 
+
 class TestReviewDecision:
     """ReviewDecision model validation."""
 
@@ -283,6 +287,7 @@ class TestReviewDecision:
 # TestAuditLog
 # ============================================================================
 
+
 class TestAuditLog:
     """AuditLog model validation."""
 
@@ -315,6 +320,7 @@ class TestAuditLog:
 # ============================================================================
 # TestCreateDefaultClaimAssessment
 # ============================================================================
+
 
 class TestCreateDefaultClaimAssessment:
     """Test factory function defaults."""

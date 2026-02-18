@@ -3,38 +3,30 @@
 Provides factory functions and fixtures used across all test modules.
 """
 
-import tempfile
 import shutil
+import tempfile
 from pathlib import Path
-from datetime import datetime, timedelta
 
 import pytest
-import numpy as np
-
 from insurance_mvp.config import (
-    PipelineConfig,
     CosmosBackend,
-    CosmosConfig,
-    MiningConfig,
-    ConformalConfig as PipelineConformalConfig,
+    PipelineConfig,
+)
+from insurance_mvp.insurance.fraud_detection import (
+    ClaimDetails,
+    ClaimHistory,
+    VideoEvidence,
 )
 from insurance_mvp.insurance.schema import (
     ClaimAssessment,
     FaultAssessment,
     FraudRisk,
-    Evidence,
-    HazardDetail,
 )
-from insurance_mvp.insurance.fraud_detection import (
-    VideoEvidence,
-    ClaimDetails,
-    ClaimHistory,
-)
-
 
 # ---------------------------------------------------------------------------
 # Factory helpers (importable, not fixtures)
 # ---------------------------------------------------------------------------
+
 
 def make_test_config(**overrides) -> PipelineConfig:
     """Create a PipelineConfig suitable for testing.
@@ -181,6 +173,7 @@ def make_claim_assessment(
 # ---------------------------------------------------------------------------
 # Pytest fixtures
 # ---------------------------------------------------------------------------
+
 
 @pytest.fixture
 def tmp_output_dir():

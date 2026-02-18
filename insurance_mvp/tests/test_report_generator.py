@@ -4,15 +4,15 @@ Covers HTML report generation with various assessment inputs,
 Japanese localization, and executive summary.
 """
 
-import pytest
 from pathlib import Path
 
-from insurance_mvp.report_generator import ReportGenerator, _TRANSLATIONS_JA
+import pytest
 from insurance_mvp.insurance.schema import (
     ClaimAssessment,
     FaultAssessment,
     FraudRisk,
 )
+from insurance_mvp.report_generator import _TRANSLATIONS_JA, ReportGenerator
 
 
 def _make_assessment(
@@ -95,10 +95,7 @@ class TestReportGenerator:
             # Template expects fields not on base schema (at_fault_party, etc.)
             # This is a known limitation - test that sorting happened
             severity_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "NONE": 3}
-            sorted_assessments = sorted(
-                assessments,
-                key=lambda a: (severity_order.get(a.severity, 4), -a.confidence)
-            )
+            sorted_assessments = sorted(assessments, key=lambda a: (severity_order.get(a.severity, 4), -a.confidence))
             assert sorted_assessments[0].severity == "HIGH"
 
     def test_template_not_found(self, tmp_output_dir):

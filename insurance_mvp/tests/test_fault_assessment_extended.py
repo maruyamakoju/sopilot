@@ -9,20 +9,19 @@ Covers edge cases not in test_insurance_domain.py:
 """
 
 import pytest
-
 from insurance_mvp.insurance.fault_assessment import (
-    FaultAssessmentEngine,
     FaultAssessmentConfig,
+    FaultAssessmentEngine,
     ScenarioContext,
     ScenarioType,
     TrafficSignal,
     detect_scenario_type,
 )
 
-
 # ============================================================================
 # TestRightTurnScenario
 # ============================================================================
+
 
 class TestRightTurnScenario:
     """Right turn collision edge cases."""
@@ -62,6 +61,7 @@ class TestRightTurnScenario:
 # ============================================================================
 # TestParkingLotScenario
 # ============================================================================
+
 
 class TestParkingLotScenario:
     """Parking lot collision edge cases."""
@@ -113,6 +113,7 @@ class TestParkingLotScenario:
 # ============================================================================
 # TestIntersectionExtended
 # ============================================================================
+
 
 class TestIntersectionExtended:
     """Intersection collision extended cases."""
@@ -185,15 +186,18 @@ class TestIntersectionExtended:
 # TestCombinedAdjustments
 # ============================================================================
 
+
 class TestCombinedAdjustments:
     """Test combinations of speed, weather, and road adjustments."""
 
     def test_speed_plus_weather(self):
         """Head-on(50%) + speed(>80) + rain(+5%)."""
-        engine = FaultAssessmentEngine(FaultAssessmentConfig(
-            weather_adjustment=5.0,
-            excessive_speed_adjustment=10.0,
-        ))
+        engine = FaultAssessmentEngine(
+            FaultAssessmentConfig(
+                weather_adjustment=5.0,
+                excessive_speed_adjustment=10.0,
+            )
+        )
         ctx = ScenarioContext(
             scenario_type=ScenarioType.HEAD_ON,
             speed_ego_kmh=100.0,
@@ -207,10 +211,12 @@ class TestCombinedAdjustments:
 
     def test_speed_plus_road(self):
         """Both speed and road adjustments accumulate."""
-        engine = FaultAssessmentEngine(FaultAssessmentConfig(
-            weather_adjustment=5.0,
-            excessive_speed_adjustment=10.0,
-        ))
+        engine = FaultAssessmentEngine(
+            FaultAssessmentConfig(
+                weather_adjustment=5.0,
+                excessive_speed_adjustment=10.0,
+            )
+        )
         ctx = ScenarioContext(
             scenario_type=ScenarioType.HEAD_ON,
             speed_ego_kmh=100.0,
@@ -223,9 +229,11 @@ class TestCombinedAdjustments:
 
     def test_weather_plus_road(self):
         """Both weather and road adjustments apply."""
-        engine = FaultAssessmentEngine(FaultAssessmentConfig(
-            weather_adjustment=5.0,
-        ))
+        engine = FaultAssessmentEngine(
+            FaultAssessmentConfig(
+                weather_adjustment=5.0,
+            )
+        )
         ctx = ScenarioContext(
             scenario_type=ScenarioType.HEAD_ON,
             weather_conditions="snow",
@@ -259,9 +267,11 @@ class TestCombinedAdjustments:
 
     def test_speed_adjustment_cap_15pct(self):
         """Very high speed → capped at 15% additional fault."""
-        engine = FaultAssessmentEngine(FaultAssessmentConfig(
-            excessive_speed_adjustment=10.0,
-        ))
+        engine = FaultAssessmentEngine(
+            FaultAssessmentConfig(
+                excessive_speed_adjustment=10.0,
+            )
+        )
         ctx = ScenarioContext(
             scenario_type=ScenarioType.HEAD_ON,
             speed_ego_kmh=200.0,  # Extreme speed
@@ -272,9 +282,11 @@ class TestCombinedAdjustments:
 
     def test_fault_clamp_to_100(self):
         """Base 100% + adjustments → still clamped to 100%."""
-        engine = FaultAssessmentEngine(FaultAssessmentConfig(
-            weather_adjustment=5.0,
-        ))
+        engine = FaultAssessmentEngine(
+            FaultAssessmentConfig(
+                weather_adjustment=5.0,
+            )
+        )
         ctx = ScenarioContext(
             scenario_type=ScenarioType.REAR_END,
             speed_ego_kmh=100.0,
@@ -299,30 +311,34 @@ class TestCombinedAdjustments:
 # TestDetectScenarioType
 # ============================================================================
 
+
 class TestDetectScenarioType:
     """Test keyword-based scenario detection."""
 
-    @pytest.mark.parametrize("desc,expected", [
-        ("rear-end collision", ScenarioType.REAR_END),
-        ("rear end crash", ScenarioType.REAR_END),
-        ("hit from behind", ScenarioType.REAR_END),
-        ("head-on collision", ScenarioType.HEAD_ON),
-        ("head on crash", ScenarioType.HEAD_ON),
-        ("frontal impact", ScenarioType.HEAD_ON),
-        ("side-swipe on highway", ScenarioType.SIDE_SWIPE),
-        ("side swipe during merge", ScenarioType.SIDE_SWIPE),
-        ("sideswiped by truck", ScenarioType.SIDE_SWIPE),
-        ("left turn accident", ScenarioType.LEFT_TURN),
-        ("turning left at light", ScenarioType.LEFT_TURN),
-        ("right turn crash", ScenarioType.RIGHT_TURN),
-        ("turning right into traffic", ScenarioType.RIGHT_TURN),
-        ("intersection collision", ScenarioType.INTERSECTION),
-        ("crossroads accident", ScenarioType.INTERSECTION),
-        ("parking lot fender bender", ScenarioType.PARKING_LOT),
-        ("parking accident", ScenarioType.PARKING_LOT),
-        ("pedestrian struck", ScenarioType.PEDESTRIAN),
-        ("walker hit by car", ScenarioType.PEDESTRIAN),
-    ])
+    @pytest.mark.parametrize(
+        "desc,expected",
+        [
+            ("rear-end collision", ScenarioType.REAR_END),
+            ("rear end crash", ScenarioType.REAR_END),
+            ("hit from behind", ScenarioType.REAR_END),
+            ("head-on collision", ScenarioType.HEAD_ON),
+            ("head on crash", ScenarioType.HEAD_ON),
+            ("frontal impact", ScenarioType.HEAD_ON),
+            ("side-swipe on highway", ScenarioType.SIDE_SWIPE),
+            ("side swipe during merge", ScenarioType.SIDE_SWIPE),
+            ("sideswiped by truck", ScenarioType.SIDE_SWIPE),
+            ("left turn accident", ScenarioType.LEFT_TURN),
+            ("turning left at light", ScenarioType.LEFT_TURN),
+            ("right turn crash", ScenarioType.RIGHT_TURN),
+            ("turning right into traffic", ScenarioType.RIGHT_TURN),
+            ("intersection collision", ScenarioType.INTERSECTION),
+            ("crossroads accident", ScenarioType.INTERSECTION),
+            ("parking lot fender bender", ScenarioType.PARKING_LOT),
+            ("parking accident", ScenarioType.PARKING_LOT),
+            ("pedestrian struck", ScenarioType.PEDESTRIAN),
+            ("walker hit by car", ScenarioType.PEDESTRIAN),
+        ],
+    )
     def test_all_keywords(self, desc, expected):
         """Parametrized test for all 9 scenario keywords."""
         assert detect_scenario_type(desc) == expected
@@ -360,6 +376,7 @@ class TestDetectScenarioType:
 # ============================================================================
 # TestLaneChangeScenario (delegates to side_swipe)
 # ============================================================================
+
 
 class TestLaneChangeScenario:
     """Lane change uses same logic as side-swipe."""

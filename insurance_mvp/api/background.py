@@ -7,12 +7,12 @@ Production systems should use Celery + Redis/RabbitMQ.
 import logging
 import time
 import traceback
-from concurrent.futures import ThreadPoolExecutor, Future
-from typing import Optional, Dict, Any, Callable
-from datetime import datetime
+from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor
+from typing import Any
 
+from insurance_mvp.api.database import AssessmentRepository, AuditLogRepository, ClaimRepository, DatabaseManager
 from insurance_mvp.api.models import ClaimStatus, EventType
-from insurance_mvp.api.database import DatabaseManager, ClaimRepository, AssessmentRepository, AuditLogRepository
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ class BackgroundWorker:
         self,
         db_manager: DatabaseManager,
         max_workers: int = 4,
-        process_function: Optional[Callable] = None,
+        process_function: Callable | None = None,
     ):
         """
         Initialize background worker.
@@ -40,7 +40,7 @@ class BackgroundWorker:
         """
         self.db_manager = db_manager
         self.executor = ThreadPoolExecutor(max_workers=max_workers)
-        self.active_tasks: Dict[str, Future] = {}
+        self.active_tasks: dict[str, Future] = {}
         self.process_function = process_function or self._default_process_function
         self._shutdown = False
 
@@ -162,7 +162,7 @@ class BackgroundWorker:
             del self.active_tasks[claim_id]
             logger.debug(f"Cleaned up task for claim {claim_id}")
 
-    def get_status(self, claim_id: str) -> Optional[str]:
+    def get_status(self, claim_id: str) -> str | None:
         """
         Get processing status for claim.
 
@@ -187,7 +187,7 @@ class BackgroundWorker:
         self.executor.shutdown(wait=wait)
         logger.info("Background worker shutdown complete")
 
-    def _default_process_function(self, claim_id: str, update_progress: Callable) -> Dict[str, Any]:
+    def _default_process_function(self, claim_id: str, update_progress: Callable) -> dict[str, Any]:
         """
         Default mock processing function for testing.
 
@@ -249,6 +249,7 @@ class BackgroundWorker:
 
 # Pipeline Integration Helper
 
+
 class PipelineProcessor:
     """
     Integration with actual insurance claim processing pipeline.
@@ -256,7 +257,7 @@ class PipelineProcessor:
     This bridges the background worker with the domain-specific processing logic.
     """
 
-    def __init__(self, pipeline_config: Optional[Dict[str, Any]] = None):
+    def __init__(self, pipeline_config: dict[str, Any] | None = None):
         """
         Initialize pipeline processor.
 
@@ -266,7 +267,7 @@ class PipelineProcessor:
         self.config = pipeline_config or {}
         logger.info("Pipeline processor initialized")
 
-    def process_claim(self, claim_id: str, update_progress: Callable) -> Dict[str, Any]:
+    def process_claim(self, claim_id: str, update_progress: Callable) -> dict[str, Any]:
         """
         Process claim through full pipeline.
 
@@ -288,10 +289,12 @@ class PipelineProcessor:
         try:
             # Get claim from database
             from insurance_mvp.api.database import DatabaseManager
+
             db_manager = DatabaseManager(self.config.get("database_url", "sqlite:///./insurance.db"))
 
             with db_manager.get_session() as session:
                 from insurance_mvp.api.database import ClaimRepository
+
                 repo = ClaimRepository(session)
                 claim = repo.get_by_id(claim_id)
 
@@ -336,7 +339,7 @@ class PipelineProcessor:
             logger.error(f"Pipeline processing failed: {e}")
             raise
 
-    def _mock_assessment(self) -> Dict[str, Any]:
+    def _mock_assessment(self) -> dict[str, Any]:
         """Mock assessment for development"""
         return {
             "severity": "MEDIUM",
@@ -384,7 +387,7 @@ class PipelineProcessor:
 
 
 # Global worker instance (singleton)
-_global_worker: Optional[BackgroundWorker] = None
+_global_worker: BackgroundWorker | None = None
 
 
 def initialize_worker(

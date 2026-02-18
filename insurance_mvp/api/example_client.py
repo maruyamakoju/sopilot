@@ -3,10 +3,10 @@
 Demonstrates how to interact with the Insurance MVP API.
 """
 
-import time
 import json
+import time
 from pathlib import Path
-from typing import Optional, Dict, Any
+from typing import Any
 
 import requests
 from requests.exceptions import RequestException
@@ -37,7 +37,7 @@ class InsuranceAPIClient:
         self.timeout = timeout
         self.headers = {"X-API-Key": api_key}
 
-    def _request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
+    def _request(self, method: str, endpoint: str, **kwargs) -> dict[str, Any]:
         """
         Make HTTP request with error handling.
 
@@ -66,7 +66,7 @@ class InsuranceAPIClient:
                 try:
                     error_data = e.response.json()
                     print(f"Details: {json.dumps(error_data, indent=2)}")
-                except:
+                except Exception:
                     print(f"Response: {e.response.text}")
             raise
 
@@ -75,8 +75,8 @@ class InsuranceAPIClient:
     def upload_video(
         self,
         video_path: str,
-        claim_number: Optional[str] = None,
-        claimant_id: Optional[str] = None,
+        claim_number: str | None = None,
+        claimant_id: str | None = None,
     ) -> str:
         """
         Upload dashcam video.
@@ -112,7 +112,7 @@ class InsuranceAPIClient:
         print(f"✓ Uploaded successfully: {claim_id}")
         return claim_id
 
-    def get_status(self, claim_id: str) -> Dict[str, Any]:
+    def get_status(self, claim_id: str) -> dict[str, Any]:
         """
         Get claim processing status.
 
@@ -124,7 +124,7 @@ class InsuranceAPIClient:
         """
         return self._request("GET", f"/claims/{claim_id}/status")
 
-    def get_assessment(self, claim_id: str) -> Dict[str, Any]:
+    def get_assessment(self, claim_id: str) -> dict[str, Any]:
         """
         Get AI assessment results.
 
@@ -144,7 +144,7 @@ class InsuranceAPIClient:
         claim_id: str,
         timeout: int = 300,
         poll_interval: int = 2,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Wait for AI assessment to complete.
 
@@ -190,10 +190,10 @@ class InsuranceAPIClient:
 
     def get_queue(
         self,
-        priority: Optional[str] = None,
+        priority: str | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """
         Get review queue.
 
@@ -217,11 +217,11 @@ class InsuranceAPIClient:
         reviewer_id: str,
         decision: str,
         reasoning: str,
-        severity_override: Optional[str] = None,
-        fault_ratio_override: Optional[float] = None,
-        fraud_override: Optional[bool] = None,
-        comments: Optional[str] = None,
-    ) -> Dict[str, Any]:
+        severity_override: str | None = None,
+        fault_ratio_override: float | None = None,
+        fraud_override: bool | None = None,
+        comments: str | None = None,
+    ) -> dict[str, Any]:
         """
         Submit human review decision.
 
@@ -258,7 +258,7 @@ class InsuranceAPIClient:
             json=data,
         )
 
-    def get_history(self, claim_id: str, limit: int = 100) -> Dict[str, Any]:
+    def get_history(self, claim_id: str, limit: int = 100) -> dict[str, Any]:
         """
         Get audit history for claim.
 
@@ -273,7 +273,7 @@ class InsuranceAPIClient:
 
     # System API
 
-    def get_metrics(self) -> Dict[str, Any]:
+    def get_metrics(self) -> dict[str, Any]:
         """
         Get system metrics.
 
@@ -282,7 +282,7 @@ class InsuranceAPIClient:
         """
         return self._request("GET", "/metrics")
 
-    def health_check(self) -> Dict[str, Any]:
+    def health_check(self) -> dict[str, Any]:
         """
         Check API health.
 
@@ -297,6 +297,7 @@ class InsuranceAPIClient:
 
 
 # Example Usage
+
 
 def main():
     """Example usage of Insurance API client"""

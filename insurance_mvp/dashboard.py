@@ -2,6 +2,7 @@
 
 Interactive dashboard for Sompo Japan PoC demonstration.
 Supports video upload, pipeline execution, and results visualization.
+Backend modes: Mock (no GPU), Real (Qwen2.5-VL-7B on GPU), Replay (load JSON).
 
 Usage:
     streamlit run insurance_mvp/dashboard.py
@@ -98,6 +99,18 @@ TRANSLATIONS = {
         "overview": "Overview",
         "details": "Details",
         "comparison": "Ground Truth Comparison",
+        "backend_label": "Backend",
+        "backend_mock": "Mock (No GPU)",
+        "backend_real": "Real (Qwen2.5-VL-7B)",
+        "backend_replay": "Replay (Load JSON)",
+        "replay_select": "Select Result File",
+        "replay_upload": "Or upload JSON file",
+        "replay_loaded": "Results loaded from file",
+        "replay_no_files": "No result files found in reports/",
+        "gpu_not_available": "GPU not available. Install PyTorch with CUDA support.",
+        "gpu_info": "GPU",
+        "real_warning": "Real VLM inference requires GPU (14GB+ VRAM). ~2-3 min per video.",
+        "replay_source": "Source",
     },
     "ja": {
         "title": "保険金請求査定",
@@ -148,6 +161,18 @@ TRANSLATIONS = {
         "overview": "概要",
         "details": "詳細",
         "comparison": "正解データ比較",
+        "backend_label": "バックエンド",
+        "backend_mock": "Mock（GPU不要）",
+        "backend_real": "Real（Qwen2.5-VL-7B）",
+        "backend_replay": "リプレイ（JSON読込）",
+        "replay_select": "結果ファイルを選択",
+        "replay_upload": "またはJSONファイルをアップロード",
+        "replay_loaded": "ファイルから結果を読み込みました",
+        "replay_no_files": "reports/ に結果ファイルが見つかりません",
+        "gpu_not_available": "GPUが利用できません。CUDA対応PyTorchをインストールしてください。",
+        "gpu_info": "GPU",
+        "real_warning": "Real VLM推論にはGPU（VRAM 14GB以上）が必要です。動画1本あたり約2〜3分。",
+        "replay_source": "ソース",
     },
 }
 
@@ -216,8 +241,28 @@ def gauge_metric(value: float, max_val: float, label: str, color: str = "#3B82F6
     """
 
 
-def run_pipeline(video_path: str, video_id: str) -> dict:
-    """Run the insurance pipeline on a video."""
+def check_gpu() -> dict:
+    """Check GPU availability for real VLM inference."""
+    try:
+        import torch
+
+        if torch.cuda.is_available():
+            name = torch.cuda.get_device_name(0)
+            vram = torch.cuda.get_device_properties(0).total_memory / (1024**3)
+            return {"available": True, "name": name, "vram_gb": round(vram, 1)}
+        return {"available": False, "name": None, "vram_gb": 0}
+    except ImportError:
+        return {"available": False, "name": None, "vram_gb": 0}
+
+
+def run_pipeline(video_path: str, video_id: str, backend: str = "mock") -> dict:
+    """Run the insurance pipeline on a video.
+
+    Args:
+        video_path: Path to video file
+        video_id: Video identifier
+        backend: "mock" or "real"
+    """
     output_dir = tempfile.mkdtemp(prefix="insurance_dashboard_")
 
     config = PipelineConfig(
@@ -228,11 +273,17 @@ def run_pipeline(video_path: str, video_id: str) -> dict:
         enable_transcription=False,
         continue_on_error=True,
     )
-    config.cosmos.backend = CosmosBackend.MOCK
+
+    if backend == "real":
+        config.cosmos.backend = CosmosBackend.QWEN25VL
+    else:
+        config.cosmos.backend = CosmosBackend.MOCK
 
     pipeline = InsurancePipeline(config)
-    pipeline.signal_fuser = None
-    pipeline.cosmos_client = None
+
+    if backend == "mock":
+        pipeline.signal_fuser = None
+        pipeline.cosmos_client = None
 
     result = pipeline.process_video(str(video_path), video_id=video_id)
 
@@ -245,7 +296,82 @@ def run_pipeline(video_path: str, video_id: str) -> dict:
         "stage_timings": result.stage_timings or {},
         "output_json_path": result.output_json_path,
         "output_html_path": result.output_html_path,
+        "backend": backend,
     }
+
+
+def load_replay_json(json_path: str | Path) -> dict | None:
+    """Load benchmark/replay results from JSON file.
+
+    Supports two formats:
+    - Benchmark format: {"videos": {"collision": {"actual": {...}}}, "summary": {...}}
+    - Pipeline format: [{"severity": ..., "confidence": ...}]
+    """
+    from insurance_mvp.cosmos.schema import ClaimAssessment, FaultAssessment, FraudRisk
+
+    try:
+        with open(json_path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    # Format 1: Benchmark results (real_benchmark.json)
+    if isinstance(data, dict) and "videos" in data:
+        all_assessments = []
+        for vid_name, vid_data in data["videos"].items():
+            if not vid_data.get("success", False):
+                continue
+            actual = vid_data.get("actual", {})
+            try:
+                assessment = ClaimAssessment(
+                    severity=actual.get("severity", "LOW"),
+                    confidence=actual.get("confidence", 0.0),
+                    prediction_set=set(actual.get("prediction_set", ["LOW"])),
+                    review_priority=actual.get("review_priority", "STANDARD"),
+                    fault_assessment=FaultAssessment(
+                        fault_ratio=actual.get("fault_ratio", 50.0),
+                        reasoning=actual.get("fault_reasoning", "From replay"),
+                        scenario_type=actual.get("scenario_type", "unknown"),
+                    ),
+                    fraud_risk=FraudRisk(
+                        risk_score=actual.get("fraud_score", 0.0),
+                        indicators=actual.get("fraud_indicators", []),
+                        reasoning="From replay",
+                    ),
+                    hazards=[],
+                    evidence=[],
+                    causal_reasoning=actual.get("causal_reasoning", "Loaded from replay"),
+                    recommended_action=actual.get("recommended_action", "REVIEW"),
+                    video_id=vid_name,
+                    processing_time_sec=vid_data.get("inference_time_sec", 0.0),
+                )
+                all_assessments.append(assessment)
+            except Exception:
+                continue
+
+        if not all_assessments:
+            return None
+
+        return {
+            "video_id": "replay",
+            "success": True,
+            "error_message": None,
+            "assessments": all_assessments,
+            "processing_time_sec": data.get("summary", {}).get("total_inference_time_sec", 0.0),
+            "stage_timings": {},
+            "output_json_path": None,
+            "output_html_path": None,
+            "backend": f"replay ({data.get('backend', 'unknown')})",
+            "replay_source": str(json_path),
+            "replay_metadata": {
+                "model": data.get("model", "unknown"),
+                "timestamp": data.get("timestamp", "unknown"),
+                "model_load_time": data.get("model_load_time_sec", 0),
+                "summary": data.get("summary", {}),
+            },
+        }
+
+    return None
 
 
 # ---------------------------------------------------------------------------
@@ -303,6 +429,8 @@ if "results" not in st.session_state:
     st.session_state.results = None
 if "selected_video" not in st.session_state:
     st.session_state.selected_video = None
+if "backend" not in st.session_state:
+    st.session_state.backend = "mock"
 
 # ---------------------------------------------------------------------------
 # Sidebar
@@ -316,11 +444,39 @@ with st.sidebar:
 
     st.divider()
 
-    mode = st.radio(t("mode_label"), ["demo", "upload"], format_func=lambda x: t(f"mode_{x}"))
+    # Backend selector
+    backend_options = {
+        "mock": t("backend_mock"),
+        "real": t("backend_real"),
+        "replay": t("backend_replay"),
+    }
+    backend = st.radio(
+        t("backend_label"),
+        list(backend_options.keys()),
+        format_func=lambda x: backend_options[x],
+    )
+    st.session_state.backend = backend
+
+    # GPU info for real backend
+    if backend == "real":
+        gpu_info = check_gpu()
+        if gpu_info["available"]:
+            st.success(f"🟢 {gpu_info['name']} ({gpu_info['vram_gb']} GB)")
+        else:
+            st.error(t("gpu_not_available"))
+        st.caption(t("real_warning"))
 
     st.divider()
 
-    st.markdown(f"**{t('vlm_backend')}**: Mock (Demo)")
+    # Mode selector (not needed for replay)
+    if backend != "replay":
+        mode = st.radio(t("mode_label"), ["demo", "upload"], format_func=lambda x: t(f"mode_{x}"))
+    else:
+        mode = "replay"
+
+    st.divider()
+
+    st.markdown(f"**{t('vlm_backend')}**: {backend_options[backend]}")
     st.markdown(f"**{t('conformal_alpha')}**: 0.10 (90% CI)")
 
     st.divider()
@@ -349,7 +505,71 @@ video_path = None
 video_id = None
 gt_data = None
 
-if mode == "demo":
+if mode == "replay":
+    # ------------------------------------------------------------------
+    # Replay mode: load JSON results from previous GPU runs
+    # ------------------------------------------------------------------
+    st.markdown("### " + t("backend_replay"))
+
+    # Find existing result files
+    reports_dir = PROJECT_ROOT / "reports"
+    result_files = sorted(reports_dir.glob("*.json"), reverse=True) if reports_dir.exists() else []
+
+    replay_source = None
+
+    if result_files:
+        file_options = {str(f): f.name for f in result_files}
+        selected_file = st.selectbox(
+            t("replay_select"), list(file_options.keys()), format_func=lambda x: file_options[x]
+        )
+        if selected_file:
+            replay_source = selected_file
+
+    # Also allow upload
+    uploaded_json = st.file_uploader(t("replay_upload"), type=["json"])
+    if uploaded_json:
+        tmp_json = Path(tempfile.mkdtemp()) / uploaded_json.name
+        tmp_json.write_bytes(uploaded_json.read())
+        replay_source = str(tmp_json)
+
+    if replay_source:
+        replay_data = load_replay_json(replay_source)
+        if replay_data:
+            st.session_state.results = replay_data
+            st.success(f"{t('replay_loaded')}: {Path(replay_source).name}")
+
+            # Show replay metadata
+            meta = replay_data.get("replay_metadata", {})
+            if meta:
+                meta_col1, meta_col2, meta_col3 = st.columns(3)
+                with meta_col1:
+                    st.metric("Model", meta.get("model", "unknown"))
+                with meta_col2:
+                    summary = meta.get("summary", {})
+                    st.metric("Severity Accuracy", f"{summary.get('severity_accuracy', 0)}%")
+                with meta_col3:
+                    st.metric("Inference Time", f"{summary.get('mean_inference_time_sec', 0):.1f}s/video")
+
+            # Show per-video results selector for replay
+            if replay_data.get("assessments") and len(replay_data["assessments"]) > 1:
+                video_names = [a.video_id for a in replay_data["assessments"]]
+                selected_replay = st.selectbox("Select video result", video_names)
+                if selected_replay:
+                    # Filter to selected video
+                    sel_assessment = [a for a in replay_data["assessments"] if a.video_id == selected_replay]
+                    if sel_assessment:
+                        replay_data_filtered = dict(replay_data)
+                        replay_data_filtered["assessments"] = sel_assessment
+                        replay_data_filtered["video_id"] = selected_replay
+                        st.session_state.results = replay_data_filtered
+                        # Set GT data if it's a demo video
+                        if selected_replay in DEMO_VIDEOS:
+                            gt_data = DEMO_VIDEOS[selected_replay]
+                            video_id = selected_replay
+        else:
+            st.warning("Could not parse JSON file. Expected benchmark or pipeline format.")
+
+elif mode == "demo":
     demo_options = {k: v[lang] for k, v in DEMO_VIDEOS.items()}
     selected = st.selectbox(t("select_video"), list(demo_options.keys()), format_func=lambda k: demo_options[k])
 
@@ -385,18 +605,26 @@ else:
 # Run pipeline
 # ---------------------------------------------------------------------------
 
-if video_path:
-    if st.button(t("run_button"), type="primary", use_container_width=True):
+if video_path and mode != "replay":
+    # Check if real backend is available
+    can_run = True
+    if backend == "real":
+        gpu_info = check_gpu()
+        if not gpu_info["available"]:
+            st.error(t("gpu_not_available"))
+            can_run = False
+
+    if can_run and st.button(t("run_button"), type="primary", use_container_width=True):
         with st.spinner(t("running")):
             start = time.time()
-            results = run_pipeline(video_path, video_id)
+            results = run_pipeline(video_path, video_id, backend=backend)
             elapsed = time.time() - start
 
         st.session_state.results = results
         st.session_state.selected_video = video_id
 
         if results["success"]:
-            st.success(f"{t('pipeline_success')} ({elapsed:.1f}s)")
+            st.success(f"{t('pipeline_success')} ({elapsed:.1f}s) [{backend_options[backend]}]")
         else:
             st.error(f"{t('pipeline_failed')}: {results.get('error_message', 'unknown')}")
 

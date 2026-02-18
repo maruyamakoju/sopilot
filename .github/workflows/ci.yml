@@ -94,8 +94,12 @@ jobs:
       - name: Install project with insurance deps
         run: pip install -e ".[dev,insurance]"
 
-      - name: Run insurance MVP tests
-        run: python -m pytest insurance_mvp/tests/ -v --tb=short
+      - name: Run insurance MVP tests with coverage
+        run: |
+          python -m pytest insurance_mvp/tests/ -v --tb=short \
+            --cov=insurance_mvp \
+            --cov-report=term \
+            --cov-fail-under=60
 
       - name: Run insurance E2E benchmark (mock)
         run: python scripts/insurance_e2e_benchmark.py

@@ -1,0 +1,107 @@
+{
+  "timestamp": "2026-02-18 22:22:31",
+  "model": "Qwen2.5-VL-7B-Instruct",
+  "backend": "real",
+  "mode": "full",
+  "model_load_time_sec": 14.12,
+  "videos": {
+    "collision": {
+      "video_id": "collision",
+      "success": true,
+      "inference_time_sec": 154.46,
+      "expected": {
+        "severity": "HIGH",
+        "fault_ratio": 100.0,
+        "fraud_risk": 0.0
+      },
+      "actual": {
+        "severity": "HIGH",
+        "confidence": 0.95,
+        "fault_ratio": 70.0,
+        "fault_reasoning": "The vehicle's speed dropped sharply as it approached another vehicle, indicating a collision.",
+        "scenario_type": "rear_end",
+        "fraud_score": 0.05,
+        "fraud_indicators": [],
+        "prediction_set": [
+          "HIGH"
+        ],
+        "review_priority": "URGENT",
+        "recommended_action": "REVIEW",
+        "causal_reasoning": "Vehicle A was traveling at a high speed when it suddenly slowed down significantly, indicating a collision with Vehicle B. The sharp deceleration and the final stop suggest a direct impact."
+      },
+      "checks": {
+        "severity_match": true,
+        "severity_distance": 0,
+        "fraud_below_threshold": true
+      }
+    },
+    "near_miss": {
+      "video_id": "near_miss",
+      "success": true,
+      "inference_time_sec": 150.86,
+      "expected": {
+        "severity": "MEDIUM",
+        "fault_ratio": 0.0,
+        "fraud_risk": 0.0
+      },
+      "actual": {
+        "severity": "LOW",
+        "confidence": 0.9,
+        "fault_ratio": 50.0,
+        "fault_reasoning": "The video shows a pedestrian crossing the street during normal driving conditions. There is no indication of a collision or significant impact.",
+        "scenario_type": "pedestrian_crossing",
+        "fraud_score": 0.05,
+        "fraud_indicators": [],
+        "prediction_set": [
+          "LOW"
+        ],
+        "review_priority": "STANDARD",
+        "recommended_action": "REVIEW",
+        "causal_reasoning": "The vehicle was traveling at a safe speed for the posted limit of 40 km/h. The presence of pedestrians crossing the street suggests that the driver should have exercised caution but did not cause a collision."
+      },
+      "checks": {
+        "severity_match": false,
+        "severity_distance": 1,
+        "fraud_below_threshold": true
+      }
+    },
+    "normal": {
+      "video_id": "normal",
+      "success": true,
+      "inference_time_sec": 148.47,
+      "expected": {
+        "severity": "NONE",
+        "fault_ratio": 0.0,
+        "fraud_risk": 0.0
+      },
+      "actual": {
+        "severity": "NONE",
+        "confidence": 0.95,
+        "fault_ratio": 0.0,
+        "fault_reasoning": "The video does not show any signs of a collision or near-miss. The vehicle maintains a consistent speed and distance throughout the frames.",
+        "scenario_type": "normal_driving",
+        "fraud_score": 0.05,
+        "fraud_indicators": [],
+        "prediction_set": [
+          "NONE"
+        ],
+        "review_priority": "STANDARD",
+        "recommended_action": "APPROVE",
+        "causal_reasoning": "The vehicle is maintaining a stable position and speed without any abrupt changes indicating a collision or near-miss scenario."
+      },
+      "checks": {
+        "severity_match": true,
+        "severity_distance": 0,
+        "fraud_below_threshold": true
+      }
+    }
+  },
+  "summary": {
+    "total_videos": 3,
+    "severity_exact_match": 2,
+    "severity_accuracy": 66.7,
+    "mean_severity_distance": 0.33,
+    "total_inference_time_sec": 453.78,
+    "mean_inference_time_sec": 151.26
+  }
+}

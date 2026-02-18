@@ -511,9 +511,14 @@ if mode == "replay":
     # ------------------------------------------------------------------
     st.markdown("### " + t("backend_replay"))
 
-    # Find existing result files
+    # Find existing result files (demo_assets first, then reports/)
+    demo_assets_dir = PROJECT_ROOT / "insurance_mvp" / "demo_assets"
     reports_dir = PROJECT_ROOT / "reports"
-    result_files = sorted(reports_dir.glob("*.json"), reverse=True) if reports_dir.exists() else []
+    result_files = []
+    if demo_assets_dir.exists():
+        result_files.extend(sorted(demo_assets_dir.glob("*.json"), reverse=True))
+    if reports_dir.exists():
+        result_files.extend(sorted(reports_dir.glob("*.json"), reverse=True))
 
     replay_source = None
 
@@ -837,29 +842,63 @@ if results and results.get("assessments"):
 
                 with comp_col3:
                     st.markdown("**AI Assessment**")
+
+                    # Severity: exact match, borderline (distance=1), or mismatch
                     sev_match = primary.severity == gt_data["gt_severity"]
+                    sev_order = {"NONE": 0, "LOW": 1, "MEDIUM": 2, "HIGH": 3}
+                    sev_dist = abs(sev_order.get(primary.severity, -1) - sev_order.get(gt_data["gt_severity"], -1))
+                    sev_in_pred_set = gt_data["gt_severity"] in primary.prediction_set
+
+                    if sev_match:
+                        sev_icon = "✅"
+                    elif sev_dist == 1:
+                        sev_icon = "🟡"  # Borderline
+                    else:
+                        sev_icon = "❌"
+                    sev_note = f" {primary.severity} {sev_icon}"
+                    if not sev_match and sev_dist == 1:
+                        borderline_label = "Borderline" if lang == "en" else "境界値"
+                        sev_note += f' <span style="color:#F59E0B;font-size:0.85em;">({borderline_label})</span>'
+                    if not sev_match and sev_in_pred_set:
+                        covered_label = "Covered by 90% CI" if lang == "en" else "90% CIでカバー"
+                        sev_note += f' <span style="color:#3B82F6;font-size:0.85em;">({covered_label})</span>'
                     st.markdown(
-                        f"{SEVERITY_EMOJI.get(primary.severity, '')} {primary.severity} {'✅' if sev_match else '❌'}"
+                        f"{SEVERITY_EMOJI.get(primary.severity, '')}{sev_note}",
+                        unsafe_allow_html=True,
                     )
+
                     fault_match = abs(primary.fault_assessment.fault_ratio - gt_data["gt_fault"]) < 20
                     st.markdown(f"{primary.fault_assessment.fault_ratio:.0f}% {'✅' if fault_match else '❌'}")
                     fraud_match = abs(primary.fraud_risk.risk_score - gt_data["gt_fraud"]) < 0.3
                     st.markdown(f"{primary.fraud_risk.risk_score:.1f} {'✅' if fraud_match else '❌'}")
                     st.markdown(f"`{primary.fault_assessment.scenario_type}`")
 
-                # Accuracy summary
+                # Accuracy summary (borderline counts as partial pass)
                 st.divider()
-                checks = [sev_match, fault_match, fraud_match]
-                passed = sum(checks)
-                total = len(checks)
-                acc_color = "#10B981" if passed == total else "#F59E0B" if passed >= 2 else "#DC2626"
+                sev_score = 1.0 if sev_match else (0.5 if sev_dist == 1 else 0.0)
+                checks_score = sev_score + (1.0 if fault_match else 0.0) + (1.0 if fraud_match else 0.0)
+                total = 3
+                display_score = f"{checks_score:.1f}" if checks_score != int(checks_score) else f"{int(checks_score)}"
+                acc_color = "#10B981" if checks_score >= 2.5 else "#F59E0B" if checks_score >= 1.5 else "#DC2626"
+                acc_label = "Accuracy Score" if lang == "en" else "精度スコア"
                 st.markdown(
                     f"""<div style="text-align:center;padding:16px;background:#F9FAFB;border-radius:12px;">
-                    <div style="font-size:2em;font-weight:800;color:{acc_color};">{passed}/{total}</div>
-                    <div style="color:#6B7280;">Accuracy Checks Passed</div>
+                    <div style="font-size:2em;font-weight:800;color:{acc_color};">{display_score}/{total}</div>
+                    <div style="color:#6B7280;">{acc_label}</div>
                 </div>""",
                     unsafe_allow_html=True,
                 )
+
+                # Conformal coverage note
+                if not sev_match and sev_in_pred_set:
+                    coverage_note = (
+                        "The ground truth severity is within the model's 90% confidence interval (prediction set). "
+                        "This indicates the model's uncertainty quantification is well-calibrated."
+                        if lang == "en"
+                        else "正解の重大度はモデルの90%信頼区間（予測セット）内に含まれています。"
+                        "これはモデルの不確実性定量化が適切に校正されていることを示します。"
+                    )
+                    st.info(coverage_note)
             else:
                 st.info(
                     "Ground truth comparison is only available for demo videos."

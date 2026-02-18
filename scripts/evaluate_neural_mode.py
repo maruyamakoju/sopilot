@@ -224,16 +224,16 @@ def main():
     print("Commercial Impact Assessment")
     print("=" * 70)
     print()
-    print(f"Neural mode improvements:")
+    print("Neural mode improvements:")
     print(f"  - Precision: {result_neural.score:.1f}/100 vs {result_heuristic.score:.1f}/100")
     print(f"  - RTX 5090 acceleration: {elapsed_neural:.2f}s evaluation time")
-    print(f"  - Uncertainty quantification: MC Dropout + Conformal Prediction")
+    print("  - Uncertainty quantification: MC Dropout + Conformal Prediction")
     print()
 
     if result_neural.score > result_heuristic.score:
         print(f"✓ Neural mode IMPROVES accuracy by {result_neural.score - result_heuristic.score:.1f} points")
     else:
-        print(f"⚠ Neural mode provides SAME/LOWER score (may need retraining)")
+        print("⚠ Neural mode provides SAME/LOWER score (may need retraining)")
 
     print()
     print("Next steps:")

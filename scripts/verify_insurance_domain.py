@@ -16,29 +16,29 @@ def verify_imports():
     print("Verifying imports...")
     try:
         from insurance_mvp.insurance import (
-            # Fault Assessment
-            FaultAssessmentEngine,
-            FaultAssessmentConfig,
-            ScenarioContext,
-            ScenarioType,
-            TrafficSignal,
-            detect_scenario_type,
-            # Fraud Detection
-            FraudDetectionEngine,
-            FraudDetectionConfig,
-            FraudIndicator,
-            VideoEvidence,
-            ClaimHistory,
-            ClaimDetails,
-            # Utils
-            VideoMetadata,
-            format_timestamp,
-            parse_timestamp,
+            ClaimAssessment,  # noqa: F401
+            ClaimDetails,  # noqa: F401
+            ClaimHistory,  # noqa: F401
             # Schema
-            Evidence,
-            FaultAssessment,
-            FraudRisk,
-            ClaimAssessment,
+            Evidence,  # noqa: F401
+            FaultAssessment,  # noqa: F401
+            FaultAssessmentConfig,  # noqa: F401
+            # Fault Assessment
+            FaultAssessmentEngine,  # noqa: F401
+            FraudDetectionConfig,  # noqa: F401
+            # Fraud Detection
+            FraudDetectionEngine,  # noqa: F401
+            FraudIndicator,  # noqa: F401
+            FraudRisk,  # noqa: F401
+            ScenarioContext,  # noqa: F401
+            ScenarioType,  # noqa: F401
+            TrafficSignal,  # noqa: F401
+            VideoEvidence,  # noqa: F401
+            # Utils
+            VideoMetadata,  # noqa: F401
+            detect_scenario_type,  # noqa: F401
+            format_timestamp,  # noqa: F401
+            parse_timestamp,  # noqa: F401
         )
         print("  [OK] All imports successful")
         return True
@@ -77,9 +77,9 @@ def verify_fraud_detection():
     print("\nVerifying fraud detection...")
     try:
         from insurance_mvp.insurance import (
+            ClaimDetails,
             FraudDetectionEngine,
             VideoEvidence,
-            ClaimDetails,
         )
 
         engine = FraudDetectionEngine()
@@ -157,7 +157,7 @@ def verify_scenario_detection():
     """Verify scenario type detection."""
     print("\nVerifying scenario detection...")
     try:
-        from insurance_mvp.insurance import detect_scenario_type, ScenarioType
+        from insurance_mvp.insurance import ScenarioType, detect_scenario_type
 
         scenarios = [
             ("car hit from behind", ScenarioType.REAR_END),

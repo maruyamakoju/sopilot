@@ -102,7 +102,7 @@ def run_benchmark(as_json: bool = False, quick_mode: bool = False, quantize: str
     }
 
     # Verify videos exist
-    for name, path in videos.items():
+    for _name, path in videos.items():
         if not path.exists():
             logger.error(f"Demo video not found: {path}")
             return {"error": f"Missing video: {path}"}
@@ -233,7 +233,7 @@ def run_benchmark(as_json: bool = False, quick_mode: bool = False, quantize: str
         print(f"\n{'=' * 60}")
         print("REAL VLM BENCHMARK SUMMARY")
         print(f"{'=' * 60}")
-        print(f"  Model: Qwen2.5-VL-7B-Instruct (real inference)")
+        print("  Model: Qwen2.5-VL-7B-Instruct (real inference)")
         print(f"  Model load time: {init_time:.1f}s")
         print(f"  Severity accuracy: {results['summary']['severity_accuracy']}% ({total_severity_match}/{n_videos})")
         print(f"  Mean severity distance: {results['summary']['mean_severity_distance']}")

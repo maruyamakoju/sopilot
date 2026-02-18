@@ -21,7 +21,7 @@ import argparse
 import json
 import re
 import sys
-from dataclasses import dataclass, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -152,7 +152,7 @@ def _estimate_scenes(cap: cv2.VideoCapture, fps: float, duration_sec: float) -> 
     return max(1, num_samples // 2)
 
 
-def validate_directory(video_dir: Path, extensions: list[str] = [".mp4", ".avi", ".mov"]) -> list[VideoValidationResult]:
+def validate_directory(video_dir: Path, extensions: list[str] | None = None) -> list[VideoValidationResult]:
     """Validate all videos in a directory.
 
     Args:
@@ -162,6 +162,8 @@ def validate_directory(video_dir: Path, extensions: list[str] = [".mp4", ".avi",
     Returns:
         List of validation results
     """
+    if extensions is None:
+        extensions = [".mp4", ".avi", ".mov"]
     results = []
 
     for ext in extensions:

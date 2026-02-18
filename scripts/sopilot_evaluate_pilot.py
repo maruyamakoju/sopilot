@@ -409,7 +409,7 @@ def _generate_pdf_report(report_data: dict, output_path: Path) -> None:
         from reportlab.lib.pagesizes import letter
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import inch
-        from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
     except ImportError:
         print("ERROR: reportlab not installed. Install with: pip install reportlab")
         print("Falling back to JSON output...")

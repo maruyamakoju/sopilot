@@ -9,13 +9,13 @@ Creates 3 types of videos:
 High-quality, professional-grade for demo purposes
 """
 
+import argparse
+import json
+from datetime import datetime
+from pathlib import Path
+
 import cv2
 import numpy as np
-from pathlib import Path
-import argparse
-from datetime import datetime
-import subprocess
-import json
 
 
 class DashcamVideoGenerator:
@@ -375,10 +375,10 @@ def main():
     print("[SUCCESS] All videos generated successfully!")
     print("="*60)
     print(f"\nOutput directory: {output_dir}")
-    print(f"  - collision.mp4  (HIGH severity)")
-    print(f"  - near_miss.mp4  (MEDIUM severity)")
-    print(f"  - normal.mp4     (NONE severity)")
-    print(f"  - metadata.json  (ground truth)")
+    print("  - collision.mp4  (HIGH severity)")
+    print("  - near_miss.mp4  (MEDIUM severity)")
+    print("  - normal.mp4     (NONE severity)")
+    print("  - metadata.json  (ground truth)")
     print()
 
 

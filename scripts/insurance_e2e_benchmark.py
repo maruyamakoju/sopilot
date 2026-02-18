@@ -20,9 +20,8 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from insurance_mvp.config import PipelineConfig, CosmosBackend
-from insurance_mvp.pipeline import InsurancePipeline
-
+from insurance_mvp.config import CosmosBackend, PipelineConfig  # noqa: E402
+from insurance_mvp.pipeline import InsurancePipeline  # noqa: E402
 
 # ---------------------------------------------------------------------------
 # Ground Truth
@@ -47,7 +46,7 @@ def load_ground_truth() -> dict:
                 "ground_truth": {"fault_ratio": 0.0, "scenario": "normal_driving", "fraud_risk": 0.0},
             },
         }
-    with open(metadata_path, "r", encoding="utf-8") as f:
+    with open(metadata_path, encoding="utf-8") as f:
         return json.load(f)
 
 

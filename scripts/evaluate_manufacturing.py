@@ -164,9 +164,9 @@ def main():
     print()
     print("Commercial benefits:")
     print(f"  • Evaluation time: {elapsed:.1f}s (vs 2-hour manual review)")
-    print(f"  • Cost reduction: ~99% (automated vs human evaluator)")
-    print(f"  • Objectivity: Consistent scoring, no human bias")
-    print(f"  • Scalability: Evaluate 1000s of trainees in parallel")
+    print("  • Cost reduction: ~99% (automated vs human evaluator)")
+    print("  • Objectivity: Consistent scoring, no human bias")
+    print("  • Scalability: Evaluate 1000s of trainees in parallel")
     print()
 
     return 0

@@ -51,8 +51,6 @@ from sopilot.evaluation.vigil_benchmark import (  # noqa: E402
     VIGILBenchmarkRunner,
 )
 from sopilot.evaluation.vigil_metrics import (  # noqa: E402
-    evidence_recall_at_k,
-    mrr,
     ndcg_at_k,
 )
 

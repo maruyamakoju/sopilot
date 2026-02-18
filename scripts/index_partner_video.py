@@ -233,9 +233,9 @@ def main():
         # Print summary
         print("\nNext steps:", file=sys.stderr)
         print(f"  1. View chunks: cat chunks/{args.video_id}.micro.json", file=sys.stderr)
-        print(f"  2. Create GT: Edit benchmarks/manufacturing_v1.jsonl with relevant_clip_ids from chunk manifest", file=sys.stderr)
-        print(f"  3. Validate: python scripts/validate_benchmark.py --benchmark manufacturing_v1.jsonl", file=sys.stderr)
-        print(f"  4. Evaluate: python scripts/evaluate_vigil_real.py --benchmark manufacturing_v1.jsonl --hierarchical", file=sys.stderr)
+        print("  2. Create GT: Edit benchmarks/manufacturing_v1.jsonl with relevant_clip_ids from chunk manifest", file=sys.stderr)
+        print("  3. Validate: python scripts/validate_benchmark.py --benchmark manufacturing_v1.jsonl", file=sys.stderr)
+        print("  4. Evaluate: python scripts/evaluate_vigil_real.py --benchmark manufacturing_v1.jsonl --hierarchical", file=sys.stderr)
 
     except Exception as e:
         print(f"\n❌ Indexing failed: {e}", file=sys.stderr)

@@ -905,7 +905,7 @@ class RAGService:
 
         # Track which clips are consecutive (within same video only)
         consecutive_set = set()
-        for video_id, clips in by_video.items():
+        for _video_id, clips in by_video.items():
             # Sort by time within this video
             clips_sorted = sorted(clips, key=lambda r: r.start_sec)
 

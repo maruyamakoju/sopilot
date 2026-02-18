@@ -3,10 +3,11 @@
 
 import sys
 from pathlib import Path
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "insurance_mvp"))
 
 import json
-from config import PipelineConfig, CosmosBackend, DeviceType
+
 from demo_pipeline import run_demo
 
 if __name__ == "__main__":
@@ -46,14 +47,14 @@ if __name__ == "__main__":
             print(f"Fault Ratio:       {assessment['fault_assessment']['fault_ratio']:.1f}%")
             print(f"Fraud Score:       {assessment['fraud_risk']['risk_score']:.2f}")
 
-            print(f"\nCausal Reasoning:")
+            print("\nCausal Reasoning:")
             reasoning = assessment['causal_reasoning']
             # Wrap reasoning text
             import textwrap
             wrapped = textwrap.fill(reasoning, width=66, initial_indent="  ", subsequent_indent="  ")
             print(wrapped)
 
-            print(f"\nFault Reasoning:")
+            print("\nFault Reasoning:")
             fault_reasoning = assessment['fault_assessment']['reasoning']
             wrapped_fault = textwrap.fill(fault_reasoning, width=66, initial_indent="  ", subsequent_indent="  ")
             print(wrapped_fault)

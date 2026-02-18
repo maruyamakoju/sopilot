@@ -9,29 +9,25 @@ Usage:
 """
 
 import sys
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
 
 # Add project root to path
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from insurance_mvp.insurance import (
+from insurance_mvp.insurance import (  # noqa: E402
+    ClaimDetails,
+    ClaimHistory,
     # Fault Assessment
     FaultAssessmentEngine,
-    FaultAssessmentConfig,
+    # Fraud Detection
+    FraudDetectionEngine,
     ScenarioContext,
     ScenarioType,
     TrafficSignal,
-    detect_scenario_type,
-    # Fraud Detection
-    FraudDetectionEngine,
-    FraudDetectionConfig,
     VideoEvidence,
-    ClaimHistory,
-    ClaimDetails,
-    # Utils
-    format_timestamp,
+    detect_scenario_type,
 )
 
 
@@ -365,7 +361,7 @@ def demo_integrated_assessment():
     print(f"[OK] Fault Assessment: {fault_result.scenario_type} collision")
     print(f"[OK] Fault Ratio: {fault_result.fault_ratio}%")
     print(f"[OK] Fraud Risk: {'HIGH' if fraud_result.risk_score >= 0.7 else 'MEDIUM' if fraud_result.risk_score >= 0.4 else 'LOW'}")
-    print(f"[OK] Processing Time: ~2-3 seconds (automated)")
+    print("[OK] Processing Time: ~2-3 seconds (automated)")
     print(f"[OK] Human Review Required: {'YES' if fraud_result.risk_score >= 0.4 else 'NO'}")
 
 

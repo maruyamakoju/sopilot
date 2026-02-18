@@ -20,26 +20,22 @@ import numpy as np
 project_root = Path(__file__).parent.parent
 sys.path.insert(0, str(project_root))
 
-from insurance_mvp.insurance.fault_assessment import (
+from insurance_mvp.conformal.split_conformal import (  # noqa: E402
+    ConformalConfig,
+    SplitConformal,
+)
+from insurance_mvp.insurance.fault_assessment import (  # noqa: E402
     FaultAssessmentEngine,
-    FaultAssessmentConfig,
     ScenarioContext,
     ScenarioType,
     TrafficSignal,
 )
-from insurance_mvp.insurance.fraud_detection import (
-    FraudDetectionEngine,
-    FraudDetectionConfig,
-    VideoEvidence,
+from insurance_mvp.insurance.fraud_detection import (  # noqa: E402
     ClaimDetails,
     ClaimHistory,
+    FraudDetectionEngine,
+    VideoEvidence,
 )
-from insurance_mvp.conformal.split_conformal import (
-    SplitConformal,
-    ConformalConfig,
-    severity_to_ordinal,
-)
-
 
 # ============================================================================
 # Fault Assessment Test Suite
@@ -307,8 +303,6 @@ def run_conformal_test_suite() -> dict:
 
 def run_e2e_demo() -> dict:
     """Run quick E2E checks with ground truth."""
-    from insurance_mvp.config import PipelineConfig, CosmosBackend
-    import tempfile
 
     gt = {
         "collision": {"severity": "HIGH", "fault_ratio": 100.0, "fraud_risk": 0.0},
@@ -384,17 +378,17 @@ def generate_report(output_dir: str):
     print("\n" + "=" * 60)
     print("SUMMARY")
     print("=" * 60)
-    print(f"\nFault Assessment Engine:")
+    print("\nFault Assessment Engine:")
     print(f"  Test cases: {fault_results['total_cases']}")
     print(f"  Exact match rate: {fault_results['exact_match_rate']}%")
     print(f"  MAE: {fault_results['mae']}%")
 
-    print(f"\nFraud Detection Engine:")
+    print("\nFraud Detection Engine:")
     print(f"  Test cases: {fraud_results['total_cases']}")
     print(f"  Classification accuracy: {fraud_results['accuracy']}%")
     print(f"  Score separation: {fraud_results['score_separation']}")
 
-    print(f"\nConformal Prediction:")
+    print("\nConformal Prediction:")
     print(f"  Target coverage: {conformal_results['target_coverage']:.0%}")
     print(f"  Actual coverage: {conformal_results['actual_coverage']:.1%}")
     print(f"  Mean set size: {conformal_results['mean_set_size']}")
@@ -458,7 +452,7 @@ Generation time: {report['generation_time_sec']}s
     for key, val in conf["alpha_sweep"].items():
         md += f"| {key} | {val['target_coverage']} | {val['actual_coverage']} | {val['coverage_gap']} | {val['mean_set_size']} |\n"
 
-    md += f"""
+    md += """
 ## E2E Pipeline (Demo Videos)
 
 | Video | Expected Severity | Expected Fault | Expected Fraud |

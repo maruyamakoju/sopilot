@@ -13,13 +13,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "insurance_mvp"))
 
 import json
-import tempfile
-import shutil
 from datetime import datetime
 
-from config import PipelineConfig, CosmosBackend, DeviceType
-from pipeline import InsurancePipeline
+from config import CosmosBackend, DeviceType, PipelineConfig
 from insurance.schema import ClaimAssessment
+from pipeline import InsurancePipeline
 
 
 def print_section(title: str, symbol: str = "="):
@@ -34,20 +32,20 @@ def print_assessment(assessment: ClaimAssessment, video_name: str):
     print(f"\n{'━' * 70}")
     print(f"VIDEO: {video_name}")
     print(f"{'━' * 70}")
-    print(f"\n[SEVERITY ASSESSMENT]")
+    print("\n[SEVERITY ASSESSMENT]")
     print(f"  Severity:          {assessment.severity}")
     print(f"  Confidence:        {assessment.confidence:.2%}")
     print(f"  Prediction Set:    {{{', '.join(sorted(assessment.prediction_set))}}}")
     print(f"  Review Priority:   {assessment.review_priority}")
 
-    print(f"\n[FAULT ASSESSMENT]")
+    print("\n[FAULT ASSESSMENT]")
     print(f"  Fault Ratio:       {assessment.fault_assessment.fault_ratio:.1f}%")
     print(f"  At-Fault Party:    {assessment.fault_assessment.at_fault_party or 'N/A'}")
     print(f"  Contributing:      {', '.join(assessment.fault_assessment.contributing_factors) if assessment.fault_assessment.contributing_factors else 'None'}")
     if assessment.fault_assessment.reasoning:
         print(f"  Reasoning:         {assessment.fault_assessment.reasoning}")
 
-    print(f"\n[FRAUD DETECTION]")
+    print("\n[FRAUD DETECTION]")
     print(f"  Fraud Score:       {assessment.fraud_risk.risk_score:.2f}")
     print(f"  Risk Level:        {assessment.fraud_risk.risk_level}")
     if assessment.fraud_risk.red_flags:
@@ -55,11 +53,11 @@ def print_assessment(assessment: ClaimAssessment, video_name: str):
     if assessment.fraud_risk.reasoning:
         print(f"  Reasoning:         {assessment.fraud_risk.reasoning}")
 
-    print(f"\n[RECOMMENDATION]")
+    print("\n[RECOMMENDATION]")
     print(f"  Action:            {assessment.recommended_action}")
 
     if assessment.causal_reasoning:
-        print(f"\n[CAUSAL REASONING]")
+        print("\n[CAUSAL REASONING]")
         print(f"  {assessment.causal_reasoning}")
 
     print(f"\n{'─' * 70}\n")
@@ -303,13 +301,13 @@ def main():
 
         # Ground truth
         gt = ground_truth.get(video_name, {})
-        print(f"\n[GROUND TRUTH]")
+        print("\n[GROUND TRUTH]")
         print(f"  Expected Severity: {gt.get('severity', 'UNKNOWN')}")
         print(f"  Fault Ratio: {gt.get('ground_truth', {}).get('fault_ratio', 'N/A')}")
         print(f"  Scenario: {gt.get('ground_truth', {}).get('scenario', 'N/A')}")
 
         # Process video
-        print(f"\n[PROCESSING]")
+        print("\n[PROCESSING]")
         try:
             result = pipeline.process_video(str(video_path))
 
@@ -327,7 +325,7 @@ def main():
                 # Save JSON
                 json_path = output_dir / "assessment.json"
                 with open(json_path, 'w') as f:
-                    json.dump(asdict(assessment), f, indent=2, default=str)
+                    json.dump(assessment.model_dump(), f, indent=2, default=str)
                 print(f"[OK] JSON saved: {json_path}")
 
                 # Save HTML report

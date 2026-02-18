@@ -101,8 +101,8 @@ def check_dependencies() -> dict:
         pass
 
     try:
-        from PIL import Image
         import PIL
+        from PIL import Image  # noqa: F401
         deps["PIL"]["installed"] = True
         deps["PIL"]["version"] = PIL.__version__
     except ImportError:
@@ -225,7 +225,7 @@ def run_check(as_json: bool = False) -> dict:
                 print(f"    [{g['index']}] {g['name']}: {g['total_memory_gb']} GB ({vram_ok})")
             print(f"  Sufficient VRAM (>=14GB): {'YES' if gpu['sufficient_vram'] else 'NO'}")
         else:
-            print(f"  CUDA: Not available")
+            print("  CUDA: Not available")
             if "error" in gpu:
                 print(f"  Error: {gpu['error']}")
 

@@ -5,7 +5,7 @@ Pydantic models for API endpoints.
 
 from datetime import datetime
 from typing import List, Optional, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from enum import Enum
 
 
@@ -90,8 +90,9 @@ class ReviewDecisionRequest(BaseModel):
 
     comments: Optional[str] = Field(None, description="Additional comments")
 
-    @validator('reasoning')
-    def validate_reasoning(cls, v):
+    @field_validator('reasoning')
+    @classmethod
+    def validate_reasoning(cls, v: str) -> str:
         if len(v.strip()) < 10:
             raise ValueError('Reasoning must be at least 10 characters after stripping whitespace')
         return v.strip()

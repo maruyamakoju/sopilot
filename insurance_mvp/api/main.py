@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Optional, List
 
 import uvicorn
+from contextlib import asynccontextmanager
 from fastapi import FastAPI, File, UploadFile, Depends, HTTPException, status, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -107,35 +108,18 @@ config = Config()
 
 # FastAPI Application
 
-app = FastAPI(
-    title=config.API_TITLE,
-    version=config.API_VERSION,
-    description="Production-ready API for insurance claim review system with AI assessment",
-    docs_url="/docs",
-    redoc_url="/redoc",
-)
-
-# CORS Middleware
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=config.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-
 # Database and Worker Initialization
 
 db_manager: Optional[DatabaseManager] = None
 app_start_time: datetime = datetime.utcnow()
 
 
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database and background worker on startup"""
+@asynccontextmanager
+async def lifespan(app):
+    """Application lifespan: startup and shutdown logic."""
     global db_manager
 
+    # --- Startup ---
     logger.info(f"Starting {config.API_TITLE} v{config.API_VERSION}")
 
     # Initialize database
@@ -162,13 +146,31 @@ async def startup_event():
         initialize_dev_reviewers()
         logger.info("Test credentials initialized")
 
+    yield
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Cleanup on shutdown"""
+    # --- Shutdown ---
     logger.info("Shutting down application...")
     shutdown_worker(wait=True)
     logger.info("Shutdown complete")
+
+
+app = FastAPI(
+    title=config.API_TITLE,
+    version=config.API_VERSION,
+    description="Production-ready API for insurance claim review system with AI assessment",
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan,
+)
+
+# CORS Middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=config.CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 # Dependency: Database Session

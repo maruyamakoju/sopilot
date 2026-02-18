@@ -120,7 +120,7 @@ def test_upload_claim_success(client, test_api_key):
     assert data["status"] in ["uploaded", "queued"]
     assert "upload_time" in data
 
-    return data["claim_id"]
+    assert data["claim_id"]  # Store for other tests if needed
 
 
 def test_get_claim_status_not_found(client, test_api_key):

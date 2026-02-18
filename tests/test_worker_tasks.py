@@ -12,6 +12,7 @@ import pytest
 def _reset_worker_global():
     """Reset the worker_tasks module global state before each test."""
     import sopilot.worker_tasks as wt
+
     wt._service = None
     yield
     wt._service = None
@@ -36,9 +37,14 @@ def _patch_deps():
 class TestGetService:
     def test_initializes_service_on_first_call(self):
         patches, mock_settings, mock_db, mock_service = _patch_deps()
-        with patches["get_settings"], patches["ensure_directories"] as mock_ensure, \
-             patches["Database"] as mock_db_cls, patches["SopilotService"] as mock_svc_cls:
+        with (
+            patches["get_settings"],
+            patches["ensure_directories"] as mock_ensure,
+            patches["Database"] as mock_db_cls,
+            patches["SopilotService"] as mock_svc_cls,
+        ):
             from sopilot.worker_tasks import _get_service
+
             svc = _get_service()
             assert svc is mock_service
             mock_ensure.assert_called_once_with(mock_settings)
@@ -50,9 +56,14 @@ class TestGetService:
 
     def test_returns_cached_on_second_call(self):
         patches, _, _, mock_service = _patch_deps()
-        with patches["get_settings"], patches["ensure_directories"], \
-             patches["Database"], patches["SopilotService"] as mock_svc_cls:
+        with (
+            patches["get_settings"],
+            patches["ensure_directories"],
+            patches["Database"],
+            patches["SopilotService"] as mock_svc_cls,
+        ):
             from sopilot.worker_tasks import _get_service
+
             svc1 = _get_service()
             svc2 = _get_service()
             assert svc1 is svc2
@@ -64,6 +75,7 @@ class TestGetService:
         with patches["get_settings"] as mock_gs:
             mock_gs.side_effect = RuntimeError("settings broken")
             from sopilot.worker_tasks import _get_service
+
             with pytest.raises(RuntimeError, match="settings broken"):
                 _get_service()
 
@@ -71,25 +83,25 @@ class TestGetService:
 class TestRunJobs:
     def test_run_ingest_job_delegates(self):
         patches, _, _, mock_service = _patch_deps()
-        with patches["get_settings"], patches["ensure_directories"], \
-             patches["Database"], patches["SopilotService"]:
+        with patches["get_settings"], patches["ensure_directories"], patches["Database"], patches["SopilotService"]:
             from sopilot.worker_tasks import run_ingest_job
+
             run_ingest_job("job-123")
             mock_service.run_ingest_job.assert_called_once_with("job-123")
 
     def test_run_score_job_delegates(self):
         patches, _, _, mock_service = _patch_deps()
-        with patches["get_settings"], patches["ensure_directories"], \
-             patches["Database"], patches["SopilotService"]:
+        with patches["get_settings"], patches["ensure_directories"], patches["Database"], patches["SopilotService"]:
             from sopilot.worker_tasks import run_score_job
+
             run_score_job("score-456")
             mock_service.run_score_job.assert_called_once_with("score-456")
 
     def test_run_training_job_delegates(self):
         patches, _, _, mock_service = _patch_deps()
-        with patches["get_settings"], patches["ensure_directories"], \
-             patches["Database"], patches["SopilotService"]:
+        with patches["get_settings"], patches["ensure_directories"], patches["Database"], patches["SopilotService"]:
             from sopilot.worker_tasks import run_training_job
+
             run_training_job("train-789")
             mock_service.run_training_job.assert_called_once_with("train-789")
 
@@ -97,23 +109,24 @@ class TestRunJobs:
 class TestShutdown:
     def test_shutdown_calls_service_shutdown(self):
         patches, _, _, mock_service = _patch_deps()
-        with patches["get_settings"], patches["ensure_directories"], \
-             patches["Database"], patches["SopilotService"]:
+        with patches["get_settings"], patches["ensure_directories"], patches["Database"], patches["SopilotService"]:
             from sopilot.worker_tasks import _get_service, shutdown_worker_service
+
             _get_service()  # initialize
             shutdown_worker_service()
             mock_service.shutdown.assert_called_once()
 
     def test_shutdown_before_init_is_noop(self):
         from sopilot.worker_tasks import shutdown_worker_service
+
         # Should not raise
         shutdown_worker_service()
 
     def test_double_shutdown_is_safe(self):
         patches, _, _, mock_service = _patch_deps()
-        with patches["get_settings"], patches["ensure_directories"], \
-             patches["Database"], patches["SopilotService"]:
+        with patches["get_settings"], patches["ensure_directories"], patches["Database"], patches["SopilotService"]:
             from sopilot.worker_tasks import _get_service, shutdown_worker_service
+
             _get_service()
             shutdown_worker_service()
             shutdown_worker_service()
@@ -122,9 +135,9 @@ class TestShutdown:
 
     def test_shutdown_clears_global(self):
         patches, _, _, mock_service = _patch_deps()
-        with patches["get_settings"], patches["ensure_directories"], \
-             patches["Database"], patches["SopilotService"]:
+        with patches["get_settings"], patches["ensure_directories"], patches["Database"], patches["SopilotService"]:
             import sopilot.worker_tasks as wt
+
             wt._get_service()
             assert wt._service is not None
             wt.shutdown_worker_service()

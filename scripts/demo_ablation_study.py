@@ -39,20 +39,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-plt.rcParams.update({
-    "font.family": "serif",
-    "font.size": 11,
-    "axes.titlesize": 13,
-    "axes.labelsize": 11,
-    "figure.dpi": 150,
-    "savefig.dpi": 200,
-    "savefig.bbox": "tight",
-})
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.size": 11,
+        "axes.titlesize": 13,
+        "axes.labelsize": 11,
+        "figure.dpi": 150,
+        "savefig.dpi": 200,
+        "savefig.bbox": "tight",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
 # Synthetic data with controlled difficulty levels
 # ---------------------------------------------------------------------------
+
 
 def _make_scenario(
     n_steps: int,
@@ -121,6 +124,7 @@ def _scenario_suite(
 # Experiment 1: Alignment Method Ablation
 # ---------------------------------------------------------------------------
 
+
 def _cosine_alignment_cost(gold: np.ndarray, trainee: np.ndarray) -> float:
     """Raw cosine distance: mean diagonal cost, no temporal alignment."""
     g = gold / np.linalg.norm(gold, axis=1, keepdims=True)
@@ -133,6 +137,7 @@ def _cosine_alignment_cost(gold: np.ndarray, trainee: np.ndarray) -> float:
 def _hard_dtw_cost(gold: np.ndarray, trainee: np.ndarray) -> float:
     """Hard DTW from step_engine."""
     from sopilot.step_engine import dtw_align
+
     result = dtw_align(gold, trainee)
     return result.mean_cost
 
@@ -140,6 +145,7 @@ def _hard_dtw_cost(gold: np.ndarray, trainee: np.ndarray) -> float:
 def _soft_dtw_cost(gold: np.ndarray, trainee: np.ndarray, gamma: float = 0.5) -> float:
     """Soft-DTW alignment cost."""
     from sopilot.nn.soft_dtw import soft_dtw_align_numpy
+
     _, cost, _ = soft_dtw_align_numpy(gold, trainee, gamma=gamma)
     return float(cost)
 
@@ -147,6 +153,7 @@ def _soft_dtw_cost(gold: np.ndarray, trainee: np.ndarray, gamma: float = 0.5) ->
 def _ot_cost(gold: np.ndarray, trainee: np.ndarray) -> float:
     """Optimal Transport (Sinkhorn) cost."""
     from sopilot.nn.optimal_transport import SinkhornDistance
+
     g = gold / np.linalg.norm(gold, axis=1, keepdims=True)
     t = trainee / np.linalg.norm(trainee, axis=1, keepdims=True)
     cost_mat = 1.0 - (g @ t.T)
@@ -178,6 +185,7 @@ def experiment_alignment_ablation(
 # Experiment 2: Gamma Sensitivity
 # ---------------------------------------------------------------------------
 
+
 def experiment_gamma_sensitivity(
     scenarios: dict[str, tuple[np.ndarray, np.ndarray]],
 ) -> dict:
@@ -193,6 +201,7 @@ def experiment_gamma_sensitivity(
 # ---------------------------------------------------------------------------
 # Experiment 3: DILATE Loss Components
 # ---------------------------------------------------------------------------
+
 
 def experiment_dilate_ablation(
     scenarios: dict[str, tuple[np.ndarray, np.ndarray]],
@@ -236,6 +245,7 @@ def experiment_dilate_ablation(
 # Experiment 4: Scoring Head — Heuristic vs MLP
 # ---------------------------------------------------------------------------
 
+
 def experiment_scoring_ablation() -> dict:
     """Show that MLP captures non-linear metric interactions."""
     from sopilot.nn.scoring_head import N_METRICS, ScoringHead
@@ -247,10 +257,21 @@ def experiment_scoring_ablation() -> dict:
     # Test: sweep one metric at a time, measure score sensitivity
     heuristic_weights = [15, 10, 8, 5, 12, 5, 3, 5, 5, 3, 3, 0, 0, 5, 5]
     metric_names = [
-        "miss", "swap", "deviation", "over_time", "temporal_warp",
-        "path_stretch", "dup_ratio", "order_viol", "temp_drift",
-        "conf_loss", "local_sim_gap", "adapt_thresh", "eff_thresh",
-        "hard_miss", "mean_align_cost",
+        "miss",
+        "swap",
+        "deviation",
+        "over_time",
+        "temporal_warp",
+        "path_stretch",
+        "dup_ratio",
+        "order_viol",
+        "temp_drift",
+        "conf_loss",
+        "local_sim_gap",
+        "adapt_thresh",
+        "eff_thresh",
+        "hard_miss",
+        "mean_align_cost",
     ]
 
     results = {"metrics": metric_names, "heuristic_sensitivity": [], "mlp_sensitivity": []}
@@ -277,6 +298,7 @@ def experiment_scoring_ablation() -> dict:
 # Experiment 5: Uncertainty Calibration Coverage
 # ---------------------------------------------------------------------------
 
+
 def experiment_uncertainty_coverage() -> dict:
     """Measure actual coverage of MC Dropout vs Conformal."""
     from sopilot.nn.conformal import SplitConformalPredictor
@@ -292,7 +314,7 @@ def experiment_uncertainty_coverage() -> dict:
     cal_x = torch.randn(n_cal, N_METRICS) * 0.3
     cal_preds = []
     for i in range(n_cal):
-        cal_preds.append(model._forward_single(cal_x[i:i + 1]))
+        cal_preds.append(model._forward_single(cal_x[i : i + 1]))
     cal_preds = np.array(cal_preds)
     cal_actuals = np.clip(cal_preds + rng.randn(n_cal) * 10, 0, 100)
 
@@ -301,7 +323,7 @@ def experiment_uncertainty_coverage() -> dict:
     test_x = torch.randn(n_test, N_METRICS) * 0.3
     test_preds = []
     for i in range(n_test):
-        test_preds.append(model._forward_single(test_x[i:i + 1]))
+        test_preds.append(model._forward_single(test_x[i : i + 1]))
     test_preds = np.array(test_preds)
     test_actuals = np.clip(test_preds + rng.randn(n_test) * 10, 0, 100)
 
@@ -311,7 +333,7 @@ def experiment_uncertainty_coverage() -> dict:
     mc_covered = 0
     mc_widths = []
     for i in range(n_test):
-        unc = model.predict_with_uncertainty(test_x[i:i + 1], n_samples=50)
+        unc = model.predict_with_uncertainty(test_x[i : i + 1], n_samples=50)
         if unc["ci_lower"] <= test_actuals[i] <= unc["ci_upper"]:
             mc_covered += 1
         mc_widths.append(unc["ci_upper"] - unc["ci_lower"])
@@ -334,7 +356,7 @@ def experiment_uncertainty_coverage() -> dict:
                 conf_covered += 1
             conf_widths.append(hi - lo)
 
-        results["methods"][f"Conformal ({int((1-alpha)*100)}%)"] = {
+        results["methods"][f"Conformal ({int((1 - alpha) * 100)}%)"] = {
             "target_coverage": 1 - alpha,
             "actual_coverage": conf_covered / n_test,
             "mean_width": float(np.mean(conf_widths)),
@@ -346,6 +368,7 @@ def experiment_uncertainty_coverage() -> dict:
 # ---------------------------------------------------------------------------
 # Plotting
 # ---------------------------------------------------------------------------
+
 
 def plot_alignment_ablation(data: dict, out_dir: Path) -> None:
     """Bar chart: alignment cost by method × scenario."""
@@ -364,8 +387,14 @@ def plot_alignment_ablation(data: dict, out_dir: Path) -> None:
         offset = (i - n_methods / 2 + 0.5) * width
         bars = ax.bar(x + offset, vals, width, label=method, color=colors[i], edgecolor="white")
         for bar, v in zip(bars, vals, strict=True):
-            ax.text(bar.get_x() + bar.get_width() / 2, bar.get_height() + 0.002,
-                    f"{v:.3f}", ha="center", va="bottom", fontsize=7)
+            ax.text(
+                bar.get_x() + bar.get_width() / 2,
+                bar.get_height() + 0.002,
+                f"{v:.3f}",
+                ha="center",
+                va="bottom",
+                fontsize=7,
+            )
 
     ax.set_xticks(x)
     ax.set_xticklabels(scenarios)
@@ -398,8 +427,7 @@ def plot_gamma_sensitivity(data: dict, out_dir: Path) -> None:
 
     # Annotate optimal region
     ax.axvspan(0.1, 1.0, alpha=0.1, color="green", label="Recommended range")
-    ax.text(0.3, ax.get_ylim()[1] * 0.95, "Recommended\nrange", fontsize=8,
-            color="green", ha="center", va="top")
+    ax.text(0.3, ax.get_ylim()[1] * 0.95, "Recommended\nrange", fontsize=8, color="green", ha="center", va="top")
 
     plt.tight_layout()
     fig.savefig(out_dir / "ablation_02_gamma.png")
@@ -442,8 +470,7 @@ def plot_dilate_ablation(data: dict, out_dir: Path) -> None:
     ax2.legend()
     ax2.grid(axis="y", alpha=0.3)
 
-    fig.suptitle("DILATE Loss Ablation (Guen & Thome, NeurIPS 2019)",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle("DILATE Loss Ablation (Guen & Thome, NeurIPS 2019)", fontsize=14, fontweight="bold")
     plt.tight_layout()
     fig.savefig(out_dir / "ablation_03_dilate.png")
     plt.close(fig)
@@ -478,8 +505,7 @@ def plot_scoring_ablation(data: dict, out_dir: Path) -> None:
     ax2.invert_yaxis()
     ax2.grid(axis="x", alpha=0.3)
 
-    fig.suptitle("Scoring Sensitivity: Heuristic vs Neural MLP",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle("Scoring Sensitivity: Heuristic vs Neural MLP", fontsize=14, fontweight="bold")
     plt.tight_layout()
     fig.savefig(out_dir / "ablation_04_scoring.png")
     plt.close(fig)
@@ -520,8 +546,7 @@ def plot_uncertainty_coverage(data: dict, out_dir: Path) -> None:
     ax2.set_title("Interval Width (narrower = better)", fontweight="bold")
     ax2.grid(axis="y", alpha=0.3)
 
-    fig.suptitle("Uncertainty Quantification: Coverage vs Width Trade-off",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle("Uncertainty Quantification: Coverage vs Width Trade-off", fontsize=14, fontweight="bold")
     plt.tight_layout()
     fig.savefig(out_dir / "ablation_05_uncertainty.png")
     plt.close(fig)
@@ -531,6 +556,7 @@ def plot_uncertainty_coverage(data: dict, out_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 # Summary
 # ---------------------------------------------------------------------------
+
 
 def print_summary(
     align: dict,
@@ -603,12 +629,16 @@ def print_summary(
     mc = uncertainty["methods"].get("MC Dropout (95%)", {})
     logger.info("\nKey finding:")
     if conf_95 and mc:
-        logger.info(f"  Conformal achieves {conf_95['actual_coverage']:.1%} coverage "
-                    f"(target: {conf_95['target_coverage']:.0%}) — "
-                    f"distribution-free guarantee")
-        logger.info(f"  MC Dropout achieves {mc['actual_coverage']:.1%} coverage "
-                    f"(target: {mc['target_coverage']:.0%}) — "
-                    f"no formal guarantee")
+        logger.info(
+            f"  Conformal achieves {conf_95['actual_coverage']:.1%} coverage "
+            f"(target: {conf_95['target_coverage']:.0%}) — "
+            f"distribution-free guarantee"
+        )
+        logger.info(
+            f"  MC Dropout achieves {mc['actual_coverage']:.1%} coverage "
+            f"(target: {mc['target_coverage']:.0%}) — "
+            f"no formal guarantee"
+        )
 
     summary["uncertainty"] = uncertainty
     summary["scoring"] = scoring
@@ -619,6 +649,7 @@ def print_summary(
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(description="SOPilot Neural Pipeline Ablation Study")

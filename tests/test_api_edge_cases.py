@@ -69,6 +69,7 @@ def _app_client(tmp_path):
 # Helper function unit tests
 # ---------------------------------------------------------------------------
 
+
 class TestNormalizeRole:
     def test_known_role(self):
         assert _normalize_role("admin") == "admin"
@@ -125,6 +126,7 @@ class TestIsPublicPath:
 class TestParseBasic:
     def test_valid_basic_auth(self):
         import base64
+
         creds = base64.b64encode(b"user:pass").decode()
         result = _parse_basic(f"Basic {creds}")
         assert result == ("user", "pass")
@@ -140,6 +142,7 @@ class TestParseBasic:
 
     def test_no_colon_separator(self):
         import base64
+
         creds = base64.b64encode(b"useronly").decode()
         assert _parse_basic(f"Basic {creds}") is None
 
@@ -194,6 +197,7 @@ class TestMapServiceError:
 
     def test_http_exception_passthrough(self):
         from fastapi import HTTPException
+
         original = HTTPException(status_code=418, detail="teapot")
         result = _map_service_error(original)
         assert result.status_code == 418
@@ -202,6 +206,7 @@ class TestMapServiceError:
 # ---------------------------------------------------------------------------
 # Endpoint tests
 # ---------------------------------------------------------------------------
+
 
 class TestRootEndpoint:
     def test_root_returns_200(self, _app_client):

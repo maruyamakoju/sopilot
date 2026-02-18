@@ -62,10 +62,26 @@ FAULT_TEST_CASES = [
     ("right_turn_no_yield", dict(scenario_type=ScenarioType.RIGHT_TURN, ego_right_of_way=False), 100.0),
     ("right_turn_unclear", dict(scenario_type=ScenarioType.RIGHT_TURN), 50.0),
     # Intersection scenarios
-    ("intersection_red_ego_ran", dict(scenario_type=ScenarioType.INTERSECTION, traffic_signal=TrafficSignal.RED, ego_right_of_way=False), 100.0),
-    ("intersection_red_other_ran", dict(scenario_type=ScenarioType.INTERSECTION, traffic_signal=TrafficSignal.RED, ego_right_of_way=True), 0.0),
-    ("intersection_green_ego", dict(scenario_type=ScenarioType.INTERSECTION, traffic_signal=TrafficSignal.GREEN, ego_right_of_way=True), 0.0),
-    ("intersection_green_other", dict(scenario_type=ScenarioType.INTERSECTION, traffic_signal=TrafficSignal.GREEN, ego_right_of_way=False), 100.0),
+    (
+        "intersection_red_ego_ran",
+        dict(scenario_type=ScenarioType.INTERSECTION, traffic_signal=TrafficSignal.RED, ego_right_of_way=False),
+        100.0,
+    ),
+    (
+        "intersection_red_other_ran",
+        dict(scenario_type=ScenarioType.INTERSECTION, traffic_signal=TrafficSignal.RED, ego_right_of_way=True),
+        0.0,
+    ),
+    (
+        "intersection_green_ego",
+        dict(scenario_type=ScenarioType.INTERSECTION, traffic_signal=TrafficSignal.GREEN, ego_right_of_way=True),
+        0.0,
+    ),
+    (
+        "intersection_green_other",
+        dict(scenario_type=ScenarioType.INTERSECTION, traffic_signal=TrafficSignal.GREEN, ego_right_of_way=False),
+        100.0,
+    ),
     ("intersection_yellow", dict(scenario_type=ScenarioType.INTERSECTION, traffic_signal=TrafficSignal.YELLOW), 50.0),
     ("intersection_no_signal", dict(scenario_type=ScenarioType.INTERSECTION, traffic_signal=TrafficSignal.NONE), 50.0),
     # Parking lot scenarios
@@ -74,7 +90,11 @@ FAULT_TEST_CASES = [
     ("parking_no_maneuver", dict(scenario_type=ScenarioType.PARKING_LOT), 50.0),
     # Pedestrian scenarios
     ("pedestrian_default", dict(scenario_type=ScenarioType.PEDESTRIAN), 100.0),
-    ("pedestrian_jaywalking", dict(scenario_type=ScenarioType.PEDESTRIAN, witness_statements=["Pedestrian darted into road"]), 70.0),
+    (
+        "pedestrian_jaywalking",
+        dict(scenario_type=ScenarioType.PEDESTRIAN, witness_statements=["Pedestrian darted into road"]),
+        70.0,
+    ),
     # Unknown
     ("unknown_default", dict(scenario_type=ScenarioType.UNKNOWN), 50.0),
 ]
@@ -93,13 +113,15 @@ def run_fault_test_suite() -> dict:
         match = abs(actual - expected) < 0.1
         if match:
             exact_matches += 1
-        results.append({
-            "name": name,
-            "expected": expected,
-            "actual": actual,
-            "match": match,
-            "error": round(abs(actual - expected), 1),
-        })
+        results.append(
+            {
+                "name": name,
+                "expected": expected,
+                "actual": actual,
+                "match": match,
+                "error": round(abs(actual - expected), 1),
+            }
+        )
 
     total = len(FAULT_TEST_CASES)
     errors = [r["error"] for r in results]
@@ -121,70 +143,178 @@ def run_fault_test_suite() -> dict:
 FRAUD_TEST_CASES = [
     # (name, VideoEvidence kwargs, ClaimDetails kwargs, ClaimHistory kwargs or None, expected_level)
     # Clean claims
-    ("clean_basic", dict(has_collision_sound=True, damage_visible=True, speed_at_impact_kmh=40.0),
-     dict(claimed_amount=8000.0, time_to_report_hours=2.0), None, "LOW"),
-    ("clean_minor", dict(has_collision_sound=True, damage_visible=True, damage_severity="minor"),
-     dict(claimed_amount=3000.0, time_to_report_hours=1.0), None, "LOW"),
-    ("clean_moderate", dict(has_collision_sound=True, damage_visible=True, damage_severity="moderate", speed_at_impact_kmh=50.0),
-     dict(claimed_amount=10000.0, time_to_report_hours=4.0), None, "LOW"),
+    (
+        "clean_basic",
+        dict(has_collision_sound=True, damage_visible=True, speed_at_impact_kmh=40.0),
+        dict(claimed_amount=8000.0, time_to_report_hours=2.0),
+        None,
+        "LOW",
+    ),
+    (
+        "clean_minor",
+        dict(has_collision_sound=True, damage_visible=True, damage_severity="minor"),
+        dict(claimed_amount=3000.0, time_to_report_hours=1.0),
+        None,
+        "LOW",
+    ),
+    (
+        "clean_moderate",
+        dict(has_collision_sound=True, damage_visible=True, damage_severity="moderate", speed_at_impact_kmh=50.0),
+        dict(claimed_amount=10000.0, time_to_report_hours=4.0),
+        None,
+        "LOW",
+    ),
     # Suspicious claims
-    ("suspicious_no_sound", dict(has_collision_sound=False, damage_visible=True, damage_severity="severe"),
-     dict(claimed_amount=10000.0), None, "LOW"),  # Single indicator may not push to MEDIUM
-    ("suspicious_low_speed_damage", dict(has_collision_sound=True, damage_visible=True, damage_severity="severe", speed_at_impact_kmh=5.0),
-     dict(claimed_amount=15000.0), None, "LOW"),
-    ("suspicious_tampered", dict(has_collision_sound=True, damage_visible=True, suspicious_edits=True),
-     dict(claimed_amount=10000.0, time_to_report_hours=2.0), None, "LOW"),
+    (
+        "suspicious_no_sound",
+        dict(has_collision_sound=False, damage_visible=True, damage_severity="severe"),
+        dict(claimed_amount=10000.0),
+        None,
+        "LOW",
+    ),  # Single indicator may not push to MEDIUM
+    (
+        "suspicious_low_speed_damage",
+        dict(has_collision_sound=True, damage_visible=True, damage_severity="severe", speed_at_impact_kmh=5.0),
+        dict(claimed_amount=15000.0),
+        None,
+        "LOW",
+    ),
+    (
+        "suspicious_tampered",
+        dict(has_collision_sound=True, damage_visible=True, suspicious_edits=True),
+        dict(claimed_amount=10000.0, time_to_report_hours=2.0),
+        None,
+        "LOW",
+    ),
     # Suspicious with history
-    ("suspicious_frequent_claims", dict(has_collision_sound=True, damage_visible=True),
-     dict(claimed_amount=8000.0), dict(vehicle_id="X", claims_last_year=5), "LOW"),
-    ("suspicious_fraud_history", dict(has_collision_sound=True, damage_visible=True),
-     dict(claimed_amount=8000.0), dict(vehicle_id="X", previous_fraud_flags=2), "LOW"),
-    ("suspicious_clustered", dict(has_collision_sound=True, damage_visible=True),
-     dict(claimed_amount=8000.0, time_to_report_hours=2.0),
-     dict(vehicle_id="X", claims_last_month=3, previous_claim_dates=[
-         datetime.now() - timedelta(days=5), datetime.now() - timedelta(days=10)
-     ]), "LOW"),
+    (
+        "suspicious_frequent_claims",
+        dict(has_collision_sound=True, damage_visible=True),
+        dict(claimed_amount=8000.0),
+        dict(vehicle_id="X", claims_last_year=5),
+        "LOW",
+    ),
+    (
+        "suspicious_fraud_history",
+        dict(has_collision_sound=True, damage_visible=True),
+        dict(claimed_amount=8000.0),
+        dict(vehicle_id="X", previous_fraud_flags=2),
+        "LOW",
+    ),
+    (
+        "suspicious_clustered",
+        dict(has_collision_sound=True, damage_visible=True),
+        dict(claimed_amount=8000.0, time_to_report_hours=2.0),
+        dict(
+            vehicle_id="X",
+            claims_last_month=3,
+            previous_claim_dates=[datetime.now() - timedelta(days=5), datetime.now() - timedelta(days=10)],
+        ),
+        "LOW",
+    ),
     # Staged claims (multiple indicators)
-    ("staged_full", dict(
-        has_collision_sound=False, damage_visible=True, damage_severity="severe",
-        speed_at_impact_kmh=5.0, vehicle_positioned_suspiciously=True,
-        has_pre_collision_braking=False, suspicious_edits=True,
-     ),
-     dict(claimed_amount=50000.0, time_to_report_hours=200.0),
-     dict(vehicle_id="X", claims_last_year=10, previous_fraud_flags=3,
-          previous_claim_dates=[datetime.now() - timedelta(days=1), datetime.now() - timedelta(days=3)]),
-     "HIGH"),
-    ("staged_no_history", dict(
-        has_collision_sound=False, damage_visible=True, damage_severity="severe",
-        vehicle_positioned_suspiciously=True, suspicious_edits=True,
-     ),
-     dict(claimed_amount=25000.0), None, "MEDIUM"),
+    (
+        "staged_full",
+        dict(
+            has_collision_sound=False,
+            damage_visible=True,
+            damage_severity="severe",
+            speed_at_impact_kmh=5.0,
+            vehicle_positioned_suspiciously=True,
+            has_pre_collision_braking=False,
+            suspicious_edits=True,
+        ),
+        dict(claimed_amount=50000.0, time_to_report_hours=200.0),
+        dict(
+            vehicle_id="X",
+            claims_last_year=10,
+            previous_fraud_flags=3,
+            previous_claim_dates=[datetime.now() - timedelta(days=1), datetime.now() - timedelta(days=3)],
+        ),
+        "HIGH",
+    ),
+    (
+        "staged_no_history",
+        dict(
+            has_collision_sound=False,
+            damage_visible=True,
+            damage_severity="severe",
+            vehicle_positioned_suspiciously=True,
+            suspicious_edits=True,
+        ),
+        dict(claimed_amount=25000.0),
+        None,
+        "MEDIUM",
+    ),
     # Amount anomalies
-    ("amount_extreme", dict(has_collision_sound=True, damage_visible=True),
-     dict(claimed_amount=100000.0), None, "LOW"),  # Only amount anomaly
-    ("amount_high_medical", dict(has_collision_sound=True, damage_visible=True),
-     dict(claimed_amount=20000.0, injury_claimed=True, medical_claimed=18000.0), None, "LOW"),
+    (
+        "amount_extreme",
+        dict(has_collision_sound=True, damage_visible=True),
+        dict(claimed_amount=100000.0),
+        None,
+        "LOW",
+    ),  # Only amount anomaly
+    (
+        "amount_high_medical",
+        dict(has_collision_sound=True, damage_visible=True),
+        dict(claimed_amount=20000.0, injury_claimed=True, medical_claimed=18000.0),
+        None,
+        "LOW",
+    ),
     # Timing anomalies
-    ("timing_very_delayed", dict(has_collision_sound=True, damage_visible=True),
-     dict(claimed_amount=8000.0, time_to_report_hours=200.0), None, "LOW"),
-    ("timing_instant", dict(has_collision_sound=True, damage_visible=True),
-     dict(claimed_amount=8000.0, time_to_report_hours=0.1), None, "LOW"),
+    (
+        "timing_very_delayed",
+        dict(has_collision_sound=True, damage_visible=True),
+        dict(claimed_amount=8000.0, time_to_report_hours=200.0),
+        None,
+        "LOW",
+    ),
+    (
+        "timing_instant",
+        dict(has_collision_sound=True, damage_visible=True),
+        dict(claimed_amount=8000.0, time_to_report_hours=0.1),
+        None,
+        "LOW",
+    ),
     # Positioning
-    ("positioning_suspicious", dict(vehicle_positioned_suspiciously=True, has_pre_collision_braking=False, speed_at_impact_kmh=30.0),
-     dict(claimed_amount=10000.0), None, "LOW"),
+    (
+        "positioning_suspicious",
+        dict(vehicle_positioned_suspiciously=True, has_pre_collision_braking=False, speed_at_impact_kmh=30.0),
+        dict(claimed_amount=10000.0),
+        None,
+        "LOW",
+    ),
     # Poor quality
-    ("poor_quality_damage", dict(has_collision_sound=True, damage_visible=True, video_quality="poor"),
-     dict(claimed_amount=8000.0), None, "LOW"),
+    (
+        "poor_quality_damage",
+        dict(has_collision_sound=True, damage_visible=True, video_quality="poor"),
+        dict(claimed_amount=8000.0),
+        None,
+        "LOW",
+    ),
     # Combination: many indicators but weighted score stays in MEDIUM range
-    ("multi_indicator_high", dict(
-        has_collision_sound=False, damage_visible=True, damage_severity="severe",
-        speed_at_impact_kmh=5.0, vehicle_positioned_suspiciously=True,
-        has_pre_collision_braking=False, suspicious_edits=True, video_quality="poor",
-     ),
-     dict(claimed_amount=80000.0, time_to_report_hours=300.0, injury_claimed=True, medical_claimed=70000.0),
-     dict(vehicle_id="X", claims_last_year=15, claims_last_month=4, previous_fraud_flags=5,
-          previous_claim_dates=[datetime.now() - timedelta(days=1), datetime.now() - timedelta(days=2)]),
-     "MEDIUM"),
+    (
+        "multi_indicator_high",
+        dict(
+            has_collision_sound=False,
+            damage_visible=True,
+            damage_severity="severe",
+            speed_at_impact_kmh=5.0,
+            vehicle_positioned_suspiciously=True,
+            has_pre_collision_braking=False,
+            suspicious_edits=True,
+            video_quality="poor",
+        ),
+        dict(claimed_amount=80000.0, time_to_report_hours=300.0, injury_claimed=True, medical_claimed=70000.0),
+        dict(
+            vehicle_id="X",
+            claims_last_year=15,
+            claims_last_month=4,
+            previous_fraud_flags=5,
+            previous_claim_dates=[datetime.now() - timedelta(days=1), datetime.now() - timedelta(days=2)],
+        ),
+        "MEDIUM",
+    ),
 ]
 
 
@@ -210,14 +340,16 @@ def run_fraud_test_suite() -> dict:
             actual_level = "LOW"
 
         match = actual_level == expected_level
-        results.append({
-            "name": name,
-            "expected_level": expected_level,
-            "actual_level": actual_level,
-            "risk_score": round(fraud.risk_score, 3),
-            "num_indicators": len(fraud.indicators),
-            "match": match,
-        })
+        results.append(
+            {
+                "name": name,
+                "expected_level": expected_level,
+                "actual_level": actual_level,
+                "risk_score": round(fraud.risk_score, 3),
+                "num_indicators": len(fraud.indicators),
+                "match": match,
+            }
+        )
 
         scores_by_level[expected_level].append(fraud.risk_score)
 
@@ -246,6 +378,7 @@ def run_fraud_test_suite() -> dict:
 # ============================================================================
 # Conformal Prediction Test Suite
 # ============================================================================
+
 
 def run_conformal_test_suite() -> dict:
     """Run conformal prediction test suite."""
@@ -301,6 +434,7 @@ def run_conformal_test_suite() -> dict:
 # E2E Demo Results
 # ============================================================================
 
+
 def run_e2e_demo() -> dict:
     """Run quick E2E checks with ground truth."""
 
@@ -325,6 +459,7 @@ def run_e2e_demo() -> dict:
 # ============================================================================
 # Report Generator
 # ============================================================================
+
 
 def generate_report(output_dir: str):
     """Generate full accuracy report."""
@@ -405,14 +540,14 @@ def _generate_markdown(report: dict) -> str:
 
     md = f"""# Insurance MVP Accuracy Report
 
-Generated: {report['timestamp']}
-Generation time: {report['generation_time_sec']}s
+Generated: {report["timestamp"]}
+Generation time: {report["generation_time_sec"]}s
 
 ## Fault Assessment Engine
 
-- Test cases: {fault['total_cases']}
-- Exact match rate: {fault['exact_match_rate']}%
-- MAE: {fault['mae']}%
+- Test cases: {fault["total_cases"]}
+- Exact match rate: {fault["exact_match_rate"]}%
+- MAE: {fault["mae"]}%
 
 | Case | Expected | Actual | Match |
 |------|----------|--------|-------|
@@ -424,11 +559,11 @@ Generation time: {report['generation_time_sec']}s
     md += f"""
 ## Fraud Detection Engine
 
-- Test cases: {fraud['total_cases']}
-- Classification accuracy: {fraud['accuracy']}%
-- Mean clean score: {fraud.get('mean_clean_score', 'N/A')}
-- Mean staged score: {fraud.get('mean_staged_score', 'N/A')}
-- Score separation: {fraud.get('score_separation', 'N/A')}
+- Test cases: {fraud["total_cases"]}
+- Classification accuracy: {fraud["accuracy"]}%
+- Mean clean score: {fraud.get("mean_clean_score", "N/A")}
+- Mean staged score: {fraud.get("mean_staged_score", "N/A")}
+- Score separation: {fraud.get("score_separation", "N/A")}
 
 | Case | Expected | Actual | Score | Indicators | Match |
 |------|----------|--------|-------|------------|-------|
@@ -440,9 +575,9 @@ Generation time: {report['generation_time_sec']}s
     md += f"""
 ## Conformal Prediction
 
-- Target coverage: {conf['target_coverage']:.0%}
-- Actual coverage: {conf['actual_coverage']:.1%}
-- Mean set size: {conf['mean_set_size']}
+- Target coverage: {conf["target_coverage"]:.0%}
+- Actual coverage: {conf["actual_coverage"]:.1%}
+- Mean set size: {conf["mean_set_size"]}
 
 ### Alpha Sweep
 
@@ -469,6 +604,7 @@ Generation time: {report['generation_time_sec']}s
 # ============================================================================
 # CLI
 # ============================================================================
+
 
 def main():
     parser = argparse.ArgumentParser(description="Insurance MVP Accuracy Report")

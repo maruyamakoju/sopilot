@@ -27,6 +27,7 @@ from insurance_mvp.pipeline import InsurancePipeline  # noqa: E402
 # Ground Truth
 # ---------------------------------------------------------------------------
 
+
 def load_ground_truth() -> dict:
     """Load ground truth from metadata.json."""
     metadata_path = project_root / "data" / "dashcam_demo" / "metadata.json"
@@ -53,6 +54,7 @@ def load_ground_truth() -> dict:
 # ---------------------------------------------------------------------------
 # Benchmark Runner
 # ---------------------------------------------------------------------------
+
 
 def run_benchmark(output_path: str = None):
     """Run the E2E benchmark."""
@@ -118,10 +120,12 @@ def run_benchmark(output_path: str = None):
         check_success = result.success
         if check_success:
             passed_checks += 1
-        video_result["checks"].append({
-            "name": "pipeline_success",
-            "passed": check_success,
-        })
+        video_result["checks"].append(
+            {
+                "name": "pipeline_success",
+                "passed": check_success,
+            }
+        )
         print(f"  Pipeline success: {'PASS' if check_success else 'FAIL'}")
 
         # Check 2: Has assessments
@@ -129,24 +133,25 @@ def run_benchmark(output_path: str = None):
         has_assessments = result.assessments is not None and len(result.assessments) > 0
         if has_assessments:
             passed_checks += 1
-        video_result["checks"].append({
-            "name": "has_assessments",
-            "passed": has_assessments,
-        })
+        video_result["checks"].append(
+            {
+                "name": "has_assessments",
+                "passed": has_assessments,
+            }
+        )
         print(f"  Has assessments: {'PASS' if has_assessments else 'FAIL'}")
 
         # Check 3: Output files exist
         total_checks += 1
-        has_outputs = (
-            result.output_json_path is not None
-            and Path(result.output_json_path).exists()
-        )
+        has_outputs = result.output_json_path is not None and Path(result.output_json_path).exists()
         if has_outputs:
             passed_checks += 1
-        video_result["checks"].append({
-            "name": "output_files_exist",
-            "passed": has_outputs,
-        })
+        video_result["checks"].append(
+            {
+                "name": "output_files_exist",
+                "passed": has_outputs,
+            }
+        )
         print(f"  Output files: {'PASS' if has_outputs else 'FAIL'}")
 
         if has_assessments:
@@ -192,6 +197,7 @@ def run_benchmark(output_path: str = None):
 # ---------------------------------------------------------------------------
 # CLI
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(description="Insurance MVP E2E Benchmark")

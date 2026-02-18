@@ -34,6 +34,7 @@ def check_gpu() -> dict:
 
     try:
         import torch
+
         result["cuda_available"] = torch.cuda.is_available()
         result["torch_version"] = torch.__version__
 
@@ -41,13 +42,15 @@ def check_gpu() -> dict:
             result["gpu_count"] = torch.cuda.device_count()
             for i in range(result["gpu_count"]):
                 props = torch.cuda.get_device_properties(i)
-                total_gb = getattr(props, 'total_memory', getattr(props, 'total_mem', 0)) / (1024 ** 3)
-                result["gpus"].append({
-                    "index": i,
-                    "name": props.name,
-                    "total_memory_gb": round(total_gb, 2),
-                    "compute_capability": f"{props.major}.{props.minor}",
-                })
+                total_gb = getattr(props, "total_memory", getattr(props, "total_mem", 0)) / (1024**3)
+                result["gpus"].append(
+                    {
+                        "index": i,
+                        "name": props.name,
+                        "total_memory_gb": round(total_gb, 2),
+                        "compute_capability": f"{props.major}.{props.minor}",
+                    }
+                )
                 if total_gb >= result["min_vram_gb"]:
                     result["sufficient_vram"] = True
 
@@ -74,6 +77,7 @@ def check_dependencies() -> dict:
 
     try:
         import torch
+
         deps["torch"]["installed"] = True
         deps["torch"]["version"] = torch.__version__
     except ImportError:
@@ -81,6 +85,7 @@ def check_dependencies() -> dict:
 
     try:
         import transformers
+
         deps["transformers"]["installed"] = True
         deps["transformers"]["version"] = transformers.__version__
     except ImportError:
@@ -88,6 +93,7 @@ def check_dependencies() -> dict:
 
     try:
         import qwen_vl_utils
+
         deps["qwen_vl_utils"]["installed"] = True
         deps["qwen_vl_utils"]["version"] = getattr(qwen_vl_utils, "__version__", "unknown")
     except ImportError:
@@ -95,6 +101,7 @@ def check_dependencies() -> dict:
 
     try:
         import cv2
+
         deps["cv2"]["installed"] = True
         deps["cv2"]["version"] = cv2.__version__
     except ImportError:
@@ -103,6 +110,7 @@ def check_dependencies() -> dict:
     try:
         import PIL
         from PIL import Image  # noqa: F401
+
         deps["PIL"]["installed"] = True
         deps["PIL"]["version"] = PIL.__version__
     except ImportError:
@@ -110,14 +118,13 @@ def check_dependencies() -> dict:
 
     try:
         import pydantic
+
         deps["pydantic"]["installed"] = True
         deps["pydantic"]["version"] = pydantic.__version__
     except ImportError:
         pass
 
-    deps["all_required_installed"] = all(
-        d["installed"] for d in deps.values() if d["required"]
-    )
+    deps["all_required_installed"] = all(d["installed"] for d in deps.values() if d["required"])
 
     return deps
 
@@ -132,12 +139,13 @@ def check_model_download() -> dict:
 
     try:
         from huggingface_hub import scan_cache_dir
+
         cache_info = scan_cache_dir()
         for repo in cache_info.repos:
             if "Qwen2.5-VL-7B" in repo.repo_id:
                 result["downloaded"] = True
                 result["cache_path"] = str(repo.repo_path)
-                result["size_gb"] = round(repo.size_on_disk / (1024 ** 3), 2)
+                result["size_gb"] = round(repo.size_on_disk / (1024**3), 2)
                 break
     except ImportError:
         result["huggingface_hub_installed"] = False
@@ -156,12 +164,14 @@ def check_backend_status() -> dict:
     }
 
     import os
+
     backend_env = os.getenv("INSURANCE_VLM_BACKEND", os.getenv("INSURANCE_COSMOS_BACKEND", "mock"))
     result["current_backend"] = backend_env
 
     # Check what backends are available
     try:
         from insurance_mvp.cosmos.client import VideoLLMClient, VLMConfig
+
         result["available_backends"].append("qwen2.5-vl-7b")
 
         # Try health check if available
@@ -247,7 +257,9 @@ def run_check(as_json: bool = False) -> dict:
             print(f"  {model['model_name']}: Downloaded ({model.get('size_gb', '?')} GB)")
         else:
             print(f"  {model['model_name']}: NOT DOWNLOADED")
-            print(f"  Download: python -c \"from transformers import AutoProcessor; AutoProcessor.from_pretrained('{model['model_name']}')\"")
+            print(
+                f"  Download: python -c \"from transformers import AutoProcessor; AutoProcessor.from_pretrained('{model['model_name']}')\""
+            )
 
         # Backend
         print("\n--- Backend Status ---")

@@ -121,10 +121,12 @@ def main():
     parser = argparse.ArgumentParser(description="Validate VIGIL-RAG benchmark files")
     parser.add_argument("--benchmark", type=Path, required=True, help="Path to benchmark JSONL file")
     parser.add_argument("--video-map", type=Path, help="Path to video_paths.local.json (optional)")
-    parser.add_argument("--max-time-range", type=float, default=60.0,
-                        help="Maximum allowed GT time range in seconds (default: 60)")
-    parser.add_argument("--min-overlap", type=float, default=0.0,
-                        help="Minimum overlap for temporal matching (informational)")
+    parser.add_argument(
+        "--max-time-range", type=float, default=60.0, help="Maximum allowed GT time range in seconds (default: 60)"
+    )
+    parser.add_argument(
+        "--min-overlap", type=float, default=0.0, help="Minimum overlap for temporal matching (informational)"
+    )
 
     args = parser.parse_args()
 

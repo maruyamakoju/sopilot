@@ -39,20 +39,23 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
-plt.rcParams.update({
-    "font.family": "serif",
-    "font.size": 10,
-    "axes.titlesize": 12,
-    "axes.labelsize": 10,
-    "figure.dpi": 150,
-    "savefig.dpi": 200,
-    "savefig.bbox": "tight",
-})
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.size": 10,
+        "axes.titlesize": 12,
+        "axes.labelsize": 10,
+        "figure.dpi": 150,
+        "savefig.dpi": 200,
+        "savefig.bbox": "tight",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
 # Synthetic data: realistic SOP scenario
 # ---------------------------------------------------------------------------
+
 
 def _generate_realistic_scenario(
     n_steps: int = 5,
@@ -99,9 +102,9 @@ def _generate_realistic_scenario(
     t = 0.0
     trainee_plan = [
         (0, 10, 0.15),  # step 0: slow, noisier
-        (2, 8, 0.1),    # step 2 before step 1 (swap)
-        (1, 8, 0.1),    # step 1 after step 2
-        (3, 8, 0.1),    # step 3: normal
+        (2, 8, 0.1),  # step 2 before step 1 (swap)
+        (1, 8, 0.1),  # step 1 after step 2
+        (3, 8, 0.1),  # step 3: normal
         # step 4: skipped
     ]
     for step_id, n, noise in trainee_plan:
@@ -117,6 +120,7 @@ def _generate_realistic_scenario(
 # ---------------------------------------------------------------------------
 # Run the pipeline
 # ---------------------------------------------------------------------------
+
 
 def run_pipeline(
     gold: np.ndarray,
@@ -159,6 +163,7 @@ def run_neural_scoring(metrics_dict: dict) -> dict:
 
     # Prepare metrics tensor
     from sopilot.nn.scoring_head import METRIC_KEYS
+
     metrics_vals = [float(metrics_dict.get(k, 0.0)) for k in METRIC_KEYS]
     metrics_tensor = torch.tensor([metrics_vals], dtype=torch.float32)
 
@@ -183,7 +188,7 @@ def run_neural_scoring(metrics_dict: dict) -> dict:
     # Conformal prediction
     n_cal = 80
     cal_x = torch.randn(n_cal, N_METRICS) * 0.3
-    cal_preds = np.array([model._forward_single(cal_x[i:i + 1]) for i in range(n_cal)])
+    cal_preds = np.array([model._forward_single(cal_x[i : i + 1]) for i in range(n_cal)])
     cal_actuals = np.clip(cal_preds + rng.randn(n_cal) * 8, 0, 100)
 
     conformal = SplitConformalPredictor(alpha=0.1)
@@ -208,6 +213,7 @@ def run_neural_scoring(metrics_dict: dict) -> dict:
 # Multi-panel figure
 # ---------------------------------------------------------------------------
 
+
 def plot_e2e_figure(
     gold: np.ndarray,
     trainee: np.ndarray,
@@ -230,20 +236,21 @@ def plot_e2e_figure(
     ax_a = fig.add_subplot(gs[0, 0])
     # Project embeddings to 2D via PCA
     from numpy.linalg import svd
+
     combined = np.vstack([gold, trainee])
     mean = combined.mean(axis=0)
     _, _, Vt = svd(combined - mean, full_matrices=False)
     proj = (combined - mean) @ Vt[:2].T
-    gold_2d = proj[:len(gold)]
-    trainee_2d = proj[len(gold):]
+    gold_2d = proj[: len(gold)]
+    trainee_2d = proj[len(gold) :]
 
     n_per_step = len(gold) // 5
     for s in range(5):
         sl = slice(s * n_per_step, (s + 1) * n_per_step)
-        ax_a.scatter(gold_2d[sl, 0], gold_2d[sl, 1], c=step_colors[s],
-                     s=30, marker="o", alpha=0.7, label=f"G:{step_names[s]}")
-    ax_a.scatter(trainee_2d[:, 0], trainee_2d[:, 1], c="gray", s=15,
-                 marker="x", alpha=0.5, label="Trainee")
+        ax_a.scatter(
+            gold_2d[sl, 0], gold_2d[sl, 1], c=step_colors[s], s=30, marker="o", alpha=0.7, label=f"G:{step_names[s]}"
+        )
+    ax_a.scatter(trainee_2d[:, 0], trainee_2d[:, 1], c="gray", s=15, marker="x", alpha=0.5, label="Trainee")
     ax_a.set_title("A) Embedding Space (PCA)")
     ax_a.legend(fontsize=6, ncol=2, loc="upper right")
     ax_a.set_xlabel("PC1")
@@ -257,13 +264,28 @@ def plot_e2e_figure(
     t_bounds = pipeline_result["step_boundaries"]["trainee"]
 
     for i in range(len(g_bounds) - 1):
-        ax_b.barh(1, g_bounds[i + 1] - g_bounds[i], left=g_bounds[i],
-                  color=step_colors[i % 5], edgecolor="white", height=0.3)
-        ax_b.text(g_bounds[i] + (g_bounds[i + 1] - g_bounds[i]) / 2, 1,
-                  step_names[i % 5], ha="center", va="center", fontsize=7, fontweight="bold")
+        ax_b.barh(
+            1, g_bounds[i + 1] - g_bounds[i], left=g_bounds[i], color=step_colors[i % 5], edgecolor="white", height=0.3
+        )
+        ax_b.text(
+            g_bounds[i] + (g_bounds[i + 1] - g_bounds[i]) / 2,
+            1,
+            step_names[i % 5],
+            ha="center",
+            va="center",
+            fontsize=7,
+            fontweight="bold",
+        )
     for i in range(len(t_bounds) - 1):
-        ax_b.barh(0, t_bounds[i + 1] - t_bounds[i], left=t_bounds[i],
-                  color=step_colors[i % 5], edgecolor="white", height=0.3, alpha=0.7)
+        ax_b.barh(
+            0,
+            t_bounds[i + 1] - t_bounds[i],
+            left=t_bounds[i],
+            color=step_colors[i % 5],
+            edgecolor="white",
+            height=0.3,
+            alpha=0.7,
+        )
 
     ax_b.set_yticks([0, 1])
     ax_b.set_yticklabels(["Trainee", "Gold"])
@@ -322,8 +344,7 @@ def plot_e2e_figure(
     # Annotate non-zero values
     for bar, v in zip(bars, metric_vals, strict=True):
         if v > 0.001:
-            ax_e.text(bar.get_width() + 0.01, bar.get_y() + bar.get_height() / 2,
-                      f"{v:.3f}", va="center", fontsize=7)
+            ax_e.text(bar.get_width() + 0.01, bar.get_y() + bar.get_height() / 2, f"{v:.3f}", va="center", fontsize=7)
 
     # ------------------------------------------------------------------
     # Panel F (1,2): Heuristic vs Neural Score
@@ -337,9 +358,15 @@ def plot_e2e_figure(
 
     # Add CI
     unc = neural_result["uncertainty"]
-    ax_f.errorbar(neural_score, 0, xerr=[[neural_score - unc["ci_lower"]],
-                                          [unc["ci_upper"] - neural_score]],
-                  fmt="none", color="black", capsize=5, linewidth=2)
+    ax_f.errorbar(
+        neural_score,
+        0,
+        xerr=[[neural_score - unc["ci_lower"]], [unc["ci_upper"] - neural_score]],
+        fmt="none",
+        color="black",
+        capsize=5,
+        linewidth=2,
+    )
 
     ax_f.set_yticks([0, 1])
     ax_f.set_yticklabels(["Neural\n(MC Dropout)", "Heuristic\n(formula)"])
@@ -356,8 +383,13 @@ def plot_e2e_figure(
     mc_samples = neural_result["mc_samples"]
     ax_g.hist(mc_samples, bins=20, color="#FF7043", alpha=0.7, edgecolor="white", density=True)
     ax_g.axvline(unc["score"], color="black", linewidth=2, linestyle="-", label=f"Mean: {unc['score']:.1f}")
-    ax_g.axvline(unc["ci_lower"], color="red", linewidth=1.5, linestyle="--",
-                 label=f"95% CI: [{unc['ci_lower']:.1f}, {unc['ci_upper']:.1f}]")
+    ax_g.axvline(
+        unc["ci_lower"],
+        color="red",
+        linewidth=1.5,
+        linestyle="--",
+        label=f"95% CI: [{unc['ci_lower']:.1f}, {unc['ci_upper']:.1f}]",
+    )
     ax_g.axvline(unc["ci_upper"], color="red", linewidth=1.5, linestyle="--")
     ax_g.set_xlabel("Score")
     ax_g.set_ylabel("Density")
@@ -371,10 +403,24 @@ def plot_e2e_figure(
     conf = neural_result["conformal"]
 
     # Draw intervals
-    ax_h.barh(0, conf["upper"] - conf["lower"], left=conf["lower"],
-              color="#66BB6A", alpha=0.4, height=0.3, label="Conformal 90% PI")
-    ax_h.barh(0, unc["ci_upper"] - unc["ci_lower"], left=unc["ci_lower"],
-              color="#42A5F5", alpha=0.4, height=0.2, label="MC Dropout 95% CI")
+    ax_h.barh(
+        0,
+        conf["upper"] - conf["lower"],
+        left=conf["lower"],
+        color="#66BB6A",
+        alpha=0.4,
+        height=0.3,
+        label="Conformal 90% PI",
+    )
+    ax_h.barh(
+        0,
+        unc["ci_upper"] - unc["ci_lower"],
+        left=unc["ci_lower"],
+        color="#42A5F5",
+        alpha=0.4,
+        height=0.2,
+        label="MC Dropout 95% CI",
+    )
     ax_h.plot(unc["score"], 0, "ko", markersize=10, zorder=5)
 
     ax_h.set_yticks([])
@@ -386,8 +432,11 @@ def plot_e2e_figure(
     # Guarantee annotation
     ax_h.annotate(
         r"$\mathrm{P}(Y \in C) \geq 1 - \alpha$" + "\n(finite-sample, distribution-free)",
-        xy=(0.5, -0.35), xycoords="axes fraction", fontsize=9,
-        ha="center", style="italic",
+        xy=(0.5, -0.35),
+        xycoords="axes fraction",
+        fontsize=9,
+        ha="center",
+        style="italic",
         bbox=dict(boxstyle="round,pad=0.3", facecolor="lightyellow", alpha=0.8),
     )
 
@@ -418,8 +467,15 @@ def plot_e2e_figure(
 
     # Draw gold timeline
     for i in range(len(g_bounds) - 1):
-        ax_j.barh(1, g_bounds[i + 1] - g_bounds[i], left=g_bounds[i],
-                  color=step_colors[i % 5], edgecolor="white", height=0.25, alpha=0.5)
+        ax_j.barh(
+            1,
+            g_bounds[i + 1] - g_bounds[i],
+            left=g_bounds[i],
+            color=step_colors[i % 5],
+            edgecolor="white",
+            height=0.25,
+            alpha=0.5,
+        )
 
     # Draw deviation markers
     dev_colors = {"step_missing": "#E53935", "order_swap": "#FF9800", "execution_deviation": "#FDD835"}
@@ -430,10 +486,10 @@ def plot_e2e_figure(
         g_time = dev.get("gold_time", {})
         start = g_time.get("start_sec", 0)
         end = g_time.get("end_sec", start + 1)
-        ax_j.barh(dev_y, end - start, left=start, color=color, edgecolor="black",
-                  height=0.2, alpha=0.8)
-        ax_j.text((start + end) / 2, dev_y, dtype.replace("_", "\n"),
-                  ha="center", va="center", fontsize=6, fontweight="bold")
+        ax_j.barh(dev_y, end - start, left=start, color=color, edgecolor="black", height=0.2, alpha=0.8)
+        ax_j.text(
+            (start + end) / 2, dev_y, dtype.replace("_", "\n"), ha="center", va="center", fontsize=6, fontweight="bold"
+        )
         dev_y -= 0.25
 
     ax_j.set_yticks([1])
@@ -444,8 +500,8 @@ def plot_e2e_figure(
 
     # Legend for deviation types
     from matplotlib.patches import Patch
-    legend_elements = [Patch(facecolor=c, label=t.replace("_", " ").title())
-                       for t, c in dev_colors.items()]
+
+    legend_elements = [Patch(facecolor=c, label=t.replace("_", " ").title()) for t, c in dev_colors.items()]
     ax_j.legend(handles=legend_elements, fontsize=7, loc="upper right")
 
     # ------------------------------------------------------------------
@@ -456,7 +512,9 @@ def plot_e2e_figure(
         f"Heuristic Score: {heur_score:.1f} | Neural Score: {neural_score:.1f} "
         f"(σ={unc['uncertainty']:.2f}) | "
         f"Conformal 90% PI: [{conf['lower']:.1f}, {conf['upper']:.1f}]",
-        fontsize=14, fontweight="bold", y=1.0,
+        fontsize=14,
+        fontweight="bold",
+        y=1.0,
     )
 
     fig.savefig(out_dir / "e2e_pipeline.png")
@@ -467,6 +525,7 @@ def plot_e2e_figure(
 # ---------------------------------------------------------------------------
 # Print summary
 # ---------------------------------------------------------------------------
+
 
 def print_pipeline_summary(pipeline_result: dict, neural_result: dict) -> None:
     """Print a textual summary of the pipeline results."""
@@ -499,8 +558,7 @@ def print_pipeline_summary(pipeline_result: dict, neural_result: dict) -> None:
         logger.info(f"  {dev.get('type', 'unknown')}: step {dev.get('gold_step', '?')}")
 
     logger.info("\nTop-5 most sensitive metrics:")
-    sorted_sens = sorted(neural_result["sensitivity"].items(),
-                         key=lambda x: abs(x[1]), reverse=True)[:5]
+    sorted_sens = sorted(neural_result["sensitivity"].items(), key=lambda x: abs(x[1]), reverse=True)[:5]
     for name, val in sorted_sens:
         direction = "↑ score" if val > 0 else "↓ score"
         logger.info(f"  {name:<35} {val:>+8.4f}  ({direction})")
@@ -509,6 +567,7 @@ def print_pipeline_summary(pipeline_result: dict, neural_result: dict) -> None:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(description="SOPilot E2E Neural Pipeline Demo")
@@ -537,8 +596,10 @@ def main():
     # Step 3: Neural scoring
     logger.info("\n[3/4] Running neural scoring (ScoringHead + MC Dropout + Conformal)...")
     neural_result = run_neural_scoring(pipeline_result["metrics"])
-    logger.info(f"  Neural score: {neural_result['uncertainty']['score']:.1f} "
-                f"± {neural_result['uncertainty']['uncertainty']:.2f}")
+    logger.info(
+        f"  Neural score: {neural_result['uncertainty']['score']:.1f} "
+        f"± {neural_result['uncertainty']['uncertainty']:.2f}"
+    )
 
     # Step 4: Generate figure
     logger.info("\n[4/4] Generating end-to-end visualization...")

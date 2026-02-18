@@ -11,9 +11,9 @@ import json
 from demo_pipeline import run_demo
 
 if __name__ == "__main__":
-    print("="*70)
+    print("=" * 70)
     print(" Testing Improved Insurance MVP Pipeline")
-    print("="*70)
+    print("=" * 70)
     print("\nUpgrades:")
     print("  ✓ Smart mock VLM (realistic scenario-aware reasoning)")
     print("  ✓ Real fault assessment (rule-based engine)")
@@ -27,20 +27,20 @@ if __name__ == "__main__":
     output_dir = Path("demo_results_upgraded")
     results_files = list(output_dir.glob("*/results.json"))
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(" RESULTS SUMMARY")
-    print(f"{'='*70}\n")
+    print(f"{'=' * 70}\n")
 
     for results_file in results_files:
         with open(results_file) as f:
             data = json.load(f)
 
-        video_id = data['video_id']
+        video_id = data["video_id"]
         print(f"\n{video_id}:")
-        print(f"{'─'*70}")
+        print(f"{'─' * 70}")
 
-        if data['assessments']:
-            assessment = data['assessments'][0]  # First clip
+        if data["assessments"]:
+            assessment = data["assessments"][0]  # First clip
 
             print(f"Severity:          {assessment['severity']}")
             print(f"Confidence:        {assessment['confidence']:.2%}")
@@ -48,17 +48,18 @@ if __name__ == "__main__":
             print(f"Fraud Score:       {assessment['fraud_risk']['risk_score']:.2f}")
 
             print("\nCausal Reasoning:")
-            reasoning = assessment['causal_reasoning']
+            reasoning = assessment["causal_reasoning"]
             # Wrap reasoning text
             import textwrap
+
             wrapped = textwrap.fill(reasoning, width=66, initial_indent="  ", subsequent_indent="  ")
             print(wrapped)
 
             print("\nFault Reasoning:")
-            fault_reasoning = assessment['fault_assessment']['reasoning']
+            fault_reasoning = assessment["fault_assessment"]["reasoning"]
             wrapped_fault = textwrap.fill(fault_reasoning, width=66, initial_indent="  ", subsequent_indent="  ")
             print(wrapped_fault)
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print(" SUCCESS - Check demo_results_upgraded/ for full HTML reports")
-    print(f"{'='*70}\n")
+    print(f"{'=' * 70}\n")

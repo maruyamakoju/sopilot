@@ -161,7 +161,9 @@ def main():
                     passed += 1  # Correctly detected failure
                 print(f"  Result:  {status}")
             else:
-                status = f"FAIL (expected {'PASS' if expected_pass else 'FAIL'}, got {'PASS' if actual_pass else 'FAIL'})"
+                status = (
+                    f"FAIL (expected {'PASS' if expected_pass else 'FAIL'}, got {'PASS' if actual_pass else 'FAIL'})"
+                )
                 failed += 1
                 print(f"  Result:  {status}")
 

@@ -353,13 +353,15 @@ def index_video_all_levels(
                 avg_emb = avg_emb / (np.linalg.norm(avg_emb) + 1e-9)
 
                 level_embeddings.append(avg_emb)
-                level_metadata.append({
-                    "clip_id": str(uuid.uuid4()),
-                    "video_id": video_id,
-                    "start_sec": chunk.start_sec,
-                    "end_sec": chunk.end_sec,
-                    "chunk_index": idx,
-                })
+                level_metadata.append(
+                    {
+                        "clip_id": str(uuid.uuid4()),
+                        "video_id": video_id,
+                        "start_sec": chunk.start_sec,
+                        "end_sec": chunk.end_sec,
+                        "chunk_index": idx,
+                    }
+                )
 
         num_added = 0
         if level_embeddings:

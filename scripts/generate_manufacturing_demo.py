@@ -111,12 +111,16 @@ def draw_tool_icon(frame: np.ndarray, tool_name: str, x: int, y: int, size: int 
     elif tool_name == "boots":
         # Two rectangles (boots)
         cv2.rectangle(frame, (x + size // 4, y + size // 2), (x + size // 3 + size // 8, y + size), (100, 100, 150), -1)
-        cv2.rectangle(frame, (x + 2 * size // 3 - size // 8, y + size // 2), (x + 3 * size // 4, y + size), (100, 100, 150), -1)
+        cv2.rectangle(
+            frame, (x + 2 * size // 3 - size // 8, y + size // 2), (x + 3 * size // 4, y + size), (100, 100, 150), -1
+        )
     elif tool_name == "vest":
         # V-shape (safety vest)
         pts = np.array([[x + size // 4, y], [x + size // 2, y + size // 2], [x + size // 4, y + size]], np.int32)
         cv2.fillPoly(frame, [pts], (0, 165, 255))
-        pts = np.array([[x + 3 * size // 4, y], [x + size // 2, y + size // 2], [x + 3 * size // 4, y + size]], np.int32)
+        pts = np.array(
+            [[x + 3 * size // 4, y], [x + size // 2, y + size // 2], [x + 3 * size // 4, y + size]], np.int32
+        )
         cv2.fillPoly(frame, [pts], (0, 165, 255))
     elif tool_name == "torque_wrench":
         # Extended wrench with notch
@@ -468,9 +472,7 @@ def generate_ppe_check_video(
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        description="Generate 9 manufacturing SOP demo videos (3 SOPs × 3 variants)"
-    )
+    parser = argparse.ArgumentParser(description="Generate 9 manufacturing SOP demo videos (3 SOPs × 3 variants)")
     parser.add_argument(
         "--out-dir",
         type=Path,

@@ -37,16 +37,16 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 
 STEPS = [
-    {"name": "REMOVE",     "freq": 440,  "color": (0, 0, 200),     "pattern": "red_stripes"},
-    {"name": "CLEAN",      "freq": 494,  "color": (0, 180, 0),     "pattern": "green_circles"},
-    {"name": "SWAP",       "freq": 523,  "color": (200, 0, 0),     "pattern": "blue_lines"},
-    {"name": "CHECK",      "freq": 554,  "color": (0, 200, 200),   "pattern": "yellow_checker"},
-    {"name": "RINSE",      "freq": 587,  "color": (200, 200, 0),   "pattern": "cyan_rings"},
-    {"name": "INSTALL",    "freq": 622,  "color": (200, 0, 200),   "pattern": "magenta_stars"},
-    {"name": "ALIGN",      "freq": 659,  "color": (0, 128, 255),   "pattern": "orange_zigzag"},
-    {"name": "TIGHTEN",    "freq": 698,  "color": (255, 255, 255), "pattern": "white_dots"},
-    {"name": "CALIBRATE",  "freq": 740,  "color": (128, 0, 200),   "pattern": "purple_gradient"},
-    {"name": "VERIFY",     "freq": 784,  "color": (200, 128, 0),   "pattern": "teal_crosshatch"},
+    {"name": "REMOVE", "freq": 440, "color": (0, 0, 200), "pattern": "red_stripes"},
+    {"name": "CLEAN", "freq": 494, "color": (0, 180, 0), "pattern": "green_circles"},
+    {"name": "SWAP", "freq": 523, "color": (200, 0, 0), "pattern": "blue_lines"},
+    {"name": "CHECK", "freq": 554, "color": (0, 200, 200), "pattern": "yellow_checker"},
+    {"name": "RINSE", "freq": 587, "color": (200, 200, 0), "pattern": "cyan_rings"},
+    {"name": "INSTALL", "freq": 622, "color": (200, 0, 200), "pattern": "magenta_stars"},
+    {"name": "ALIGN", "freq": 659, "color": (0, 128, 255), "pattern": "orange_zigzag"},
+    {"name": "TIGHTEN", "freq": 698, "color": (255, 255, 255), "pattern": "white_dots"},
+    {"name": "CALIBRATE", "freq": 740, "color": (128, 0, 200), "pattern": "purple_gradient"},
+    {"name": "VERIFY", "freq": 784, "color": (200, 128, 0), "pattern": "teal_crosshatch"},
 ]
 
 DURATION_SEC = 96.0
@@ -80,7 +80,7 @@ def _draw_red_stripes_fast(frame: np.ndarray, t: float) -> None:
     h, w = frame.shape[:2]
     offset = int(t * 30) % 40
     yy, xx = np.mgrid[0:h, 0:w]
-    mask = (((xx + yy + offset) // 20) % 2 == 0)
+    mask = ((xx + yy + offset) // 20) % 2 == 0
     frame[mask] = (0, 0, 220)
 
 
@@ -265,7 +265,7 @@ def generate_tts_wav(out_path: Path) -> bool:
         step_wavs = []
         for i, step in enumerate(STEPS):
             step_wav = out_path.parent / f"_tts_step_{i}.wav"
-            engine.save_to_file(f"Step {i+1}: {step['name']}", str(step_wav))
+            engine.save_to_file(f"Step {i + 1}: {step['name']}", str(step_wav))
             step_wavs.append(step_wav)
 
         engine.runAndWait()
@@ -337,7 +337,7 @@ def generate_video_only(out_path: Path) -> None:
         renderer(frame, local_t)
 
         # Overlay step label
-        label = f"Step {step_idx+1}: {step['name']}"
+        label = f"Step {step_idx + 1}: {step['name']}"
         time_label = f"t={t:.1f}s"
         cv2.putText(frame, label, (20, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
         cv2.putText(frame, time_label, (20, HEIGHT - 20), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 200, 200), 1)
@@ -359,14 +359,22 @@ def generate_video_only(out_path: Path) -> None:
 def mux_audio_video(video_path: Path, audio_path: Path, output_path: Path) -> None:
     """Combine video and audio using ffmpeg."""
     cmd = [
-        "ffmpeg", "-y",
-        "-i", str(video_path),
-        "-i", str(audio_path),
-        "-c:v", "libx264",
-        "-preset", "fast",
-        "-crf", "23",
-        "-c:a", "aac",
-        "-b:a", "128k",
+        "ffmpeg",
+        "-y",
+        "-i",
+        str(video_path),
+        "-i",
+        str(audio_path),
+        "-c:v",
+        "libx264",
+        "-preset",
+        "fast",
+        "-crf",
+        "23",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
         "-shortest",
         str(output_path),
     ]
@@ -436,6 +444,7 @@ def main() -> int:
     except RuntimeError:
         logger.warning("ffmpeg mux failed; copying video-only as fallback")
         import shutil
+
         shutil.copy2(video_only_path, final_path)
 
     # Clean up intermediate files

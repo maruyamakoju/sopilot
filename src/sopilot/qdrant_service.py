@@ -317,12 +317,8 @@ class QdrantService:
 
             t_start, t_end = time_range
             # Overlap condition: clip.start_sec < t_end AND clip.end_sec > t_start
-            must_conditions.append(
-                FieldCondition(key="start_sec", range=Range(lt=t_end))
-            )
-            must_conditions.append(
-                FieldCondition(key="end_sec", range=Range(gt=t_start))
-            )
+            must_conditions.append(FieldCondition(key="start_sec", range=Range(lt=t_end)))
+            must_conditions.append(FieldCondition(key="end_sec", range=Range(gt=t_start)))
 
         search_filter = Filter(must=must_conditions) if must_conditions else None
 
@@ -567,10 +563,7 @@ class QdrantService:
         # Filter by time_range (overlap: clip.start < t_end AND clip.end > t_start)
         if time_range is not None:
             t_start, t_end = time_range
-            keep_mask = np.array([
-                float(m["start_sec"]) < t_end and float(m["end_sec"]) > t_start
-                for m in metadata
-            ])
+            keep_mask = np.array([float(m["start_sec"]) < t_end and float(m["end_sec"]) > t_start for m in metadata])
             if not np.any(keep_mask):
                 return []
             vectors = vectors[keep_mask]

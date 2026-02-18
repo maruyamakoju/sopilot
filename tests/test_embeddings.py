@@ -21,6 +21,7 @@ from sopilot.video import ClipWindow
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_clip(n_frames: int = 8, h: int = 32, w: int = 32) -> ClipWindow:
     """Create a synthetic ClipWindow with random uint8 frames."""
     frames = np.random.randint(0, 256, (n_frames, h, w, 3), dtype=np.uint8)
@@ -36,6 +37,7 @@ def _make_clip_const(n_frames: int = 4, value: int = 128, h: int = 32, w: int = 
 # ---------------------------------------------------------------------------
 # _l2_normalize
 # ---------------------------------------------------------------------------
+
 
 class TestL2Normalize:
     def test_normalizes_to_unit_length(self):
@@ -61,6 +63,7 @@ class TestL2Normalize:
 # ---------------------------------------------------------------------------
 # HeuristicClipEmbedder
 # ---------------------------------------------------------------------------
+
 
 class TestHeuristicClipEmbedder:
     def test_embed_clip_returns_float32(self):
@@ -161,6 +164,7 @@ class TestHeuristicClipEmbedder:
 # VJepa2Embedder
 # ---------------------------------------------------------------------------
 
+
 def _make_vjepa2(**overrides) -> VJepa2Embedder:
     defaults = dict(
         repo="facebookresearch/vjepa2",
@@ -246,30 +250,35 @@ class TestVJepa2Embedder:
     def test_pool_encoder_output_3d(self):
         """3D tensor (B x Tokens x Dim) → mean over tokens → (B x Dim)."""
         import torch
+
         output = torch.randn(2, 10, 64)
         result = VJepa2Embedder._pool_encoder_output(output)
         assert result.shape == (2, 64)
 
     def test_pool_encoder_output_2d(self):
         import torch
+
         output = torch.randn(2, 64)
         result = VJepa2Embedder._pool_encoder_output(output)
         assert result.shape == (2, 64)
 
     def test_pool_encoder_output_4d(self):
         import torch
+
         output = torch.randn(2, 8, 8, 64)
         result = VJepa2Embedder._pool_encoder_output(output)
         assert result.shape == (2, 64)
 
     def test_pool_encoder_output_tuple(self):
         import torch
+
         output = (torch.randn(2, 10, 64), torch.randn(2, 10, 32))
         result = VJepa2Embedder._pool_encoder_output(output)
         assert result.shape == (2, 64)
 
     def test_pool_encoder_output_unsupported_shape(self):
         import torch
+
         output = torch.randn(2, 3, 4, 5, 6)  # 5D
         with pytest.raises(ValueError, match="unsupported"):
             VJepa2Embedder._pool_encoder_output(output)
@@ -290,12 +299,14 @@ class TestVJepa2Embedder:
 
     def test_resolve_device_cpu(self):
         import torch
+
         emb = _make_vjepa2(device="cpu")
         dev = emb._resolve_device(torch)
         assert dev == torch.device("cpu")
 
     def test_resolve_device_auto_no_cuda(self):
         import torch
+
         emb = _make_vjepa2(device="auto")
         with patch.object(torch.cuda, "is_available", return_value=False):
             dev = emb._resolve_device(torch)
@@ -316,6 +327,7 @@ class TestVJepa2Embedder:
 # ---------------------------------------------------------------------------
 # AutoEmbedder
 # ---------------------------------------------------------------------------
+
 
 class TestAutoEmbedder:
     def _make_mock_embedder(self, name: str, fail: bool = False):
@@ -400,15 +412,18 @@ class TestAutoEmbedder:
 # build_embedder
 # ---------------------------------------------------------------------------
 
+
 class TestBuildEmbedder:
     def test_heuristic_backend(self):
         from conftest import make_test_settings
+
         settings = make_test_settings(embedder_backend="heuristic")
         emb = build_embedder(settings)
         assert isinstance(emb, HeuristicClipEmbedder)
 
     def test_vjepa2_backend(self):
         from conftest import make_test_settings
+
         settings = make_test_settings(
             embedder_backend="vjepa2",
             vjepa2_repo="facebookresearch/vjepa2",
@@ -419,6 +434,7 @@ class TestBuildEmbedder:
 
     def test_auto_with_fallback(self):
         from conftest import make_test_settings
+
         settings = make_test_settings(
             embedder_backend="auto",
             embedder_fallback_enabled=True,
@@ -430,6 +446,7 @@ class TestBuildEmbedder:
 
     def test_auto_without_fallback(self):
         from conftest import make_test_settings
+
         settings = make_test_settings(
             embedder_backend="auto",
             embedder_fallback_enabled=False,
@@ -441,6 +458,7 @@ class TestBuildEmbedder:
 
     def test_unknown_backend_raises(self):
         from conftest import make_test_settings
+
         settings = make_test_settings(embedder_backend="unknown_backend")
         with pytest.raises(ValueError, match="unknown embedder backend"):
             build_embedder(settings)

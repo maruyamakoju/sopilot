@@ -307,10 +307,13 @@ def _recall_at_k(
     Returns:
         1.0 if at least one relevant result in top-K, else 0.0
     """
-    return 1.0 if any(
-        _is_relevant_result(r, gt_clip_ids, gt_time_ranges, min_overlap_sec=min_overlap_sec)
-        for r in results[:k]
-    ) else 0.0
+    return (
+        1.0
+        if any(
+            _is_relevant_result(r, gt_clip_ids, gt_time_ranges, min_overlap_sec=min_overlap_sec) for r in results[:k]
+        )
+        else 0.0
+    )
 
 
 def _reciprocal_rank(
@@ -518,6 +521,7 @@ def evaluate(
             recall_at_10 = 0.0
             if all_retrieved_ids and all_relevant_ids:
                 from sopilot.evaluation.vigil_metrics import evidence_recall_at_k
+
                 recall_obj = evidence_recall_at_k(all_retrieved_ids, all_relevant_ids)
                 recall_at_3 = recall_obj.recall_at_3
                 recall_at_10 = recall_obj.recall_at_10

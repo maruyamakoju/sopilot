@@ -434,18 +434,23 @@ class TestIndexVideoAllLevels:
         video_path = _make_test_video()
         try:
             micro = [
-                Chunk(level="micro", start_sec=0.0, end_sec=3.0,
-                      start_frame=0, end_frame=90, keyframe_indices=[45]),
-                Chunk(level="micro", start_sec=3.0, end_sec=6.0,
-                      start_frame=90, end_frame=180, keyframe_indices=[135]),
+                Chunk(level="micro", start_sec=0.0, end_sec=3.0, start_frame=0, end_frame=90, keyframe_indices=[45]),
+                Chunk(level="micro", start_sec=3.0, end_sec=6.0, start_frame=90, end_frame=180, keyframe_indices=[135]),
             ]
             meso = [
-                Chunk(level="meso", start_sec=0.0, end_sec=6.0,
-                      start_frame=0, end_frame=180, keyframe_indices=[45, 135]),
+                Chunk(
+                    level="meso", start_sec=0.0, end_sec=6.0, start_frame=0, end_frame=180, keyframe_indices=[45, 135]
+                ),
             ]
             macro = [
-                Chunk(level="macro", start_sec=0.0, end_sec=10.0,
-                      start_frame=0, end_frame=300, keyframe_indices=[45, 135, 225]),
+                Chunk(
+                    level="macro",
+                    start_sec=0.0,
+                    end_sec=10.0,
+                    start_frame=0,
+                    end_frame=300,
+                    keyframe_indices=[45, 135, 225],
+                ),
             ]
 
             qdrant = _make_mock_qdrant()
@@ -482,8 +487,7 @@ class TestIndexVideoAllLevels:
         video_path = _make_test_video()
         try:
             micro = [
-                Chunk(level="micro", start_sec=0.0, end_sec=3.0,
-                      start_frame=0, end_frame=90, keyframe_indices=[45]),
+                Chunk(level="micro", start_sec=0.0, end_sec=3.0, start_frame=0, end_frame=90, keyframe_indices=[45]),
             ]
 
             qdrant = _make_mock_qdrant()
@@ -509,12 +513,10 @@ class TestIndexVideoAllLevels:
         video_path = _make_test_video()
         try:
             micro = [
-                Chunk(level="micro", start_sec=0.0, end_sec=3.0,
-                      start_frame=0, end_frame=90, keyframe_indices=[45]),
+                Chunk(level="micro", start_sec=0.0, end_sec=3.0, start_frame=0, end_frame=90, keyframe_indices=[45]),
             ]
             meso = [
-                Chunk(level="meso", start_sec=0.0, end_sec=6.0,
-                      start_frame=0, end_frame=180, keyframe_indices=[45]),
+                Chunk(level="meso", start_sec=0.0, end_sec=6.0, start_frame=0, end_frame=180, keyframe_indices=[45]),
             ]
 
             tx_service = TranscriptionService(TranscriptionConfig(backend="mock"))
@@ -522,7 +524,9 @@ class TestIndexVideoAllLevels:
                 TranscriptionSegment(0.0, 2.0, "Hello world", "en"),
             ]
             tx_service.transcribe = lambda _path: TranscriptionResult(
-                segments=fake_segments, language="en", duration_sec=6.0,
+                segments=fake_segments,
+                language="en",
+                duration_sec=6.0,
             )
 
             qdrant = _make_mock_qdrant()
@@ -611,8 +615,7 @@ class TestSearchTimeRange:
 
         embeddings = np.random.randn(3, dim).astype(np.float32)
         metadata = [
-            {"clip_id": f"c{i}", "video_id": "v1", "start_sec": i * 5.0, "end_sec": (i + 1) * 5.0}
-            for i in range(3)
+            {"clip_id": f"c{i}", "video_id": "v1", "start_sec": i * 5.0, "end_sec": (i + 1) * 5.0} for i in range(3)
         ]
 
         qdrant.add_embeddings("micro", embeddings, metadata)
@@ -647,17 +650,14 @@ class TestCoarseToFineSearch:
         # Meso: 5 chunks
         meso_embs = rng.randn(5, dim).astype(np.float32)
         meso_meta = [
-            {"clip_id": f"mes{i}", "video_id": "v1",
-             "start_sec": i * 20.0, "end_sec": (i + 1) * 20.0}
-            for i in range(5)
+            {"clip_id": f"mes{i}", "video_id": "v1", "start_sec": i * 20.0, "end_sec": (i + 1) * 20.0} for i in range(5)
         ]
         qdrant.add_embeddings("meso", meso_embs, meso_meta)
 
         # Micro: 10 chunks
         micro_embs = rng.randn(10, dim).astype(np.float32)
         micro_meta = [
-            {"clip_id": f"mic{i}", "video_id": "v1",
-             "start_sec": i * 10.0, "end_sec": (i + 1) * 10.0}
+            {"clip_id": f"mic{i}", "video_id": "v1", "start_sec": i * 10.0, "end_sec": (i + 1) * 10.0}
             for i in range(10)
         ]
         qdrant.add_embeddings("micro", micro_embs, micro_meta)
@@ -672,14 +672,22 @@ class TestCoarseToFineSearch:
 
         # Without temporal filtering
         results_flat = qdrant.coarse_to_fine_search(
-            query, macro_k=2, meso_k=5, micro_k=10, shot_k=0,
+            query,
+            macro_k=2,
+            meso_k=5,
+            micro_k=10,
+            shot_k=0,
             enable_temporal_filtering=False,
         )
         micro_flat = results_flat["micro"]
 
         # With temporal filtering
         results_hier = qdrant.coarse_to_fine_search(
-            query, macro_k=1, meso_k=5, micro_k=10, shot_k=0,
+            query,
+            macro_k=1,
+            meso_k=5,
+            micro_k=10,
+            shot_k=0,
             enable_temporal_filtering=True,
         )
         micro_hier = results_hier["micro"]
@@ -695,15 +703,17 @@ class TestCoarseToFineSearch:
         # Only micro data, no macro
         micro_embs = np.random.randn(5, dim).astype(np.float32)
         micro_meta = [
-            {"clip_id": f"mic{i}", "video_id": "v1",
-             "start_sec": i * 5.0, "end_sec": (i + 1) * 5.0}
-            for i in range(5)
+            {"clip_id": f"mic{i}", "video_id": "v1", "start_sec": i * 5.0, "end_sec": (i + 1) * 5.0} for i in range(5)
         ]
         qdrant.add_embeddings("micro", micro_embs, micro_meta)
 
         query = np.random.randn(dim).astype(np.float32)
         results = qdrant.coarse_to_fine_search(
-            query, macro_k=5, meso_k=5, micro_k=10, shot_k=0,
+            query,
+            macro_k=5,
+            meso_k=5,
+            micro_k=10,
+            shot_k=0,
             enable_temporal_filtering=True,
         )
 
@@ -719,23 +729,36 @@ class TestCoarseToFineSearch:
 
         # One macro chunk: [10, 20]
         macro_emb = rng.randn(1, dim).astype(np.float32)
-        qdrant.add_embeddings("macro", macro_emb, [
-            {"clip_id": "mac1", "video_id": "v1", "start_sec": 10.0, "end_sec": 20.0},
-        ])
+        qdrant.add_embeddings(
+            "macro",
+            macro_emb,
+            [
+                {"clip_id": "mac1", "video_id": "v1", "start_sec": 10.0, "end_sec": 20.0},
+            ],
+        )
 
         # Micro clips: one at boundary [9, 11], one far away [50, 55]
         micro_embs = rng.randn(2, dim).astype(np.float32)
-        qdrant.add_embeddings("micro", micro_embs, [
-            {"clip_id": "mic_near", "video_id": "v1", "start_sec": 9.0, "end_sec": 11.0},
-            {"clip_id": "mic_far", "video_id": "v1", "start_sec": 50.0, "end_sec": 55.0},
-        ])
+        qdrant.add_embeddings(
+            "micro",
+            micro_embs,
+            [
+                {"clip_id": "mic_near", "video_id": "v1", "start_sec": 9.0, "end_sec": 11.0},
+                {"clip_id": "mic_far", "video_id": "v1", "start_sec": 50.0, "end_sec": 55.0},
+            ],
+        )
 
         query = rng.randn(dim).astype(np.float32)
 
         # With expand_factor=0.2, macro window [10,20] → pad 2.0 → [8, 22]
         results = qdrant.coarse_to_fine_search(
-            query, macro_k=1, meso_k=0, micro_k=10, shot_k=0,
-            enable_temporal_filtering=True, time_expand_factor=0.2,
+            query,
+            macro_k=1,
+            meso_k=0,
+            micro_k=10,
+            shot_k=0,
+            enable_temporal_filtering=True,
+            time_expand_factor=0.2,
         )
 
         micro_ids = {r.clip_id for r in results["micro"]}

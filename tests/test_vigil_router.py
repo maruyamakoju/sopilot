@@ -121,10 +121,13 @@ class TestVigilAskEndpoint:
     @pytest.mark.usefixtures("_init_services")
     def test_ask_missing_video_returns_404(self, client):
         """Ask with non-existent video path should return 404."""
-        resp = client.post("/vigil/ask", json={
-            "question": "What happens?",
-            "video_path": "/nonexistent/video.mp4",
-        })
+        resp = client.post(
+            "/vigil/ask",
+            json={
+                "question": "What happens?",
+                "video_path": "/nonexistent/video.mp4",
+            },
+        )
         assert resp.status_code == 404
 
     @pytest.mark.usefixtures("_init_services")
@@ -132,6 +135,7 @@ class TestVigilAskEndpoint:
         """Ask with a valid video should return a response (mock LLM)."""
         # Create a tiny test video
         import cv2
+
         with tempfile.NamedTemporaryFile(suffix=".mp4", delete=False) as tmp:
             pass
         video_path = Path(tmp.name)
@@ -143,10 +147,13 @@ class TestVigilAskEndpoint:
         writer.release()
 
         try:
-            resp = client.post("/vigil/ask", json={
-                "question": "What happens in the video?",
-                "video_path": str(video_path),
-            })
+            resp = client.post(
+                "/vigil/ask",
+                json={
+                    "question": "What happens in the video?",
+                    "video_path": str(video_path),
+                },
+            )
             assert resp.status_code == 200
             data = resp.json()
             assert data["question"] == "What happens in the video?"

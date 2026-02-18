@@ -49,15 +49,17 @@ logging.basicConfig(
 )
 logger = logging.getLogger("training_demo")
 
-plt.rcParams.update({
-    "font.family": "serif",
-    "font.size": 10,
-    "axes.titlesize": 11,
-    "axes.labelsize": 10,
-    "figure.dpi": 150,
-    "savefig.dpi": 200,
-    "savefig.bbox": "tight",
-})
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.size": 10,
+        "axes.titlesize": 11,
+        "axes.labelsize": 10,
+        "figure.dpi": 150,
+        "savefig.dpi": 200,
+        "savefig.bbox": "tight",
+    }
+)
 
 _JOINT_MAX_CLIPS = 30
 
@@ -65,6 +67,7 @@ _JOINT_MAX_CLIPS = 30
 # ---------------------------------------------------------------------------
 # Data generation (reuse from train_benchmark.py)
 # ---------------------------------------------------------------------------
+
 
 def _random_boundaries(n_clips: int, n_steps: int) -> list[int]:
     inner = sorted(np.random.choice(range(2, n_clips - 1), size=n_steps - 1, replace=False).tolist())
@@ -245,6 +248,7 @@ def _set_bn_eval(model: torch.nn.Module) -> None:
 # Evaluation helpers
 # ---------------------------------------------------------------------------
 
+
 def evaluate_with_pipeline(
     gold_embs: list[np.ndarray],
     trainee_embs: list[np.ndarray],
@@ -307,6 +311,7 @@ def evaluate_with_pipeline(
 # Training runner with logging
 # ---------------------------------------------------------------------------
 
+
 def run_training_with_logging(
     data: dict,
     config: TrainingConfig,
@@ -328,16 +333,20 @@ def run_training_with_logging(
     t0 = time.perf_counter()
     log_proj = trainer.train_projection_head(gold_embs, gold_bounds)
     t_proj = time.perf_counter() - t0
-    phase_logs.append({
-        "phase": "1a_projection",
-        "log": log_proj,
-        "time": t_proj,
-    })
-    logger.info("Phase 1a: %d epochs, loss %.6f → %.6f (%.2fs)",
-                log_proj.epochs_completed,
-                log_proj.epoch_losses[0] if log_proj.epoch_losses else 0.0,
-                log_proj.final_loss,
-                t_proj)
+    phase_logs.append(
+        {
+            "phase": "1a_projection",
+            "log": log_proj,
+            "time": t_proj,
+        }
+    )
+    logger.info(
+        "Phase 1a: %d epochs, loss %.6f → %.6f (%.2fs)",
+        log_proj.epochs_completed,
+        log_proj.epoch_losses[0] if log_proj.epoch_losses else 0.0,
+        log_proj.final_loss,
+        t_proj,
+    )
 
     # Phase 1b: StepSegmenter
     logger.info("\n" + "=" * 60)
@@ -346,16 +355,20 @@ def run_training_with_logging(
     t0 = time.perf_counter()
     log_seg = trainer.train_step_segmenter(gold_embs, gold_bounds)
     t_seg = time.perf_counter() - t0
-    phase_logs.append({
-        "phase": "1b_segmenter",
-        "log": log_seg,
-        "time": t_seg,
-    })
-    logger.info("Phase 1b: %d epochs, loss %.6f → %.6f (%.2fs)",
-                log_seg.epochs_completed,
-                log_seg.epoch_losses[0] if log_seg.epoch_losses else 0.0,
-                log_seg.final_loss,
-                t_seg)
+    phase_logs.append(
+        {
+            "phase": "1b_segmenter",
+            "log": log_seg,
+            "time": t_seg,
+        }
+    )
+    logger.info(
+        "Phase 1b: %d epochs, loss %.6f → %.6f (%.2fs)",
+        log_seg.epochs_completed,
+        log_seg.epoch_losses[0] if log_seg.epoch_losses else 0.0,
+        log_seg.final_loss,
+        t_seg,
+    )
 
     # Phase 1c: ASFormer
     logger.info("\n" + "=" * 60)
@@ -364,16 +377,20 @@ def run_training_with_logging(
     t0 = time.perf_counter()
     log_asf = trainer.train_asformer(gold_embs, gold_bounds)
     t_asf = time.perf_counter() - t0
-    phase_logs.append({
-        "phase": "1c_asformer",
-        "log": log_asf,
-        "time": t_asf,
-    })
-    logger.info("Phase 1c: %d epochs, loss %.6f → %.6f (%.2fs)",
-                log_asf.epochs_completed,
-                log_asf.epoch_losses[0] if log_asf.epoch_losses else 0.0,
-                log_asf.final_loss,
-                t_asf)
+    phase_logs.append(
+        {
+            "phase": "1c_asformer",
+            "log": log_asf,
+            "time": t_asf,
+        }
+    )
+    logger.info(
+        "Phase 1c: %d epochs, loss %.6f → %.6f (%.2fs)",
+        log_asf.epochs_completed,
+        log_asf.epoch_losses[0] if log_asf.epoch_losses else 0.0,
+        log_asf.final_loss,
+        t_asf,
+    )
 
     # Phase 2: ScoringHead
     logger.info("\n" + "=" * 60)
@@ -383,16 +400,20 @@ def run_training_with_logging(
     t0 = time.perf_counter()
     log_score = trainer.train_scoring_head(metrics_array, scores_array)
     t_score = time.perf_counter() - t0
-    phase_logs.append({
-        "phase": "2_scoring",
-        "log": log_score,
-        "time": t_score,
-    })
-    logger.info("Phase 2: %d epochs, loss %.6f → %.6f (%.2fs)",
-                log_score.epochs_completed,
-                log_score.epoch_losses[0] if log_score.epoch_losses else 0.0,
-                log_score.final_loss,
-                t_score)
+    phase_logs.append(
+        {
+            "phase": "2_scoring",
+            "log": log_score,
+            "time": t_score,
+        }
+    )
+    logger.info(
+        "Phase 2: %d epochs, loss %.6f → %.6f (%.2fs)",
+        log_score.epochs_completed,
+        log_score.epoch_losses[0] if log_score.epoch_losses else 0.0,
+        log_score.final_loss,
+        t_score,
+    )
 
     # Phase 3: Joint fine-tune
     logger.info("\n" + "=" * 60)
@@ -405,16 +426,20 @@ def run_training_with_logging(
     t0 = time.perf_counter()
     log_joint = trainer.joint_finetune(joint_gold, joint_trainee, target_scores)
     t_joint = time.perf_counter() - t0
-    phase_logs.append({
-        "phase": "3_joint",
-        "log": log_joint,
-        "time": t_joint,
-    })
-    logger.info("Phase 3: %d epochs, loss %.6f → %.6f (%.2fs)",
-                log_joint.epochs_completed,
-                log_joint.epoch_losses[0] if log_joint.epoch_losses else 0.0,
-                log_joint.final_loss,
-                t_joint)
+    phase_logs.append(
+        {
+            "phase": "3_joint",
+            "log": log_joint,
+            "time": t_joint,
+        }
+    )
+    logger.info(
+        "Phase 3: %d epochs, loss %.6f → %.6f (%.2fs)",
+        log_joint.epochs_completed,
+        log_joint.epoch_losses[0] if log_joint.epoch_losses else 0.0,
+        log_joint.final_loss,
+        t_joint,
+    )
 
     # Phase 4: Calibration
     logger.info("\n" + "=" * 60)
@@ -428,11 +453,13 @@ def run_training_with_logging(
     t0 = time.perf_counter()
     trainer.calibrate(cal_preds, scores_array)
     t_cal = time.perf_counter() - t0
-    phase_logs.append({
-        "phase": "4_calibration",
-        "log": None,
-        "time": t_cal,
-    })
+    phase_logs.append(
+        {
+            "phase": "4_calibration",
+            "log": None,
+            "time": t_cal,
+        }
+    )
     logger.info("Phase 4: calibration done (%.2fs)", t_cal)
 
     # Save models
@@ -457,6 +484,7 @@ def run_training_with_logging(
 # Visualization
 # ---------------------------------------------------------------------------
 
+
 def plot_convergence_figure(
     phase_logs: list[dict],
     before_stats: dict,
@@ -479,8 +507,15 @@ def plot_convergence_figure(
             continue
         phase_name = entry["phase"].replace("_", " ").title()
         epochs = np.arange(1, len(log.epoch_losses) + 1)
-        ax_a.plot(epochs, log.epoch_losses, "o-", color=phase_colors[i % len(phase_colors)],
-                  label=phase_name, markersize=3, linewidth=1.5)
+        ax_a.plot(
+            epochs,
+            log.epoch_losses,
+            "o-",
+            color=phase_colors[i % len(phase_colors)],
+            label=phase_name,
+            markersize=3,
+            linewidth=1.5,
+        )
 
     ax_a.set_xlabel("Epoch")
     ax_a.set_ylabel("Loss")
@@ -503,7 +538,7 @@ def plot_convergence_figure(
         final_losses.append(log.final_loss)
 
     y_pos = np.arange(len(phase_names_short))
-    ax_b.barh(y_pos, final_losses, color=phase_colors[:len(final_losses)], edgecolor="white")
+    ax_b.barh(y_pos, final_losses, color=phase_colors[: len(final_losses)], edgecolor="white")
     ax_b.set_yticks(y_pos)
     ax_b.set_yticklabels(phase_names_short, fontsize=8)
     ax_b.set_xlabel("Final Loss")
@@ -518,10 +553,22 @@ def plot_convergence_figure(
     before_scores = before_stats["scores"]
     after_scores = after_stats["scores"]
 
-    ax_c.hist(before_scores, bins=15, alpha=0.6, color="#FF7043", edgecolor="white",
-              label=f"Before (μ={before_stats['mean']:.1f}, σ={before_stats['std']:.1f})")
-    ax_c.hist(after_scores, bins=15, alpha=0.6, color="#66BB6A", edgecolor="white",
-              label=f"After (μ={after_stats['mean']:.1f}, σ={after_stats['std']:.1f})")
+    ax_c.hist(
+        before_scores,
+        bins=15,
+        alpha=0.6,
+        color="#FF7043",
+        edgecolor="white",
+        label=f"Before (μ={before_stats['mean']:.1f}, σ={before_stats['std']:.1f})",
+    )
+    ax_c.hist(
+        after_scores,
+        bins=15,
+        alpha=0.6,
+        color="#66BB6A",
+        edgecolor="white",
+        label=f"After (μ={after_stats['mean']:.1f}, σ={after_stats['std']:.1f})",
+    )
     ax_c.set_xlabel("Score [0-100]")
     ax_c.set_ylabel("Count")
     ax_c.set_title("C) Score Distribution: Before vs After", fontweight="bold")
@@ -549,8 +596,7 @@ def plot_convergence_figure(
     after_unc = after_stats["uncertainties"]
     mean_unc = float(np.mean(after_unc))
     ax_e.hist(after_unc, bins=15, color="#42A5F5", alpha=0.7, edgecolor="white")
-    ax_e.axvline(mean_unc, color="red", linewidth=2, linestyle="--",
-                 label=f"Mean: {mean_unc:.2f}")
+    ax_e.axvline(mean_unc, color="red", linewidth=2, linestyle="--", label=f"Mean: {mean_unc:.2f}")
     ax_e.set_xlabel("MC Dropout Uncertainty (σ)")
     ax_e.set_ylabel("Count")
     ax_e.set_title("E) Uncertainty Distribution (After Training)", fontweight="bold")
@@ -576,7 +622,7 @@ def plot_convergence_figure(
         phase_labels.append(entry["phase"].replace("_", "\n"))
 
     y_pos = np.arange(len(phase_labels))
-    ax_f.barh(y_pos, convergence_epochs, color=phase_colors[:len(convergence_epochs)], edgecolor="white")
+    ax_f.barh(y_pos, convergence_epochs, color=phase_colors[: len(convergence_epochs)], edgecolor="white")
     ax_f.set_yticks(y_pos)
     ax_f.set_yticklabels(phase_labels, fontsize=8)
     ax_f.set_xlabel("Epochs to converge (90% of loss drop)")
@@ -588,8 +634,18 @@ def plot_convergence_figure(
     # Panel G (2, 1): Before/After scatter
     # ------------------------------------------------------------------
     ax_g = fig.add_subplot(gs[2, 1])
-    ax_g.scatter(before_scores, after_scores, c=improvements, cmap="RdYlGn",
-                 s=30, alpha=0.7, edgecolor="black", linewidth=0.5, vmin=-10, vmax=10)
+    ax_g.scatter(
+        before_scores,
+        after_scores,
+        c=improvements,
+        cmap="RdYlGn",
+        s=30,
+        alpha=0.7,
+        edgecolor="black",
+        linewidth=0.5,
+        vmin=-10,
+        vmax=10,
+    )
     ax_g.plot([0, 100], [0, 100], "k--", alpha=0.3, linewidth=1)
     ax_g.set_xlabel("Before Training")
     ax_g.set_ylabel("After Training")
@@ -612,8 +668,14 @@ def plot_convergence_figure(
     labels_h = [entry["phase"].replace("_", "\n") for entry in phase_logs]
     explode = [0.05 if i == times.index(max(times)) else 0 for i in range(len(times))]
 
-    ax_h.pie(times, labels=labels_h, autopct="%1.1f%%", colors=phase_colors[:len(times)],
-             explode=explode, textprops={"fontsize": 8})
+    ax_h.pie(
+        times,
+        labels=labels_h,
+        autopct="%1.1f%%",
+        colors=phase_colors[: len(times)],
+        explode=explode,
+        textprops={"fontsize": 8},
+    )
     ax_h.set_title("H) Training Time Breakdown", fontweight="bold")
 
     # ------------------------------------------------------------------
@@ -628,7 +690,9 @@ def plot_convergence_figure(
         f"Before: μ={before_stats['mean']:.1f} | After: μ={after_stats['mean']:.1f} | "
         f"Mean Δ={np.mean(improvements):.1f} | "
         f"{n_improved}/{n_total} improved ({pct_improved:.0f}%)",
-        fontsize=13, fontweight="bold", y=0.98,
+        fontsize=13,
+        fontweight="bold",
+        y=0.98,
     )
 
     fig.savefig(out_dir / "training_convergence.png")
@@ -640,13 +704,17 @@ def plot_convergence_figure(
 # Main
 # ---------------------------------------------------------------------------
 
+
 def main():
     parser = argparse.ArgumentParser(description="SOPilot Training Convergence Demo")
     parser.add_argument("--out-dir", type=str, default="demo_outputs", help="Output directory")
-    parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "cuda"],
-                        help="Compute device")
-    parser.add_argument("--epochs-multiplier", type=float, default=1.0,
-                        help="Scale all epoch counts (default: 1.0, use 0.5 for quick test)")
+    parser.add_argument("--device", type=str, default="auto", choices=["auto", "cpu", "cuda"], help="Compute device")
+    parser.add_argument(
+        "--epochs-multiplier",
+        type=float,
+        default=1.0,
+        help="Scale all epoch counts (default: 1.0, use 0.5 for quick test)",
+    )
     args = parser.parse_args()
 
     out_dir = Path(args.out_dir)
@@ -754,9 +822,7 @@ def main():
             "n_improved": int(np.sum(after_stats["scores"] > before_stats["scores"])),
             "n_total": len(after_stats["scores"]),
         },
-        "phase_timings": [
-            {"phase": e["phase"], "time": e["time"]} for e in training_result["phase_logs"]
-        ],
+        "phase_timings": [{"phase": e["phase"], "time": e["time"]} for e in training_result["phase_logs"]],
     }
 
     json_path = out_dir / "training_summary.json"
@@ -768,12 +834,18 @@ def main():
     logger.info("Training Convergence Demo Complete")
     logger.info("=" * 70)
     logger.info("Before training: %.1f ± %.1f", before_stats["mean"], before_stats["std"])
-    logger.info("After training:  %.1f ± %.1f (σ_unc=%.2f)",
-                after_stats["mean"], after_stats["std"], np.mean(after_stats["uncertainties"]))
-    logger.info("Improvement:     %.1f points (%d/%d samples improved)",
-                after_stats["mean"] - before_stats["mean"],
-                summary["improvement"]["n_improved"],
-                summary["improvement"]["n_total"])
+    logger.info(
+        "After training:  %.1f ± %.1f (σ_unc=%.2f)",
+        after_stats["mean"],
+        after_stats["std"],
+        np.mean(after_stats["uncertainties"]),
+    )
+    logger.info(
+        "Improvement:     %.1f points (%d/%d samples improved)",
+        after_stats["mean"] - before_stats["mean"],
+        summary["improvement"]["n_improved"],
+        summary["improvement"]["n_total"],
+    )
     logger.info("=" * 70)
 
 

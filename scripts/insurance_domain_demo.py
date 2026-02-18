@@ -360,7 +360,9 @@ def demo_integrated_assessment():
     print_subsection("Summary")
     print(f"[OK] Fault Assessment: {fault_result.scenario_type} collision")
     print(f"[OK] Fault Ratio: {fault_result.fault_ratio}%")
-    print(f"[OK] Fraud Risk: {'HIGH' if fraud_result.risk_score >= 0.7 else 'MEDIUM' if fraud_result.risk_score >= 0.4 else 'LOW'}")
+    print(
+        f"[OK] Fraud Risk: {'HIGH' if fraud_result.risk_score >= 0.7 else 'MEDIUM' if fraud_result.risk_score >= 0.4 else 'LOW'}"
+    )
     print("[OK] Processing Time: ~2-3 seconds (automated)")
     print(f"[OK] Human Review Required: {'YES' if fraud_result.risk_score >= 0.4 else 'NO'}")
 

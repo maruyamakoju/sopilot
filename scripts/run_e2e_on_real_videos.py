@@ -41,7 +41,9 @@ def print_assessment(assessment: ClaimAssessment, video_name: str):
     print("\n[FAULT ASSESSMENT]")
     print(f"  Fault Ratio:       {assessment.fault_assessment.fault_ratio:.1f}%")
     print(f"  At-Fault Party:    {assessment.fault_assessment.at_fault_party or 'N/A'}")
-    print(f"  Contributing:      {', '.join(assessment.fault_assessment.contributing_factors) if assessment.fault_assessment.contributing_factors else 'None'}")
+    print(
+        f"  Contributing:      {', '.join(assessment.fault_assessment.contributing_factors) if assessment.fault_assessment.contributing_factors else 'None'}"
+    )
     if assessment.fault_assessment.reasoning:
         print(f"  Reasoning:         {assessment.fault_assessment.reasoning}")
 
@@ -171,7 +173,7 @@ def save_html_report(assessment: ClaimAssessment, video_name: str, output_path: 
     <div class="container">
         <div class="header">
             <h1>Insurance Claim Assessment Report</h1>
-            <div class="timestamp">Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}</div>
+            <div class="timestamp">Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}</div>
             <div class="timestamp">Video: {video_name}</div>
         </div>
 
@@ -187,7 +189,7 @@ def save_html_report(assessment: ClaimAssessment, video_name: str, output_path: 
             </div>
             <div class="metric">
                 <span class="label">Prediction Set:</span>
-                <span class="value prediction-set">{{{', '.join(sorted(assessment.prediction_set))}}}</span>
+                <span class="value prediction-set">{{{", ".join(sorted(assessment.prediction_set))}}}</span>
             </div>
             <div class="metric">
                 <span class="label">Review Priority:</span>
@@ -203,13 +205,21 @@ def save_html_report(assessment: ClaimAssessment, video_name: str, output_path: 
             </div>
             <div class="metric">
                 <span class="label">At-Fault Party:</span>
-                <span class="value">{assessment.fault_assessment.at_fault_party or 'N/A'}</span>
+                <span class="value">{assessment.fault_assessment.at_fault_party or "N/A"}</span>
             </div>
             <div class="metric">
                 <span class="label">Contributing Factors:</span>
-                <span class="value">{', '.join(assessment.fault_assessment.contributing_factors) if assessment.fault_assessment.contributing_factors else 'None identified'}</span>
+                <span class="value">{
+        ", ".join(assessment.fault_assessment.contributing_factors)
+        if assessment.fault_assessment.contributing_factors
+        else "None identified"
+    }</span>
             </div>
-            {f'<div class="reasoning">{assessment.fault_assessment.reasoning}</div>' if assessment.fault_assessment.reasoning else ''}
+            {
+        f'<div class="reasoning">{assessment.fault_assessment.reasoning}</div>'
+        if assessment.fault_assessment.reasoning
+        else ""
+    }
         </div>
 
         <div class="section">
@@ -224,9 +234,13 @@ def save_html_report(assessment: ClaimAssessment, video_name: str, output_path: 
             </div>
             <div class="metric">
                 <span class="label">Red Flags:</span>
-                <span class="value">{', '.join(assessment.fraud_risk.red_flags) if assessment.fraud_risk.red_flags else 'None detected'}</span>
+                <span class="value">{
+        ", ".join(assessment.fraud_risk.red_flags) if assessment.fraud_risk.red_flags else "None detected"
+    }</span>
             </div>
-            {f'<div class="reasoning">{assessment.fraud_risk.reasoning}</div>' if assessment.fraud_risk.reasoning else ''}
+            {
+        f'<div class="reasoning">{assessment.fraud_risk.reasoning}</div>' if assessment.fraud_risk.reasoning else ""
+    }
         </div>
 
         <div class="section">
@@ -236,10 +250,14 @@ def save_html_report(assessment: ClaimAssessment, video_name: str, output_path: 
             </div>
         </div>
 
-        {f'''<div class="section">
+        {
+        f'''<div class="section">
             <h2>Causal Reasoning</h2>
             <div class="reasoning">{assessment.causal_reasoning}</div>
-        </div>''' if assessment.causal_reasoning else ''}
+        </div>'''
+        if assessment.causal_reasoning
+        else ""
+    }
 
         <div class="footer">
             Insurance MVP - Powered by AI<br>
@@ -249,7 +267,7 @@ def save_html_report(assessment: ClaimAssessment, video_name: str, output_path: 
 </body>
 </html>"""
 
-    output_path.write_text(html, encoding='utf-8')
+    output_path.write_text(html, encoding="utf-8")
     print(f"[OK] HTML report saved: {output_path}")
 
 
@@ -324,7 +342,7 @@ def main():
 
                 # Save JSON
                 json_path = output_dir / "assessment.json"
-                with open(json_path, 'w') as f:
+                with open(json_path, "w") as f:
                     json.dump(assessment.model_dump(), f, indent=2, default=str)
                 print(f"[OK] JSON saved: {json_path}")
 
@@ -333,11 +351,7 @@ def main():
                 save_html_report(assessment, video_name, html_path)
 
                 # Store for summary
-                all_results[video_name] = {
-                    'assessment': assessment,
-                    'ground_truth': gt,
-                    'output_dir': str(output_dir)
-                }
+                all_results[video_name] = {"assessment": assessment, "ground_truth": gt, "output_dir": str(output_dir)}
 
             else:
                 print("[WARNING] No assessments generated")
@@ -345,6 +359,7 @@ def main():
         except Exception as e:
             print(f"[ERROR] Processing failed: {e}")
             import traceback
+
             traceback.print_exc()
 
     # Final summary
@@ -353,8 +368,8 @@ def main():
     print(f"Results saved to: {output_base}\n")
 
     for video_name, data in all_results.items():
-        assessment = data['assessment']
-        gt = data['ground_truth'].get('ground_truth', {})
+        assessment = data["assessment"]
+        gt = data["ground_truth"].get("ground_truth", {})
 
         print(f"\n{video_name}:")
         print(f"  Predicted Severity: {assessment.severity}")
@@ -364,10 +379,10 @@ def main():
         print(f"  Fraud Score:        {assessment.fraud_risk.risk_score:.2f}")
         print(f"  Output:             {data['output_dir']}")
 
-    print(f"\n{'='*70}")
+    print(f"\n{'=' * 70}")
     print("SUCCESS: Contract-grade results generated!")
     print("Open the HTML reports in your browser to view professional assessments.")
-    print(f"{'='*70}\n")
+    print(f"{'=' * 70}\n")
 
 
 if __name__ == "__main__":

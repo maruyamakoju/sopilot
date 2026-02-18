@@ -314,9 +314,7 @@ def _generate_corrective_actions(
             actions.append(f"CRITICAL: Ensure trainee completes {step_desc} before proceeding")
 
     if missing_steps - critical_missing:
-        actions.append(
-            f"Review and complete missing steps: {', '.join(sorted(missing_steps - critical_missing))}"
-        )
+        actions.append(f"Review and complete missing steps: {', '.join(sorted(missing_steps - critical_missing))}")
 
     if has_order_issues:
         actions.append("Review correct step sequence with trainee using gold standard video")

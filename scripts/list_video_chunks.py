@@ -65,6 +65,7 @@ def list_chunks(video_id: str, level: str, qdrant: QdrantService) -> list[dict[s
     except Exception as e:
         print(f"Error listing chunks: {e}", file=sys.stderr)
         import traceback
+
         traceback.print_exc()
         return []
 

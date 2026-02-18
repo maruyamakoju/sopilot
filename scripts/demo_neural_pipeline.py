@@ -36,20 +36,23 @@ logging.basicConfig(level=logging.INFO, format="%(message)s")
 logger = logging.getLogger(__name__)
 
 # Consistent style
-plt.rcParams.update({
-    "font.family": "serif",
-    "font.size": 11,
-    "axes.titlesize": 13,
-    "axes.labelsize": 11,
-    "figure.dpi": 150,
-    "savefig.dpi": 200,
-    "savefig.bbox": "tight",
-})
+plt.rcParams.update(
+    {
+        "font.family": "serif",
+        "font.size": 11,
+        "axes.titlesize": 13,
+        "axes.labelsize": 11,
+        "figure.dpi": 150,
+        "savefig.dpi": 200,
+        "savefig.bbox": "tight",
+    }
+)
 
 
 # ---------------------------------------------------------------------------
 # Synthetic Data Generation
 # ---------------------------------------------------------------------------
+
 
 def _generate_sop_sequences(
     n_steps: int = 5,
@@ -109,6 +112,7 @@ def _generate_sop_sequences(
 # Figure 1: Soft-DTW Alignment
 # ---------------------------------------------------------------------------
 
+
 def plot_soft_dtw_alignment(gold: np.ndarray, trainee: np.ndarray, out_dir: Path) -> None:
     """Soft-DTW alignment matrix + path visualization."""
     from sopilot.nn.soft_dtw import soft_dtw_align_numpy
@@ -155,6 +159,7 @@ def plot_soft_dtw_alignment(gold: np.ndarray, trainee: np.ndarray, out_dir: Path
 # Figure 2: Euclidean vs Soft-DTW vs OT
 # ---------------------------------------------------------------------------
 
+
 def plot_alignment_comparison(gold: np.ndarray, trainee: np.ndarray, out_dir: Path) -> None:
     """Compare Euclidean distance, Soft-DTW, and Optimal Transport alignment."""
     from sopilot.nn.optimal_transport import SinkhornDistance
@@ -199,8 +204,7 @@ def plot_alignment_comparison(gold: np.ndarray, trainee: np.ndarray, out_dir: Pa
         for b in [0, 6, 12, 18, 24]:
             ax.axhline(y=b - 0.5, color="white", linewidth=0.5, alpha=0.4, linestyle="--")
 
-    fig.suptitle("Alignment Method Comparison: Cosine vs Soft-DTW vs Optimal Transport",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle("Alignment Method Comparison: Cosine vs Soft-DTW vs Optimal Transport", fontsize=14, fontweight="bold")
     plt.tight_layout()
     fig.savefig(out_dir / "02_alignment_comparison.png")
     plt.close(fig)
@@ -210,6 +214,7 @@ def plot_alignment_comparison(gold: np.ndarray, trainee: np.ndarray, out_dir: Pa
 # ---------------------------------------------------------------------------
 # Figure 3: Scoring with Uncertainty + Conformal
 # ---------------------------------------------------------------------------
+
 
 def plot_scoring_uncertainty(out_dir: Path) -> None:
     """MC Dropout uncertainty estimation + Conformal prediction intervals."""
@@ -229,7 +234,7 @@ def plot_scoring_uncertainty(out_dir: Path) -> None:
     with torch.no_grad():
         cal_preds_raw = []
         for i in range(n_cal):
-            pred = model._forward_single(cal_metrics[i:i+1])
+            pred = model._forward_single(cal_metrics[i : i + 1])
             cal_preds_raw.append(pred)
     cal_preds = np.array(cal_preds_raw)
     # Simulate "actual" scores with noise around predictions
@@ -284,10 +289,8 @@ def plot_scoring_uncertainty(out_dir: Path) -> None:
     cf_lo = np.array(conf_lower)
     cf_hi = np.array(conf_upper)
     ax2.plot(x_vals, scores, "r-", linewidth=2, label="Score")
-    ax2.fill_between(x_vals, cf_lo, cf_hi, alpha=0.2, color="red",
-                     label=f"Conformal 90% PI (n_cal={n_cal})")
-    ax2.fill_between(x_vals, ci_lo, ci_hi, alpha=0.3, color="blue",
-                     label="MC Dropout 95% CI")
+    ax2.fill_between(x_vals, cf_lo, cf_hi, alpha=0.2, color="red", label=f"Conformal 90% PI (n_cal={n_cal})")
+    ax2.fill_between(x_vals, ci_lo, ci_hi, alpha=0.3, color="blue", label="MC Dropout 95% CI")
     ax2.set_xlabel("Miss penalty (input metric)")
     ax2.set_ylabel("SOP Score [0-100]")
     ax2.set_title("Conformal Prediction Intervals\n(Lei et al., 2018 — distribution-free)")
@@ -298,13 +301,15 @@ def plot_scoring_uncertainty(out_dir: Path) -> None:
     # Add guarantee annotation
     ax2.annotate(
         r"$\mathrm{P}(Y \in [\hat{y} \pm q]) \geq 1 - \alpha$" + "\n(finite-sample guarantee)",
-        xy=(0.5, 0.02), xycoords="axes fraction",
-        fontsize=10, ha="center", style="italic",
+        xy=(0.5, 0.02),
+        xycoords="axes fraction",
+        fontsize=10,
+        ha="center",
+        style="italic",
         bbox=dict(boxstyle="round,pad=0.3", facecolor="lightyellow", alpha=0.8),
     )
 
-    fig.suptitle("Uncertainty Quantification: MC Dropout + Conformal Prediction",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle("Uncertainty Quantification: MC Dropout + Conformal Prediction", fontsize=14, fontweight="bold")
     plt.tight_layout()
     fig.savefig(out_dir / "03_uncertainty_conformal.png")
     plt.close(fig)
@@ -314,6 +319,7 @@ def plot_scoring_uncertainty(out_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 # Figure 4: DILATE Loss Decomposition
 # ---------------------------------------------------------------------------
+
 
 def plot_dilate_decomposition(gold: np.ndarray, trainee: np.ndarray, out_dir: Path) -> None:
     """DILATE loss: shape vs temporal distortion components."""
@@ -340,7 +346,9 @@ def plot_dilate_decomposition(gold: np.ndarray, trainee: np.ndarray, out_dir: Pa
     # Left: Loss decomposition across alpha
     ax1.plot(alphas, shape_losses, "b-o", markersize=3, linewidth=2, label="Shape loss (Soft-DTW)")
     ax1.plot(alphas, temporal_losses, "r-s", markersize=3, linewidth=2, label="Temporal distortion (TDI)")
-    ax1.plot(alphas, total_losses, "k--", linewidth=1.5, alpha=0.6, label=r"Total: $\alpha \cdot S + (1-\alpha) \cdot T$")
+    ax1.plot(
+        alphas, total_losses, "k--", linewidth=1.5, alpha=0.6, label=r"Total: $\alpha \cdot S + (1-\alpha) \cdot T$"
+    )
     ax1.set_xlabel(r"$\alpha$ (shape weight)")
     ax1.set_ylabel("Loss")
     ax1.set_title(r"DILATE = $\alpha \cdot \mathcal{L}_{shape}$ + $(1-\alpha) \cdot \mathcal{L}_{temporal}$")
@@ -353,8 +361,9 @@ def plot_dilate_decomposition(gold: np.ndarray, trainee: np.ndarray, out_dir: Pa
     alignment = components["alignment"].detach().numpy()
 
     ax2.imshow(alignment, aspect="auto", cmap="inferno", interpolation="nearest")
-    ax2.set_title(f"Soft Alignment (γ=0.5)\nShape={components['shape'].item():.3f}, "
-                  f"Temporal={components['temporal'].item():.3f}")
+    ax2.set_title(
+        f"Soft Alignment (γ=0.5)\nShape={components['shape'].item():.3f}, Temporal={components['temporal'].item():.3f}"
+    )
     ax2.set_xlabel("Trainee clip index")
     ax2.set_ylabel("Gold clip index")
 
@@ -365,8 +374,7 @@ def plot_dilate_decomposition(gold: np.ndarray, trainee: np.ndarray, out_dir: Pa
     ax2.plot(diag_x, diag_y, "w--", linewidth=1, alpha=0.5, label="Perfect timing")
     ax2.legend(loc="upper left")
 
-    fig.suptitle("DILATE Loss Decomposition (Guen & Thome, NeurIPS 2019)",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle("DILATE Loss Decomposition (Guen & Thome, NeurIPS 2019)", fontsize=14, fontweight="bold")
     plt.tight_layout()
     fig.savefig(out_dir / "04_dilate_decomposition.png")
     plt.close(fig)
@@ -376,6 +384,7 @@ def plot_dilate_decomposition(gold: np.ndarray, trainee: np.ndarray, out_dir: Pa
 # ---------------------------------------------------------------------------
 # Figure 5: Explainability — Alignment Heatmap + Metric Sensitivity
 # ---------------------------------------------------------------------------
+
 
 def plot_explainability(gold: np.ndarray, trainee: np.ndarray, out_dir: Path) -> None:
     """Alignment heatmap with per-frame importance + metric sensitivity analysis."""
@@ -397,12 +406,19 @@ def plot_explainability(gold: np.ndarray, trainee: np.ndarray, out_dir: Path) ->
     ax_main.set_title("Temporal Alignment Heatmap")
 
     # Annotate step regions
-    step_names = ["Step 1\n(Prepare)", "Step 2\n(Apply)", "Step 3\n(Check)",
-                  "Step 4\n(Record)", "Step 5\n(Clean)"]
+    step_names = ["Step 1\n(Prepare)", "Step 2\n(Apply)", "Step 3\n(Check)", "Step 4\n(Record)", "Step 5\n(Clean)"]
     for b, name in zip([0, 6, 12, 18, 24], step_names, strict=True):
         ax_main.axhline(y=b - 0.5, color="cyan", linewidth=0.8, alpha=0.6, linestyle="--")
-        ax_main.text(-0.5, b + 2.5, name, fontsize=7, color="cyan", ha="right",
-                     va="center", transform=ax_main.get_yaxis_transform())
+        ax_main.text(
+            -0.5,
+            b + 2.5,
+            name,
+            fontsize=7,
+            color="cyan",
+            ha="right",
+            va="center",
+            transform=ax_main.get_yaxis_transform(),
+        )
 
     # Peak alignments
     for g_idx, t_idx, strength in viz_data["peak_alignment"][:10]:
@@ -411,16 +427,14 @@ def plot_explainability(gold: np.ndarray, trainee: np.ndarray, out_dir: Path) ->
 
     # Bottom: trainee importance
     ax_trainee = fig.add_subplot(gs[1, 0], sharex=ax_main)
-    ax_trainee.bar(range(len(viz_data["trainee_importance"])), viz_data["trainee_importance"],
-                   color="coral", alpha=0.7)
+    ax_trainee.bar(range(len(viz_data["trainee_importance"])), viz_data["trainee_importance"], color="coral", alpha=0.7)
     ax_trainee.set_xlabel("Trainee clip index")
     ax_trainee.set_ylabel("Importance")
     ax_trainee.set_ylim(0, 1.1)
 
     # Right: gold importance
     ax_gold = fig.add_subplot(gs[0, 1], sharey=ax_main)
-    ax_gold.barh(range(len(viz_data["gold_importance"])), viz_data["gold_importance"],
-                 color="steelblue", alpha=0.7)
+    ax_gold.barh(range(len(viz_data["gold_importance"])), viz_data["gold_importance"], color="steelblue", alpha=0.7)
     ax_gold.set_xlabel("Importance")
     ax_gold.invert_xaxis()
 
@@ -445,8 +459,7 @@ def plot_explainability(gold: np.ndarray, trainee: np.ndarray, out_dir: Path) ->
     ax_sens.set_title("Metric\nSensitivity", fontsize=10)
     ax_sens.invert_yaxis()
 
-    fig.suptitle("Explainability: Temporal Attention + Metric Sensitivity",
-                 fontsize=14, fontweight="bold")
+    fig.suptitle("Explainability: Temporal Attention + Metric Sensitivity", fontsize=14, fontweight="bold")
     plt.tight_layout()
     fig.savefig(out_dir / "05_explainability.png")
     plt.close(fig)
@@ -456,6 +469,7 @@ def plot_explainability(gold: np.ndarray, trainee: np.ndarray, out_dir: Path) ->
 # ---------------------------------------------------------------------------
 # Figure 6: Architecture Summary (info graphic)
 # ---------------------------------------------------------------------------
+
 
 def plot_architecture_summary(out_dir: Path) -> None:
     """Architecture diagram showing the full neural pipeline."""
@@ -476,17 +490,14 @@ def plot_architecture_summary(out_dir: Path) -> None:
 
     for x, y, text, color in boxes:
         w, h = 1.5, 1.2
-        rect = plt.Rectangle((x, y - h/2), w, h, facecolor=color,
-                              edgecolor="black", linewidth=1.5, zorder=2)
+        rect = plt.Rectangle((x, y - h / 2), w, h, facecolor=color, edgecolor="black", linewidth=1.5, zorder=2)
         ax.add_patch(rect)
-        ax.text(x + w/2, y, text, ha="center", va="center", fontsize=8,
-                fontweight="bold", zorder=3)
+        ax.text(x + w / 2, y, text, ha="center", va="center", fontsize=8, fontweight="bold", zorder=3)
 
     # Arrows
     arrow_props = dict(arrowstyle="->", linewidth=2, color="black")
     for x_start in [1.8, 3.5, 5.5, 7.5, 9.5]:
-        ax.annotate("", xy=(x_start + 0.2, 4.5), xytext=(x_start, 4.5),
-                    arrowprops=arrow_props)
+        ax.annotate("", xy=(x_start + 0.2, 4.5), xytext=(x_start, 4.5), arrowprops=arrow_props)
 
     # Lower modules
     lower_boxes = [
@@ -498,22 +509,33 @@ def plot_architecture_summary(out_dir: Path) -> None:
 
     for x, y, text, color in lower_boxes:
         w, h = 1.5, 1.0
-        rect = plt.Rectangle((x, y - h/2), w, h, facecolor=color,
-                              edgecolor="gray", linewidth=1, linestyle="--", zorder=2)
+        rect = plt.Rectangle(
+            (x, y - h / 2), w, h, facecolor=color, edgecolor="gray", linewidth=1, linestyle="--", zorder=2
+        )
         ax.add_patch(rect)
-        ax.text(x + w/2, y, text, ha="center", va="center", fontsize=7, zorder=3)
+        ax.text(x + w / 2, y, text, ha="center", va="center", fontsize=7, zorder=3)
 
     # Connect lower to upper
     for x_upper, x_lower in [(2.75, 2.75), (5.0, 4.75), (8.75, 6.75), (8.75, 8.75)]:
-        ax.annotate("", xy=(x_lower, 3.0), xytext=(x_upper, 3.9),
-                    arrowprops=dict(arrowstyle="->", linewidth=1, color="gray", linestyle="--"))
+        ax.annotate(
+            "",
+            xy=(x_lower, 3.0),
+            xytext=(x_upper, 3.9),
+            arrowprops=dict(arrowstyle="->", linewidth=1, color="gray", linestyle="--"),
+        )
 
     # Labels
-    ax.text(5.0, 5.8, "SOPilot Neural Scoring Pipeline", ha="center", va="center",
-            fontsize=16, fontweight="bold")
-    ax.text(5.0, 0.8, "6-Phase Training: Contrastive → Segmentation → DTW Alignment → "
-            "Scoring → Calibration → Conformal",
-            ha="center", va="center", fontsize=9, style="italic", color="gray")
+    ax.text(5.0, 5.8, "SOPilot Neural Scoring Pipeline", ha="center", va="center", fontsize=16, fontweight="bold")
+    ax.text(
+        5.0,
+        0.8,
+        "6-Phase Training: Contrastive → Segmentation → DTW Alignment → Scoring → Calibration → Conformal",
+        ha="center",
+        va="center",
+        fontsize=9,
+        style="italic",
+        color="gray",
+    )
 
     # Tech annotations
     annotations = [
@@ -523,8 +545,7 @@ def plot_architecture_summary(out_dir: Path) -> None:
         (8.75, 1.5, "Sundararajan\n(ICML 2017)"),
     ]
     for x, y, text in annotations:
-        ax.text(x, y, text, ha="center", va="center", fontsize=6,
-                color="gray", style="italic")
+        ax.text(x, y, text, ha="center", va="center", fontsize=6, color="gray", style="italic")
 
     fig.savefig(out_dir / "06_architecture.png")
     plt.close(fig)
@@ -534,6 +555,7 @@ def plot_architecture_summary(out_dir: Path) -> None:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main():
     parser = argparse.ArgumentParser(description="SOPilot Neural Pipeline Visualization Demo")

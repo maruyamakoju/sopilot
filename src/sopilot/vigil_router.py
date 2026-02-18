@@ -106,6 +106,7 @@ class VideoStatusResponse(BaseModel):
 # Service accessor (lazy init)
 # ---------------------------------------------------------------------------
 
+
 def _get_vigil_services(request: Request):
     """Get or lazily create VIGIL-RAG services from app state.
 
@@ -182,6 +183,7 @@ def index_video(payload: IndexRequest, request: Request) -> IndexResponse:
     video_id = payload.video_id
     if video_id is None:
         from .rag_service import compute_video_id
+
         video_id = compute_video_id(video_path)
 
     try:
@@ -192,20 +194,33 @@ def index_video(payload: IndexRequest, request: Request) -> IndexResponse:
         tx_service = None
         if payload.transcribe:
             from .transcription_service import TranscriptionConfig, TranscriptionService
+
             tx_config = TranscriptionConfig(backend="openai-whisper")
             tx_service = TranscriptionService(tx_config)
 
         if payload.hierarchical:
             from .vigil_helpers import index_video_all_levels
+
             result = index_video_all_levels(
-                video_path, video_id, chunker, embedder, qdrant,
-                domain=payload.domain, transcription_service=tx_service,
+                video_path,
+                video_id,
+                chunker,
+                embedder,
+                qdrant,
+                domain=payload.domain,
+                transcription_service=tx_service,
             )
         else:
             from .vigil_helpers import index_video_micro
+
             result = index_video_micro(
-                video_path, video_id, chunker, embedder, qdrant,
-                domain=payload.domain, transcription_service=tx_service,
+                video_path,
+                video_id,
+                chunker,
+                embedder,
+                qdrant,
+                domain=payload.domain,
+                transcription_service=tx_service,
             )
 
         request.app.state._vigil_indexed_videos.add(video_id)
@@ -269,17 +284,19 @@ def search_clips(payload: SearchRequest, request: Request) -> SearchResponse:
                     v_score = v.score if v else 0.0
                     a_score = (a.score * payload.alpha) if a else 0.0
                     base = v or a
-                    fused.append(SearchResultItem(
-                        clip_id=base.clip_id,
-                        video_id=base.video_id,
-                        start_sec=base.start_sec,
-                        end_sec=base.end_sec,
-                        score=max(v_score, a_score),
-                        transcript_text=base.transcript_text or (a.transcript_text if a else None),
-                    ))
+                    fused.append(
+                        SearchResultItem(
+                            clip_id=base.clip_id,
+                            video_id=base.video_id,
+                            start_sec=base.start_sec,
+                            end_sec=base.end_sec,
+                            score=max(v_score, a_score),
+                            transcript_text=base.transcript_text or (a.transcript_text if a else None),
+                        )
+                    )
 
                 fused.sort(key=lambda x: x.score, reverse=True)
-                items = fused[:payload.top_k]
+                items = fused[: payload.top_k]
                 return SearchResponse(query=payload.query, num_results=len(items), results=items)
 
         items = [

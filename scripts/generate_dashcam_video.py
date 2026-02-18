@@ -39,7 +39,7 @@ class DashcamVideoGenerator:
         """
         print(f"Generating collision video: {output_path}")
 
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         out = cv2.VideoWriter(output_path, fourcc, self.fps, (self.width, self.height))
 
         total_frames = duration_sec * self.fps
@@ -66,8 +66,8 @@ class DashcamVideoGenerator:
             "ground_truth": {
                 "fault_ratio": 100.0,  # Rear-ender is 100% at fault
                 "scenario": "rear_end",
-                "fraud_risk": 0.0
-            }
+                "fraud_risk": 0.0,
+            },
         }
 
     def generate_near_miss_video(self, output_path: str, duration_sec: int = 30):
@@ -83,7 +83,7 @@ class DashcamVideoGenerator:
         """
         print(f"Generating near-miss video: {output_path}")
 
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         out = cv2.VideoWriter(output_path, fourcc, self.fps, (self.width, self.height))
 
         total_frames = duration_sec * self.fps
@@ -109,8 +109,8 @@ class DashcamVideoGenerator:
             "ground_truth": {
                 "fault_ratio": 0.0,  # No collision occurred
                 "scenario": "pedestrian_avoidance",
-                "fraud_risk": 0.0
-            }
+                "fraud_risk": 0.0,
+            },
         }
 
     def generate_normal_video(self, output_path: str, duration_sec: int = 30):
@@ -122,7 +122,7 @@ class DashcamVideoGenerator:
         """
         print(f"Generating normal driving video: {output_path}")
 
-        fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+        fourcc = cv2.VideoWriter_fourcc(*"mp4v")
         out = cv2.VideoWriter(output_path, fourcc, self.fps, (self.width, self.height))
 
         total_frames = duration_sec * self.fps
@@ -143,11 +143,7 @@ class DashcamVideoGenerator:
             "type": "normal",
             "duration_sec": duration_sec,
             "severity": "NONE",
-            "ground_truth": {
-                "fault_ratio": 0.0,
-                "scenario": "normal_driving",
-                "fraud_risk": 0.0
-            }
+            "ground_truth": {"fault_ratio": 0.0, "scenario": "normal_driving", "fraud_risk": 0.0},
         }
 
     def _create_highway_frame(self, frame_idx: int, total_frames: int, collision_frame: int):
@@ -159,7 +155,7 @@ class DashcamVideoGenerator:
         sky_color_bottom = (220, 180, 140)
         for y in range(self.height // 2):
             ratio = y / (self.height // 2)
-            color = tuple(int(sky_color_top[i] * (1-ratio) + sky_color_bottom[i] * ratio) for i in range(3))
+            color = tuple(int(sky_color_top[i] * (1 - ratio) + sky_color_bottom[i] * ratio) for i in range(3))
             cv2.line(img, (0, y), (self.width, y), color, 1)
 
         # Road (gray)
@@ -200,7 +196,9 @@ class DashcamVideoGenerator:
         # Windows
         window_y = car_y + 20
         window_height = car_height // 3
-        cv2.rectangle(img, (car_x + 30, window_y), (car_x + car_width - 30, window_y + window_height), (100, 150, 200), -1)
+        cv2.rectangle(
+            img, (car_x + 30, window_y), (car_x + car_width - 30, window_y + window_height), (100, 150, 200), -1
+        )
 
         # Brake lights (RED) if approaching collision
         if frame_idx > collision_frame - 150:  # 5 seconds before collision
@@ -208,7 +206,13 @@ class DashcamVideoGenerator:
             brake_color = (0, 0, min(255, 150 + brake_intensity))
             tail_light_y = car_y + car_height - 30
             cv2.rectangle(img, (car_x + 10, tail_light_y), (car_x + 40, tail_light_y + 20), brake_color, -1)
-            cv2.rectangle(img, (car_x + car_width - 40, tail_light_y), (car_x + car_width - 10, tail_light_y + 20), brake_color, -1)
+            cv2.rectangle(
+                img,
+                (car_x + car_width - 40, tail_light_y),
+                (car_x + car_width - 10, tail_light_y + 20),
+                brake_color,
+                -1,
+            )
 
         # Collision effect (white flash + impact)
         if abs(frame_idx - collision_frame) < 5:
@@ -218,8 +222,15 @@ class DashcamVideoGenerator:
             cv2.addWeighted(overlay, flash_intensity / 255.0, img, 1 - flash_intensity / 255.0, 0, img)
 
             # Impact text
-            cv2.putText(img, "COLLISION!", (self.width // 2 - 200, self.height // 2),
-                       cv2.FONT_HERSHEY_SIMPLEX, 3, (0, 0, 255), 8)
+            cv2.putText(
+                img,
+                "COLLISION!",
+                (self.width // 2 - 200, self.height // 2),
+                cv2.FONT_HERSHEY_SIMPLEX,
+                3,
+                (0, 0, 255),
+                8,
+            )
 
         # Dashboard overlay (timestamp, speed)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -264,8 +275,9 @@ class DashcamVideoGenerator:
 
         # Warning indicator (if close to near-miss)
         if abs(frame_idx - near_miss_frame) < 30:
-            cv2.putText(img, "! PEDESTRIAN !", (self.width // 2 - 250, 150),
-                       cv2.FONT_HERSHEY_SIMPLEX, 2.5, (0, 0, 255), 6)
+            cv2.putText(
+                img, "! PEDESTRIAN !", (self.width // 2 - 250, 150), cv2.FONT_HERSHEY_SIMPLEX, 2.5, (0, 0, 255), 6
+            )
 
         # Dashboard
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -325,20 +337,18 @@ class DashcamVideoGenerator:
 
 
 def main():
-    parser = argparse.ArgumentParser(description='Generate dashcam footage for insurance demo')
-    parser.add_argument('--output-dir', type=str, default='data/dashcam_demo',
-                       help='Output directory for generated videos')
-    parser.add_argument('--duration', type=int, default=30,
-                       help='Video duration in seconds')
-    parser.add_argument('--resolution', type=str, default='1920x1080',
-                       help='Video resolution (WIDTHxHEIGHT)')
-    parser.add_argument('--fps', type=int, default=30,
-                       help='Frames per second')
+    parser = argparse.ArgumentParser(description="Generate dashcam footage for insurance demo")
+    parser.add_argument(
+        "--output-dir", type=str, default="data/dashcam_demo", help="Output directory for generated videos"
+    )
+    parser.add_argument("--duration", type=int, default=30, help="Video duration in seconds")
+    parser.add_argument("--resolution", type=str, default="1920x1080", help="Video resolution (WIDTHxHEIGHT)")
+    parser.add_argument("--fps", type=int, default=30, help="Frames per second")
 
     args = parser.parse_args()
 
     # Parse resolution
-    width, height = map(int, args.resolution.split('x'))
+    width, height = map(int, args.resolution.split("x"))
 
     # Create output directory
     output_dir = Path(args.output_dir)
@@ -348,32 +358,32 @@ def main():
     generator = DashcamVideoGenerator(width=width, height=height, fps=args.fps)
 
     # Generate 3 videos
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("Generating Dashcam Demo Videos")
-    print("="*60 + "\n")
+    print("=" * 60 + "\n")
 
     metadata = {}
 
     # 1. Collision
     collision_path = str(output_dir / "collision.mp4")
-    metadata['collision'] = generator.generate_collision_video(collision_path, args.duration)
+    metadata["collision"] = generator.generate_collision_video(collision_path, args.duration)
 
     # 2. Near-miss
     near_miss_path = str(output_dir / "near_miss.mp4")
-    metadata['near_miss'] = generator.generate_near_miss_video(near_miss_path, args.duration)
+    metadata["near_miss"] = generator.generate_near_miss_video(near_miss_path, args.duration)
 
     # 3. Normal
     normal_path = str(output_dir / "normal.mp4")
-    metadata['normal'] = generator.generate_normal_video(normal_path, args.duration)
+    metadata["normal"] = generator.generate_normal_video(normal_path, args.duration)
 
     # Save metadata
     metadata_path = output_dir / "metadata.json"
-    with open(metadata_path, 'w') as f:
+    with open(metadata_path, "w") as f:
         json.dump(metadata, f, indent=2)
 
-    print("\n" + "="*60)
+    print("\n" + "=" * 60)
     print("[SUCCESS] All videos generated successfully!")
-    print("="*60)
+    print("=" * 60)
     print(f"\nOutput directory: {output_dir}")
     print("  - collision.mp4  (HIGH severity)")
     print("  - near_miss.mp4  (MEDIUM severity)")
@@ -382,5 +392,5 @@ def main():
     print()
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

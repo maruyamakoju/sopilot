@@ -68,10 +68,12 @@ def load_video_embeddings(video_path: Path) -> tuple[np.ndarray, list[dict]]:
                 frame = cv2.resize(frame, (new_w, new_h))
 
             frames.append(frame)
-            meta.append({
-                "frame_idx": frame_idx,
-                "timestamp": frame_idx / fps,
-            })
+            meta.append(
+                {
+                    "frame_idx": frame_idx,
+                    "timestamp": frame_idx / fps,
+                }
+            )
 
         frame_idx += 1
 
@@ -216,7 +218,9 @@ def main():
     print(f"  Score delta:      {result_neural.score - result_heuristic.score:+.1f} points")
     print(f"  Alignment delta:  {result_neural.alignment_cost - result_heuristic.alignment_cost:+.4f}")
     print(f"  Time delta:       {elapsed_neural - elapsed_heuristic:+.2f}s")
-    print(f"  Speedup:          {elapsed_heuristic / elapsed_neural:.2f}x {'(Neural FASTER!)' if elapsed_neural < elapsed_heuristic else '(Heuristic faster)'}")
+    print(
+        f"  Speedup:          {elapsed_heuristic / elapsed_neural:.2f}x {'(Neural FASTER!)' if elapsed_neural < elapsed_heuristic else '(Heuristic faster)'}"
+    )
     print()
 
     # Commercial summary

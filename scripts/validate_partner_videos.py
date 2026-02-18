@@ -221,7 +221,10 @@ def print_summary(report: dict[str, Any]) -> None:
         naming = "✅" if video["naming_convention_ok"] else "⚠️"
         print(f"{status} {naming} {video['filename']}", file=sys.stderr)
         if video["readable"]:
-            print(f"   {video['width']}x{video['height']} @ {video['fps']:.1f}fps, {video['duration_sec']:.1f}s", file=sys.stderr)
+            print(
+                f"   {video['width']}x{video['height']} @ {video['fps']:.1f}fps, {video['duration_sec']:.1f}s",
+                file=sys.stderr,
+            )
         if video["error_message"]:
             print(f"   Error: {video['error_message']}", file=sys.stderr)
 

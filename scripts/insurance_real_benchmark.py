@@ -67,10 +67,11 @@ def check_gpu_ready() -> bool:
     """Quick GPU readiness check."""
     try:
         import torch
+
         if not torch.cuda.is_available():
             logger.error("CUDA not available. Real VLM benchmark requires GPU.")
             return False
-        vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+        vram_gb = torch.cuda.get_device_properties(0).total_memory / (1024**3)
         gpu_name = torch.cuda.get_device_name(0)
         logger.info(f"GPU: {gpu_name}, VRAM: {vram_gb:.1f} GB")
         if vram_gb < 14.0:
@@ -193,9 +194,13 @@ def run_benchmark(as_json: bool = False, quick_mode: bool = False, quantize: str
             if not as_json:
                 print(f"\n--- {video_name} ---")
                 print(f"  Inference time: {inference_time:.2f}s")
-                print(f"  Severity: {assessment.severity} (expected: {gt['severity']}) {'MATCH' if sev_match else 'MISMATCH'}")
+                print(
+                    f"  Severity: {assessment.severity} (expected: {gt['severity']}) {'MATCH' if sev_match else 'MISMATCH'}"
+                )
                 print(f"  Confidence: {assessment.confidence:.3f}")
-                print(f"  Fault ratio: {assessment.fault_assessment.fault_ratio:.1f}% (expected: {gt['fault_ratio']:.1f}%)")
+                print(
+                    f"  Fault ratio: {assessment.fault_assessment.fault_ratio:.1f}% (expected: {gt['fault_ratio']:.1f}%)"
+                )
                 print(f"  Fraud score: {assessment.fraud_risk.risk_score:.3f} (expected: <= 0.3)")
                 print(f"  Scenario: {assessment.fault_assessment.scenario_type}")
                 print(f"  Prediction set: {sorted(assessment.prediction_set)}")
@@ -258,8 +263,9 @@ def main():
     parser = argparse.ArgumentParser(description="Insurance MVP Real VLM Benchmark")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     parser.add_argument("--quick", action="store_true", help="Use quick severity-only prompt")
-    parser.add_argument("--quantize", choices=["int4", "int8"], default=None,
-                        help="Quantize model (requires bitsandbytes)")
+    parser.add_argument(
+        "--quantize", choices=["int4", "int8"], default=None, help="Quantize model (requires bitsandbytes)"
+    )
     args = parser.parse_args()
 
     # Pre-flight checks

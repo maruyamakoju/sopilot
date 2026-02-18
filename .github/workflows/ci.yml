@@ -54,8 +54,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgl1 libglib2.0-0
 
-      - name: Install project
-        run: pip install -e ".[dev,ml]"
+      - name: Install pinned CI deps
+        run: |
+          pip install -r requirements-ci-base.txt
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e ".[dev,ml]"
 
       - name: Run unit tests with coverage
         run: |
@@ -91,8 +94,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgl1 libglib2.0-0
 
-      - name: Install project with insurance deps
-        run: pip install -e ".[dev,insurance]"
+      - name: Install pinned CI deps
+        run: |
+          pip install -r requirements-ci-base.txt
+          pip install -r requirements-ci-insurance.txt
+          pip install -e ".[dev,insurance]"
 
       - name: Run insurance MVP tests with coverage
         run: |
@@ -120,8 +126,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y libgl1 libglib2.0-0
 
-      - name: Install project
-        run: pip install -e ".[dev,ml]"
+      - name: Install pinned CI deps
+        run: |
+          pip install -r requirements-ci-base.txt
+          pip install torch --index-url https://download.pytorch.org/whl/cpu
+          pip install -e ".[dev,ml]"
 
       - name: Run E2E smoke test
         run: python scripts/smoke_e2e.py --verbose

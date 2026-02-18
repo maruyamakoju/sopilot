@@ -8,6 +8,8 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class HealthResponse(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"status": "ok", "db": True}]})
+
     status: str = Field(description="Service health: 'ok' or 'degraded'")
     db: bool = Field(description="Database connectivity status")
 
@@ -18,6 +20,8 @@ class HealthResponse(BaseModel):
 
 
 class VideoIngestCreateResponse(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"ingest_job_id": "ingest-abc123", "status": "queued"}]})
+
     ingest_job_id: str
     status: str
 
@@ -45,11 +49,17 @@ class VideoIngestResultResponse(BaseModel):
 
 
 class ScoreRequest(BaseModel):
+    model_config = ConfigDict(json_schema_extra={"examples": [{"gold_video_id": 1, "trainee_video_id": 2}]})
+
     gold_video_id: int = Field(..., ge=1)
     trainee_video_id: int = Field(..., ge=1)
 
 
 class ScoreCreateResponse(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"score_job_id": "score-abc123", "status": "queued", "score": None}]}
+    )
+
     score_job_id: str
     status: str
     score: float | None
@@ -198,6 +208,23 @@ class SearchResponse(BaseModel):
 
 
 class VideoInfoResponse(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "examples": [
+                {
+                    "video_id": 1,
+                    "task_id": "hand-wash",
+                    "role": "gold",
+                    "site_id": "factory-A",
+                    "camera_id": "cam-01",
+                    "num_clips": 12,
+                    "embedding_model": "heuristic-v1",
+                    "created_at": "2026-02-18T12:00:00+00:00",
+                }
+            ]
+        }
+    )
+
     video_id: int
     task_id: str
     role: str
@@ -264,6 +291,10 @@ class TrainingResult(BaseModel):
 
 
 class TrainingCreateResponse(BaseModel):
+    model_config = ConfigDict(
+        json_schema_extra={"examples": [{"training_job_id": "train-abc123", "status": "queued", "trigger": "manual"}]}
+    )
+
     training_job_id: str
     status: str
     trigger: str

@@ -61,6 +61,9 @@ insurance = [
   "tqdm>=4.66.0",
   "scipy>=1.11.0",
 ]
+dashboard = [
+  "streamlit>=1.30.0",
+]
 
 [project.scripts]
 sopilot-api = "sopilot.main:run"

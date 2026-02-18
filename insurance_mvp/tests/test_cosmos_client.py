@@ -57,7 +57,7 @@ class TestVLMConfig:
         assert config.model_name == "qwen2.5-vl-7b"
         assert config.device == "cuda"
         assert config.fps == 2.0
-        assert config.max_frames == 16
+        assert config.max_frames == 48
         assert config.timeout_sec == 300.0
 
     def test_custom_config(self):

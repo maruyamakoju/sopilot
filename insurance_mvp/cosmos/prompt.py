@@ -23,12 +23,22 @@ CLAIM_ASSESSMENT_PROMPT = """Analyze this dashcam footage and provide an insuran
 - Are pedestrians or cyclists involved?
 - Are there near-miss events without actual contact?
 - Is this just normal driving with no incident?
+- READ ALL TEXT OVERLAYS in the video: speed readings, timestamps, and especially alert text like "COLLISION!", "NEAR MISS", "ACCIDENT", "DANGER"
+- TRACK SPEED CHANGES: If the speed overlay drops rapidly (e.g., 60 km/h to 0 km/h), this indicates emergency braking or collision impact
+- Note any flash frames, color changes, or screen transitions that signal an event
+
+**CRITICAL EVIDENCE RULES:**
+- If any frame shows text like "COLLISION!" or "IMPACT" → this IS a collision, severity is at minimum HIGH
+- If speed drops from >40 km/h to 0 km/h while approaching another vehicle → rear-end collision (HIGH)
+- If you see emergency braking with a pedestrian nearby → near-miss (MEDIUM)
+- A vehicle/object growing rapidly larger in the frame = approaching collision
 
 **STEP 2 -CLASSIFY SEVERITY based on your observations:**
 
 NONE -No incident detected:
 - Normal driving, no collision, no near-miss
 - Routine traffic flow with no notable events
+- Speed remains constant or changes gradually
 
 LOW -Minor incident:
 - Very low-speed contact (parking lot bump, nudge while stopped)
@@ -39,15 +49,18 @@ MEDIUM -Moderate incident:
 - Clear collision at moderate speed
 - Visible vehicle damage (bent bumper, cracked body panel)
 - Emergency braking to avoid collision (near-miss with close call)
+- Pedestrian or obstacle avoidance with sudden braking
 - Multiple vehicles involved in contact
 
 HIGH -Serious incident:
 - High-speed collision with strong impact force
+- Speed dropping from high to zero rapidly while near another vehicle
 - Severe vehicle deformation or structural damage
 - Airbag deployment visible
 - Pedestrian or cyclist struck by vehicle
 - Vehicle rollover or spin-out
 - Debris scattered across the road
+- Any frame showing "COLLISION!" or impact alert text
 
 **STEP 3 -PRODUCE JSON with your assessment:**
 

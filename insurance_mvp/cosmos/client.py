@@ -67,7 +67,7 @@ class VLMConfig:
         device: str = "cuda",
         dtype: str = "bfloat16",
         fps: float = 2.0,
-        max_frames: int = 16,
+        max_frames: int = 48,
         max_new_tokens: int = 512,
         temperature: float = 0.3,
         timeout_sec: float = 300.0,
@@ -640,6 +640,8 @@ class VideoLLMClient:
         Returns:
             ClaimAssessment object (with default fallback on total failure)
         """
+        logger.info("Raw VLM output (%d chars): %s", len(raw_output), raw_output[:1000])
+
         # Step 1: Direct parse
         try:
             data = json.loads(raw_output)
@@ -755,6 +757,30 @@ class VideoLLMClient:
         data["video_id"] = video_id
         data["processing_time_sec"] = processing_time
 
+        # Fill defaults for missing sub-model fields (VLM often omits these)
+        fa = data.get("fault_assessment")
+        if isinstance(fa, dict):
+            fa.setdefault("fault_ratio", 50.0)
+            fa.setdefault("reasoning", "Not specified by model")
+            fa.setdefault("scenario_type", "unknown")
+        elif fa is None:
+            data["fault_assessment"] = {
+                "fault_ratio": 50.0,
+                "reasoning": "Not specified by model",
+                "scenario_type": "unknown",
+            }
+
+        fr = data.get("fraud_risk")
+        if isinstance(fr, dict):
+            fr.setdefault("risk_score", 0.0)
+            fr.setdefault("reasoning", "Not evaluated")
+        elif fr is None:
+            data["fraud_risk"] = {
+                "risk_score": 0.0,
+                "indicators": [],
+                "reasoning": "Not evaluated",
+            }
+
         try:
             # Validate with Pydantic
             assessment = ClaimAssessment(**data)
@@ -764,7 +790,15 @@ class VideoLLMClient:
         except ValidationError as exc:
             logger.error("Validation failed: %s", exc)
             logger.warning("Returning default assessment due to validation failure")
-            return create_default_claim_assessment(video_id)
+            default = create_default_claim_assessment(video_id)
+            # Preserve severity/confidence if they were parsed
+            if "severity" in data and data["severity"] in ("NONE", "LOW", "MEDIUM", "HIGH"):
+                default.severity = data["severity"]
+            if "confidence" in data and isinstance(data["confidence"], (int, float)):
+                default.confidence = max(0.0, min(1.0, float(data["confidence"])))
+            if "causal_reasoning" in data and isinstance(data["causal_reasoning"], str):
+                default.causal_reasoning = data["causal_reasoning"]
+            return default
 
         except Exception as exc:
             logger.error("Unexpected error during validation: %s", exc)

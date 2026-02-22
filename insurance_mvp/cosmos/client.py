@@ -101,6 +101,10 @@ class VLMConfig:
         self.min_pixels = min_pixels
         self.max_pixels = max_pixels
         self.quantize = quantize
+        self.gpu_cleanup = True  # Enable GPU memory cleanup after inference
+        self.jpeg_quality = 75  # JPEG quality (75 vs 95 = 3x smaller files)
+        self.max_clip_duration_sec = 60.0  # Maximum clip duration to process
+        self.enable_cpu_fallback = True  # Fall back to CPU on CUDA errors
 
 
 class VideoLLMClient:
@@ -341,7 +345,7 @@ class VideoLLMClient:
                 frame_path = temp_dir / f"frame_{idx:04d}.jpg"
                 from PIL import Image
 
-                Image.fromarray(frame_rgb).save(frame_path, quality=95)
+                Image.fromarray(frame_rgb).save(frame_path, quality=self.config.jpeg_quality)
                 frame_paths.append(frame_path)
 
             cap.release()
@@ -366,8 +370,57 @@ class VideoLLMClient:
                 shutil.rmtree(temp_dir, ignore_errors=True)
             raise
 
+    def _run_inference_with_retry(self, frame_paths: list[Path], prompt: str, max_retries: int = 3) -> str:
+        """Run Video-LLM inference with retry logic (frames already extracted).
+
+        Args:
+            frame_paths: List of paths to sampled frames (already extracted)
+            prompt: Text prompt for the model
+            max_retries: Maximum number of retry attempts
+
+        Returns:
+            Raw model output (JSON string)
+
+        Raises:
+            RuntimeError: If all retry attempts fail
+        """
+        for attempt in range(max_retries):
+            try:
+                return self._run_inference(frame_paths, prompt)
+            except Exception as exc:
+                is_cuda_error = "CUDA" in str(exc).upper()
+                logger.warning("Attempt %d/%d failed: %s", attempt + 1, max_retries, exc)
+
+                # Progressive GPU→CPU fallback on CUDA errors
+                if (
+                    is_cuda_error
+                    and attempt == max_retries - 2
+                    and self.config.enable_cpu_fallback
+                    and self._model is not None
+                ):
+                    logger.warning("CUDA error detected, falling back to CPU for final attempt")
+                    self._model = self._model.to("cpu")
+                    self.config.device = "cpu"
+                    if TORCH_AVAILABLE:
+                        torch.cuda.empty_cache()
+
+                # GPU cleanup between retries
+                if TORCH_AVAILABLE and self.config.device == "cuda" and self.config.gpu_cleanup:
+                    try:
+                        torch.cuda.empty_cache()
+                        logger.debug("GPU cache cleared between retries")
+                    except Exception as cleanup_exc:
+                        logger.warning("GPU cleanup failed: %s", cleanup_exc)
+
+                if attempt < max_retries - 1:
+                    delay = 2.0 * (attempt + 1)
+                    logger.info("Retrying in %.1f seconds...", delay)
+                    time.sleep(delay)
+
+        raise RuntimeError(f"All {max_retries} inference attempts failed")
+
     def _run_inference(self, frame_paths: list[Path], prompt: str) -> str:
-        """Run Video-LLM inference on sampled frames.
+        """Run Video-LLM inference on sampled frames (single attempt).
 
         Args:
             frame_paths: List of paths to sampled frames
@@ -605,6 +658,11 @@ class VideoLLMClient:
             result = output_text[0] if output_text else ""
             logger.info("Generated output length: %d chars", len(result))
 
+            # GPU memory cleanup (CRITICAL: prevent VRAM exhaustion)
+            del generated_ids, generated_ids_trimmed
+            if self.config.device == "cuda":
+                del inputs
+
             return result
 
         except TimeoutError:
@@ -619,6 +677,14 @@ class VideoLLMClient:
             # Cancel timeout
             with contextlib.suppress(AttributeError):
                 signal.alarm(0)
+
+            # GPU memory cleanup (prevent CUDA crashes on long-running sessions)
+            if TORCH_AVAILABLE and self.config.device == "cuda" and self.config.gpu_cleanup:
+                try:
+                    torch.cuda.empty_cache()
+                    logger.debug("GPU cache cleared")
+                except Exception as cleanup_exc:
+                    logger.warning("GPU cleanup failed: %s", cleanup_exc)
 
     def _parse_json_response(self, raw_output: str, video_id: str, processing_time: float) -> ClaimAssessment:
         """Parse Video-LLM JSON output with 7-step repair pipeline.
@@ -827,6 +893,23 @@ class VideoLLMClient:
         start_time = time.time()
 
         try:
+            # Step 0: Enforce clip duration limit (CRITICAL: 20min video → 40 hours vs 60s → 2min)
+            if self.config.max_clip_duration_sec and end_sec is None:
+                cap = cv2.VideoCapture(str(video_path))
+                if cap.isOpened():
+                    fps = cap.get(cv2.CAP_PROP_FPS)
+                    total_frames = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    video_duration = total_frames / fps if fps > 0 else 0
+                    cap.release()
+                    if video_duration > self.config.max_clip_duration_sec:
+                        end_sec = start_sec + self.config.max_clip_duration_sec
+                        logger.info(
+                            "Clipping video from %.1fs to %.1fs (limit: %.1fs)",
+                            video_duration,
+                            end_sec,
+                            self.config.max_clip_duration_sec,
+                        )
+
             # Step 1: Sample frames
             logger.info("Assessing claim for video: %s [%.2f-%.2f sec]", video_id, start_sec, end_sec or 0)
             frame_paths = self._sample_frames(video_path, start_sec, end_sec)
@@ -834,8 +917,8 @@ class VideoLLMClient:
             # Step 2: Prepare prompt
             prompt = get_claim_assessment_prompt(include_calibration=True)
 
-            # Step 3: Run inference
-            raw_output = self._run_inference(frame_paths, prompt)
+            # Step 3: Run inference with retry (frames already extracted, no re-extraction on retry)
+            raw_output = self._run_inference_with_retry(frame_paths, prompt, max_retries=3)
             logger.debug("Raw output: %s", raw_output[:500])
 
             # Step 4: Parse JSON

@@ -15,6 +15,7 @@ Features:
 
 from __future__ import annotations
 
+import concurrent.futures
 import contextlib
 import json
 import logging
@@ -105,6 +106,7 @@ class VLMConfig:
         self.jpeg_quality = 75  # JPEG quality (75 vs 95 = 3x smaller files)
         self.max_clip_duration_sec = 60.0  # Maximum clip duration to process
         self.enable_cpu_fallback = True  # Fall back to CPU on CUDA errors
+        self.frame_extraction_timeout_sec = 120.0  # Timeout for frame extraction (prevents hangs)
 
 
 class VideoLLMClient:
@@ -330,25 +332,53 @@ class VideoLLMClient:
         temp_dir = Path(tempfile.mkdtemp(prefix="vlm_frames_"))
         frame_paths: list[Path] = []
 
+        def extract_frames():
+            """Internal function to extract frames (called with timeout)."""
+            nonlocal frame_paths
+            try:
+                for idx, frame_idx in enumerate(frame_indices):
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+                    ret, frame = cap.read()
+                    if not ret:
+                        logger.warning("Failed to read frame %d", frame_idx)
+                        continue
+
+                    # Convert BGR to RGB
+                    frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+                    # Save frame
+                    frame_path = temp_dir / f"frame_{idx:04d}.jpg"
+                    from PIL import Image
+
+                    Image.fromarray(frame_rgb).save(frame_path, quality=self.config.jpeg_quality)
+                    frame_paths.append(frame_path)
+            finally:
+                cap.release()
+
+        # Extract frames with timeout protection
+        extraction_start = time.time()
         try:
-            for idx, frame_idx in enumerate(frame_indices):
-                cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
-                ret, frame = cap.read()
-                if not ret:
-                    logger.warning("Failed to read frame %d", frame_idx)
-                    continue
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(extract_frames)
+                try:
+                    future.result(timeout=self.config.frame_extraction_timeout_sec)
+                except concurrent.futures.TimeoutError:
+                    extraction_time = time.time() - extraction_start
+                    logger.error(
+                        "Frame extraction timed out after %.1fs (limit: %.1fs)",
+                        extraction_time,
+                        self.config.frame_extraction_timeout_sec,
+                    )
+                    cap.release()
+                    if temp_dir.exists():
+                        shutil.rmtree(temp_dir, ignore_errors=True)
+                    raise ValueError(
+                        f"Frame extraction timed out after {extraction_time:.1f}s. "
+                        "Video may have corrupt frames or unsupported encoding."
+                    )
 
-                # Convert BGR to RGB
-                frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-
-                # Save frame
-                frame_path = temp_dir / f"frame_{idx:04d}.jpg"
-                from PIL import Image
-
-                Image.fromarray(frame_rgb).save(frame_path, quality=self.config.jpeg_quality)
-                frame_paths.append(frame_path)
-
-            cap.release()
+            extraction_time = time.time() - extraction_start
+            logger.info("Frame extraction completed in %.2fs", extraction_time)
 
             if not frame_paths:
                 raise ValueError("No frames extracted from video clip")
@@ -891,6 +921,7 @@ class VideoLLMClient:
             RuntimeError: If inference fails catastrophically
         """
         start_time = time.time()
+        t0 = start_time
 
         try:
             # Step 0: Enforce clip duration limit (CRITICAL: 20min video → 40 hours vs 60s → 2min)
@@ -910,20 +941,34 @@ class VideoLLMClient:
                             self.config.max_clip_duration_sec,
                         )
 
+            t1 = time.time()
+            logger.info("[TIMING] Clip duration check: %.2fs", t1 - t0)
+
             # Step 1: Sample frames
             logger.info("Assessing claim for video: %s [%.2f-%.2f sec]", video_id, start_sec, end_sec or 0)
             frame_paths = self._sample_frames(video_path, start_sec, end_sec)
+
+            t2 = time.time()
+            logger.info("[TIMING] Frame extraction: %.2fs (%d frames)", t2 - t1, len(frame_paths))
 
             # Step 2: Prepare prompt
             prompt = get_claim_assessment_prompt(include_calibration=True)
 
             # Step 3: Run inference with retry (frames already extracted, no re-extraction on retry)
             raw_output = self._run_inference_with_retry(frame_paths, prompt, max_retries=3)
+
+            t3 = time.time()
+            logger.info("[TIMING] VLM inference: %.2fs", t3 - t2)
+
             logger.debug("Raw output: %s", raw_output[:500])
 
             # Step 4: Parse JSON
             processing_time = time.time() - start_time
             assessment = self._parse_json_response(raw_output, video_id, processing_time)
+
+            t4 = time.time()
+            logger.info("[TIMING] JSON parsing: %.2fs", t4 - t3)
+            logger.info("[TIMING] Total: %.2fs", t4 - t0)
 
             logger.info("Claim assessment complete: %s (%.2f sec)", assessment.severity, processing_time)
             return assessment

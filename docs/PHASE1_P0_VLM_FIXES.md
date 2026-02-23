@@ -148,6 +148,51 @@
 
 ---
 
+### P1-4: Frame Extraction Timeout Protection ✅
+
+**Problem**: 2/20 videos in extended validation taking 6-7 hours vs 2.7 minutes for others. OpenCV frame extraction hanging on certain video formats/encodings.
+
+**Implementation** (`insurance_mvp/cosmos/client.py`):
+1. **Config parameter**:
+   ```python
+   self.frame_extraction_timeout_sec = 120.0  # Timeout for frame extraction (prevents hangs)
+   ```
+
+2. **Timeout wrapper** (in `_sample_frames()`):
+   ```python
+   def extract_frames():
+       """Internal function to extract frames (called with timeout)."""
+       nonlocal frame_paths
+       try:
+           for idx, frame_idx in enumerate(frame_indices):
+               cap.set(cv2.CAP_PROP_POS_FRAMES, frame_idx)
+               ret, frame = cap.read()
+               # ... frame processing ...
+       finally:
+           cap.release()
+
+   # Extract frames with timeout protection
+   with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+       future = executor.submit(extract_frames)
+       try:
+           future.result(timeout=self.config.frame_extraction_timeout_sec)
+       except concurrent.futures.TimeoutError:
+           logger.error("Frame extraction timed out after %.1fs", extraction_time)
+           raise ValueError("Frame extraction timed out. Video may have corrupt frames.")
+   ```
+
+3. **Graceful degradation** (in `assess_claim()`):
+   - Timeout error is caught by existing exception handler
+   - Returns safe default assessment with error message in `causal_reasoning`
+   - No pipeline crash on problematic videos
+
+**Expected Impact**:
+- Prevents 6-7 hour hangs on problematic videos
+- Default 120s timeout = graceful failure instead of infinite hang
+- Safe default assessment returned to user (better than timeout)
+
+---
+
 ## Verification
 
 ### Test Suite
@@ -190,11 +235,11 @@
 
 ### Core Implementation
 - `insurance_mvp/cosmos/client.py`:
-  - VLMConfig: Added 4 new parameters (gpu_cleanup, jpeg_quality, max_clip_duration_sec, enable_cpu_fallback)
+  - VLMConfig: Added 5 new parameters (gpu_cleanup, jpeg_quality, max_clip_duration_sec, enable_cpu_fallback, frame_extraction_timeout_sec)
   - `_run_qwen2_5_vl_inference()`: Explicit tensor cleanup + finally block cleanup
-  - `_sample_frames()`: Use configurable JPEG quality
+  - `_sample_frames()`: Use configurable JPEG quality + timeout protection with ThreadPoolExecutor
   - `_run_inference_with_retry()`: New method for retry logic with frame caching
-  - `assess_claim()`: Clip duration limit + use retry method
+  - `assess_claim()`: Clip duration limit + use retry method + detailed timing logs
 
 ### Enhanced Tools
 - `scripts/real_data_benchmark_direct.py`:

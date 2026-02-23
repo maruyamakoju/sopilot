@@ -264,7 +264,7 @@ def main():
         print(f"Max delta: {gm['max_delta_gb']:.3f} GB")
         print(f"Min delta: {gm['min_delta_gb']:.3f} GB")
         if gm["max_delta_gb"] < 1.0:
-            print("✅ GPU memory cleanup working (max delta < 1GB)")
+            print("[OK] GPU memory cleanup working (max delta < 1GB)")
 
 
 if __name__ == "__main__":

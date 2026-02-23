@@ -58,6 +58,9 @@ nul
 # Benchmark results (regenerable)
 benchmarks/results/
 
+# Pipeline output results (regenerable)
+results/
+
 # Local video path mappings (per-machine, not committed)
 benchmarks/video_paths.local.json
 

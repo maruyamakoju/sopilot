@@ -39,26 +39,26 @@ def mock_danger_clips(video_path: str, video_id: str, top_k: int = 3) -> list[di
 
     # Derive signal scores from filename pattern
     if "collision" in filename or "crash" in filename:
-        motion_score, proximity_score = 0.9, 0.9
+        danger_base, motion_score, proximity_score = 0.9, 0.9, 0.9
     elif "near_miss" in filename or "near-miss" in filename:
-        motion_score, proximity_score = 0.8, 0.7
-    elif "normal" in filename or "safe" in filename:
-        motion_score, proximity_score = 0.1, 0.1
+        danger_base, motion_score, proximity_score = 0.75, 0.8, 0.7
     elif "swerve" in filename:
-        motion_score, proximity_score = 0.85, 0.6
+        danger_base, motion_score, proximity_score = 0.7, 0.85, 0.6
+    elif "normal" in filename or "safe" in filename:
+        danger_base, motion_score, proximity_score = 0.15, 0.1, 0.1
     elif "parking" in filename or "bump" in filename:
-        motion_score, proximity_score = 0.3, 0.8
+        danger_base, motion_score, proximity_score = 0.4, 0.3, 0.8
     elif "hard_braking" in filename:
-        motion_score, proximity_score = 0.7, 0.2
+        danger_base, motion_score, proximity_score = 0.5, 0.7, 0.2
     else:
-        motion_score, proximity_score = 0.5, 0.5
+        danger_base, motion_score, proximity_score = 0.5, 0.5, 0.5
 
     return [
         {
             "clip_id": f"{video_id}_clip_{i}",
             "start_sec": i * 10.0,
             "end_sec": (i * 10.0) + 5.0,
-            "danger_score": 0.8 - (i * 0.1),
+            "danger_score": max(0.0, danger_base - (i * 0.1)),
             "video_path": video_path,
             "motion_score": motion_score,
             "proximity_score": proximity_score,

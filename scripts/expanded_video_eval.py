@@ -65,18 +65,36 @@ def scan_all_videos(dirs: list[tuple[str, Path]], max_per_dir: int | None = None
     return videos
 
 
+def _load_demo_metadata(dir_path: Path) -> dict | None:
+    """Load metadata.json from demo directory if available."""
+    meta_path = dir_path / "metadata.json"
+    if meta_path.exists():
+        with open(meta_path) as f:
+            return json.load(f)
+    return None
+
+
+# Cache for demo metadata
+_demo_metadata_cache: dict[str, dict | None] = {}
+
+
 def infer_ground_truth(video_path: Path, source: str) -> dict:
     """Infer ground truth from filename and source directory."""
     name = video_path.stem.lower()
 
-    # Demo videos have known labels
+    # Demo videos: use metadata.json for all 10 scenarios
     if source == "dashcam_demo":
-        if "collision" in name:
-            return {"severity": "HIGH", "fault_ratio": 100.0, "confidence": 1.0, "label_source": "ground_truth"}
-        elif "near_miss" in name:
-            return {"severity": "MEDIUM", "fault_ratio": 50.0, "confidence": 1.0, "label_source": "ground_truth"}
-        elif "normal" in name:
-            return {"severity": "NONE", "fault_ratio": 0.0, "confidence": 1.0, "label_source": "ground_truth"}
+        if source not in _demo_metadata_cache:
+            _demo_metadata_cache[source] = _load_demo_metadata(video_path.parent)
+        meta = _demo_metadata_cache.get(source)
+        if meta and video_path.stem in meta:
+            entry = meta[video_path.stem]
+            return {
+                "severity": entry["severity"],
+                "fault_ratio": entry.get("ground_truth", {}).get("fault_ratio", 50.0),
+                "confidence": 1.0,
+                "label_source": "ground_truth",
+            }
 
     # Raw SOP videos: suffix indicates label
     if source == "raw_sop":

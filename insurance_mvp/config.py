@@ -242,7 +242,7 @@ class PipelineConfig:
     enable_conformal: bool = True
     enable_fraud_detection: bool = True
     enable_fault_assessment: bool = True
-    enable_recalibration: bool = False
+    enable_recalibration: bool = True
 
     # Performance monitoring
     enable_profiling: bool = False

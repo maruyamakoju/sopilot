@@ -73,32 +73,38 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-# Application Configuration
+# Application Configuration — backed by unified PipelineConfig
+from insurance_mvp.config import ApiConfig, PipelineConfig
+
+_api_cfg = ApiConfig(
+    database_url=os.getenv("DATABASE_URL", "sqlite:///./insurance.db"),
+    database_echo=os.getenv("DATABASE_ECHO", "false").lower() == "true",
+    upload_dir=os.getenv("UPLOAD_DIR", "./data/uploads"),
+    max_upload_size_mb=int(os.getenv("MAX_UPLOAD_SIZE_MB", "500")),
+    worker_max_threads=int(os.getenv("WORKER_MAX_THREADS", "4")),
+    use_pipeline=os.getenv("USE_PIPELINE", "false").lower() == "true",
+    cors_origins=os.getenv("CORS_ORIGINS", "*").split(","),
+    dev_mode=os.getenv("DEV_MODE", "true").lower() == "true",
+)
 
 
 class Config:
-    """Application configuration"""
+    """Application configuration — thin wrapper for backward compatibility.
 
-    # Database
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "sqlite:///./insurance.db")
-    DATABASE_ECHO: bool = os.getenv("DATABASE_ECHO", "false").lower() == "true"
+    All values are now driven by ``ApiConfig`` from the unified config module.
+    """
 
-    # Storage
-    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "./data/uploads")
-    MAX_UPLOAD_SIZE_MB: int = int(os.getenv("MAX_UPLOAD_SIZE_MB", "500"))
-    ALLOWED_EXTENSIONS: list[str] = [".mp4", ".avi", ".mov", ".mkv"]
-
-    # Worker
-    WORKER_MAX_THREADS: int = int(os.getenv("WORKER_MAX_THREADS", "4"))
-    USE_PIPELINE: bool = os.getenv("USE_PIPELINE", "false").lower() == "true"
-
-    # API
-    CORS_ORIGINS: list[str] = os.getenv("CORS_ORIGINS", "*").split(",")
-    API_VERSION: str = "1.0.0"
-    API_TITLE: str = "Insurance MVP API"
-
-    # Development
-    DEV_MODE: bool = os.getenv("DEV_MODE", "true").lower() == "true"
+    DATABASE_URL: str = _api_cfg.database_url
+    DATABASE_ECHO: bool = _api_cfg.database_echo
+    UPLOAD_DIR: str = _api_cfg.upload_dir
+    MAX_UPLOAD_SIZE_MB: int = _api_cfg.max_upload_size_mb
+    ALLOWED_EXTENSIONS: list[str] = _api_cfg.allowed_extensions
+    WORKER_MAX_THREADS: int = _api_cfg.worker_max_threads
+    USE_PIPELINE: bool = _api_cfg.use_pipeline
+    CORS_ORIGINS: list[str] = _api_cfg.cors_origins
+    API_VERSION: str = _api_cfg.api_version
+    API_TITLE: str = _api_cfg.api_title
+    DEV_MODE: bool = _api_cfg.dev_mode
 
 
 config = Config()

@@ -117,6 +117,89 @@ class WhisperConfig:
 
 
 @dataclass
+class FaultConfig:
+    """Fault assessment configuration (mirrors FaultAssessmentConfig)"""
+
+    # Scenario-specific fault ratios
+    rear_end_default: float = 100.0
+    rear_end_sudden_stop: float = 70.0
+    head_on_default: float = 50.0
+    side_swipe_lane_change: float = 80.0
+    side_swipe_unknown: float = 50.0
+    left_turn_default: float = 75.0
+    intersection_no_signal: float = 50.0
+    # Adjustments
+    red_light_violation_fault: float = 100.0
+    excessive_speed_adjustment: float = 10.0
+    weather_adjustment: float = 5.0
+    # Thresholds
+    excessive_speed_threshold_kmh: float = 20.0
+    min_fault_ratio: float = 0.0
+    max_fault_ratio: float = 100.0
+
+
+@dataclass
+class FraudConfig:
+    """Fraud detection configuration (mirrors FraudDetectionConfig)"""
+
+    # Thresholds
+    high_risk_threshold: float = 0.65
+    medium_risk_threshold: float = 0.4
+    # Indicator weights
+    weight_audio_visual_mismatch: float = 0.25
+    weight_damage_inconsistency: float = 0.20
+    weight_suspicious_positioning: float = 0.15
+    weight_claim_history: float = 0.20
+    weight_claim_amount_anomaly: float = 0.10
+    weight_timing_anomaly: float = 0.10
+    # Claim history thresholds
+    suspicious_claims_per_year: int = 3
+    suspicious_claims_per_month: int = 2
+    claim_cluster_days: int = 30
+    # Amount thresholds
+    claim_amount_outlier_threshold: float = 3.0
+    # Speed/damage consistency
+    min_speed_for_damage_kmh: float = 15.0
+    max_speed_no_damage_kmh: float = 10.0
+    # Reporting timing
+    suspicious_delay_hours: float = 72.0
+    suspicious_quick_report_hours: float = 0.5
+
+
+@dataclass
+class ApiConfig:
+    """FastAPI application configuration"""
+
+    database_url: str = "sqlite:///./insurance.db"
+    database_echo: bool = False
+    upload_dir: str = "./data/uploads"
+    max_upload_size_mb: int = 500
+    allowed_extensions: list[str] = field(default_factory=lambda: [".mp4", ".avi", ".mov", ".mkv"])
+    worker_max_threads: int = 4
+    use_pipeline: bool = False
+    cors_origins: list[str] = field(default_factory=lambda: ["*"])
+    api_version: str = "1.0.0"
+    api_title: str = "Insurance MVP API"
+    dev_mode: bool = True
+
+
+@dataclass
+class VlmConfig:
+    """Video-LLM inference configuration (mirrors VLMConfig in cosmos/client.py)"""
+
+    fps: float = 2.0
+    max_frames: int = 48
+    max_new_tokens: int = 512
+    temperature: float = 0.3
+    timeout_sec: float = 300.0
+    jpeg_quality: int = 75
+    max_clip_duration_sec: float = 60.0
+    enable_cpu_fallback: bool = True
+    gpu_cleanup: bool = True
+    frame_extraction_timeout_sec: float = 120.0
+
+
+@dataclass
 class PipelineConfig:
     """Pipeline orchestration configuration"""
 
@@ -145,6 +228,10 @@ class PipelineConfig:
     cosmos: CosmosConfig = field(default_factory=CosmosConfig)
     conformal: ConformalConfig = field(default_factory=ConformalConfig)
     whisper: WhisperConfig = field(default_factory=WhisperConfig)
+    fault: FaultConfig = field(default_factory=FaultConfig)
+    fraud: FraudConfig = field(default_factory=FraudConfig)
+    api: ApiConfig = field(default_factory=ApiConfig)
+    vlm: VlmConfig = field(default_factory=VlmConfig)
 
     # Feature flags
     enable_transcription: bool = True
@@ -254,6 +341,10 @@ class ConfigLoader:
         cosmos_dict = config_dict.pop("cosmos", {})
         conformal_dict = config_dict.pop("conformal", {})
         whisper_dict = config_dict.pop("whisper", {})
+        fault_dict = config_dict.pop("fault", {})
+        fraud_dict = config_dict.pop("fraud", {})
+        api_dict = config_dict.pop("api", {})
+        vlm_dict = config_dict.pop("vlm", {})
 
         # Convert enum strings to enum values
         if "backend" in cosmos_dict:
@@ -271,6 +362,10 @@ class ConfigLoader:
         cosmos_config = CosmosConfig(**cosmos_dict)
         conformal_config = ConformalConfig(**conformal_dict)
         whisper_config = WhisperConfig(**whisper_dict)
+        fault_config = FaultConfig(**fault_dict)
+        fraud_config = FraudConfig(**fraud_dict)
+        api_config = ApiConfig(**api_dict)
+        vlm_config = VlmConfig(**vlm_dict)
 
         # Create main config
         config = PipelineConfig(
@@ -280,6 +375,10 @@ class ConfigLoader:
             cosmos=cosmos_config,
             conformal=conformal_config,
             whisper=whisper_config,
+            fault=fault_config,
+            fraud=fraud_config,
+            api=api_config,
+            vlm=vlm_config,
         )
 
         return config

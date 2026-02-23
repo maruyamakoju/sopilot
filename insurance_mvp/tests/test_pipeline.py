@@ -222,9 +222,7 @@ class TestInsurancePipeline:
         assert "not found" in result.error_message.lower()
         assert result.video_id == "test"
 
-    @patch("insurance_mvp.pipeline.SignalFuser")
-    @patch("insurance_mvp.pipeline.CosmosClient")
-    def test_process_video_success(self, mock_cosmos, mock_fuser, default_config, mock_video_file):
+    def test_process_video_success(self, default_config, mock_video_file):
         """Test successful video processing"""
         # Mock signal fuser
         mock_danger_clips = [
@@ -236,7 +234,8 @@ class TestInsurancePipeline:
                 "video_path": mock_video_file,
             }
         ]
-        mock_fuser.return_value.extract_danger_clips.return_value = mock_danger_clips
+        mock_fuser = Mock()
+        mock_fuser.extract_danger_clips.return_value = mock_danger_clips
 
         # Mock Cosmos client
         mock_vlm_result = {
@@ -246,12 +245,13 @@ class TestInsurancePipeline:
             "hazards": [],
             "evidence": [],
         }
-        mock_cosmos.return_value.analyze_clip.return_value = mock_vlm_result
+        mock_cosmos = Mock()
+        mock_cosmos.analyze_clip.return_value = mock_vlm_result
 
         # Create pipeline with mocks
         pipeline = InsurancePipeline(default_config)
-        pipeline.signal_fuser = mock_fuser.return_value
-        pipeline.cosmos_client = mock_cosmos.return_value
+        pipeline.signal_fuser = mock_fuser
+        pipeline.cosmos_client = mock_cosmos
         pipeline.fault_assessor = None  # Disable for simplicity
         pipeline.fraud_detector = None
 

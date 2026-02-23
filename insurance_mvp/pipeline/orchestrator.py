@@ -132,6 +132,9 @@ class InsurancePipeline:
         self.motion_analyzer = MotionAnalyzer()
         self.proximity_analyzer = ProximityAnalyzer()
         self.signal_fuser = SignalFuser(self.config.mining)
+        self.signal_fuser.set_analyzers(
+            self.audio_analyzer, self.motion_analyzer, self.proximity_analyzer
+        )
         self.logger.info("Mining components initialized")
 
         # B2: Video-LLM (lazy)

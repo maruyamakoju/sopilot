@@ -91,7 +91,97 @@ class SignalFuser:
     """
 
     def __init__(self, config: FusionConfig | None = None):
-        self.config = config or FusionConfig()
+        if config is not None and not isinstance(config, FusionConfig):
+            # Accept MiningConfig from pipeline — extract compatible fields
+            self.config = FusionConfig(
+                audio_weight=getattr(config, "audio_weight", 0.3),
+                motion_weight=getattr(config, "motion_weight", 0.4),
+                proximity_weight=getattr(config, "proximity_weight", 0.3),
+                top_k_peaks=getattr(config, "top_k_clips", 20),
+            )
+        else:
+            self.config = config or FusionConfig()
+        self._audio_analyzer = None
+        self._motion_analyzer = None
+        self._proximity_analyzer = None
+
+    def set_analyzers(self, audio, motion, proximity):
+        """Inject analyzer instances for extract_danger_clips()."""
+        self._audio_analyzer = audio
+        self._motion_analyzer = motion
+        self._proximity_analyzer = proximity
+
+    def extract_danger_clips(self, video_path: str, top_k: int = 20) -> list[dict]:
+        """End-to-end pipeline: analyze video → fuse signals → return top-K clips.
+
+        Runs audio, motion, and proximity analyzers on the video, fuses
+        their scores, and returns danger clips in dict format compatible
+        with the pipeline orchestrator.
+
+        Args:
+            video_path: Path to video file.
+            top_k: Number of top clips to return.
+
+        Returns:
+            List of danger clip dicts with keys: clip_id, start_sec,
+            end_sec, danger_score, video_path, motion_score, proximity_score.
+        """
+        if not (self._audio_analyzer and self._motion_analyzer and self._proximity_analyzer):
+            raise RuntimeError(
+                "Analyzers not set. Call set_analyzers(audio, motion, proximity) first."
+            )
+
+        video_name = Path(video_path).stem
+        logger.info("Running full mining pipeline on %s", video_name)
+
+        # Run the three analyzers
+        audio_scores = self._audio_analyzer.analyze(video_path)
+        motion_scores = self._motion_analyzer.analyze(video_path)
+        proximity_scores = self._proximity_analyzer.analyze(video_path)
+
+        # Align array lengths (analyzers may produce slightly different lengths)
+        min_len = min(len(audio_scores), len(motion_scores), len(proximity_scores))
+        if min_len == 0:
+            logger.warning("Zero-length signals for %s, returning empty", video_name)
+            return []
+        audio_scores = audio_scores[:min_len]
+        motion_scores = motion_scores[:min_len]
+        proximity_scores = proximity_scores[:min_len]
+
+        # Get video duration
+        import cv2
+        cap = cv2.VideoCapture(str(video_path))
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        cap.release()
+        video_duration_sec = frame_count / fps if fps > 0 else float(min_len)
+
+        # Override top_k in config temporarily
+        orig_top_k = self.config.top_k_peaks
+        self.config.top_k_peaks = top_k
+
+        # Fuse and extract
+        hazard_clips = self.fuse_and_extract(
+            audio_scores, motion_scores, proximity_scores, video_duration_sec
+        )
+
+        self.config.top_k_peaks = orig_top_k
+
+        # Convert HazardClip objects to pipeline-compatible dicts
+        result = []
+        for i, clip in enumerate(hazard_clips[:top_k]):
+            result.append({
+                "clip_id": f"{video_name}_clip_{i}",
+                "start_sec": clip.start_sec,
+                "end_sec": clip.end_sec,
+                "danger_score": clip.score,
+                "video_path": video_path,
+                "motion_score": clip.motion_score,
+                "proximity_score": clip.proximity_score,
+            })
+
+        logger.info("Mining complete: %d clips from %s", len(result), video_name)
+        return result
 
     def fuse_and_extract(
         self,

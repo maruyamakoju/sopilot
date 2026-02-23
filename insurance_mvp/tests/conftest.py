@@ -170,6 +170,60 @@ def make_claim_assessment(
     return ClaimAssessment(**data)
 
 
+def make_danger_clip(
+    clip_id: str = "clip_001",
+    start_sec: float = 0.0,
+    end_sec: float = 5.0,
+    danger_score: float = 0.9,
+    video_path: str = "test_video.mp4",
+    **overrides,
+) -> dict:
+    """Create a danger clip dict suitable for pipeline stage input."""
+    data = dict(
+        clip_id=clip_id,
+        start_sec=start_sec,
+        end_sec=end_sec,
+        danger_score=danger_score,
+        video_path=video_path,
+    )
+    data.update(overrides)
+    return data
+
+
+def make_vlm_result(
+    severity: str = "HIGH",
+    confidence: float = 0.85,
+    **overrides,
+) -> dict:
+    """Create a VLM inference result dict."""
+    data = dict(
+        severity=severity,
+        confidence=confidence,
+        reasoning="Test VLM reasoning",
+        hazards=[],
+        evidence=[],
+        causal_reasoning="Test causal reasoning from VLM",
+        recommended_action="REVIEW",
+        prediction_set=[severity],
+        review_priority="URGENT" if severity == "HIGH" else "STANDARD",
+        fault_assessment={
+            "fault_ratio": 50.0,
+            "reasoning": "VLM analysis complete",
+            "applicable_rules": [],
+            "scenario_type": "auto_detected",
+            "traffic_signal": None,
+            "right_of_way": None,
+        },
+        fraud_risk={
+            "risk_score": 0.0,
+            "indicators": [],
+            "reasoning": "Video evidence consistent",
+        },
+    )
+    data.update(overrides)
+    return data
+
+
 # ---------------------------------------------------------------------------
 # Pytest fixtures
 # ---------------------------------------------------------------------------
@@ -181,3 +235,28 @@ def tmp_output_dir():
     tmp_dir = Path(tempfile.mkdtemp(prefix="ins_test_"))
     yield tmp_dir
     shutil.rmtree(tmp_dir, ignore_errors=True)
+
+
+@pytest.fixture
+def mock_pipeline():
+    """Create an InsurancePipeline with mocked components for unit testing."""
+    from unittest.mock import Mock
+
+    config = make_test_config()
+    pipeline = __import__("insurance_mvp.pipeline", fromlist=["InsurancePipeline"]).InsurancePipeline(config)
+    pipeline.signal_fuser = Mock()
+    pipeline.cosmos_client = Mock()
+    pipeline.fault_assessor = None
+    pipeline.fraud_detector = None
+    return pipeline
+
+
+@pytest.fixture
+def mock_vlm_client():
+    """Create a mock Cosmos VLM client."""
+    from unittest.mock import Mock
+
+    client = Mock()
+    client.analyze_clip.return_value = make_vlm_result()
+    client.health_check.return_value = {"status": "ok", "backend": "mock"}
+    return client

@@ -136,6 +136,10 @@ class FaultConfig:
     excessive_speed_threshold_kmh: float = 20.0
     min_fault_ratio: float = 0.0
     max_fault_ratio: float = 100.0
+    # Speed limits (assumed when no posted limit available)
+    speed_limit_urban_kmh: float = 60.0
+    speed_trigger_kmh: float = 80.0
+    max_speed_penalty_pct: float = 15.0
 
 
 @dataclass

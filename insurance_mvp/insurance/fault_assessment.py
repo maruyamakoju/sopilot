@@ -90,6 +90,10 @@ class FaultAssessmentConfig:
         excessive_speed_threshold_kmh: float = 20.0,
         min_fault_ratio: float = 0.0,
         max_fault_ratio: float = 100.0,
+        # Speed limits (assumed when no posted limit available)
+        speed_limit_urban_kmh: float = 60.0,
+        speed_trigger_kmh: float = 80.0,
+        max_speed_penalty_pct: float = 15.0,
     ):
         """Initialize fault assessment configuration.
 
@@ -107,6 +111,9 @@ class FaultAssessmentConfig:
             excessive_speed_threshold_kmh: Speed over limit considered excessive
             min_fault_ratio: Minimum fault ratio (clamping)
             max_fault_ratio: Maximum fault ratio (clamping)
+            speed_limit_urban_kmh: Assumed urban speed limit (km/h)
+            speed_trigger_kmh: Speed above which excessive-speed check triggers
+            max_speed_penalty_pct: Cap on additional fault % from speed
         """
         self.rear_end_default = rear_end_default
         self.rear_end_sudden_stop = rear_end_sudden_stop
@@ -121,6 +128,9 @@ class FaultAssessmentConfig:
         self.excessive_speed_threshold_kmh = excessive_speed_threshold_kmh
         self.min_fault_ratio = min_fault_ratio
         self.max_fault_ratio = max_fault_ratio
+        self.speed_limit_urban_kmh = speed_limit_urban_kmh
+        self.speed_trigger_kmh = speed_trigger_kmh
+        self.max_speed_penalty_pct = max_speed_penalty_pct
 
 
 class FaultAssessmentEngine:
@@ -492,13 +502,11 @@ class FaultAssessmentEngine:
 
         # Excessive speed adjustment
         if context.speed_ego_kmh is not None:
-            # Check if speed is significantly high (simple heuristic)
-            # In production, this would compare against speed limit
-            if context.speed_ego_kmh > 80.0:  # Assuming 60 km/h typical limit
-                excess = context.speed_ego_kmh - 60.0
+            if context.speed_ego_kmh > self.config.speed_trigger_kmh:
+                excess = context.speed_ego_kmh - self.config.speed_limit_urban_kmh
                 speed_adjustment = min(
                     (excess / self.config.excessive_speed_threshold_kmh) * self.config.excessive_speed_adjustment,
-                    15.0,  # Cap at 15% additional fault
+                    self.config.max_speed_penalty_pct,
                 )
                 adjusted_fault += speed_adjustment
                 adjustments.append(

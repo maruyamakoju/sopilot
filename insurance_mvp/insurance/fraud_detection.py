@@ -547,6 +547,16 @@ class FraudDetectionEngine:
 
         return indicators
 
+    # Maps weight category → (config weight attribute, indicator types that belong to it)
+    _WEIGHT_CATEGORIES: list[tuple[str, list[str]]] = [
+        ("weight_audio_visual_mismatch", ["audio_visual_mismatch"]),
+        ("weight_damage_inconsistency", ["damage_inconsistency", "video_tampering"]),
+        ("weight_suspicious_positioning", ["suspicious_positioning"]),
+        ("weight_claim_history", ["claim_frequency", "fraud_history", "claim_clustering"]),
+        ("weight_claim_amount_anomaly", ["claim_amount_anomaly"]),
+        ("weight_timing_anomaly", ["timing_anomaly"]),
+    ]
+
     def _calculate_fraud_score(self, indicators: list[FraudIndicator]) -> float:
         """Calculate overall fraud score from indicators.
 
@@ -555,46 +565,15 @@ class FraudDetectionEngine:
         # Group indicators by type
         indicator_map: dict[str, list[FraudIndicator]] = {}
         for ind in indicators:
-            if ind.type not in indicator_map:
-                indicator_map[ind.type] = []
-            indicator_map[ind.type].append(ind)
+            indicator_map.setdefault(ind.type, []).append(ind)
 
-        # Calculate weighted score
+        # Calculate weighted score via category registry
         weighted_score = 0.0
-
-        # Audio/visual mismatch
-        if "audio_visual_mismatch" in indicator_map:
-            avg_severity = np.mean([ind.severity * ind.confidence for ind in indicator_map["audio_visual_mismatch"]])
-            weighted_score += avg_severity * self.config.weight_audio_visual_mismatch
-
-        # Damage inconsistency
-        damage_types = ["damage_inconsistency", "video_tampering"]
-        damage_inds = [ind for t in damage_types if t in indicator_map for ind in indicator_map[t]]
-        if damage_inds:
-            avg_severity = np.mean([ind.severity * ind.confidence for ind in damage_inds])
-            weighted_score += avg_severity * self.config.weight_damage_inconsistency
-
-        # Suspicious positioning
-        if "suspicious_positioning" in indicator_map:
-            avg_severity = np.mean([ind.severity * ind.confidence for ind in indicator_map["suspicious_positioning"]])
-            weighted_score += avg_severity * self.config.weight_suspicious_positioning
-
-        # Claim history
-        history_types = ["claim_frequency", "fraud_history", "claim_clustering"]
-        history_inds = [ind for t in history_types if t in indicator_map for ind in indicator_map[t]]
-        if history_inds:
-            avg_severity = np.mean([ind.severity * ind.confidence for ind in history_inds])
-            weighted_score += avg_severity * self.config.weight_claim_history
-
-        # Claim amount anomaly
-        if "claim_amount_anomaly" in indicator_map:
-            avg_severity = np.mean([ind.severity * ind.confidence for ind in indicator_map["claim_amount_anomaly"]])
-            weighted_score += avg_severity * self.config.weight_claim_amount_anomaly
-
-        # Timing anomaly
-        if "timing_anomaly" in indicator_map:
-            avg_severity = np.mean([ind.severity * ind.confidence for ind in indicator_map["timing_anomaly"]])
-            weighted_score += avg_severity * self.config.weight_timing_anomaly
+        for weight_attr, types in self._WEIGHT_CATEGORIES:
+            matched = [ind for t in types if t in indicator_map for ind in indicator_map[t]]
+            if matched:
+                avg_severity = np.mean([ind.severity * ind.confidence for ind in matched])
+                weighted_score += avg_severity * getattr(self.config, weight_attr)
 
         # Clamp to [0, 1]
         return np.clip(weighted_score, 0.0, 1.0)

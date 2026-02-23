@@ -8,7 +8,7 @@ import logging
 import os
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 import uvicorn
@@ -32,11 +32,13 @@ from insurance_mvp.api.background import (
     shutdown_worker,
 )
 from insurance_mvp.api.database import (
+    Assessment,
     AssessmentRepository,
     AuditLogRepository,
     Claim,
     ClaimRepository,
     DatabaseManager,
+    Review,
     ReviewRepository,
 )
 from insurance_mvp.api.models import (
@@ -263,6 +265,48 @@ async def health_check():
     )
 
 
+# ── Upload Helpers ──────────────────────────────────────────────
+
+
+def _validate_upload_extension(filename: str) -> str:
+    """Validate file extension and return it (lowercase)."""
+    ext = Path(filename).suffix.lower()
+    if ext not in config.ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid file format. Allowed: {', '.join(config.ALLOWED_EXTENSIONS)}",
+        )
+    return ext
+
+
+async def _save_and_hash_video(video: UploadFile, video_path: Path) -> tuple[float, str]:
+    """Save uploaded video to disk and compute SHA-256 hash.
+
+    Returns:
+        (file_size_mb, hash_hex)
+    """
+    with video_path.open("wb") as f:
+        chunk_size = 1024 * 1024
+        while chunk := await video.read(chunk_size):
+            f.write(chunk)
+
+    file_size_mb = video_path.stat().st_size / (1024 * 1024)
+    logger.info(f"Video saved: {video_path} ({file_size_mb:.2f} MB)")
+
+    if file_size_mb > config.MAX_UPLOAD_SIZE_MB:
+        video_path.unlink()
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            detail=f"File too large ({file_size_mb:.2f} MB). Maximum: {config.MAX_UPLOAD_SIZE_MB} MB",
+        )
+
+    video_hash = hashlib.sha256()
+    with video_path.open("rb") as f:
+        while chunk := f.read(8192):
+            video_hash.update(chunk)
+    return file_size_mb, video_hash.hexdigest()
+
+
 # Claims Endpoints
 
 
@@ -295,59 +339,24 @@ async def upload_claim(
 
     **Rate Limit:** 60 requests/minute per API key.
     """
-    # Check write permission
     if not api_key.permissions.get("write", False):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Write permission required",
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Write permission required")
 
-    # Validate file extension
-    file_ext = Path(video.filename).suffix.lower()
-    if file_ext not in config.ALLOWED_EXTENSIONS:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Invalid file format. Allowed: {', '.join(config.ALLOWED_EXTENSIONS)}",
-        )
+    file_ext = _validate_upload_extension(video.filename)
 
-    # Generate unique claim ID
     timestamp = datetime.utcnow().strftime("%Y%m%d%H%M%S")
     claim_id = f"claim_{timestamp}_{hashlib.sha256(video.filename.encode()).hexdigest()[:12]}"
-
-    # Save video file
     video_path = Path(config.UPLOAD_DIR) / f"{claim_id}{file_ext}"
 
     try:
-        # Stream to disk (memory efficient for large files)
-        with video_path.open("wb") as f:
-            chunk_size = 1024 * 1024  # 1MB chunks
-            while chunk := await video.read(chunk_size):
-                f.write(chunk)
-
-        file_size_mb = video_path.stat().st_size / (1024 * 1024)
-        logger.info(f"Video saved: {video_path} ({file_size_mb:.2f} MB)")
-
-        # Check size limit
-        if file_size_mb > config.MAX_UPLOAD_SIZE_MB:
-            video_path.unlink()  # Delete oversized file
-            raise HTTPException(
-                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
-                detail=f"File too large ({file_size_mb:.2f} MB). Maximum: {config.MAX_UPLOAD_SIZE_MB} MB",
-            )
-
-        # Calculate video hash for deduplication
-        video_hash = hashlib.sha256()
-        with video_path.open("rb") as f:
-            while chunk := f.read(8192):
-                video_hash.update(chunk)
-        video_hash_hex = video_hash.hexdigest()
+        file_size_mb, video_hash_hex = await _save_and_hash_video(video, video_path)
 
         # Check for duplicate
         claim_repo = ClaimRepository(db)
         existing = claim_repo.get_by_hash(video_hash_hex)
         if existing:
             logger.warning(f"Duplicate video detected: {video_hash_hex} -> {existing.id}")
-            video_path.unlink()  # Delete duplicate
+            video_path.unlink()
             return UploadResponse(
                 claim_id=existing.id,
                 status=existing.status,
@@ -372,8 +381,7 @@ async def upload_claim(
         )
 
         # Audit log
-        audit_repo = AuditLogRepository(db)
-        audit_repo.create(
+        AuditLogRepository(db).create(
             claim_id=claim_id,
             event_type=EventType.CLAIM_UPLOADED,
             actor_type="API",
@@ -383,8 +391,7 @@ async def upload_claim(
         )
 
         # Submit for background processing
-        worker = get_worker()
-        worker.submit_claim(claim_id)
+        get_worker().submit_claim(claim_id)
 
         return UploadResponse(
             claim_id=claim_id,
@@ -394,7 +401,6 @@ async def upload_claim(
         )
 
     except Exception as e:
-        # Cleanup on error
         if video_path.exists():
             video_path.unlink()
         logger.error(f"Upload failed: {e}")
@@ -805,6 +811,75 @@ async def get_claim_history(
     )
 
 
+# ── Metrics Helpers ─────────────────────────────────────────────
+
+def _processing_metrics(db: Session, claim_repo: ClaimRepository) -> dict:
+    """Compute claim processing throughput and average time."""
+    total = db.query(Claim).count()
+    today = claim_repo.count_today()
+    hour_ago = datetime.utcnow() - timedelta(hours=1)
+    rate = db.query(Claim).filter(Claim.upload_time >= hour_ago).count()
+
+    completed = (
+        db.query(Claim)
+        .filter(Claim.processing_completed.isnot(None), Claim.processing_started.isnot(None))
+        .all()
+    )
+    if completed:
+        times = [(c.processing_completed - c.processing_started).total_seconds() for c in completed]
+        avg_time = sum(times) / len(times)
+    else:
+        avg_time = 0.0
+
+    return {"total": total, "today": today, "rate": rate, "avg_time": avg_time}
+
+
+def _queue_metrics(db: Session, claim_repo: ClaimRepository, review_repo: ReviewRepository) -> dict:
+    """Compute queue depth, priority breakdown, and review stats."""
+    depth = claim_repo.count_by_status(ClaimStatus.ASSESSED)
+    by_priority = {"URGENT": 0, "STANDARD": 0, "LOW_PRIORITY": 0}
+    for claim in claim_repo.get_queue(status=ClaimStatus.ASSESSED, limit=1000):
+        if claim.assessment:
+            p = claim.assessment.review_priority
+            by_priority[p] = by_priority.get(p, 0) + 1
+
+    recent = db.query(Review).order_by(Review.timestamp.desc()).limit(100).all()
+    avg_review = (sum(r.review_time_sec for r in recent) / len(recent)) if recent else 0.0
+
+    return {
+        "depth": depth,
+        "by_priority": by_priority,
+        "reviewed_today": review_repo.count_today(),
+        "avg_review_time": avg_review,
+    }
+
+
+def _decision_and_ai_metrics(db: Session, claim_repo: ClaimRepository) -> dict:
+    """Compute approval/rejection rates and average AI scores."""
+    approved = claim_repo.count_by_status(ClaimStatus.APPROVED)
+    rejected = claim_repo.count_by_status(ClaimStatus.REJECTED)
+    total_dec = approved + rejected
+    approval_rate = approved / total_dec if total_dec else 0.0
+    rejection_rate = rejected / total_dec if total_dec else 0.0
+
+    assessments = db.query(Assessment).limit(1000).all()
+    if assessments:
+        avg_conf = sum(a.confidence for a in assessments) / len(assessments)
+        avg_fraud = sum(a.fraud_risk_score for a in assessments) / len(assessments)
+    else:
+        avg_conf = avg_fraud = 0.0
+
+    failed = claim_repo.count_by_status(ClaimStatus.FAILED)
+
+    return {
+        "approval_rate": approval_rate,
+        "rejection_rate": rejection_rate,
+        "avg_confidence": avg_conf,
+        "avg_fraud_risk": avg_fraud,
+        "failed": failed,
+    }
+
+
 # Metrics Endpoint
 
 
@@ -818,118 +893,31 @@ async def get_metrics(
     db: Session = Depends(get_db),
     api_key: APIKey = Depends(get_api_key_optional),
 ):
-    """
-    Get system metrics and statistics.
-
-    **Metrics:**
-    - Processing rate (claims/hour)
-    - Queue depth by priority
-    - Review statistics
-    - Approval/rejection rates
-    - Error rates
-
-    **Authentication:** Optional (public metrics available without auth).
-    """
+    """Get system metrics and statistics."""
     claim_repo = ClaimRepository(db)
     review_repo = ReviewRepository(db)
 
-    # Total claims
-    total_claims = db.query(Claim).count()
-    claims_today = claim_repo.count_today()
+    proc = _processing_metrics(db, claim_repo)
+    queue = _queue_metrics(db, claim_repo, review_repo)
+    dec = _decision_and_ai_metrics(db, claim_repo)
 
-    # Processing metrics
-    from datetime import datetime, timedelta
-
-    hour_ago = datetime.utcnow() - timedelta(hours=1)
-    claims_last_hour = db.query(Claim).filter(Claim.upload_time >= hour_ago).count()
-    processing_rate = claims_last_hour  # claims per hour
-
-    # Average processing time (completed claims only)
-    completed_claims = (
-        db.query(Claim)
-        .filter(
-            Claim.processing_completed.isnot(None),
-            Claim.processing_started.isnot(None),
-        )
-        .all()
-    )
-
-    if completed_claims:
-        processing_times = [(c.processing_completed - c.processing_started).total_seconds() for c in completed_claims]
-        avg_processing_time = sum(processing_times) / len(processing_times)
-    else:
-        avg_processing_time = 0.0
-
-    # Queue metrics
-    queue_depth = claim_repo.count_by_status(ClaimStatus.ASSESSED)
-    queue_depth_by_priority = {
-        "URGENT": 0,
-        "STANDARD": 0,
-        "LOW_PRIORITY": 0,
-    }
-
-    assessed_claims = claim_repo.get_queue(status=ClaimStatus.ASSESSED, limit=1000)
-    for claim in assessed_claims:
-        if claim.assessment:
-            priority = claim.assessment.review_priority
-            queue_depth_by_priority[priority] = queue_depth_by_priority.get(priority, 0) + 1
-
-    # Review metrics
-    pending_review = queue_depth
-    reviewed_today = review_repo.count_today()
-
-    # Average review time
-    from insurance_mvp.api.database import Review
-
-    recent_reviews = db.query(Review).order_by(Review.timestamp.desc()).limit(100).all()
-    if recent_reviews:
-        avg_review_time = sum(r.review_time_sec for r in recent_reviews) / len(recent_reviews)
-    else:
-        avg_review_time = 0.0
-
-    # Decision metrics
-    approved_count = claim_repo.count_by_status(ClaimStatus.APPROVED)
-    rejected_count = claim_repo.count_by_status(ClaimStatus.REJECTED)
-    total_decisions = approved_count + rejected_count
-
-    if total_decisions > 0:
-        approval_rate = approved_count / total_decisions
-        rejection_rate = rejected_count / total_decisions
-    else:
-        approval_rate = 0.0
-        rejection_rate = 0.0
-
-    # AI metrics (average across all assessments)
-    from insurance_mvp.api.database import Assessment
-
-    assessments = db.query(Assessment).limit(1000).all()
-
-    if assessments:
-        avg_confidence = sum(a.confidence for a in assessments) / len(assessments)
-        avg_fraud_risk = sum(a.fraud_risk_score for a in assessments) / len(assessments)
-    else:
-        avg_confidence = 0.0
-        avg_fraud_risk = 0.0
-
-    # Error metrics
-    failed_count = claim_repo.count_by_status(ClaimStatus.FAILED)
-    error_rate = failed_count / total_claims if total_claims > 0 else 0.0
+    error_rate = dec["failed"] / proc["total"] if proc["total"] > 0 else 0.0
 
     return MetricsResponse(
-        total_claims=total_claims,
-        claims_today=claims_today,
-        processing_rate_per_hour=processing_rate,
-        average_processing_time_sec=avg_processing_time,
-        queue_depth=queue_depth,
-        queue_depth_by_priority=queue_depth_by_priority,
-        pending_review_count=pending_review,
-        reviewed_today=reviewed_today,
-        average_review_time_sec=avg_review_time,
-        approval_rate=approval_rate,
-        rejection_rate=rejection_rate,
-        average_ai_confidence=avg_confidence,
-        average_fraud_risk=avg_fraud_risk,
-        failed_processing_count=failed_count,
+        total_claims=proc["total"],
+        claims_today=proc["today"],
+        processing_rate_per_hour=proc["rate"],
+        average_processing_time_sec=proc["avg_time"],
+        queue_depth=queue["depth"],
+        queue_depth_by_priority=queue["by_priority"],
+        pending_review_count=queue["depth"],
+        reviewed_today=queue["reviewed_today"],
+        average_review_time_sec=queue["avg_review_time"],
+        approval_rate=dec["approval_rate"],
+        rejection_rate=dec["rejection_rate"],
+        average_ai_confidence=dec["avg_confidence"],
+        average_fraud_risk=dec["avg_fraud_risk"],
+        failed_processing_count=dec["failed"],
         error_rate=error_rate,
         timestamp=datetime.utcnow(),
     )

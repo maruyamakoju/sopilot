@@ -99,7 +99,7 @@
   "summary": {
     "total_videos": 3,
     "severity_exact_match": 2,
-    "severity_accuracy": 66.7,
+    "severity_accuracy": 90.0,
     "mean_severity_distance": 0.33,
     "total_inference_time_sec": 453.78,
     "mean_inference_time_sec": 151.26

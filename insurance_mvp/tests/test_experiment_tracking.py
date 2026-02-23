@@ -9,7 +9,6 @@ from pathlib import Path
 
 import numpy as np
 import pytest
-
 from insurance_mvp.evaluation.experiment import (
     AblationReport,
     AblationRunner,

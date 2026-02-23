@@ -252,9 +252,10 @@ class BackgroundWorker:
 
 class PipelineProcessor:
     """
-    Integration with actual insurance claim processing pipeline.
+    Integration with the insurance claim processing pipeline.
 
-    This bridges the background worker with the domain-specific processing logic.
+    Bridges the background worker with InsurancePipeline, running the full
+    5-stage pipeline (Mining → VLM → Ranking → Conformal → Review Priority).
     """
 
     def __init__(self, pipeline_config: dict[str, Any] | None = None):
@@ -262,22 +263,26 @@ class PipelineProcessor:
         Initialize pipeline processor.
 
         Args:
-            pipeline_config: Configuration for pipeline (models, thresholds, etc.)
+            pipeline_config: Configuration overrides (database_url, backend, etc.)
         """
+        from insurance_mvp.config import CosmosBackend, PipelineConfig
+        from insurance_mvp.pipeline import InsurancePipeline
+
         self.config = pipeline_config or {}
-        logger.info("Pipeline processor initialized")
+
+        # Build PipelineConfig with optional overrides
+        pcfg = PipelineConfig()
+        if self.config.get("backend") == "real":
+            pcfg.cosmos.backend = CosmosBackend.QWEN25VL
+        pcfg.continue_on_error = True
+
+        self._pipeline = InsurancePipeline(pcfg)
+        self._db_url = self.config.get("database_url", "sqlite:///./insurance.db")
+        logger.info("Pipeline processor initialized with real InsurancePipeline")
 
     def process_claim(self, claim_id: str, update_progress: Callable) -> dict[str, Any]:
         """
-        Process claim through full pipeline.
-
-        Steps:
-        1. Load video
-        2. Mining: Audio + Motion + Proximity signals
-        3. Video-LLM inference
-        4. Fault assessment
-        5. Fraud detection
-        6. Conformal prediction
+        Process claim through the full 5-stage pipeline.
 
         Args:
             claim_id: Claim ID
@@ -286,103 +291,95 @@ class PipelineProcessor:
         Returns:
             Assessment result dictionary
         """
-        try:
-            # Get claim from database
-            from insurance_mvp.api.database import DatabaseManager
+        from insurance_mvp.api.database import ClaimRepository, DatabaseManager
 
-            db_manager = DatabaseManager(self.config.get("database_url", "sqlite:///./insurance.db"))
+        db_manager = DatabaseManager(self._db_url)
 
-            with db_manager.get_session() as session:
-                from insurance_mvp.api.database import ClaimRepository
+        with db_manager.get_session() as session:
+            repo = ClaimRepository(session)
+            claim = repo.get_by_id(claim_id)
+            if not claim:
+                raise ValueError(f"Claim {claim_id} not found")
+            video_path = claim.video_path
 
-                repo = ClaimRepository(session)
-                claim = repo.get_by_id(claim_id)
+        logger.info(f"Processing video via real pipeline: {video_path}")
+        update_progress(claim_id, 10.0)
 
-                if not claim:
-                    raise ValueError(f"Claim {claim_id} not found")
+        # Run through the real 5-stage pipeline
+        result = self._pipeline.process_video(video_path, video_id=claim_id)
 
-                video_path = claim.video_path
+        if not result.success:
+            raise RuntimeError(f"Pipeline failed: {result.error_message}")
 
-            logger.info(f"Processing video: {video_path}")
+        update_progress(claim_id, 90.0)
 
-            # Step 1: Mining (10% -> 40%)
-            update_progress(claim_id, 10.0)
-            # TODO: Integrate with mining/ modules
-            # from insurance_mvp.mining.fuse import mine_signals
-            # signals = mine_signals(video_path)
-            update_progress(claim_id, 40.0)
+        # Convert the first (highest-severity) assessment to dict format
+        if result.assessments:
+            return self._assessment_to_dict(result.assessments[0], result)
 
-            # Step 2: Video-LLM Inference (40% -> 70%)
-            # TODO: Integrate with cosmos/ module
-            # from insurance_mvp.cosmos.client import analyze_video
-            # llm_result = analyze_video(video_path, signals)
-            update_progress(claim_id, 70.0)
-
-            # Step 3: Domain Logic (70% -> 90%)
-            # TODO: Integrate with insurance/ modules
-            # from insurance_mvp.insurance.fault_assessment import assess_fault
-            # from insurance_mvp.insurance.fraud_detection import detect_fraud
-            # fault = assess_fault(llm_result)
-            # fraud = detect_fraud(llm_result)
-            update_progress(claim_id, 90.0)
-
-            # Step 4: Conformal Prediction (90% -> 100%)
-            # TODO: Integrate with conformal/ module
-            # from insurance_mvp.conformal.split_conformal import predict_with_uncertainty
-            # final_assessment = predict_with_uncertainty(...)
-
-            # For now, return mock data
-            logger.warning("Pipeline integration incomplete - using mock data")
-            return self._mock_assessment()
-
-        except Exception as e:
-            logger.error(f"Pipeline processing failed: {e}")
-            raise
-
-    def _mock_assessment(self) -> dict[str, Any]:
-        """Mock assessment for development"""
+        # No danger clips found — return safe assessment
         return {
-            "severity": "MEDIUM",
-            "confidence": 0.82,
-            "prediction_set": ["MEDIUM"],
-            "review_priority": "STANDARD",
+            "severity": "NONE",
+            "confidence": 0.95,
+            "prediction_set": ["NONE"],
+            "review_priority": "LOW_PRIORITY",
             "fault_assessment": {
-                "fault_ratio": 35.0,
-                "reasoning": "Driver response time was within acceptable limits but could be improved",
-                "applicable_rules": ["Following distance", "Speed limit compliance"],
-                "scenario_type": "rear_end",
+                "fault_ratio": 0.0,
+                "reasoning": "No hazardous events detected in video",
+                "applicable_rules": [],
+                "scenario_type": "normal_driving",
                 "traffic_signal": None,
                 "right_of_way": None,
             },
             "fraud_risk": {
-                "risk_score": 0.08,
+                "risk_score": 0.0,
                 "indicators": [],
-                "reasoning": "Normal driving behavior, no anomalies detected",
+                "reasoning": "No anomalies detected",
+            },
+            "hazards": [],
+            "evidence": [],
+            "causal_reasoning": "Normal driving — no incidents detected by mining pipeline",
+            "recommended_action": "APPROVE",
+            "processing_time_sec": result.processing_time_sec,
+            "model_version": "insurance-pipeline-v1.0",
+        }
+
+    @staticmethod
+    def _assessment_to_dict(assessment, result) -> dict[str, Any]:
+        """Convert a ClaimAssessment + VideoResult into the dict format expected by BackgroundWorker."""
+        fault = assessment.fault_assessment
+        fraud = assessment.fraud_risk
+
+        return {
+            "severity": assessment.severity,
+            "confidence": assessment.confidence,
+            "prediction_set": list(assessment.prediction_set),
+            "review_priority": assessment.review_priority,
+            "fault_assessment": {
+                "fault_ratio": fault.fault_ratio,
+                "reasoning": fault.reasoning,
+                "applicable_rules": fault.applicable_rules,
+                "scenario_type": fault.scenario_type,
+                "traffic_signal": getattr(fault, "traffic_signal", None),
+                "right_of_way": getattr(fault, "right_of_way", None),
+            },
+            "fraud_risk": {
+                "risk_score": fraud.risk_score,
+                "indicators": fraud.indicators,
+                "reasoning": fraud.reasoning,
             },
             "hazards": [
-                {
-                    "type": "collision",
-                    "actors": ["car", "car"],
-                    "spatial_relation": "front",
-                    "timestamp_sec": 8.3,
-                }
+                h.model_dump() if hasattr(h, "model_dump") else h
+                for h in assessment.hazards
             ],
             "evidence": [
-                {
-                    "timestamp_sec": 8.3,
-                    "description": "Impact detected with vehicle ahead",
-                    "frame_path": None,
-                },
-                {
-                    "timestamp_sec": 7.8,
-                    "description": "Brake lights visible on lead vehicle",
-                    "frame_path": None,
-                },
+                e.model_dump() if hasattr(e, "model_dump") else e
+                for e in assessment.evidence
             ],
-            "causal_reasoning": "Rear-end collision due to insufficient following distance. Lead vehicle braked suddenly, driver reaction time was adequate but distance too close.",
-            "recommended_action": "REVIEW",
-            "processing_time_sec": 3.5,
-            "model_version": "pipeline-mock-v1.0",
+            "causal_reasoning": assessment.causal_reasoning,
+            "recommended_action": assessment.recommended_action,
+            "processing_time_sec": result.processing_time_sec,
+            "model_version": "insurance-pipeline-v1.0",
         }
 
 

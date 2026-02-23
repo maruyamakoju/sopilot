@@ -58,6 +58,17 @@ _TRANSLATIONS_JA = {
     "No reasoning provided": "判断理由なし",
     "No fraud indicators detected": "不正指標は検出されませんでした",
     "No causal reasoning available": "因果推論なし",
+    # Multi-clip report keys
+    "Multi-Clip Assessment Report": "マルチクリップ評価レポート",
+    "Total Clips": "クリップ総数",
+    "Total Processing Time": "合計処理時間",
+    "Highest Severity": "最高重大度",
+    "Severity Breakdown": "重大度内訳",
+    "Overall Recommendation": "総合推奨",
+    "Clip Assessments": "クリップ評価一覧",
+    "Clip": "クリップ",
+    "Analyzed": "分析済み",
+    "Overall Assessment": "総合評価",
 }
 
 
@@ -197,23 +208,115 @@ class ReportGenerator:
         video_id: str,
         output_path: Path,
     ) -> None:
-        """Generate report for multiple clips from same video.
+        """Generate comprehensive HTML report for multiple clips from same video.
+
+        Creates a report showing ALL assessments with a summary section at the top
+        (highest severity, total clips, overall assessment) and individual clip cards
+        sorted by severity (HIGH first) then by confidence (descending).
 
         Args:
             assessments: List of ClaimAssessment (one per clip)
             video_id: Video identifier
             output_path: Path to save HTML file
         """
-        # For now, use the highest-severity clip
-        # TODO: Create multi-clip template showing all assessments
         if not assessments:
             raise ValueError("No assessments provided")
 
-        # Sort by severity
+        # Sort by severity (HIGH first) then by confidence descending
         severity_order = {"HIGH": 0, "MEDIUM": 1, "LOW": 2, "NONE": 3}
-        sorted_assessments = sorted(assessments, key=lambda a: (severity_order.get(a.severity, 4), -a.confidence))
+        sorted_assessments = sorted(
+            assessments,
+            key=lambda a: (severity_order.get(a.severity, 4), -a.confidence),
+        )
 
-        # Use most severe assessment
-        primary_assessment = sorted_assessments[0]
+        primary = sorted_assessments[0]
 
-        self.generate_report(assessment=primary_assessment, video_id=video_id, output_path=output_path)
+        # Compute severity counts
+        severity_counts = {"HIGH": 0, "MEDIUM": 0, "LOW": 0, "NONE": 0}
+        for a in sorted_assessments:
+            severity_counts[a.severity] = severity_counts.get(a.severity, 0) + 1
+
+        # Determine overall recommendation from highest-severity clip
+        overall_recommendation = primary.recommended_action
+
+        # Generate overall summary text
+        overall_summary = self._generate_multi_clip_summary(sorted_assessments, severity_counts)
+
+        # Total processing time
+        total_processing_time = sum(a.processing_time_sec for a in sorted_assessments)
+
+        # Build per-clip data
+        clips_data = []
+        for a in sorted_assessments:
+            clips_data.append({
+                "severity": a.severity,
+                "confidence": int(a.confidence * 100),
+                "fault_ratio": a.fault_assessment.fault_ratio,
+                "at_fault_party": self._derive_at_fault_party(a.fault_assessment.fault_ratio),
+                "fraud_score": f"{a.fraud_risk.risk_score:.2f}",
+                "fraud_level": self._derive_fraud_level(a.fraud_risk.risk_score),
+                "scenario_type": a.fault_assessment.scenario_type or "unknown",
+                "causal_reasoning": a.causal_reasoning or "No causal reasoning available",
+                "fault_reasoning": a.fault_assessment.reasoning or "No reasoning provided",
+                "red_flags": a.fraud_risk.indicators,
+                "review_priority": a.review_priority,
+                "review_priority_class": a.review_priority.lower(),
+                "recommended_action": a.recommended_action,
+                "processing_time": f"{a.processing_time_sec:.1f}",
+            })
+
+        template = self.env.get_template("multi_clip_report.html")
+
+        data = {
+            "lang": self.lang,
+            "video_id": video_id,
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "total_clips": len(sorted_assessments),
+            "total_processing_time": f"{total_processing_time:.1f}",
+            "highest_severity": primary.severity,
+            "highest_severity_confidence": int(primary.confidence * 100),
+            "severity_counts": severity_counts,
+            "overall_recommendation": overall_recommendation,
+            "overall_summary": overall_summary,
+            "clips": clips_data,
+        }
+
+        html_content = template.render(**data)
+
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(html_content, encoding="utf-8")
+
+    def _generate_multi_clip_summary(
+        self,
+        sorted_assessments: list[ClaimAssessment],
+        severity_counts: dict[str, int],
+    ) -> str:
+        """Generate overall summary for multi-clip report."""
+        total = len(sorted_assessments)
+        primary = sorted_assessments[0]
+        highest = primary.severity
+
+        # Build severity breakdown string
+        parts = []
+        for sev in ("HIGH", "MEDIUM", "LOW", "NONE"):
+            count = severity_counts.get(sev, 0)
+            if count > 0:
+                parts.append(f"{count} {sev}")
+        breakdown = ", ".join(parts)
+
+        if self.lang == "ja":
+            if highest == "NONE":
+                return f"{total}件のクリップを分析しました。インシデントは検出されませんでした。内訳: {breakdown}。"
+            return (
+                f"{total}件のクリップを分析しました。"
+                f"最高重大度: {highest}。内訳: {breakdown}。"
+                f"推奨: {self._translate(primary.recommended_action)}。"
+            )
+        else:
+            if highest == "NONE":
+                return f"Analyzed {total} clips. No incidents detected. Breakdown: {breakdown}."
+            return (
+                f"Analyzed {total} clips. "
+                f"Highest severity: {highest}. Breakdown: {breakdown}. "
+                f"Recommended action: {primary.recommended_action}."
+            )

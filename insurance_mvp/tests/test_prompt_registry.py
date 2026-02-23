@@ -5,10 +5,8 @@ and prompt diff functionality.
 """
 
 import pytest
-
 from insurance_mvp.cosmos.prompt_registry import (
     ABEvaluationReport,
-    PromptDiff,
     PromptRegistry,
     PromptSection,
     PromptVersion,

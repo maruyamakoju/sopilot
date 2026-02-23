@@ -9,14 +9,12 @@ Covers:
 
 import numpy as np
 import pytest
-
 from insurance_mvp.conformal.adaptive import (
     AdaptiveConformal,
     CoverageMonitor,
     MondrianConformal,
     generate_calibration_dataset,
 )
-
 
 # ---------------------------------------------------------------------------
 # generate_calibration_dataset

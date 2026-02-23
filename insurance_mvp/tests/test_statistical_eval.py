@@ -6,7 +6,6 @@ full evaluate(), McNemar's test, format_report, and edge cases.
 
 import numpy as np
 import pytest
-
 from insurance_mvp.evaluation.statistical import (
     ConfidenceInterval,
     EvaluationReport,
@@ -22,7 +21,6 @@ from insurance_mvp.evaluation.statistical import (
     mcnemar_test,
     weighted_f1,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers

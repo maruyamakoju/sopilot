@@ -46,10 +46,11 @@ import json
 import logging
 import subprocess
 import time
+from collections.abc import Callable, Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Callable, Sequence
+from typing import Any
 
 import numpy as np
 
@@ -524,7 +525,7 @@ class ExperimentTracker:
         if not target.exists():
             raise FileNotFoundError(f"Experiment history file not found: {target}")
 
-        with open(target, "r", encoding="utf-8") as f:
+        with open(target, encoding="utf-8") as f:
             data = json.load(f)
 
         version = data.get("schema_version", 1)

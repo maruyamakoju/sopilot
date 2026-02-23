@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="{{ lang }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ _("Multi-Clip Assessment Report") }} - {{ video_id }}</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-600: #4b5563;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: var(--gray-900);
+            background: var(--gray-50);
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            padding: 32px 40px;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            letter-spacing: -0.5px;
+        }
+
+        .header .meta {
+            opacity: 0.9;
+            font-size: 14px;
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        /* Summary Section */
+        .summary-section {
+            padding: 32px 40px;
+            background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%);
+            border-bottom: 2px solid var(--primary);
+        }
+
+        .summary-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border: 1px solid var(--gray-200);
+            text-align: center;
+        }
+
+        .summary-label {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+
+        .summary-value {
+            font-size: 28px;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .summary-sub {
+            font-size: 13px;
+            color: var(--gray-600);
+            margin-top: 4px;
+        }
+
+        .overall-assessment {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            padding: 16px 20px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .severity-indicator {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            flex-shrink: 0;
+        }
+
+        .severity-indicator.HIGH { background: var(--danger); }
+        .severity-indicator.MEDIUM { background: var(--warning); }
+        .severity-indicator.LOW { background: var(--success); }
+        .severity-indicator.NONE { background: var(--gray-300); }
+
+        .overall-text {
+            font-size: 16px;
+            color: var(--gray-700);
+            line-height: 1.6;
+            flex: 1;
+        }
+
+        .overall-action {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--primary-dark);
+            white-space: nowrap;
+            padding: 8px 20px;
+            border: 2px solid var(--primary);
+            border-radius: 8px;
+            flex-shrink: 0;
+        }
+
+        /* Clip Cards */
+        .clips-section {
+            padding: 32px 40px;
+        }
+
+        .clips-section-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gray-900);
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .clips-section-title::before {
+            content: '';
+            width: 4px;
+            height: 20px;
+            background: var(--primary);
+            border-radius: 2px;
+        }
+
+        .clip-card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            margin-bottom: 20px;
+            overflow: hidden;
+            transition: box-shadow 0.2s;
+        }
+
+        .clip-card:hover {
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .clip-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--gray-200);
+            background: var(--gray-50);
+        }
+
+        .clip-card-title {
+            font-size: 16px;
+            font-weight: 700;
+            color: var(--gray-900);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .severity-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .severity-badge.HIGH {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .severity-badge.MEDIUM {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .severity-badge.LOW {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .severity-badge.NONE {
+            background: var(--gray-100);
+            color: var(--gray-600);
+        }
+
+        .clip-card-body {
+            padding: 20px;
+        }
+
+        .clip-metrics {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 16px;
+        }
+
+        .clip-metric {
+            background: var(--gray-50);
+            padding: 12px 16px;
+            border-radius: 6px;
+            border-left: 3px solid var(--primary);
+        }
+
+        .clip-metric-label {
+            font-size: 12px;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-bottom: 4px;
+        }
+
+        .clip-metric-value {
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .severity-HIGH { color: var(--danger); }
+        .severity-MEDIUM { color: var(--warning); }
+        .severity-LOW { color: var(--success); }
+        .severity-NONE { color: var(--gray-600); }
+
+        .clip-reasoning {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            padding: 16px;
+            margin-top: 12px;
+            position: relative;
+        }
+
+        .clip-reasoning::before {
+            content: '\201C';
+            position: absolute;
+            top: -10px;
+            left: 16px;
+            font-size: 48px;
+            color: var(--gray-300);
+            line-height: 1;
+        }
+
+        .clip-reasoning-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-600);
+            margin-bottom: 8px;
+        }
+
+        .clip-reasoning-text {
+            color: var(--gray-700);
+            font-size: 14px;
+            line-height: 1.7;
+            margin-top: 8px;
+            white-space: pre-wrap;
+        }
+
+        .clip-red-flags {
+            list-style: none;
+            margin-top: 12px;
+        }
+
+        .clip-red-flags li {
+            padding: 8px 12px;
+            background: #fee2e2;
+            border-left: 3px solid var(--danger);
+            margin-bottom: 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            color: #991b1b;
+        }
+
+        .clip-red-flags li::before {
+            content: '\26A0';
+            margin-right: 8px;
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+
+        .badge-urgent {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .badge-standard {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .badge-low_priority {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .footer {
+            padding: 24px 40px;
+            background: var(--gray-50);
+            border-top: 1px solid var(--gray-200);
+            text-align: center;
+            color: var(--gray-600);
+            font-size: 13px;
+        }
+
+        .footer-logo {
+            font-weight: 700;
+            color: var(--primary);
+            margin-bottom: 4px;
+        }
+
+        @media print {
+            body {
+                background: white;
+                padding: 0;
+            }
+            .container {
+                box-shadow: none;
+                border-radius: 0;
+            }
+            .clip-card {
+                break-inside: avoid;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .summary-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .clip-metrics {
+                grid-template-columns: 1fr;
+            }
+            .header, .clips-section, .footer, .summary-section {
+                padding: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>{{ _("Multi-Clip Assessment Report") }}</h1>
+            <div class="meta">
+                <span>{{ _("Video ID") }}: {{ video_id }}</span>
+                <span>{{ _("Generated") }}: {{ timestamp }}</span>
+                <span>{{ _("Total Clips") }}: {{ total_clips }}</span>
+                <span>{{ _("Total Processing Time") }}: {{ total_processing_time }}s</span>
+            </div>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="summary-section">
+            <div class="summary-grid">
+                <div class="summary-card">
+                    <div class="summary-label">{{ _("Highest Severity") }}</div>
+                    <div class="summary-value severity-{{ highest_severity }}">{{ highest_severity }}</div>
+                    <div class="summary-sub">{{ _("Confidence") }}: {{ highest_severity_confidence }}%</div>
+                </div>
+
+                <div class="summary-card">
+                    <div class="summary-label">{{ _("Total Clips") }}</div>
+                    <div class="summary-value">{{ total_clips }}</div>
+                    <div class="summary-sub">{{ _("Analyzed") }}</div>
+                </div>
+
+                <div class="summary-card">
+                    <div class="summary-label">{{ _("Severity Breakdown") }}</div>
+                    <div class="summary-value" style="font-size: 16px;">
+                        {% if severity_counts.HIGH %}<span class="severity-HIGH">{{ severity_counts.HIGH }} HIGH</span> {% endif %}
+                        {% if severity_counts.MEDIUM %}<span class="severity-MEDIUM">{{ severity_counts.MEDIUM }} MED</span> {% endif %}
+                        {% if severity_counts.LOW %}<span class="severity-LOW">{{ severity_counts.LOW }} LOW</span> {% endif %}
+                        {% if severity_counts.NONE %}<span class="severity-NONE">{{ severity_counts.NONE }} NONE</span>{% endif %}
+                    </div>
+                </div>
+
+                <div class="summary-card">
+                    <div class="summary-label">{{ _("Overall Recommendation") }}</div>
+                    <div class="summary-value" style="font-size: 20px; color: var(--primary);">{{ _(overall_recommendation) }}</div>
+                </div>
+            </div>
+
+            <div class="overall-assessment">
+                <div class="severity-indicator {{ highest_severity }}"></div>
+                <div class="overall-text">{{ overall_summary }}</div>
+                <div class="overall-action">{{ _(overall_recommendation) }}</div>
+            </div>
+        </div>
+
+        <!-- Clip Cards Section -->
+        <div class="clips-section">
+            <h2 class="clips-section-title">{{ _("Clip Assessments") }}</h2>
+
+            {% for clip in clips %}
+            <div class="clip-card">
+                <div class="clip-card-header">
+                    <div class="clip-card-title">
+                        {{ _("Clip") }} #{{ loop.index }}
+                        <span class="severity-badge {{ clip.severity }}">{{ clip.severity }}</span>
+                        <span class="badge badge-{{ clip.review_priority_class }}">{{ _(clip.review_priority) }}</span>
+                    </div>
+                    <span style="font-size: 13px; color: var(--gray-600);">{{ _("Processing Time") }}: {{ clip.processing_time }}s</span>
+                </div>
+
+                <div class="clip-card-body">
+                    <div class="clip-metrics">
+                        <div class="clip-metric">
+                            <div class="clip-metric-label">{{ _("Severity Level") }}</div>
+                            <div class="clip-metric-value severity-{{ clip.severity }}">{{ clip.severity }}</div>
+                        </div>
+                        <div class="clip-metric">
+                            <div class="clip-metric-label">{{ _("Confidence") }}</div>
+                            <div class="clip-metric-value">{{ clip.confidence }}%</div>
+                        </div>
+                        <div class="clip-metric">
+                            <div class="clip-metric-label">{{ _("Fault Ratio") }}</div>
+                            <div class="clip-metric-value">{{ clip.fault_ratio }}%</div>
+                        </div>
+                        <div class="clip-metric">
+                            <div class="clip-metric-label">{{ _("Fraud Risk Score") }}</div>
+                            <div class="clip-metric-value">{{ clip.fraud_score }}</div>
+                        </div>
+                        <div class="clip-metric">
+                            <div class="clip-metric-label">{{ _("At-Fault Party") }}</div>
+                            <div class="clip-metric-value">{{ _(clip.at_fault_party) }}</div>
+                        </div>
+                        <div class="clip-metric">
+                            <div class="clip-metric-label">{{ _("Scenario Type") }}</div>
+                            <div class="clip-metric-value">{{ clip.scenario_type }}</div>
+                        </div>
+                    </div>
+
+                    {% if clip.red_flags %}
+                    <div>
+                        <strong style="font-size: 13px; color: var(--gray-600);">{{ _("Red Flags Detected") }}:</strong>
+                        <ul class="clip-red-flags">
+                            {% for flag in clip.red_flags %}
+                            <li>{{ flag }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+
+                    <div class="clip-reasoning">
+                        <div class="clip-reasoning-label">{{ _("AI Causal Reasoning") }}</div>
+                        <div class="clip-reasoning-text">{{ clip.causal_reasoning }}</div>
+                    </div>
+
+                    {% if clip.fault_reasoning %}
+                    <div class="clip-reasoning" style="margin-top: 12px;">
+                        <div class="clip-reasoning-label">{{ _("Fault Reasoning") }}</div>
+                        <div class="clip-reasoning-text">{{ clip.fault_reasoning }}</div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <div class="footer-logo">Insurance MVP v1.0</div>
+            <div>{{ _("AI-Powered Insurance Claim Assessment System") }}</div>
+            <div>{{ _("Contract-Grade Professional Quality") }}</div>
+        </div>
+    </div>
+</body>
+</html>

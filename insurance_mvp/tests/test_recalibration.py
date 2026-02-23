@@ -5,7 +5,6 @@ predictions to catch misclassifications.
 """
 
 import pytest
-
 from insurance_mvp.pipeline.stages.recalibration import (
     SEVERITY_ORDER,
     RecalibrationConfig,

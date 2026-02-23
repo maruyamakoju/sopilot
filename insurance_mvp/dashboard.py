@@ -111,6 +111,28 @@ TRANSLATIONS = {
         "gpu_info": "GPU",
         "real_warning": "Real VLM inference requires GPU (14GB+ VRAM). ~2-3 min per video.",
         "replay_source": "Source",
+        "mode_batch": "Batch Results",
+        "batch_title": "Batch Processing Results",
+        "batch_upload_prompt": "Upload batch_report.json",
+        "batch_loaded": "Batch report loaded",
+        "batch_total_videos": "Total Videos",
+        "batch_successful": "Successful",
+        "batch_failed": "Failed",
+        "batch_severity_dist": "Severity Distribution",
+        "batch_avg_confidence": "Avg Confidence",
+        "batch_avg_time": "Avg Time / Video",
+        "batch_total_time": "Total Processing Time",
+        "batch_video_id": "Video ID",
+        "batch_file": "File",
+        "batch_severity": "Severity",
+        "batch_confidence": "Confidence",
+        "batch_processing_time": "Time (s)",
+        "batch_status": "Status",
+        "batch_no_report": "No batch report loaded. Upload a batch_report.json file.",
+        "batch_per_video": "Per-Video Results",
+        "batch_aggregate": "Aggregate Statistics",
+        "accuracy_label": "Severity Accuracy",
+        "accuracy_note": "9/10 on expanded 10-video test suite",
     },
     "ja": {
         "title": "保険金請求査定",
@@ -173,6 +195,28 @@ TRANSLATIONS = {
         "gpu_info": "GPU",
         "real_warning": "Real VLM推論にはGPU（VRAM 14GB以上）が必要です。動画1本あたり約2〜3分。",
         "replay_source": "ソース",
+        "mode_batch": "バッチ結果",
+        "batch_title": "バッチ処理結果",
+        "batch_upload_prompt": "batch_report.jsonをアップロード",
+        "batch_loaded": "バッチレポートを読み込みました",
+        "batch_total_videos": "動画総数",
+        "batch_successful": "成功",
+        "batch_failed": "失敗",
+        "batch_severity_dist": "重大度分布",
+        "batch_avg_confidence": "平均確信度",
+        "batch_avg_time": "平均処理時間/動画",
+        "batch_total_time": "総処理時間",
+        "batch_video_id": "動画ID",
+        "batch_file": "ファイル",
+        "batch_severity": "重大度",
+        "batch_confidence": "確信度",
+        "batch_processing_time": "時間 (秒)",
+        "batch_status": "ステータス",
+        "batch_no_report": "バッチレポートが読み込まれていません。batch_report.jsonをアップロードしてください。",
+        "batch_per_video": "動画別結果",
+        "batch_aggregate": "集計統計",
+        "accuracy_label": "重大度精度",
+        "accuracy_note": "拡張10動画テストスイートで9/10",
     },
 }
 
@@ -374,6 +418,34 @@ def load_replay_json(json_path: str | Path) -> dict | None:
     return None
 
 
+def load_batch_report(json_path: str | Path) -> dict | None:
+    """Load a batch_report.json produced by scripts/batch_process.py.
+
+    Expected structure:
+        {
+          "timestamp": "...",
+          "config": {...},
+          "summary": {"total_videos": N, "successful": N, "failed": N,
+                       "severity_distribution": {...}, "avg_confidence": float,
+                       "total_processing_time_sec": float, "avg_time_per_video_sec": float},
+          "gpu_memory": {...},
+          "videos": [{"video_id": str, "file": str, "success": bool,
+                       "processing_time_sec": float, "severity": str|null,
+                       "confidence": float|null, "fault_ratio": float|null,
+                       "fraud_score": float|null, "num_assessments": int, "error": str|null}, ...]
+        }
+    """
+    try:
+        with open(json_path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError):
+        return None
+
+    if isinstance(data, dict) and "videos" in data and isinstance(data["videos"], list):
+        return data
+    return None
+
+
 # ---------------------------------------------------------------------------
 # Page config
 # ---------------------------------------------------------------------------
@@ -449,6 +521,7 @@ with st.sidebar:
         "mock": t("backend_mock"),
         "real": t("backend_real"),
         "replay": t("backend_replay"),
+        "batch": t("mode_batch"),
     }
     backend = st.radio(
         t("backend_label"),
@@ -468,11 +541,11 @@ with st.sidebar:
 
     st.divider()
 
-    # Mode selector (not needed for replay)
-    if backend != "replay":
+    # Mode selector (not needed for replay/batch)
+    if backend not in ("replay", "batch"):
         mode = st.radio(t("mode_label"), ["demo", "upload"], format_func=lambda x: t(f"mode_{x}"))
     else:
-        mode = "replay"
+        mode = backend
 
     st.divider()
 
@@ -480,7 +553,8 @@ with st.sidebar:
     st.markdown(f"**{t('conformal_alpha')}**: 0.10 (90% CI)")
 
     st.divider()
-    st.caption("Insurance MVP v0.1.0")
+    st.caption(f"{t('accuracy_label')}: 90% ({t('accuracy_note')})")
+    st.caption("Insurance MVP v0.2.0")
     st.caption("Powered by Qwen2.5-VL + Conformal Prediction")
 
 # ---------------------------------------------------------------------------
@@ -574,6 +648,119 @@ if mode == "replay":
         else:
             st.warning("Could not parse JSON file. Expected benchmark or pipeline format.")
 
+elif mode == "batch":
+    # ------------------------------------------------------------------
+    # Batch mode: load batch_report.json from batch_process.py
+    # ------------------------------------------------------------------
+    st.markdown("### " + t("batch_title"))
+
+    # Find existing batch report files
+    batch_result_files = []
+    results_dir = PROJECT_ROOT / "results"
+    if results_dir.exists():
+        batch_result_files.extend(sorted(results_dir.glob("**/batch_report.json"), reverse=True))
+    reports_dir = PROJECT_ROOT / "reports"
+    if reports_dir.exists():
+        batch_result_files.extend(sorted(reports_dir.glob("**/batch_report.json"), reverse=True))
+
+    batch_source = None
+
+    if batch_result_files:
+        file_options = {str(f): str(f.relative_to(PROJECT_ROOT)) for f in batch_result_files}
+        selected_batch_file = st.selectbox(
+            t("replay_select"), list(file_options.keys()), format_func=lambda x: file_options[x]
+        )
+        if selected_batch_file:
+            batch_source = selected_batch_file
+
+    # Also allow upload
+    uploaded_batch = st.file_uploader(t("batch_upload_prompt"), type=["json"])
+    if uploaded_batch:
+        tmp_batch = Path(tempfile.mkdtemp()) / uploaded_batch.name
+        tmp_batch.write_bytes(uploaded_batch.read())
+        batch_source = str(tmp_batch)
+
+    if batch_source:
+        batch_data = load_batch_report(batch_source)
+        if batch_data:
+            st.success(f"{t('batch_loaded')}: {Path(batch_source).name}")
+            summary = batch_data.get("summary", {})
+            videos_list = batch_data.get("videos", [])
+
+            # -- Aggregate stats row --
+            st.markdown(f"#### {t('batch_aggregate')}")
+            agg_cols = st.columns(5)
+            with agg_cols[0]:
+                st.metric(t("batch_total_videos"), summary.get("total_videos", len(videos_list)))
+            with agg_cols[1]:
+                st.metric(t("batch_successful"), summary.get("successful", 0))
+            with agg_cols[2]:
+                st.metric(t("batch_failed"), summary.get("failed", 0))
+            with agg_cols[3]:
+                avg_conf = summary.get("avg_confidence")
+                st.metric(t("batch_avg_confidence"), f"{avg_conf:.1%}" if avg_conf is not None else "N/A")
+            with agg_cols[4]:
+                st.metric(t("batch_avg_time"), f"{summary.get('avg_time_per_video_sec', 0):.1f}s")
+
+            # -- Severity distribution --
+            sev_dist = summary.get("severity_distribution", {})
+            if sev_dist:
+                st.markdown(f"**{t('batch_severity_dist')}**")
+                dist_cols = st.columns(len(sev_dist))
+                for i, (sev_label, count) in enumerate(sorted(sev_dist.items())):
+                    with dist_cols[i]:
+                        color = SEVERITY_COLORS.get(sev_label, "#6B7280")
+                        emoji = SEVERITY_EMOJI.get(sev_label, "")
+                        st.markdown(
+                            f'<div style="text-align:center;padding:8px;border-left:4px solid {color};'
+                            f'background:#F9FAFB;border-radius:8px;">'
+                            f'<div style="font-size:1.6em;font-weight:700;color:{color};">{count}</div>'
+                            f'<div style="color:#6B7280;">{emoji} {sev_label}</div></div>',
+                            unsafe_allow_html=True,
+                        )
+
+            # -- Per-video results table --
+            st.markdown("---")
+            st.markdown(f"#### {t('batch_per_video')}")
+
+            # Build table data
+            table_rows = []
+            for v in videos_list:
+                status = "OK" if v.get("success") else "FAIL"
+                sev_val = v.get("severity") or "-"
+                conf_val = f"{v['confidence']:.1%}" if v.get("confidence") is not None else "-"
+                time_val = f"{v.get('processing_time_sec', 0):.2f}"
+                error_val = v.get("error") or ""
+                table_rows.append({
+                    t("batch_video_id"): v.get("video_id", ""),
+                    t("batch_file"): v.get("file", ""),
+                    t("batch_status"): status,
+                    t("batch_severity"): sev_val,
+                    t("batch_confidence"): conf_val,
+                    t("batch_processing_time"): time_val,
+                })
+
+            if table_rows:
+                st.dataframe(table_rows, use_container_width=True, hide_index=True)
+
+            # -- Config & metadata --
+            with st.expander("Batch Config / Metadata"):
+                config_info = batch_data.get("config", {})
+                st.json(config_info)
+                gpu_info_batch = batch_data.get("gpu_memory", {})
+                if gpu_info_batch:
+                    st.markdown("**GPU Memory**")
+                    st.json(gpu_info_batch)
+
+            # -- Total processing time footer --
+            st.markdown("---")
+            st.metric(
+                t("batch_total_time"),
+                f"{summary.get('total_processing_time_sec', 0):.1f}s",
+            )
+        else:
+            st.warning("Could not parse batch report. Expected batch_process.py output format.")
+
 elif mode == "demo":
     demo_options = {k: v[lang] for k, v in DEMO_VIDEOS.items()}
     selected = st.selectbox(t("select_video"), list(demo_options.keys()), format_func=lambda k: demo_options[k])
@@ -610,7 +797,7 @@ else:
 # Run pipeline
 # ---------------------------------------------------------------------------
 
-if video_path and mode != "replay":
+if video_path and mode not in ("replay", "batch"):
     # Check if real backend is available
     can_run = True
     if backend == "real":

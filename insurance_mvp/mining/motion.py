@@ -37,7 +37,16 @@ class MotionConfig:
     flags: int = 0  # Operation flags
 
     # Frame sampling (process every N frames)
-    frame_skip: int = 5  # Process every 5 frames (e.g., 30fps → 6 samples/sec)
+    frame_skip: int = 10  # Process every 10 frames (e.g., 30fps → 3 samples/sec)
+
+    # Resolution downsampling (halving resolution = 4x fewer pixels for optical flow)
+    downscale_factor: float = 0.5  # Resize factor before optical flow (1.0 = no resize)
+
+    # Early termination: max video duration to analyze (seconds of video)
+    max_analysis_duration_sec: float = 600.0  # 10 minutes of video analyzed max
+
+    # GPU acceleration
+    use_cuda: bool = True  # Use cv2.cuda optical flow if available (auto-fallback to CPU)
 
     # Danger detection thresholds
     magnitude_percentile: float = 95.0  # Percentile for normalization
@@ -55,6 +64,102 @@ class MotionAnalyzer:
 
     def __init__(self, config: MotionConfig | None = None):
         self.config = config or MotionConfig()
+        self._cuda_available = self._check_cuda_available()
+
+    @staticmethod
+    def _check_cuda_available() -> bool:
+        """Check if OpenCV CUDA optical flow is available."""
+        try:
+            # cv2.cuda module must exist and have the Farneback optical flow
+            if not hasattr(cv2, "cuda"):
+                return False
+            # Try to create a GpuMat to verify CUDA runtime works
+            _ = cv2.cuda.GpuMat()
+            # Check that FarnebackOpticalFlow is available
+            _ = cv2.cuda.FarnebackOpticalFlow.create()
+            return True
+        except Exception:
+            return False
+
+    def _compute_optical_flow(self, prev_gray: np.ndarray, gray: np.ndarray) -> np.ndarray:
+        """
+        Compute dense optical flow using Farneback algorithm.
+
+        Uses CUDA-accelerated version if available and enabled, with
+        automatic fallback to CPU.
+
+        Args:
+            prev_gray: Previous grayscale frame
+            gray: Current grayscale frame
+
+        Returns:
+            np.ndarray: Optical flow field, shape (H, W, 2)
+        """
+        if self.config.use_cuda and self._cuda_available:
+            try:
+                return self._compute_optical_flow_cuda(prev_gray, gray)
+            except Exception as e:
+                logger.warning(f"CUDA optical flow failed, falling back to CPU: {e}")
+                self._cuda_available = False
+
+        return cv2.calcOpticalFlowFarneback(
+            prev_gray,
+            gray,
+            None,
+            pyr_scale=self.config.pyr_scale,
+            levels=self.config.levels,
+            winsize=self.config.winsize,
+            iterations=self.config.iterations,
+            poly_n=self.config.poly_n,
+            poly_sigma=self.config.poly_sigma,
+            flags=self.config.flags,
+        )
+
+    def _compute_optical_flow_cuda(self, prev_gray: np.ndarray, gray: np.ndarray) -> np.ndarray:
+        """
+        Compute dense optical flow using CUDA-accelerated Farneback.
+
+        Args:
+            prev_gray: Previous grayscale frame
+            gray: Current grayscale frame
+
+        Returns:
+            np.ndarray: Optical flow field, shape (H, W, 2)
+        """
+        gpu_prev = cv2.cuda.GpuMat()
+        gpu_curr = cv2.cuda.GpuMat()
+        gpu_prev.upload(prev_gray)
+        gpu_curr.upload(gray)
+
+        farneback = cv2.cuda.FarnebackOpticalFlow.create(
+            numLevels=self.config.levels,
+            pyrScale=self.config.pyr_scale,
+            winSize=self.config.winsize,
+            numIters=self.config.iterations,
+            polyN=self.config.poly_n,
+            polySigma=self.config.poly_sigma,
+            flags=self.config.flags,
+        )
+
+        gpu_flow = farneback.calc(gpu_prev, gpu_curr, None)
+        return gpu_flow.download()
+
+    def _downscale_frame(self, gray: np.ndarray) -> np.ndarray:
+        """
+        Downscale a grayscale frame by the configured factor.
+
+        Args:
+            gray: Grayscale frame
+
+        Returns:
+            Downscaled frame (or original if factor >= 1.0)
+        """
+        factor = self.config.downscale_factor
+        if factor >= 1.0:
+            return gray
+        new_w = max(1, int(gray.shape[1] * factor))
+        new_h = max(1, int(gray.shape[0] * factor))
+        return cv2.resize(gray, (new_w, new_h), interpolation=cv2.INTER_AREA)
 
     def analyze(self, video_path: Path | str) -> np.ndarray:
         """
@@ -94,7 +199,22 @@ class MotionAnalyzer:
         duration_sec = frame_count / fps
         n_seconds = int(np.ceil(duration_sec))
 
-        logger.info(f"Video: {frame_count} frames, {fps:.1f} fps, {duration_sec:.1f}s, {width}x{height}")
+        # Compute max frame index for early termination
+        max_frame = frame_count
+        if self.config.max_analysis_duration_sec > 0 and duration_sec > self.config.max_analysis_duration_sec:
+            max_frame = int(self.config.max_analysis_duration_sec * fps)
+            logger.info(
+                f"Video duration {duration_sec:.1f}s exceeds max_analysis_duration_sec "
+                f"({self.config.max_analysis_duration_sec:.0f}s), analyzing first {max_frame} frames only"
+            )
+
+        ds = self.config.downscale_factor
+        effective_res = f"{int(width * ds)}x{int(height * ds)}" if ds < 1.0 else f"{width}x{height}"
+        flow_backend = "CUDA" if (self.config.use_cuda and self._cuda_available) else "CPU"
+        logger.info(
+            f"Video: {frame_count} frames, {fps:.1f} fps, {duration_sec:.1f}s, {width}x{height} "
+            f"(flow res: {effective_res}, backend: {flow_backend}, skip: {self.config.frame_skip})"
+        )
 
         # Process video
         magnitude_per_frame = []
@@ -110,28 +230,22 @@ class MotionAnalyzer:
             if not ret:
                 break
 
+            # Early termination if past max analysis duration
+            if frame_idx >= max_frame:
+                break
+
             # Skip frames for performance
             if frame_idx % self.config.frame_skip != 0:
                 frame_idx += 1
                 continue
 
-            # Convert to grayscale
+            # Convert to grayscale and downscale
             gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+            gray = self._downscale_frame(gray)
 
             # Compute optical flow
             if prev_gray is not None:
-                flow = cv2.calcOpticalFlowFarneback(
-                    prev_gray,
-                    gray,
-                    None,
-                    pyr_scale=self.config.pyr_scale,
-                    levels=self.config.levels,
-                    winsize=self.config.winsize,
-                    iterations=self.config.iterations,
-                    poly_n=self.config.poly_n,
-                    poly_sigma=self.config.poly_sigma,
-                    flags=self.config.flags,
-                )
+                flow = self._compute_optical_flow(prev_gray, gray)
 
                 # Extract flow magnitude (overall motion intensity)
                 fx, fy = flow[..., 0], flow[..., 1]
@@ -150,8 +264,8 @@ class MotionAnalyzer:
             prev_gray = gray
             frame_idx += 1
 
-            # Log progress every 100 frames
-            if frame_idx % 100 == 0:
+            # Log progress every 500 processed frames
+            if frame_idx % 500 == 0:
                 logger.debug(f"Processed {frame_idx}/{frame_count} frames")
 
         cap.release()

@@ -5,8 +5,6 @@ criteria and include negative examples for the 7B model.
 """
 
 from insurance_mvp.cosmos.prompt import (
-    CLAIM_ASSESSMENT_PROMPT,
-    QUICK_SEVERITY_PROMPT,
     get_claim_assessment_prompt,
     get_quick_severity_prompt,
 )

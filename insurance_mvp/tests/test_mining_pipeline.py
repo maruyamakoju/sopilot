@@ -73,9 +73,12 @@ class TestMotionAnalyzer:
     def test_motion_config_defaults(self):
         """Test MotionConfig default values"""
         config = MotionConfig()
-        assert config.frame_skip == 5
+        assert config.frame_skip == 10
         assert config.pyr_scale == 0.5
         assert config.levels == 3
+        assert config.downscale_factor == 0.5
+        assert config.max_analysis_duration_sec == 600.0
+        assert config.use_cuda is True
 
     def test_motion_analyzer_init(self):
         """Test MotionAnalyzer initialization"""

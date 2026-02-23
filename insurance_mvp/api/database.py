@@ -385,8 +385,14 @@ class AssessmentRepository:
             fraud_reasoning=assessment_data.get("fraud_risk", {}).get("reasoning", ""),
             causal_reasoning=assessment_data.get("causal_reasoning", ""),
             recommended_action=assessment_data.get("recommended_action", "REVIEW"),
-            hazards_json=json.dumps([h.dict() for h in assessment_data.get("hazards", [])]),
-            evidence_json=json.dumps([e.dict() for e in assessment_data.get("evidence", [])]),
+            hazards_json=json.dumps([
+                h.model_dump() if hasattr(h, "model_dump") else (h.dict() if hasattr(h, "dict") else h)
+                for h in assessment_data.get("hazards", [])
+            ]),
+            evidence_json=json.dumps([
+                e.model_dump() if hasattr(e, "model_dump") else (e.dict() if hasattr(e, "dict") else e)
+                for e in assessment_data.get("evidence", [])
+            ]),
             processing_time_sec=assessment_data.get("processing_time_sec", 0.0),
             model_version=assessment_data.get("model_version"),
         )

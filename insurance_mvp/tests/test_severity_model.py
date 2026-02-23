@@ -5,12 +5,9 @@ CalibratedSeverityModel, SeverityFeatures, and edge cases.
 """
 
 import json
-import tempfile
-from pathlib import Path
 
 import numpy as np
 import pytest
-
 from insurance_mvp.pipeline.stages.severity_model import (
     NUM_CLASSES,
     SEVERITY_LABELS,
@@ -23,7 +20,6 @@ from insurance_mvp.pipeline.stages.severity_model import (
     _sigmoid,
     _softmax,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures: synthetic data generators
@@ -301,8 +297,8 @@ class TestPlattScaling:
 
         ps2 = PlattScaling.from_dict(d)
         assert ps2._fitted is True
-        assert ps2.A == pytest.approx(ps.A)
-        assert ps2.B == pytest.approx(ps.B)
+        assert pytest.approx(ps.A) == ps2.A
+        assert pytest.approx(ps.B) == ps2.B
 
         test_scores = np.array([0.1, 0.5, 0.9])
         np.testing.assert_array_almost_equal(

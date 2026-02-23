@@ -9,7 +9,6 @@ Covers:
 import time
 
 import pytest
-
 from insurance_mvp.pipeline.protocols import (
     CalibrationBackend,
     EvaluationBackend,
@@ -23,7 +22,6 @@ from insurance_mvp.pipeline.protocols import (
     VLMBackend,
     VLMResult,
 )
-
 
 # ---------------------------------------------------------------------------
 # MiningResult

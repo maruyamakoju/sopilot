@@ -44,7 +44,7 @@ from insurance_mvp.pipeline.results import save_checkpoint, save_results
 from insurance_mvp.pipeline.stages.conformal_stage import apply_conformal
 from insurance_mvp.pipeline.stages.mining import mock_danger_clips, run_mining
 from insurance_mvp.pipeline.stages.ranking import rank_by_severity
-from insurance_mvp.pipeline.stages.recalibration import RecalibrationConfig, recalibrate_severity
+from insurance_mvp.pipeline.stages.recalibration import recalibrate_severity
 from insurance_mvp.pipeline.stages.review_priority import assign_review_priority
 from insurance_mvp.pipeline.stages.vlm_inference import (
     create_error_assessment,

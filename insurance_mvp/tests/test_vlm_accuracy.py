@@ -8,9 +8,7 @@ import json
 from pathlib import Path
 
 import pytest
-
 from insurance_mvp.pipeline.stages.vlm_inference import mock_vlm_result
-
 
 # Ground truth expectations for all 10 scenarios
 SCENARIO_EXPECTATIONS = {

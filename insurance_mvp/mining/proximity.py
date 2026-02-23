@@ -74,12 +74,20 @@ class ProximityAnalyzer:
     3. Object type weighting - pedestrians/cyclists prioritized
     """
 
+    # Class-level model cache: {(model_name, device) -> YOLO model}
+    # Avoids reloading the same model across multiple analyzer instances.
+    _model_cache: dict[tuple[str, str], object] = {}
+
     def __init__(self, config: ProximityConfig | None = None):
         self.config = config or ProximityConfig()
         self.model = None
 
     def _load_model(self):
-        """Lazy-load YOLOv8 model"""
+        """Lazy-load YOLOv8 model with class-level caching.
+
+        The model is cached by (model_name, device) so it is only loaded once
+        even when multiple ProximityAnalyzer instances are created.
+        """
         if self.model is not None:
             return
 
@@ -87,8 +95,6 @@ class ProximityAnalyzer:
             from ultralytics import YOLO
         except ImportError as e:
             raise RuntimeError("ultralytics not installed. Install with: pip install ultralytics") from e
-
-        logger.info(f"Loading YOLOv8 model: {self.config.model_name}")
 
         # Determine device
         if self.config.device == "auto":
@@ -98,12 +104,25 @@ class ProximityAnalyzer:
         else:
             device = self.config.device
 
+        cache_key = (self.config.model_name, device)
+
+        # Check class-level cache first
+        if cache_key in ProximityAnalyzer._model_cache:
+            self.model = ProximityAnalyzer._model_cache[cache_key]
+            logger.info(f"Reusing cached YOLOv8 model: {self.config.model_name} on {device}")
+            return
+
+        logger.info(f"Loading YOLOv8 model: {self.config.model_name}")
         logger.info(f"Using device: {device}")
 
-        self.model = YOLO(self.config.model_name)
-        self.model.to(device)
+        model = YOLO(self.config.model_name)
+        model.to(device)
 
-        logger.info("YOLOv8 model loaded successfully")
+        # Store in class-level cache
+        ProximityAnalyzer._model_cache[cache_key] = model
+        self.model = model
+
+        logger.info("YOLOv8 model loaded and cached successfully")
 
     def analyze(self, video_path: Path | str) -> np.ndarray:
         """

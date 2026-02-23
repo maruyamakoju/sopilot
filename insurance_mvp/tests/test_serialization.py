@@ -5,9 +5,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel
-
 from insurance_mvp.serialization import clip_to_dict, to_serializable
+from pydantic import BaseModel
 
 
 class TestToSerializable:

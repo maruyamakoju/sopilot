@@ -6,7 +6,7 @@ Tests that stages chain correctly and data flows through the full pipeline.
 from unittest.mock import Mock
 
 from insurance_mvp.conformal.split_conformal import SplitConformal
-from insurance_mvp.insurance.schema import ClaimAssessment, FaultAssessment, FraudRisk
+from insurance_mvp.insurance.schema import ClaimAssessment
 from insurance_mvp.pipeline.stages.conformal_stage import apply_conformal
 from insurance_mvp.pipeline.stages.ranking import rank_by_severity
 from insurance_mvp.pipeline.stages.review_priority import assign_review_priority
@@ -108,9 +108,7 @@ class TestFaultFraudIntegration:
             ScenarioType,
         )
         from insurance_mvp.insurance.fraud_detection import (
-            ClaimDetails,
             FraudDetectionEngine,
-            VideoEvidence,
         )
         from insurance_mvp.tests.conftest import make_claim_details, make_video_evidence
 

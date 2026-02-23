@@ -10,6 +10,7 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from insurance_mvp.api.database import AssessmentRepository, ClaimRepository, ReviewRepository
@@ -152,8 +153,34 @@ async def metrics_page(request: Request, db: Session = Depends(get_db)):
         sum(r.review_time_sec for r in recent_reviews) / len(recent_reviews) if recent_reviews else 0.0
     ) / 60.0  # Convert to minutes
 
-    # AI accuracy (placeholder — real accuracy calculated from VLM benchmarks)
-    accuracy = 0.90
+    # AI accuracy — computed from human review overrides
+    all_reviews = db.query(Review).all()
+    if all_reviews:
+        correct = 0
+        total_reviewed = 0
+        for review in all_reviews:
+            assessment = db.query(Assessment).filter(Assessment.claim_id == review.claim_id).first()
+            if not assessment:
+                continue
+            total_reviewed += 1
+            if review.severity_override is None:
+                # Reviewer did not override severity — AI was correct
+                correct += 1
+            elif review.severity_override == assessment.severity:
+                # Override matches AI assessment — AI was correct
+                correct += 1
+            # else: override differs — AI was wrong
+        accuracy = correct / total_reviewed if total_reviewed > 0 else 0.90
+    else:
+        accuracy = 0.90  # Sensible default when no reviews exist
+
+    # Average AI confidence and processing time from assessments
+    confidence_stats = db.query(
+        func.avg(Assessment.confidence),
+        func.avg(Assessment.processing_time_sec),
+    ).first()
+    avg_confidence = confidence_stats[0] if confidence_stats[0] is not None else 0.0
+    avg_processing_time_sec = confidence_stats[1] if confidence_stats[1] is not None else 0.0
 
     # Severity distribution
     all_assessments = db.query(Assessment).limit(1000).all()
@@ -176,8 +203,31 @@ async def metrics_page(request: Request, db: Session = Depends(get_db)):
         day_count = db.query(Claim).filter(Claim.upload_time >= day_start, Claim.upload_time < day_end).count()
         volume_trend.append(day_count)
 
-    # Accuracy trend (weekly)
-    accuracy_trend = [85, 87, 89, 91]  # Placeholder
+    # Accuracy trend (weekly) — compute from review data for last 4 weeks
+    accuracy_trend = []
+    now = datetime.utcnow()
+    for week_idx in range(4):
+        week_end = now - timedelta(weeks=3 - week_idx)
+        week_start = week_end - timedelta(weeks=1)
+        week_reviews = (
+            db.query(Review)
+            .filter(Review.timestamp >= week_start, Review.timestamp < week_end)
+            .all()
+        )
+        if week_reviews:
+            week_correct = 0
+            week_total = 0
+            for review in week_reviews:
+                assessment = db.query(Assessment).filter(Assessment.claim_id == review.claim_id).first()
+                if not assessment:
+                    continue
+                week_total += 1
+                if review.severity_override is None or review.severity_override == assessment.severity:
+                    week_correct += 1
+            week_accuracy = round((week_correct / week_total) * 100) if week_total > 0 else round(accuracy * 100)
+        else:
+            week_accuracy = round(accuracy * 100)  # Fall back to overall accuracy
+        accuracy_trend.append(week_accuracy)
 
     # Decision distribution
     approved = claim_repo.count_by_status(ClaimStatus.APPROVED)
@@ -205,6 +255,8 @@ async def metrics_page(request: Request, db: Session = Depends(get_db)):
         "queue_depth": queue_depth,
         "avg_review_time": avg_review_time,
         "accuracy": accuracy,
+        "avg_confidence": avg_confidence,
+        "avg_processing_time_sec": avg_processing_time_sec,
         "severity_distribution": severity_distribution,
         "volume_trend": volume_trend,
         "accuracy_trend": accuracy_trend,

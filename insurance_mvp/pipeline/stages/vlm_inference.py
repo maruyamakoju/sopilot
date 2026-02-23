@@ -42,6 +42,15 @@ def mock_vlm_result(clip: Any) -> dict[str, Any]:
             "hazards": [{"type": "near_miss", "actors": ["car", "pedestrian"]}],
             "evidence": [{"timestamp_sec": 15.0, "description": "Emergency braking"}],
         }
+    elif "swerve" in filename:
+        return {
+            "severity": "MEDIUM",
+            "confidence": 0.78,
+            "reasoning": "Mock: Swerve to avoid obstacle on road",
+            "causal_reasoning": "near-miss: ego vehicle swerved to avoid road obstacle",
+            "hazards": [{"type": "near_miss", "actors": ["car", "obstacle"]}],
+            "evidence": [{"timestamp_sec": 15.0, "description": "Evasive swerve maneuver"}],
+        }
     elif "normal" in filename or "safe" in filename:
         return {
             "severity": "NONE",
@@ -50,6 +59,24 @@ def mock_vlm_result(clip: Any) -> dict[str, Any]:
             "causal_reasoning": "normal driving conditions, no hazards observed",
             "hazards": [],
             "evidence": [],
+        }
+    elif "parking" in filename or "bump" in filename:
+        return {
+            "severity": "LOW",
+            "confidence": 0.85,
+            "reasoning": "Mock: Low-speed parking lot contact",
+            "causal_reasoning": "minor parking lot bump at very low speed, cosmetic damage only",
+            "hazards": [{"type": "collision", "actors": ["car", "car"]}],
+            "evidence": [{"timestamp_sec": 20.0, "description": "Low-speed contact"}],
+        }
+    elif "hard_braking" in filename:
+        return {
+            "severity": "LOW",
+            "confidence": 0.82,
+            "reasoning": "Mock: Hard braking on clear road, no nearby vehicles",
+            "causal_reasoning": "hard braking event but no other road users nearby, no collision risk",
+            "hazards": [],
+            "evidence": [{"timestamp_sec": 15.0, "description": "Hard braking"}],
         }
     else:
         return {

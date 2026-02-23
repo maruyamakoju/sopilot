@@ -44,6 +44,7 @@ from insurance_mvp.pipeline.results import save_checkpoint, save_results
 from insurance_mvp.pipeline.stages.conformal_stage import apply_conformal
 from insurance_mvp.pipeline.stages.mining import mock_danger_clips, run_mining
 from insurance_mvp.pipeline.stages.ranking import rank_by_severity
+from insurance_mvp.pipeline.stages.recalibration import RecalibrationConfig, recalibrate_severity
 from insurance_mvp.pipeline.stages.review_priority import assign_review_priority
 from insurance_mvp.pipeline.stages.vlm_inference import (
     create_error_assessment,
@@ -315,7 +316,8 @@ class InsurancePipeline:
             return run_mining(self.signal_fuser, video_path, video_id, self.config.mining.top_k_clips)
         except Exception:
             if self.config.continue_on_error:
-                return []
+                self.logger.warning("Mining failed, falling back to mock danger clips.")
+                return mock_danger_clips(video_path, video_id, self.config.mining.top_k_clips)
             raise
 
     def _stage2_vlm_inference(self, danger_clips: list[Any], video_id: str) -> list[ClaimAssessment]:
@@ -364,6 +366,19 @@ class InsurancePipeline:
 
         processing_time = time.time() - start_time
         severity = vlm_result.get("severity", "LOW")
+        confidence = vlm_result.get("confidence", 0.5)
+
+        # Post-VLM recalibration using mining signals
+        if self.config.enable_recalibration:
+            severity, confidence, recal_reason = recalibrate_severity(
+                vlm_severity=severity,
+                vlm_confidence=confidence,
+                danger_score=clip.get("danger_score", 0.5),
+                motion_score=clip.get("motion_score", 0.0),
+                proximity_score=clip.get("proximity_score", 0.0),
+            )
+            if recal_reason != "no_adjustment":
+                self.logger.info("[%s] Recalibrated: %s", video_id, recal_reason)
 
         # Severity-aware fault ratio adjustment
         if severity == "NONE":
@@ -383,7 +398,7 @@ class InsurancePipeline:
 
         return ClaimAssessment(
             severity=severity,
-            confidence=vlm_result.get("confidence", 0.5),
+            confidence=confidence,
             prediction_set={severity},
             review_priority="STANDARD",
             fault_assessment=fault,

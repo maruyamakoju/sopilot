@@ -70,7 +70,7 @@ class VLMConfig:
         fps: float = 2.0,
         max_frames: int = 48,
         max_new_tokens: int = 512,
-        temperature: float = 0.3,
+        temperature: float = 0.1,
         timeout_sec: float = 300.0,
         min_pixels: int = 256 * 28 * 28,
         max_pixels: int = 512 * 28 * 28,

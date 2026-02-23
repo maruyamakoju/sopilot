@@ -28,7 +28,31 @@ def run_mining(signal_fuser: Any, video_path: str, video_id: str, top_k: int) ->
 
 
 def mock_danger_clips(video_path: str, video_id: str, top_k: int = 3) -> list[dict]:
-    """Generate mock danger clips for testing."""
+    """Generate mock danger clips for testing.
+
+    Signal scores are pattern-matched from video filename for
+    recalibration compatibility.
+    """
+    from pathlib import Path
+
+    filename = Path(video_path).stem.lower()
+
+    # Derive signal scores from filename pattern
+    if "collision" in filename or "crash" in filename:
+        motion_score, proximity_score = 0.9, 0.9
+    elif "near_miss" in filename or "near-miss" in filename:
+        motion_score, proximity_score = 0.8, 0.7
+    elif "normal" in filename or "safe" in filename:
+        motion_score, proximity_score = 0.1, 0.1
+    elif "swerve" in filename:
+        motion_score, proximity_score = 0.85, 0.6
+    elif "parking" in filename or "bump" in filename:
+        motion_score, proximity_score = 0.3, 0.8
+    elif "hard_braking" in filename:
+        motion_score, proximity_score = 0.7, 0.2
+    else:
+        motion_score, proximity_score = 0.5, 0.5
+
     return [
         {
             "clip_id": f"{video_id}_clip_{i}",
@@ -36,6 +60,8 @@ def mock_danger_clips(video_path: str, video_id: str, top_k: int = 3) -> list[di
             "end_sec": (i * 10.0) + 5.0,
             "danger_score": 0.8 - (i * 0.1),
             "video_path": video_path,
+            "motion_score": motion_score,
+            "proximity_score": proximity_score,
         }
         for i in range(min(3, top_k))
     ]

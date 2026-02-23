@@ -32,6 +32,8 @@ CLAIM_ASSESSMENT_PROMPT = """Analyze this dashcam footage and provide an insuran
 - If speed drops from >40 km/h to 0 km/h while approaching another vehicle → rear-end collision (HIGH)
 - If you see emergency braking with a pedestrian nearby → near-miss (MEDIUM)
 - A vehicle/object growing rapidly larger in the frame = approaching collision
+- IMPORTANT: If emergency braking occurs near a pedestrian or vehicle, this is a NEAR-MISS → severity MEDIUM (NOT LOW)
+- WRONG reasoning: "No collision occurred so severity is LOW" — near-miss with pedestrian avoidance is MEDIUM
 
 **STEP 2 -CLASSIFY SEVERITY based on your observations:**
 
@@ -45,12 +47,13 @@ LOW -Minor incident:
 - Cosmetic-only damage (small scratch, paint transfer)
 - No injury risk whatsoever
 
-MEDIUM -Moderate incident:
-- Clear collision at moderate speed
-- Visible vehicle damage (bent bumper, cracked body panel)
-- Emergency braking to avoid collision (near-miss with close call)
-- Pedestrian or obstacle avoidance with sudden braking
+MEDIUM -Moderate incident OR Near-miss:
+- Near-miss: Emergency braking near a pedestrian, cyclist, or vehicle — NO contact but CLOSE CALL
+- Near-miss: Speed drops rapidly while another road user is nearby
+- Swerving to avoid collision, vehicle stops within meters of hazard
+- Clear collision at moderate speed with visible vehicle damage
 - Multiple vehicles involved in contact
+**CRITICAL: A near-miss with emergency braking IS MEDIUM severity, even if no collision or damage occurred. Do NOT classify a near-miss as LOW.**
 
 HIGH -Serious incident:
 - High-speed collision with strong impact force
@@ -116,6 +119,8 @@ HIGH -Serious incident:
 
 **DO NOT copy the example values. Analyze the actual video and provide YOUR assessment.**
 
+**OUTPUT ORDER: Determine severity FIRST, then fill in the remaining fields. Start your JSON with the severity field.**
+
 Provide your JSON assessment:"""
 
 
@@ -125,7 +130,7 @@ QUICK_SEVERITY_PROMPT = """Watch this dashcam video and classify the incident se
 Severity levels:
 - NONE: No collision or incident, just normal driving
 - LOW: Minor contact, cosmetic damage only
-- MEDIUM: Clear collision with visible damage
+- MEDIUM: Collision with visible damage, OR near-miss with emergency braking / pedestrian avoidance
 - HIGH: Severe collision, major damage, or pedestrian involvement
 
 First describe what you see, then classify.

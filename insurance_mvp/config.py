@@ -194,7 +194,7 @@ class VlmConfig:
     fps: float = 2.0
     max_frames: int = 48
     max_new_tokens: int = 512
-    temperature: float = 0.3
+    temperature: float = 0.1
     timeout_sec: float = 300.0
     jpeg_quality: int = 75
     max_clip_duration_sec: float = 60.0
@@ -242,6 +242,7 @@ class PipelineConfig:
     enable_conformal: bool = True
     enable_fraud_detection: bool = True
     enable_fault_assessment: bool = True
+    enable_recalibration: bool = False
 
     # Performance monitoring
     enable_profiling: bool = False

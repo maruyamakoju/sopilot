@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import threading
 import time
 import traceback
@@ -26,14 +27,13 @@ from typing import Any
 import numpy as np
 from tqdm import tqdm
 
-from insurance_mvp.config import PipelineConfig, load_config
+from insurance_mvp.config import PipelineConfig
 from insurance_mvp.conformal.split_conformal import ConformalConfig, SplitConformal
 from insurance_mvp.insurance.schema import ClaimAssessment, FaultAssessment, FraudRisk
 from insurance_mvp.mining.audio import AudioAnalyzer
 from insurance_mvp.mining.fuse import SignalFuser
 from insurance_mvp.mining.motion import MotionAnalyzer
 from insurance_mvp.mining.proximity import ProximityAnalyzer
-from insurance_mvp.serialization import to_serializable
 
 # Delegated stage functions
 from insurance_mvp.pipeline.adapters.vlm_adapter import (
@@ -49,7 +49,7 @@ from insurance_mvp.pipeline.stages.vlm_inference import (
     create_error_assessment,
     mock_vlm_result,
 )
-
+from insurance_mvp.serialization import to_serializable
 
 # --- Data Classes ---
 
@@ -113,28 +113,15 @@ class InsurancePipeline:
         self._init_components()
 
     def _setup_logging(self) -> logging.Logger:
-        logger = logging.getLogger("insurance_pipeline")
-        logger.setLevel(getattr(logging, self.config.log_level.upper()))
-        logger.handlers.clear()
+        from insurance_mvp.logging_config import configure_logging
 
-        console_handler = logging.StreamHandler()
-        console_handler.setLevel(logging.INFO)
-        formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S",
+        json_output = os.environ.get("INSURANCE_LOG_JSON", "").lower() == "true"
+        configure_logging(
+            level=self.config.log_level,
+            json_output=json_output,
+            log_file=self.config.log_file,
         )
-        console_handler.setFormatter(formatter)
-        logger.addHandler(console_handler)
-
-        if self.config.log_file:
-            log_path = Path(self.config.log_file)
-            log_path.parent.mkdir(parents=True, exist_ok=True)
-            file_handler = logging.FileHandler(log_path, encoding="utf-8")
-            file_handler.setLevel(logging.DEBUG)
-            file_handler.setFormatter(formatter)
-            logger.addHandler(file_handler)
-
-        return logger
+        return logging.getLogger("insurance_pipeline")
 
     def _init_components(self):
         self.logger.info("Initializing pipeline components...")
@@ -221,6 +208,12 @@ class InsurancePipeline:
         if video_id is None:
             video_id = video_path_obj.stem
 
+        from insurance_mvp.logging_config import set_correlation_id
+        from insurance_mvp.metrics import METRICS
+
+        set_correlation_id(video_id=video_id)
+        METRICS.inc("claims_total", labels={"status": "processing"})
+        METRICS.inc_gauge("active_processing")
         self.logger.info("Processing video: %s", video_id)
         start_time = time.time()
         stage_timings: dict[str, float] = {}
@@ -231,6 +224,7 @@ class InsurancePipeline:
             stage_start = time.time()
             danger_clips = self._stage1_mining(video_path, video_id)
             stage_timings["mining"] = time.time() - stage_start
+            METRICS.observe("processing_duration_seconds", stage_timings["mining"], labels={"stage": "mining"})
             self.logger.info("[%s] Mined %d danger clips", video_id, len(danger_clips))
 
             if not danger_clips:
@@ -250,6 +244,7 @@ class InsurancePipeline:
             stage_start = time.time()
             assessments = self._stage2_vlm_inference(danger_clips, video_id)
             stage_timings["vlm_inference"] = time.time() - stage_start
+            METRICS.observe("processing_duration_seconds", stage_timings["vlm_inference"], labels={"stage": "vlm"})
             self.logger.info("[%s] Completed %d assessments", video_id, len(assessments))
 
             # Stage 3: Ranking (delegated)
@@ -277,6 +272,9 @@ class InsurancePipeline:
             )
 
             processing_time = time.time() - start_time
+            METRICS.observe("processing_duration_seconds", processing_time, labels={"stage": "total"})
+            METRICS.inc("claims_total", labels={"status": "completed"})
+            METRICS.dec_gauge("active_processing")
             self.logger.info("[%s] Completed in %.2fs", video_id, processing_time)
 
             return VideoResult(
@@ -292,6 +290,8 @@ class InsurancePipeline:
             )
 
         except Exception as e:
+            METRICS.inc("claims_total", labels={"status": "failed"})
+            METRICS.dec_gauge("active_processing")
             self.logger.error("[%s] Pipeline failed: %s", video_id, e)
             self.logger.debug(traceback.format_exc())
             return VideoResult(

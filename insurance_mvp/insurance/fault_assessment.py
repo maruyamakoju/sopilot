@@ -160,9 +160,9 @@ class FaultAssessmentEngine:
         """
         self.config = config or FaultAssessmentConfig()
         logger.info(
-            "fault_assessment_engine_initialized",
-            rear_end_default=self.config.rear_end_default,
-            excessive_speed_threshold=self.config.excessive_speed_threshold_kmh,
+            "FaultAssessmentEngine initialized (rear_end_default=%.1f, excessive_speed_threshold=%.1f)",
+            self.config.rear_end_default,
+            self.config.excessive_speed_threshold_kmh,
         )
 
     def assess_fault(self, context: ScenarioContext) -> FaultAssessment:
@@ -175,11 +175,11 @@ class FaultAssessmentEngine:
             FaultAssessment with fault ratio, reasoning, and applicable rules.
         """
         logger.debug(
-            "assessing_fault",
-            scenario_type=context.scenario_type.value,
-            traffic_signal=context.traffic_signal.value,
-            speed_ego=context.speed_ego_kmh,
-            speed_other=context.speed_other_kmh,
+            "Assessing fault: scenario=%s signal=%s speed_ego=%s speed_other=%s",
+            context.scenario_type.value,
+            context.traffic_signal.value,
+            context.speed_ego_kmh,
+            context.speed_other_kmh,
         )
 
         # Dispatch to scenario-specific handler
@@ -212,12 +212,12 @@ class FaultAssessmentEngine:
         reasoning = " ".join(reasoning_parts)
 
         logger.info(
-            "fault_assessment_complete",
-            scenario_type=context.scenario_type.value,
-            base_fault=round(base_fault, 1),
-            adjusted_fault=round(adjusted_fault, 1),
-            final_fault=round(final_fault, 1),
-            num_rules=len(rules),
+            "Fault assessment: scenario=%s base=%.1f adjusted=%.1f final=%.1f rules=%d",
+            context.scenario_type.value,
+            base_fault,
+            adjusted_fault,
+            final_fault,
+            len(rules),
         )
 
         return FaultAssessment(

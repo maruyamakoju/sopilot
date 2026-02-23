@@ -76,7 +76,7 @@ logger = logging.getLogger(__name__)
 
 
 # Application Configuration — backed by unified PipelineConfig
-from insurance_mvp.config import ApiConfig, PipelineConfig
+from insurance_mvp.config import ApiConfig
 
 _api_cfg = ApiConfig(
     database_url=os.getenv("DATABASE_URL", "sqlite:///./insurance.db"),
@@ -921,6 +921,17 @@ async def get_metrics(
         error_rate=error_rate,
         timestamp=datetime.utcnow(),
     )
+
+
+# Application Metrics Endpoint
+
+
+@app.get("/metrics/app", tags=["System"], summary="Application-level metrics (JSON)")
+async def get_app_metrics():
+    """Return in-memory pipeline metrics (counters, gauges, histograms)."""
+    from insurance_mvp.metrics import METRICS
+
+    return METRICS.snapshot()
 
 
 # Development Endpoints (only in dev mode)

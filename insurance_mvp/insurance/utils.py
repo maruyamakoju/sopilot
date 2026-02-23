@@ -105,12 +105,8 @@ def extract_video_metadata(video_path: str) -> VideoMetadata:
         )
 
         logger.debug(
-            "video_metadata_extracted",
-            video_path=video_path,
-            duration_sec=round(duration_sec, 2),
-            fps=round(fps, 2),
-            resolution=f"{width}x{height}",
-            num_frames=num_frames,
+            "Video metadata: %s duration=%.2fs fps=%.2f res=%dx%d frames=%d",
+            video_path, duration_sec, fps, width, height, num_frames,
         )
 
         return metadata
@@ -160,9 +156,7 @@ def extract_keyframes(
 
             if not ret:
                 logger.warning(
-                    "failed_to_extract_keyframe",
-                    timestamp_sec=timestamp_sec,
-                    frame_number=frame_number,
+                    "Failed to extract keyframe at %.2fs (frame %d)", timestamp_sec, frame_number,
                 )
                 continue
 
@@ -182,10 +176,7 @@ def extract_keyframes(
             evidence_list.append(evidence)
 
         logger.info(
-            "keyframes_extracted",
-            video_path=video_path,
-            num_keyframes=len(evidence_list),
-            output_dir=output_dir,
+            "Extracted %d keyframes from %s to %s", len(evidence_list), video_path, output_dir,
         )
 
         return evidence_list
@@ -371,10 +362,7 @@ def detect_scene_changes(
             prev_gray = gray
 
         logger.info(
-            "scene_changes_detected",
-            video_path=video_path,
-            num_changes=len(scene_changes),
-            threshold=threshold,
+            "Detected %d scene changes in %s (threshold=%.1f)", len(scene_changes), video_path, threshold,
         )
 
         return scene_changes
@@ -456,11 +444,7 @@ def estimate_motion_intensity(
         avg_motion = float(np.mean(motion_magnitudes))
 
         logger.debug(
-            "motion_intensity_estimated",
-            video_path=video_path,
-            start_sec=start_sec,
-            end_sec=end_sec,
-            avg_motion=round(avg_motion, 2),
+            "Motion intensity: %s [%.1f-%.1fs] avg=%.2f", video_path, start_sec, end_sec, avg_motion,
         )
 
         return avg_motion
@@ -549,12 +533,8 @@ def calculate_video_quality_score(video_path: str, num_samples: int = 10) -> dic
         }
 
         logger.info(
-            "video_quality_assessed",
-            video_path=video_path,
-            brightness=round(avg_brightness, 1),
-            contrast=round(avg_contrast, 1),
-            sharpness=round(avg_sharpness, 1),
-            overall_score=round(overall_score, 3),
+            "Video quality: %s brightness=%.1f contrast=%.1f sharpness=%.1f score=%.3f",
+            video_path, avg_brightness, avg_contrast, avg_sharpness, overall_score,
         )
 
         return quality_metrics

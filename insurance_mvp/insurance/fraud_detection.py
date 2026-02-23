@@ -193,10 +193,10 @@ class FraudDetectionEngine:
         }
 
         logger.info(
-            "fraud_detection_engine_initialized",
-            high_risk_threshold=self.config.high_risk_threshold,
-            medium_risk_threshold=self.config.medium_risk_threshold,
-            claim_amount_mean=self.claim_amount_stats["mean"],
+            "FraudDetectionEngine initialized (high_risk=%.2f, medium_risk=%.2f, claim_mean=%.0f)",
+            self.config.high_risk_threshold,
+            self.config.medium_risk_threshold,
+            self.claim_amount_stats["mean"],
         )
 
     def detect_fraud(
@@ -216,10 +216,10 @@ class FraudDetectionEngine:
             FraudRisk with overall score, indicators, and reasoning.
         """
         logger.debug(
-            "detecting_fraud",
-            claimed_amount=claim_details.claimed_amount,
-            damage_visible=video_evidence.damage_visible,
-            collision_sound=video_evidence.has_collision_sound,
+            "Detecting fraud: amount=%.0f damage=%s sound=%s",
+            claim_details.claimed_amount,
+            video_evidence.damage_visible,
+            video_evidence.has_collision_sound,
         )
 
         # Collect all fraud indicators
@@ -261,15 +261,14 @@ class FraudDetectionEngine:
             f"{ind.type}: {ind.description} (severity={ind.severity:.2f})" for ind in indicators if ind.severity > 0.0
         ]
 
+        risk_level = (
+            "HIGH" if fraud_score >= self.config.high_risk_threshold
+            else "MEDIUM" if fraud_score >= self.config.medium_risk_threshold
+            else "LOW"
+        )
         logger.info(
-            "fraud_detection_complete",
-            fraud_score=round(fraud_score, 3),
-            num_indicators=len(indicator_descriptions),
-            risk_level="HIGH"
-            if fraud_score >= self.config.high_risk_threshold
-            else "MEDIUM"
-            if fraud_score >= self.config.medium_risk_threshold
-            else "LOW",
+            "Fraud detection: score=%.3f indicators=%d risk=%s",
+            fraud_score, len(indicator_descriptions), risk_level,
         )
 
         return FraudRisk(

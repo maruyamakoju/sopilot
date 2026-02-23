@@ -74,6 +74,7 @@ def main():
     parser.add_argument("--output", type=str, default="reports/real_data_benchmark.json", help="Output JSON path")
     parser.add_argument("--backend", type=str, default="real", choices=["mock", "real"], help="VLM backend")
     parser.add_argument("--max-videos", type=int, default=None, help="Limit number of videos")
+    parser.add_argument("--extract-clips", action="store_true", help="Extract danger clips as separate files")
     args = parser.parse_args()
 
     input_dir = Path(args.input)
@@ -110,8 +111,9 @@ def main():
 
     cosmos_config = CosmosConfig(backend=backend)
     config = PipelineConfig()
-    # Inject cosmos config
     config.cosmos = cosmos_config
+    if args.extract_clips:
+        config.mining.extract_clips = True
 
     pipeline = InsurancePipeline(config)
 
@@ -221,11 +223,11 @@ def calculate_metrics(videos):
         if not result.get("success"):
             continue
 
-        gt = result.get("ground_truth", {})
-        pred = result.get("predicted", {})
+        gt = result.get("ground_truth") or {}
+        pred = result.get("predicted") or {}
 
         gt_severity = gt.get("gt_severity")
-        pred_severity = pred.get("severity")
+        pred_severity = pred.get("severity") if pred else None
 
         if not gt_severity or gt_severity == "UNKNOWN":
             continue

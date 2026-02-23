@@ -42,37 +42,23 @@ templates.env.filters["format_datetime"] = format_datetime
 router = APIRouter(tags=["Web UI"])
 
 
-# Dependency: Database session
 def get_db():
-    """Get database session (will be overridden by main app)"""
-    from insurance_mvp.api.main import get_db as main_get_db
+    """Get database session from main app's db_manager."""
+    from insurance_mvp.api.main import db_manager
 
-    return main_get_db()
+    session = db_manager.SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
 
 
 @router.get("/", response_class=HTMLResponse)
-async def root(request: Request, db: Session = Depends(get_db)):
-    """Redirect to queue page"""
-    # Get queue items
-    claim_repo = ClaimRepository(db)
-    claims = claim_repo.get_queue(status=ClaimStatus.ASSESSED, limit=50)
-
-    queue_items = []
-    for claim in claims:
-        if claim.assessment:
-            queue_items.append(_build_queue_item_dict(claim))
-
+async def root(request: Request):
+    """Landing page with upload form and quick stats"""
     return templates.TemplateResponse(
-        "queue.html",
-        {
-            "request": request,
-            "queue_items": queue_items,
-            "current_user": "admin",  # TODO: Get from session/auth
-            "total_pages": 1,
-            "current_page": 1,
-            "per_page": 50,
-            "total_items": len(queue_items),
-        },
+        "upload.html",
+        {"request": request, "current_user": "admin"},
     )
 
 
@@ -140,7 +126,7 @@ async def review_page(request: Request, claim_id: str, db: Session = Depends(get
     )
 
 
-@router.get("/metrics", response_class=HTMLResponse)
+@router.get("/dashboard", response_class=HTMLResponse)
 async def metrics_page(request: Request, db: Session = Depends(get_db)):
     """Metrics dashboard page"""
     from insurance_mvp.api.database import Assessment, Claim, Review
@@ -166,9 +152,8 @@ async def metrics_page(request: Request, db: Session = Depends(get_db)):
         sum(r.review_time_sec for r in recent_reviews) / len(recent_reviews) if recent_reviews else 0.0
     ) / 60.0  # Convert to minutes
 
-    # AI accuracy (estimate from agreement with human reviews)
-    reviewed_claims = claim_repo.get_by_status(ClaimStatus.REVIEWED, limit=100)
-    accuracy = 0.89  # Placeholder - calculate from actual agreement
+    # AI accuracy (placeholder — real accuracy calculated from VLM benchmarks)
+    accuracy = 0.90
 
     # Severity distribution
     all_assessments = db.query(Assessment).limit(1000).all()

@@ -2,18 +2,27 @@
 """Convert Nexar annotations to Insurance MVP ground truth format.
 
 Maps Nexar labels to Insurance severity:
-- collision → HIGH
-- near_collision → MEDIUM
-- normal → NONE
+- positive (collision) → HIGH
+- negative (normal)    → NONE
+
+The download script already creates ground_truth.json, but this script
+can enrich it with additional fields or re-map labels.
+
+Usage:
+  python scripts/nexar_to_insurance_format.py [--input data/real_dashcam/nexar]
 """
 
+import argparse
 import json
 from pathlib import Path
 
 
 def main():
-    # Load Nexar metadata
-    nexar_dir = Path("data/real_dashcam/nexar")
+    parser = argparse.ArgumentParser(description="Convert Nexar to insurance format")
+    parser.add_argument("--input", type=str, default="data/real_dashcam/nexar")
+    args = parser.parse_args()
+
+    nexar_dir = Path(args.input)
     metadata_path = nexar_dir / "metadata.json"
 
     if not metadata_path.exists():
@@ -26,50 +35,59 @@ def main():
 
     print(f"Loaded {len(nexar_data)} Nexar videos")
 
-    # Convert to Insurance format
-    insurance_gt = {}
-
+    # Map labels to severity
     label_map = {
+        "positive": "HIGH",
+        "negative": "NONE",
+        # Legacy format support
         "collision": "HIGH",
         "near_collision": "MEDIUM",
         "normal": "NONE",
     }
 
+    fault_map = {
+        "HIGH": 70.0,
+        "MEDIUM": 50.0,
+        "LOW": 20.0,
+        "NONE": 0.0,
+    }
+
+    # Build ground truth
+    ground_truth = {}
+
     for item in nexar_data:
         video_id = item["video_id"]
         nexar_label = item["label"]
-        severity = label_map.get(nexar_label, "LOW")  # fallback
+        severity = item.get("gt_severity") or label_map.get(nexar_label, "LOW")
 
-        insurance_gt[video_id] = {
+        ground_truth[video_id] = {
             "video_id": video_id,
             "video_path": item["video_path"],
             "gt_severity": severity,
-            "gt_fault_ratio": 100.0 if severity == "HIGH" else (50.0 if severity == "MEDIUM" else 0.0),
-            "gt_fraud_risk": 0.0,  # Nexar doesn't have fraud labels
+            "gt_fault_ratio": fault_map.get(severity, 0.0),
+            "gt_fraud_risk": 0.0,
             "nexar_label": nexar_label,
-            "collision_timestamp": item.get("collision_timestamp"),
-            "weather": item.get("weather"),
-            "lighting": item.get("lighting"),
-            "scene_type": item.get("scene_type"),
+            "time_to_accident": item.get("time_to_accident"),
+            "source": "nexar_collision_prediction",
         }
 
     # Save ground truth
     gt_path = nexar_dir / "ground_truth.json"
-    with open(gt_path, "w") as f:
-        json.dump(insurance_gt, f, indent=2, ensure_ascii=False)
+    gt_path.write_text(json.dumps(ground_truth, indent=2, ensure_ascii=False))
 
     # Print distribution
     severity_counts = {}
-    for item in insurance_gt.values():
+    for item in ground_truth.values():
         sev = item["gt_severity"]
         severity_counts[sev] = severity_counts.get(sev, 0) + 1
 
-    print(f"\nGround truth created: {gt_path}")
+    print(f"\nGround truth: {gt_path}")
     print(f"\nSeverity distribution:")
-    for sev, count in sorted(severity_counts.items()):
-        print(f"  {sev}: {count}")
+    for sev in ["NONE", "LOW", "MEDIUM", "HIGH"]:
+        if sev in severity_counts:
+            print(f"  {sev}: {severity_counts[sev]}")
 
-    print(f"\nNext: python scripts/real_data_benchmark.py")
+    print(f"\nNext: python scripts/real_data_benchmark.py --input {nexar_dir} --backend mock")
 
 
 if __name__ == "__main__":

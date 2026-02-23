@@ -266,7 +266,7 @@
                         <!-- Evidence Details -->
                         <div class="flex-1 min-w-0">
                             <div class="flex items-center justify-between">
-                                <span class="text-sm font-medium text-blue-600">{{ Utils.formatTimestamp(evidence.timestamp_sec) }}</span>
+                                <span class="text-sm font-medium text-blue-600">{{ evidence.timestamp_sec|format_timestamp }}</span>
                                 <button onclick="event.stopPropagation(); seekToTimestamp({{ evidence.timestamp_sec }})"
                                         class="text-sm text-blue-600 hover:text-blue-800 font-medium">
                                     Jump to timestamp
@@ -477,7 +477,7 @@
                             <div class="flex-1">
                                 <div class="flex items-center space-x-2 mb-1">
                                     <span class="text-sm font-semibold text-gray-900">{{ hazard.type|replace('_', ' ')|title }}</span>
-                                    <span class="text-xs text-gray-500">{{ Utils.formatTimestamp(hazard.timestamp_sec) }}</span>
+                                    <span class="text-xs text-gray-500">{{ hazard.timestamp_sec|format_timestamp }}</span>
                                 </div>
                                 <p class="text-sm text-gray-600 mb-1">
                                     <span class="font-medium">Actors:</span> {{ hazard.actors|join(', ') }}
@@ -723,10 +723,25 @@
         document.getElementById('loading-overlay').classList.remove('hidden');
 
         try {
-            const response = await Utils.apiCall('/api/reviews', {
+            const response = await fetch(`/reviews/{{ claim_id }}/decision?reviewer_id=${encodeURIComponent(payload.reviewer_id)}`, {
                 method: 'POST',
-                body: JSON.stringify(payload)
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-API-Key': 'dev-key-001',
+                },
+                body: JSON.stringify({
+                    decision: payload.decision,
+                    reasoning: payload.reasoning,
+                    severity_override: payload.severity_override || null,
+                    fault_ratio_override: payload.fault_ratio_override || null,
+                    fraud_override: payload.fraud_override || null,
+                    comments: payload.comments || null,
+                }),
             });
+            if (!response.ok) {
+                const err = await response.json();
+                throw new Error(err.detail || 'Failed to submit review');
+            }
 
             Utils.showFlash('Review submitted successfully!', 'success');
 

@@ -15,6 +15,7 @@ import uvicorn
 from fastapi import Depends, FastAPI, File, HTTPException, Query, UploadFile, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from insurance_mvp.api.auth import (
@@ -177,6 +178,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Mount web UI routes and static file serving
+from insurance_mvp.api.web_routes import router as web_router
+
+app.include_router(web_router)
+
+# Serve uploaded videos as static files
+_upload_dir = Path(config.UPLOAD_DIR)
+_upload_dir.mkdir(parents=True, exist_ok=True)
+app.mount("/static/videos", StaticFiles(directory=str(_upload_dir)), name="videos")
 
 
 # Dependency: Database Session

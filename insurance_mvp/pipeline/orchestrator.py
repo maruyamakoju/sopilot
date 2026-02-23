@@ -31,6 +31,7 @@ from insurance_mvp.config import PipelineConfig
 from insurance_mvp.conformal.split_conformal import ConformalConfig, SplitConformal
 from insurance_mvp.insurance.schema import ClaimAssessment, FaultAssessment, FraudRisk
 from insurance_mvp.mining.audio import AudioAnalyzer
+from insurance_mvp.mining.clip_extractor import ClipExtractor, ClipExtractorConfig
 from insurance_mvp.mining.fuse import SignalFuser
 from insurance_mvp.mining.motion import MotionAnalyzer
 from insurance_mvp.mining.proximity import ProximityAnalyzer
@@ -314,14 +315,32 @@ class InsurancePipeline:
     def _stage1_mining(self, video_path: str, video_id: str) -> list[Any]:
         if not self.signal_fuser:
             self.logger.warning("Signal fuser not available. Returning mock danger clips.")
-            return mock_danger_clips(video_path, video_id, self.config.mining.top_k_clips)
-        try:
-            return run_mining(self.signal_fuser, video_path, video_id, self.config.mining.top_k_clips)
-        except Exception:
-            if self.config.continue_on_error:
-                self.logger.warning("Mining failed, falling back to mock danger clips.")
-                return mock_danger_clips(video_path, video_id, self.config.mining.top_k_clips)
-            raise
+            clips = mock_danger_clips(video_path, video_id, self.config.mining.top_k_clips)
+        else:
+            try:
+                clips = run_mining(self.signal_fuser, video_path, video_id, self.config.mining.top_k_clips)
+            except Exception:
+                if self.config.continue_on_error:
+                    self.logger.warning("Mining failed, falling back to mock danger clips.")
+                    clips = mock_danger_clips(video_path, video_id, self.config.mining.top_k_clips)
+                else:
+                    raise
+
+        # Optional: extract clips as separate video files
+        if clips and self.config.mining.extract_clips:
+            try:
+                output_dir = str(Path(self.config.output_dir) / video_id / "clips")
+                extractor = ClipExtractor(ClipExtractorConfig(
+                    output_dir=output_dir,
+                    max_clips=self.config.mining.top_k_clips,
+                ))
+                clips = extractor.extract_clips(video_path, clips, output_dir=output_dir)
+                extracted_count = sum(1 for c in clips if c.get("extracted_path"))
+                self.logger.info("[%s] Extracted %d/%d clips to %s", video_id, extracted_count, len(clips), output_dir)
+            except Exception as e:
+                self.logger.warning("[%s] Clip extraction failed: %s", video_id, e)
+
+        return clips
 
     def _stage2_vlm_inference(self, danger_clips: list[Any], video_id: str) -> list[ClaimAssessment]:
         assessments: list[ClaimAssessment] = []

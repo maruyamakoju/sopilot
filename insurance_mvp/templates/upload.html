@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+
+{% block title %}Upload - Insurance Claim Review{% endblock %}
+
+{% block custom_styles %}
+<style>
+    .upload-zone {
+        border: 2px dashed #d1d5db;
+        border-radius: 0.75rem;
+        padding: 3rem 2rem;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s;
+        background: #fafafa;
+    }
+
+    .upload-zone:hover,
+    .upload-zone.drag-over {
+        border-color: #3b82f6;
+        background: #eff6ff;
+    }
+
+    .upload-zone.uploading {
+        border-color: #10b981;
+        background: #f0fdf4;
+        pointer-events: none;
+    }
+
+    .upload-icon {
+        width: 4rem;
+        height: 4rem;
+        margin: 0 auto 1rem;
+        color: #9ca3af;
+        transition: color 0.3s;
+    }
+
+    .upload-zone:hover .upload-icon {
+        color: #3b82f6;
+    }
+
+    .progress-container {
+        display: none;
+        margin-top: 1.5rem;
+    }
+
+    .progress-container.active {
+        display: block;
+    }
+
+    .progress-bar-track {
+        height: 8px;
+        background: #e5e7eb;
+        border-radius: 4px;
+        overflow: hidden;
+    }
+
+    .progress-bar-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3b82f6, #10b981);
+        border-radius: 4px;
+        transition: width 0.5s ease;
+        width: 0%;
+    }
+
+    .result-card {
+        display: none;
+        margin-top: 1.5rem;
+    }
+
+    .result-card.active {
+        display: block;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="max-w-screen-lg mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <!-- Header -->
+    <div class="mb-8 text-center">
+        <h1 class="text-4xl font-bold text-gray-900">Insurance Claim Review</h1>
+        <p class="mt-2 text-lg text-gray-600">Upload dashcam video for AI-powered severity assessment</p>
+    </div>
+
+    <!-- Upload Card -->
+    <div class="card p-8 mb-8">
+        <h2 class="text-xl font-semibold text-gray-900 mb-6">Upload Dashcam Video</h2>
+
+        <form id="upload-form" enctype="multipart/form-data">
+            <!-- Drop Zone -->
+            <div id="upload-zone" class="upload-zone" onclick="document.getElementById('file-input').click()">
+                <svg class="upload-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                </svg>
+                <p class="text-lg font-medium text-gray-700" id="upload-label">
+                    Click or drag & drop video file here
+                </p>
+                <p class="text-sm text-gray-500 mt-2">Supported: MP4, AVI, MOV, MKV (max 500 MB)</p>
+                <input type="file" id="file-input" name="video" accept=".mp4,.avi,.mov,.mkv" class="hidden">
+            </div>
+
+            <!-- Optional Fields -->
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                <div>
+                    <label for="claim-number" class="block text-sm font-medium text-gray-700 mb-1">Claim Number (optional)</label>
+                    <input type="text" id="claim-number" name="claim_number" placeholder="e.g., CLM-2026-00123"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="claimant-id" class="block text-sm font-medium text-gray-700 mb-1">Claimant ID (optional)</label>
+                    <input type="text" id="claimant-id" name="claimant_id" placeholder="e.g., POL-00456"
+                           class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500">
+                </div>
+            </div>
+
+            <!-- Upload Button -->
+            <div class="mt-6 flex justify-end">
+                <button type="submit" id="upload-btn" disabled
+                        class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 font-medium smooth-transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    <svg class="w-5 h-5 inline mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Upload & Process
+                </button>
+            </div>
+        </form>
+
+        <!-- Progress -->
+        <div id="progress-container" class="progress-container">
+            <div class="flex items-center justify-between mb-2">
+                <span class="text-sm font-medium text-gray-700" id="progress-label">Uploading...</span>
+                <span class="text-sm font-medium text-blue-600" id="progress-pct">0%</span>
+            </div>
+            <div class="progress-bar-track">
+                <div class="progress-bar-fill" id="progress-fill"></div>
+            </div>
+        </div>
+
+        <!-- Result -->
+        <div id="result-card" class="result-card">
+            <div class="bg-green-50 border border-green-200 rounded-lg p-6">
+                <div class="flex items-start">
+                    <svg class="w-6 h-6 text-green-600 mt-0.5 mr-3 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                    <div>
+                        <h3 class="text-lg font-semibold text-green-800">Upload Successful</h3>
+                        <p class="text-sm text-green-700 mt-1">Claim <span id="result-claim-id" class="font-mono font-bold"></span> has been queued for processing.</p>
+                        <div class="mt-4 flex space-x-3">
+                            <a id="result-status-link" href="#" class="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded hover:bg-blue-700">
+                                Check Status
+                            </a>
+                            <button onclick="resetUpload()" class="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded border border-gray-300 hover:bg-gray-50">
+                                Upload Another
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quick Links -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <a href="/queue" class="card p-6 hover:bg-blue-50 smooth-transition group">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-blue-100 text-blue-600 rounded-lg flex items-center justify-center group-hover:bg-blue-200 smooth-transition">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Review Queue</h3>
+                    <p class="text-sm text-gray-500">View pending claims</p>
+                </div>
+            </div>
+        </a>
+
+        <a href="/metrics" class="card p-6 hover:bg-green-50 smooth-transition group">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-green-100 text-green-600 rounded-lg flex items-center justify-center group-hover:bg-green-200 smooth-transition">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-semibold text-gray-900">Dashboard</h3>
+                    <p class="text-sm text-gray-500">System metrics</p>
+                </div>
+            </div>
+        </a>
+
+        <a href="/docs" class="card p-6 hover:bg-purple-50 smooth-transition group">
+            <div class="flex items-center">
+                <div class="w-12 h-12 bg-purple-100 text-purple-600 rounded-lg flex items-center justify-center group-hover:bg-purple-200 smooth-transition">
+                    <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                    </svg>
+                </div>
+                <div class="ml-4">
+                    <h3 class="text-lg font-semibold text-gray-900">API Docs</h3>
+                    <p class="text-sm text-gray-500">Swagger / OpenAPI</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const uploadZone = document.getElementById('upload-zone');
+    const fileInput = document.getElementById('file-input');
+    const uploadBtn = document.getElementById('upload-btn');
+    const uploadForm = document.getElementById('upload-form');
+    const progressContainer = document.getElementById('progress-container');
+    const progressFill = document.getElementById('progress-fill');
+    const progressPct = document.getElementById('progress-pct');
+    const progressLabel = document.getElementById('progress-label');
+    const resultCard = document.getElementById('result-card');
+
+    let selectedFile = null;
+
+    // Drag & drop
+    ['dragenter', 'dragover'].forEach(evt => {
+        uploadZone.addEventListener(evt, e => {
+            e.preventDefault();
+            uploadZone.classList.add('drag-over');
+        });
+    });
+
+    ['dragleave', 'drop'].forEach(evt => {
+        uploadZone.addEventListener(evt, e => {
+            e.preventDefault();
+            uploadZone.classList.remove('drag-over');
+        });
+    });
+
+    uploadZone.addEventListener('drop', e => {
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+            selectFile(files[0]);
+        }
+    });
+
+    fileInput.addEventListener('change', e => {
+        if (e.target.files.length > 0) {
+            selectFile(e.target.files[0]);
+        }
+    });
+
+    function selectFile(file) {
+        const validExts = ['.mp4', '.avi', '.mov', '.mkv'];
+        const ext = '.' + file.name.split('.').pop().toLowerCase();
+        if (!validExts.includes(ext)) {
+            Utils.showFlash('Invalid file format. Allowed: MP4, AVI, MOV, MKV', 'error');
+            return;
+        }
+
+        selectedFile = file;
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+        document.getElementById('upload-label').textContent = `${file.name} (${sizeMB} MB)`;
+        uploadBtn.disabled = false;
+        uploadZone.classList.add('uploading');
+    }
+
+    uploadForm.addEventListener('submit', async e => {
+        e.preventDefault();
+        if (!selectedFile) return;
+
+        uploadBtn.disabled = true;
+        progressContainer.classList.add('active');
+        progressLabel.textContent = 'Uploading...';
+
+        const formData = new FormData();
+        formData.append('video', selectedFile);
+
+        const claimNumber = document.getElementById('claim-number').value;
+        const claimantId = document.getElementById('claimant-id').value;
+
+        let url = '/claims/upload?';
+        if (claimNumber) url += `claim_number=${encodeURIComponent(claimNumber)}&`;
+        if (claimantId) url += `claimant_id=${encodeURIComponent(claimantId)}&`;
+
+        try {
+            const xhr = new XMLHttpRequest();
+            xhr.open('POST', url);
+            xhr.setRequestHeader('X-API-Key', 'dev-key-001');
+
+            xhr.upload.onprogress = (evt) => {
+                if (evt.lengthComputable) {
+                    const pct = Math.round((evt.loaded / evt.total) * 100);
+                    progressFill.style.width = pct + '%';
+                    progressPct.textContent = pct + '%';
+                }
+            };
+
+            xhr.onload = () => {
+                if (xhr.status === 201 || xhr.status === 200) {
+                    const result = JSON.parse(xhr.responseText);
+                    progressFill.style.width = '100%';
+                    progressPct.textContent = '100%';
+                    progressLabel.textContent = 'Processing queued!';
+
+                    document.getElementById('result-claim-id').textContent = result.claim_id;
+                    document.getElementById('result-status-link').href = `/review/${result.claim_id}`;
+                    resultCard.classList.add('active');
+
+                    // Poll for status
+                    pollStatus(result.claim_id);
+                } else {
+                    const err = JSON.parse(xhr.responseText);
+                    Utils.showFlash(`Upload failed: ${err.message || err.detail}`, 'error');
+                    resetProgress();
+                }
+            };
+
+            xhr.onerror = () => {
+                Utils.showFlash('Upload failed: network error', 'error');
+                resetProgress();
+            };
+
+            xhr.send(formData);
+        } catch (error) {
+            Utils.showFlash(`Upload failed: ${error.message}`, 'error');
+            resetProgress();
+        }
+    });
+
+    async function pollStatus(claimId) {
+        const poll = setInterval(async () => {
+            try {
+                const resp = await fetch(`/claims/${claimId}/status`, {
+                    headers: { 'X-API-Key': 'dev-key-001' }
+                });
+                const data = await resp.json();
+
+                if (data.progress_percent) {
+                    progressLabel.textContent = `Processing: ${data.message}`;
+                    progressFill.style.width = data.progress_percent + '%';
+                    progressPct.textContent = Math.round(data.progress_percent) + '%';
+                }
+
+                if (data.status === 'assessed') {
+                    clearInterval(poll);
+                    progressLabel.textContent = 'Assessment complete!';
+                    progressFill.style.width = '100%';
+                    progressPct.textContent = '100%';
+                    document.getElementById('result-status-link').textContent = 'View Assessment';
+                    Utils.showFlash('AI assessment complete! Click to view results.', 'success');
+                } else if (data.status === 'failed') {
+                    clearInterval(poll);
+                    Utils.showFlash(`Processing failed: ${data.error_message}`, 'error');
+                }
+            } catch (e) {
+                // Silently continue polling
+            }
+        }, 3000);
+    }
+
+    function resetProgress() {
+        uploadBtn.disabled = false;
+        progressContainer.classList.remove('active');
+        progressFill.style.width = '0%';
+        progressPct.textContent = '0%';
+    }
+
+    function resetUpload() {
+        selectedFile = null;
+        fileInput.value = '';
+        document.getElementById('upload-label').textContent = 'Click or drag & drop video file here';
+        uploadBtn.disabled = true;
+        uploadZone.classList.remove('uploading');
+        resultCard.classList.remove('active');
+        resetProgress();
+    }
+</script>
+{% endblock %}

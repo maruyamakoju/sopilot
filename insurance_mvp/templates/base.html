@@ -160,6 +160,13 @@
 
                     <!-- Navigation Links -->
                     <div class="hidden sm:ml-10 sm:flex sm:space-x-8">
+                        <a href="/"
+                           class="{% block nav_upload %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endblock %} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium smooth-transition">
+                            <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                            </svg>
+                            Upload
+                        </a>
                         <a href="/queue"
                            class="{% block nav_queue %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endblock %} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium smooth-transition"
                            aria-current="{% if request.path == '/queue' %}page{% endif %}">
@@ -168,7 +175,7 @@
                             </svg>
                             Review Queue
                         </a>
-                        <a href="/metrics"
+                        <a href="/dashboard"
                            class="{% block nav_metrics %}border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700{% endblock %} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium smooth-transition"
                            aria-current="{% if request.path == '/metrics' %}page{% endif %}">
                             <svg class="w-4 h-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">

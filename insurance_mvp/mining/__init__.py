@@ -49,6 +49,7 @@ Example usage:
 """
 
 from .audio import AudioAnalyzer, AudioConfig
+from .clip_extractor import ClipExtractor, ClipExtractorConfig
 from .fuse import FusionConfig, HazardClip, SignalFuser
 from .motion import MotionAnalyzer, MotionConfig
 from .proximity import ProximityAnalyzer, ProximityConfig
@@ -67,6 +68,9 @@ __all__ = [
     "SignalFuser",
     "FusionConfig",
     "HazardClip",
+    # Clip extraction
+    "ClipExtractor",
+    "ClipExtractorConfig",
 ]
 
 __version__ = "0.1.0"

@@ -72,6 +72,9 @@ class MiningConfig:
     motion_weight: float = 0.3
     proximity_weight: float = 0.4
 
+    # Clip extraction (ffmpeg)
+    extract_clips: bool = False  # Extract danger clips as separate video files
+
 
 @dataclass
 class CosmosConfig:

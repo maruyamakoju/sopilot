@@ -130,6 +130,30 @@
         "cuda_fix": "2026-02-25"
       },
       "ablation_flags": {}
+    },
+    "nexar_real_vlm_50_fps2": {
+      "name": "nexar_real_vlm_50_fps2",
+      "seed": 42,
+      "description": "Nexar 50-video real VLM benchmark (fps=2, max_frames=48, SDPA) RTX 5090",
+      "hyperparams": {
+        "fps": 2.0,
+        "max_frames": 48,
+        "backend": "qwen2.5-vl-7b",
+        "n_videos": 53
+      },
+      "ablation_flags": {}
+    },
+    "nexar_real_vlm_50_fps4_mf80": {
+      "name": "nexar_real_vlm_50_fps4_mf80",
+      "seed": 42,
+      "description": "Nexar 50-video fps=4 max_frames=80 \u2014 INVALID (52/53 OOM)",
+      "hyperparams": {
+        "fps": 4.0,
+        "max_frames": 80,
+        "backend": "qwen2.5-vl-7b",
+        "n_videos": 53
+      },
+      "ablation_flags": {}
     }
   },
   "results": [
@@ -474,6 +498,75 @@
           }
         },
         "note": "VLM at 2fps misses sub-second collision events; conf=0.75 (MEDIUM) or 0.90/0.95 (NONE) on pos_* clips"
+      }
+    },
+    {
+      "config": {
+        "name": "nexar_real_vlm_50_fps2",
+        "seed": 42,
+        "description": "Nexar 50-video real VLM benchmark (fps=2, max_frames=48, SDPA) RTX 5090",
+        "hyperparams": {
+          "fps": 2.0,
+          "max_frames": 48,
+          "backend": "qwen2.5-vl-7b",
+          "n_videos": 53
+        },
+        "ablation_flags": {}
+      },
+      "metrics": {
+        "accuracy": 0.2,
+        "collision_recall": 0.0,
+        "normal_recall": 0.4,
+        "mean_severity_distance": 1.4
+      },
+      "timing_sec": 4773.0,
+      "timestamp": "2026-02-25T11:27:55.781169+00:00",
+      "git_hash": "98265f8",
+      "metadata": {
+        "bca_ci_95": [
+          0.08,
+          0.32
+        ],
+        "total_with_gt": 50,
+        "exact_matches": 10,
+        "confusion_HIGH": {
+          "MEDIUM": 24,
+          "NONE": 1
+        },
+        "confusion_NONE": {
+          "NONE": 10,
+          "MEDIUM": 12,
+          "LOW": 3
+        },
+        "commit": "dc9e967",
+        "note": "0% collision recall \u2014 2fps misses <1s Nexar collision events"
+      }
+    },
+    {
+      "config": {
+        "name": "nexar_real_vlm_50_fps4_mf80",
+        "seed": 42,
+        "description": "Nexar 50-video fps=4 max_frames=80 \u2014 INVALID (52/53 OOM)",
+        "hyperparams": {
+          "fps": 4.0,
+          "max_frames": 80,
+          "backend": "qwen2.5-vl-7b",
+          "n_videos": 53
+        },
+        "ablation_flags": {}
+      },
+      "metrics": {
+        "accuracy": 0.0,
+        "collision_recall": 0.0,
+        "normal_recall": 0.0
+      },
+      "timing_sec": 4773.0,
+      "timestamp": "2026-02-25T11:27:55.797131+00:00",
+      "git_hash": "98265f8",
+      "metadata": {
+        "valid": false,
+        "invalid_reason": "52/53 OOM \u2014 80 frames x ~512 tokens/frame requires ~39.8 GiB KV cache, GPU has 31.84 GiB",
+        "commit": "98265f8"
       }
     }
   ]

@@ -93,6 +93,8 @@ python -m insurance_mvp.pipeline benchmark --backend mock --seed 42
 | **Nexar real VLM (50 videos, RTX 5090)** | **20.0% [8.0%, 32.0%] (95% CI, BCa, n=50)** | `real_data_benchmark.py`           |
 | **Nexar real VLM — collision recall**    | **0% (0/25 HIGH detected — 2fps misses <1s events)** | `real_data_benchmark.py`    |
 | **Nexar real VLM — normal recall**       | **40% (10/25 NONE; 12→MEDIUM, 3→LOW)**    | `real_data_benchmark.py`            |
+| **Nexar fps=4 max_frames=80 (RTX 5090)** | **INVALID — 52/53 OOM (39.8 GiB req > 31.84 GiB avail)** | `real_data_benchmark.py --fps 4 --max-frames 80` |
+| **Nexar fps=4 max_frames=48 (RTX 5090)** | **TBD** (running)                          | `real_data_benchmark.py --fps 4 --max-frames 48` |
 
 ---
 
@@ -322,8 +324,14 @@ Real-world timing: ~66 s for a 20-minute 720p video (9x speedup vs naive).
   accuracy on Nexar (vs 90% on demo videos). The Nexar collision events are typically
   <1 second; at 2fps (one frame per 500ms), the impact frame is often not sampled.
   Collision recall = 0% (0/25 HIGH). The VLM sees surrounding context (traffic → MEDIUM,
-  calm roads → NONE) but misses the actual impact. This is a fundamental sampling limit,
-  not a model failure — increasing `fps` from 2 to 4-8 would likely recover recall.
+  calm roads → NONE) but misses the actual impact.
+- **fps=4 / max_frames=80 OOM (RTX 5090, 31.84 GiB)**: Attempting 80 frames at 4fps
+  requires ~39.8 GiB for the KV cache (80 frames × ~512 visual tokens/frame → 40,960 tokens;
+  KV: 2 × 28 layers × 40960 × 3584 hidden × 2 bytes ≈ 16.5 GB, plus 14 GB model weights).
+  Result: 52/53 inference OOM, all error assessments (conf=0), recalibration bumps
+  LOW→MEDIUM → 0% accuracy — **this result is invalid/not comparable**.
+  SDPA (`attn_implementation="sdpa"`) reduces peak activation memory but NOT KV-cache size.
+  Maximum safe frame count on this GPU: **max_frames=48** (covers full clip at ~2.5fps effective).
 - **swerve_avoidance** scenario: real VLM predicts LOW (correct label: MEDIUM).
   No nearby objects trigger recalibration, so the VLM score stands. This is the
   single miss in the 9/10 real-VLM result.

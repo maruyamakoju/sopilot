@@ -255,6 +255,7 @@ class VideoLLMClient:
             load_kwargs = {
                 "torch_dtype": torch_dtype,
                 "device_map": "auto" if self.config.device in ("cuda", "auto") else "cpu",
+                "attn_implementation": "sdpa",  # Memory-efficient attention (PyTorch built-in, no flash_attn needed)
             }
             if quantization_config is not None:
                 load_kwargs["quantization_config"] = quantization_config

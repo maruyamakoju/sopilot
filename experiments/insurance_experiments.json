@@ -114,6 +114,22 @@
         "motion_signal": true,
         "proximity_signal": false
       }
+    },
+    "nexar_real_vlm_50": {
+      "name": "nexar_real_vlm_50",
+      "seed": 42,
+      "description": "Real VLM (Qwen2.5-VL-7B) on 50 Nexar collision videos, RTX 5090, CUDA fix applied",
+      "hyperparams": {
+        "backend": "qwen2.5-vl-7b",
+        "n_videos": 50,
+        "seed": 42,
+        "fps": 2.0,
+        "max_frames": 48,
+        "device": "auto",
+        "gpu": "RTX 5090",
+        "cuda_fix": "2026-02-25"
+      },
+      "ablation_flags": {}
     }
   },
   "results": [
@@ -410,6 +426,54 @@
       "metadata": {
         "ablation_role": "ablated",
         "disabled_flag": "proximity_signal"
+      }
+    },
+    {
+      "config": {
+        "name": "nexar_real_vlm_50",
+        "seed": 42,
+        "description": "Real VLM (Qwen2.5-VL-7B) on 50 Nexar collision videos, RTX 5090, CUDA fix applied",
+        "hyperparams": {
+          "backend": "qwen2.5-vl-7b",
+          "n_videos": 50,
+          "seed": 42,
+          "fps": 2.0,
+          "max_frames": 48,
+          "device": "auto",
+          "gpu": "RTX 5090",
+          "cuda_fix": "2026-02-25"
+        },
+        "ablation_flags": {}
+      },
+      "metrics": {
+        "accuracy": 0.2,
+        "exact_matches": 10,
+        "total": 50,
+        "collision_recall": 0.0,
+        "normal_recall": 0.4,
+        "mean_severity_distance": 1.42,
+        "bca_ci_lower": 0.08,
+        "bca_ci_upper": 0.32,
+        "cuda_errors": 0,
+        "error_assessments": 0
+      },
+      "timing_sec": 8649.1,
+      "timestamp": "2026-02-25T05:56:36.193731+00:00",
+      "git_hash": "37fe881",
+      "metadata": {
+        "confusion": {
+          "NONE": {
+            "NONE": 10,
+            "MEDIUM": 12,
+            "LOW": 3
+          },
+          "HIGH": {
+            "MEDIUM": 15,
+            "NONE": 9,
+            "LOW": 1
+          }
+        },
+        "note": "VLM at 2fps misses sub-second collision events; conf=0.75 (MEDIUM) or 0.90/0.95 (NONE) on pos_* clips"
       }
     }
   ]

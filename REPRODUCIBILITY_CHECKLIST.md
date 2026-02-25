@@ -90,7 +90,9 @@ python -m insurance_mvp.pipeline benchmark --backend mock --seed 42
 | McNemar vs MajorityClass baseline        | p=0.041 (significant)                       | `research_benchmark.py --ablation`  |
 | **Nexar mock (50 real videos)**          | **86.0% [72.0%, 92.0%] (95% CI, BCa, n=50)** | `real_data_benchmark.py`          |
 | **Nexar collision recall**               | **100% (25/25 HIGH correctly identified)**  | `real_data_benchmark.py`            |
-| **Nexar real VLM (50 videos, RTX 5090)** | *Running...*                               | `real_data_benchmark.py`            |
+| **Nexar real VLM (50 videos, RTX 5090)** | **20.0% [8.0%, 32.0%] (95% CI, BCa, n=50)** | `real_data_benchmark.py`           |
+| **Nexar real VLM — collision recall**    | **0% (0/25 HIGH detected — 2fps misses <1s events)** | `real_data_benchmark.py`    |
+| **Nexar real VLM — normal recall**       | **40% (10/25 NONE; 12→MEDIUM, 3→LOW)**    | `real_data_benchmark.py`            |
 
 ---
 
@@ -309,6 +311,19 @@ Real-world timing: ~66 s for a 20-minute 720p video (9x speedup vs naive).
   Before the fix, `AUTO` resolved to `device_map="cpu"` — model loaded on CPU even
   on GPU machines. If you observe ~170s/video inference (vs. expected ~28s), check
   that `cosmos.device` is `"auto"` or `"cuda"`, not `"cpu"`.
+- **CUDA retry loop corruption (fixed 2026-02-25)**: `_run_inference_with_retry()`
+  had two bugs that corrupted long-running benchmarks (50+ videos):
+  (1) GPU cleanup checked `device == "cuda"` but default is `"auto"` → `empty_cache()`
+  never ran between retries; (2) CPU fallback permanently set `self.config.device = "cpu"`,
+  causing all subsequent videos to use CPU. Fixed: CUDA errors now call
+  `cuda.synchronize() + empty_cache()` and retry on GPU without touching the device config.
+  The `finally` block in `_run_inference()` also now clears cache for `device="auto"`.
+- **Nexar 2fps frame sampling vs sub-second collisions**: Real VLM achieves only 20%
+  accuracy on Nexar (vs 90% on demo videos). The Nexar collision events are typically
+  <1 second; at 2fps (one frame per 500ms), the impact frame is often not sampled.
+  Collision recall = 0% (0/25 HIGH). The VLM sees surrounding context (traffic → MEDIUM,
+  calm roads → NONE) but misses the actual impact. This is a fundamental sampling limit,
+  not a model failure — increasing `fps` from 2 to 4-8 would likely recover recall.
 - **swerve_avoidance** scenario: real VLM predicts LOW (correct label: MEDIUM).
   No nearby objects trigger recalibration, so the VLM score stands. This is the
   single miss in the 9/10 real-VLM result.

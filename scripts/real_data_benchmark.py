@@ -81,6 +81,8 @@ def main():
     parser.add_argument("--backend", type=str, default="real", choices=["mock", "real"], help="VLM backend")
     parser.add_argument("--max-videos", type=int, default=None, help="Limit number of videos")
     parser.add_argument("--extract-clips", action="store_true", help="Extract danger clips as separate files")
+    parser.add_argument("--fps", type=float, default=None, help="Frame sampling rate for VLM (default: VlmConfig.fps=2.0)")
+    parser.add_argument("--max-frames", type=int, default=None, help="Max frames per clip for VLM (default: VlmConfig.max_frames=48)")
     args = parser.parse_args()
 
     input_dir = Path(args.input)
@@ -118,6 +120,10 @@ def main():
     cosmos_config = CosmosConfig(backend=backend)
     config = PipelineConfig()
     config.cosmos = cosmos_config
+    if args.fps is not None:
+        config.vlm.fps = args.fps
+    if args.max_frames is not None:
+        config.vlm.max_frames = args.max_frames
     if args.extract_clips:
         config.mining.extract_clips = True
 
@@ -125,6 +131,7 @@ def main():
 
     print(f"\nVLM Backend: {cosmos_config.backend}")
     print(f"Model: {cosmos_config.model_name}")
+    print(f"FPS: {config.vlm.fps}  Max frames: {config.vlm.max_frames}")
 
     # Run inference
     results = {

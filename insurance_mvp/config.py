@@ -131,6 +131,7 @@ class CosmosConfig:
     # Video processing
     max_pixels: int = 602112  # Qwen2.5-VL hard limit (768*28*28)
     fps: int = 2  # Frames per second for VLM
+    max_frames: int = 48  # Max frames sampled per clip (48@2fps covers full 24s; 96@4fps covers 24s)
 
     # Batch processing
     max_concurrent_inferences: int = 2  # GPU memory limit

@@ -421,21 +421,22 @@ class VideoLLMClient:
                 is_cuda_error = "CUDA" in str(exc).upper()
                 logger.warning("Attempt %d/%d failed: %s", attempt + 1, max_retries, exc)
 
-                # Progressive GPU→CPU fallback on CUDA errors
-                if (
-                    is_cuda_error
-                    and attempt == max_retries - 2
-                    and self.config.enable_cpu_fallback
-                    and self._model is not None
-                ):
-                    logger.warning("CUDA error detected, falling back to CPU for final attempt")
-                    self._model = self._model.to("cpu")
-                    self.config.device = "cpu"
-                    if TORCH_AVAILABLE:
+                # GPU cache cleanup on CUDA errors (covers device="auto" and "cuda")
+                if is_cuda_error and TORCH_AVAILABLE:
+                    try:
+                        torch.cuda.synchronize()
                         torch.cuda.empty_cache()
+                        logger.info("CUDA cache cleared after error (attempt %d)", attempt + 1)
+                    except Exception as cleanup_exc:
+                        logger.warning("CUDA cleanup failed: %s", cleanup_exc)
 
-                # GPU cleanup between retries
-                if TORCH_AVAILABLE and self.config.device == "cuda" and self.config.gpu_cleanup:
+                # GPU cleanup between retries (non-CUDA-error path)
+                if (
+                    not is_cuda_error
+                    and TORCH_AVAILABLE
+                    and self.config.device in ("cuda", "auto")
+                    and self.config.gpu_cleanup
+                ):
                     try:
                         torch.cuda.empty_cache()
                         logger.debug("GPU cache cleared between retries")
@@ -594,8 +595,8 @@ class VideoLLMClient:
             with contextlib.suppress(AttributeError):
                 signal.alarm(0)
 
-            # GPU memory cleanup (prevent CUDA crashes on long-running sessions)
-            if TORCH_AVAILABLE and self.config.device == "cuda" and self.config.gpu_cleanup:
+            # GPU memory cleanup after every inference (prevent VRAM fragmentation on 50+ video runs)
+            if TORCH_AVAILABLE and self.config.device in ("cuda", "auto") and self.config.gpu_cleanup:
                 try:
                     torch.cuda.empty_cache()
                     logger.debug("GPU cache cleared")

@@ -264,6 +264,65 @@ class TestMondrianConformal:
         pred_sets = mc.predict_set(scores, groups=groups)
         assert len(pred_sets) == len(scores)
 
+    def test_mondrian_fit_uses_predicted_groups(self):
+        """Regression: fit() must group by argmax(scores), not by y_true.
+
+        Before the Wave 1 fix, fit() used ``groups = y_true`` while predict_set()
+        used ``groups = argmax(scores)``.  This asymmetry broke Mondrian coverage
+        guarantees because calibration and inference used different distributions.
+        After the fix both paths use argmax(scores) when groups is None.
+        """
+        rng = np.random.RandomState(0)
+        n = 100
+        # All scores confidently predict class 2 (MEDIUM)
+        scores = np.full((n, 4), 0.05)
+        scores[:, 2] = 0.85
+        # But true labels are all class 0 (NONE) — maximally wrong model
+        y_true = np.zeros(n, dtype=int)
+
+        mc = MondrianConformal(alpha=0.1)
+        mc.fit(scores, y_true)
+
+        # The argmax of every score vector is class 2 → only group 2 should exist
+        assert set(mc._group_quantiles.keys()) == {2}, (
+            "fit() should group by argmax(scores), not by y_true. "
+            f"Got groups: {set(mc._group_quantiles.keys())}"
+        )
+
+    def test_mondrian_empirical_coverage(self):
+        """Regression: per-group empirical coverage must be ≥ (1 - alpha) on held-out data.
+
+        Uses 1 000 calibration samples and 500 test samples.  Each group must achieve
+        at least (1 - alpha - 0.05) coverage to allow for finite-sample noise.
+        Fails if the Mondrian grouping mismatch bug is re-introduced.
+        """
+        alpha = 0.1
+        rng = np.random.RandomState(42)
+        n_calib, n_test = 1000, 500
+
+        # Generate separable 4-class data (each class dominates its own scores)
+        def _make_scores(n, seed):
+            r = np.random.RandomState(seed)
+            labels = r.randint(0, 4, size=n)
+            s = np.full((n, 4), 0.05)
+            s[np.arange(n), labels] = 0.85
+            s += r.uniform(0, 0.02, size=s.shape)
+            s /= s.sum(axis=1, keepdims=True)
+            return s, labels
+
+        cal_scores, cal_labels = _make_scores(n_calib, seed=1)
+        test_scores, test_labels = _make_scores(n_test, seed=2)
+
+        mc = MondrianConformal(alpha=alpha)
+        mc.fit(cal_scores, cal_labels)
+        coverages = mc.compute_group_coverage(test_scores, test_labels)
+
+        for group, cov in coverages.items():
+            assert cov >= (1 - alpha - 0.05), (
+                f"Group '{group}' coverage {cov:.3f} < target {1 - alpha - 0.05:.3f}. "
+                "Mondrian grouping mismatch may have been re-introduced."
+            )
+
 
 # ---------------------------------------------------------------------------
 # CoverageMonitor

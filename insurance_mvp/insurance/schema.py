@@ -4,6 +4,7 @@ Pydantic models for insurance claim assessment.
 """
 
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
@@ -50,12 +51,12 @@ class ClaimAssessment(BaseModel):
     """Complete insurance claim assessment"""
 
     # Core assessment
-    severity: str = Field(description="NONE, LOW, MEDIUM, HIGH")
+    severity: Literal["NONE", "LOW", "MEDIUM", "HIGH"] = Field(description="Incident severity level")
     confidence: float = Field(ge=0.0, le=1.0, description="Model confidence (0.0-1.0)")
 
     # Conformal prediction (uncertainty quantification)
     prediction_set: set[str] = Field(description="Conformal prediction set, e.g., {MEDIUM, HIGH}")
-    review_priority: str = Field(description="URGENT, STANDARD, LOW_PRIORITY")
+    review_priority: Literal["URGENT", "STANDARD", "LOW_PRIORITY"] = Field(description="Human review priority")
 
     # Fault assessment
     fault_assessment: FaultAssessment

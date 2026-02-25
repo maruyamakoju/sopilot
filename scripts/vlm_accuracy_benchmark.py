@@ -19,7 +19,8 @@ from pathlib import Path
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from insurance_mvp.config import PipelineConfig, load_config
+from insurance_mvp.config import CosmosBackend, PipelineConfig, load_config
+from insurance_mvp.evaluation import statistical
 from insurance_mvp.pipeline.orchestrator import InsurancePipeline
 
 SEVERITY_LEVELS = ["NONE", "LOW", "MEDIUM", "HIGH"]
@@ -47,9 +48,11 @@ def run_benchmark(videos_dir: Path, backend: str = "mock", output_path: Path | N
     """
     metadata = load_metadata(videos_dir)
 
-    # Create pipeline with mock backend
-    config = load_config()
+    # Create pipeline — use PipelineConfig() constructor + set cosmos backend
+    # to avoid VLMConfig compat issues with load_config() in this environment.
+    config = PipelineConfig()
     config.continue_on_error = True
+    config.cosmos.backend = CosmosBackend.QWEN25VL if backend == "real" else CosmosBackend.MOCK
 
     pipeline = InsurancePipeline(config)
 
@@ -128,6 +131,34 @@ def run_benchmark(videos_dir: Path, backend: str = "mock", output_path: Path | N
         "per_class": per_class,
     }
 
+    # --- BCa bootstrap confidence interval on accuracy -------------------
+    if total > 0:
+        y_true_labels = [r["expected"] for r in results]
+        y_pred_labels = [r["predicted"] for r in results if r["predicted"] != "ERROR"]
+        # Keep only paired samples where prediction succeeded
+        paired = [(r["expected"], r["predicted"]) for r in results if r["predicted"] != "ERROR"]
+        if paired:
+            yt_labels = [p[0] for p in paired]
+            yp_labels = [p[1] for p in paired]
+            stat_report = statistical.evaluate(
+                yt_labels,
+                yp_labels,
+                labels=SEVERITY_LEVELS,
+                alpha=0.05,
+            )
+            acc_ci = stat_report.accuracy
+            report["bca_ci"] = {
+                "accuracy": acc_ci.point,
+                "lower": acc_ci.lower,
+                "upper": acc_ci.upper,
+                "alpha": acc_ci.alpha,
+                "n": len(paired),
+            }
+        else:
+            report["bca_ci"] = None
+    else:
+        report["bca_ci"] = None
+
     if output_path:
         output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "w") as f:
@@ -166,6 +197,15 @@ def print_report(report: dict):
     for r in report["results"]:
         status = "OK" if r["correct"] else "FAIL"
         print(f"  [{status}] {r['video']}: expected={r['expected']}, got={r['predicted']} (conf={r['confidence']:.2f})")
+
+    # BCa confidence interval footer
+    bca = report.get("bca_ci")
+    if bca:
+        pct = int((1 - bca["alpha"]) * 100)
+        print(
+            f"\nAccuracy: {bca['accuracy']:.2f} [{bca['lower']:.2f}, {bca['upper']:.2f}] "
+            f"({pct}% CI, BCa, n={bca['n']})"
+        )
 
     print("=" * 60)
 

@@ -153,7 +153,7 @@ class BackgroundWorker:
             with self.db_manager.get_session() as session:
                 repo = ClaimRepository(session)
                 repo.update_status(claim_id, ClaimStatus.PROCESSING, progress_percent=progress_percent)
-        except Exception as e:
+        except (RuntimeError, ValueError, OSError) as e:
             logger.error(f"Error updating progress for {claim_id}: {e}")
 
     def _cleanup_task(self, claim_id: str):

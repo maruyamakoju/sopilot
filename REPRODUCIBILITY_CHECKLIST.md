@@ -1,197 +1,375 @@
-# Reproducibility Verification Checklist
+# Reproducibility Checklist
 
-This checklist ensures SOPilot can be reproduced in clean environments.
+This document records the exact steps, commands, seeds, and hardware used to
+reproduce all reported results for the Insurance MVP dashcam evaluation pipeline.
 
-**Last Verified**: 2026-02-15
-**Verified By**: [Pending manual verification]
-
----
-
-## ✅ Automated Checks (Already Done)
-
-- [x] pyproject.toml dependencies complete
-- [x] quick_demo.py created (30-second minimal demo)
-- [x] README Quick Start updated with tiered approach
-- [x] Troubleshooting section added to README
-- [x] CI coverage gate (75% minimum)
-- [x] CI type checking (core modules)
+**Last Updated**: 2026-02-24
 
 ---
 
-## 📋 Manual Verification Checklist
+## Hardware Requirements
 
-### Environment 1: Fresh Linux/Ubuntu
+| Backend          | Minimum Hardware                                    |
+|------------------|-----------------------------------------------------|
+| `mock`           | Any machine with Python 3.10+, no GPU needed        |
+| `qwen2.5-vl-7b`  | GPU with >= 16 GB VRAM (tested: NVIDIA RTX 5090)    |
 
-**Setup**:
+> All CI/CD pipeline checks use `--backend mock`.
+> The 90% real-VLM accuracy result was measured on an RTX 5090 with 24 GB VRAM.
+
+---
+
+## Software Dependencies
+
+Install the insurance extras (includes scipy, ultralytics, jinja2, pyyaml, tqdm):
+
+```bash
+pip install -e ".[insurance]"
+```
+
+Full version pins (from `pyproject.toml`):
+
+| Package                   | Version constraint   |
+|---------------------------|----------------------|
+| Python                    | >= 3.10              |
+| fastapi                   | >= 0.115.0           |
+| uvicorn[standard]         | >= 0.30.0            |
+| numpy                     | >= 1.26.0            |
+| opencv-python-headless    | >= 4.10.0            |
+| pydantic                  | >= 2.8.0             |
+| reportlab                 | >= 4.2.0             |
+| sqlalchemy                | >= 2.0.0             |
+| jinja2                    | >= 3.1.0             |
+| pyyaml                    | >= 6.0.0             |
+| scipy                     | >= 1.11.0            |
+| ultralytics               | >= 8.1.0             |
+| tqdm                      | >= 4.66.0            |
+
+For real VLM evaluation add:
+
+```bash
+pip install "transformers>=4.51.3" "qwen-vl-utils[decord]>=0.0.10" "accelerate>=0.34.0"
+```
+
+---
+
+## Seed Management
+
+All experiments use **seed = 42** (set via `PipelineConfig.seed`).
+
+The seed is propagated at pipeline initialization:
+
+```python
+# insurance_mvp/pipeline/orchestrator.py
+import random, numpy as np, torch
+random.seed(config.seed)
+np.random.seed(config.seed)
+torch.manual_seed(config.seed)
+```
+
+To override in scripts:
+
+```bash
+python scripts/research_benchmark.py --backend mock --seed 42
+python -m insurance_mvp.pipeline benchmark --backend mock --seed 42
+```
+
+---
+
+## Reported Results (2026-02-25)
+
+| Experiment                               | Result                                      | Script                              |
+|------------------------------------------|---------------------------------------------|-------------------------------------|
+| Mock VLM accuracy (10 demo videos)       | 10/10 (100%)                                | `vlm_accuracy_benchmark.py`         |
+| Real VLM accuracy (RTX 5090, 10 videos)  | 9/10 (90%)                                  | `real_vlm_eval_10.py`               |
+| E2E pipeline benchmark (mock)            | 9/9 checks                                  | `insurance_e2e_benchmark.py`        |
+| Real mining batch (5 JP dashcam videos)  | 5/5 success                                 | `batch_process.py`                  |
+| Full system benchmark, mock (10 videos)  | 1.00 [1.00, 1.00] (95% CI, BCa, n=10)      | `research_benchmark.py`             |
+| Ablation: remove motion signal           | 0.20 (catastrophic, motion is critical)     | `research_benchmark.py --ablation`  |
+| Sensitivity: motion_weight threshold     | ≥ 0.30 required for 100% accuracy           | `research_benchmark.py --sensitivity-analysis` |
+| McNemar vs MajorityClass baseline        | p=0.041 (significant)                       | `research_benchmark.py --ablation`  |
+| **Nexar mock (50 real videos)**          | **86.0% [72.0%, 92.0%] (95% CI, BCa, n=50)** | `real_data_benchmark.py`          |
+| **Nexar collision recall**               | **100% (25/25 HIGH correctly identified)**  | `real_data_benchmark.py`            |
+| **Nexar real VLM (50 videos, RTX 5090)** | *Running...*                               | `real_data_benchmark.py`            |
+
+---
+
+## Quick Start (Mock Backend — no GPU needed)
+
+```bash
+# 1. Install dependencies
+pip install -e ".[insurance]"
+
+# 2. Run E2E benchmark (mock VLM, deterministic, seed=42)
+python scripts/insurance_e2e_benchmark.py --backend mock
+
+# 3. Run unified research benchmark with ablation study
+python scripts/research_benchmark.py --backend mock --ablation
+
+# 4. Reproduce VLM accuracy (mock): expected 10/10
+python scripts/vlm_accuracy_benchmark.py --backend mock
+
+# 5. Multi-source evaluation (demo + optional jp/nexar)
+python scripts/expanded_video_eval.py --backend mock --sources dashcam_demo
+
+# 6. Batch processing on demo videos
+python scripts/batch_process.py --input-dir data/dashcam_demo --backend mock
+
+# 7. CLI benchmark subcommand (equivalent to insurance_e2e_benchmark.py)
+python -m insurance_mvp.pipeline benchmark --backend mock
+
+# 8. CLI benchmark + ablation via the pipeline CLI
+python -m insurance_mvp.pipeline benchmark --backend mock --ablation
+```
+
+---
+
+## Real VLM Evaluation (GPU required)
+
+```bash
+# Requires: GPU >= 16 GB VRAM, transformers >= 4.51.3, qwen-vl-utils >= 0.0.10
+
+# 1. Install real VLM deps
+pip install -e ".[insurance,vigil]"
+
+# 2. Run real VLM eval on 10 demo videos: expected 9/10 (90%)
+python scripts/real_vlm_eval_10.py --backend qwen2.5-vl-7b
+
+# 3. Batch on JP dashcam data (20 videos, ~2.3 min/video)
+python scripts/batch_process.py --input-dir data/jp_dashcam --backend qwen2.5-vl-7b
+
+# 4. Benchmark using real VLM
+python -m insurance_mvp.pipeline benchmark --backend qwen2.5-vl-7b
+```
+
+---
+
+## Data Sources
+
+### Demo videos (synthetic, included in repo)
+
+```
+data/dashcam_demo/
+    collision.mp4
+    near_miss.mp4
+    normal.mp4
+    metadata.json       <- ground truth labels
+```
+
+### JP Dashcam (yt-dlp)
+
+```bash
+# Download ~20 Japanese dashcam compilation videos
+# On Windows use: python -m yt_dlp (not the yt-dlp command directly)
+python -m yt_dlp -o "data/jp_dashcam/%(title)s.%(ext)s" \
+    --match-filter "duration > 60" \
+    "ytsearch20:ドライブレコーダー 事故 まとめ 2025"
+```
+
+### Nexar Collision Dataset (Hugging Face)
+
+```bash
+# Download via hf_hub_download (avoids torchcodec dependency)
+# --n-per-class 25 gives 25 collision + 25 normal = 50 videos (seed=42)
+python scripts/download_nexar.py --n-per-class 25 --output data/real_dashcam/nexar
+
+# Run benchmark with mock VLM (deterministic, no GPU)
+# Expected: 86.0% [72.0%, 92.0%] (95% CI, BCa, n=50)
+python scripts/real_data_benchmark.py \
+    --input data/real_dashcam/nexar \
+    --backend mock \
+    --output reports/nexar_mock_benchmark.json
+
+# Run benchmark with real VLM (requires RTX >= 16 GB VRAM)
+python scripts/real_data_benchmark.py \
+    --input data/real_dashcam/nexar \
+    --backend real \
+    --output reports/nexar_real_vlm_benchmark.json
+```
+
+**Naming convention**: `pos_XXXXX.mp4` → gt_severity=HIGH, `neg_XXXXX.mp4` → gt_severity=NONE.
+`ground_truth.json` is auto-generated by `download_nexar.py`.
+
+---
+
+## Step-by-Step: Data Download → Evaluation → Report Generation
+
+### Step 1 — Environment
+
 ```bash
 git clone https://github.com/maruyamakoju/sopilot.git
 cd sopilot
-python3 -m venv .venv
-source .venv/bin/activate
+pip install -e ".[insurance,dev]"
 ```
 
-**Tests**:
-- [ ] `pip install -e "."` succeeds (no errors)
-- [ ] `python scripts/quick_demo.py` runs and shows "Success!"
-- [ ] `pip install -e ".[dev]"` succeeds
-- [ ] `python scripts/smoke_e2e.py --verbose` passes all 13 checks
-- [ ] `python -m pytest tests/ -k "not vigil" -v` runs without vigil deps
+### Step 2 — Verify install
 
-**Time**: ~10 minutes
-**Blockers**: Document any errors
+```bash
+python scripts/smoke_e2e.py --verbose
+```
+
+Expected: all checks pass (no GPU needed).
+
+### Step 3 — Generate / download data
+
+```bash
+# Demo videos are already in data/dashcam_demo/
+# For JP dashcam or Nexar, see "Data Sources" section above
+```
+
+### Step 4 — Training benchmark (optional, for SOP neural pipeline)
+
+```bash
+python scripts/train_benchmark.py --device cpu --epochs-multiplier 0.1
+# GPU: --device cuda --epochs-multiplier 1.0
+```
+
+### Step 5 — Run evaluations
+
+```bash
+# Mock (deterministic, no GPU)
+python scripts/insurance_e2e_benchmark.py --backend mock
+python scripts/vlm_accuracy_benchmark.py --backend mock
+python scripts/research_benchmark.py --backend mock --ablation
+
+# Real VLM (GPU >= 16 GB VRAM)
+python scripts/real_vlm_eval_10.py --backend qwen2.5-vl-7b
+```
+
+### Step 6 — Generate HTML report
+
+```bash
+# Single video report
+python -m insurance_mvp.pipeline run \
+    --video-path data/dashcam_demo/collision.mp4 \
+    --output-dir results/ \
+    --cosmos-backend mock
+
+# Multi-clip HTML report is written to results/<video_id>_report.html
+```
+
+### Step 7 — Run full test suite
+
+```bash
+# Insurance MVP tests (~24 s)
+python -m pytest insurance_mvp/tests/ -q
+
+# SOPilot tests
+python -m pytest tests/ -q
+
+# Full suite
+python -m pytest -q
+```
 
 ---
 
-### Environment 2: Fresh Windows 10/11
+## Conformal Prediction Calibration
 
-**Setup**:
+The conformal predictor uses pre-trained calibration scores stored inside the
+`insurance_mvp/` package. No external calibration data download is needed for
+the mock backend.
+
+Configuration:
+
+```python
+# insurance_mvp/config.py
+ConformalConfig(
+    alpha=0.1,               # 90% coverage guarantee
+    severity_levels=["NONE", "LOW", "MEDIUM", "HIGH"],
+    use_pretrained_calibration=True,
+)
+```
+
+---
+
+## Signal Mining Configuration
+
+The three mining analyzers are fused with these default weights:
+
+| Analyzer  | Weight |
+|-----------|--------|
+| Audio     | 0.30   |
+| Motion    | 0.40   |
+| Proximity | 0.30   |
+
+Speed optimizations active by default:
+
+- `downscale_factor = 0.5`
+- `frame_skip = 10`
+- `max_analysis_duration = 600 s`
+
+Real-world timing: ~66 s for a 20-minute 720p video (9x speedup vs naive).
+
+---
+
+## Known Limitations / Edge Cases
+
+- **GPU device configuration (fixed 2026-02-25)**: `DeviceType.AUTO` (default) now
+  correctly sets `device_map="auto"` (GPU) and moves inputs to the model device.
+  Before the fix, `AUTO` resolved to `device_map="cpu"` — model loaded on CPU even
+  on GPU machines. If you observe ~170s/video inference (vs. expected ~28s), check
+  that `cosmos.device` is `"auto"` or `"cuda"`, not `"cpu"`.
+- **swerve_avoidance** scenario: real VLM predicts LOW (correct label: MEDIUM).
+  No nearby objects trigger recalibration, so the VLM score stands. This is the
+  single miss in the 9/10 real-VLM result.
+- **Windows paths**: use raw strings or forward slashes when passing video paths
+  to `qwen_vl_utils`. Do NOT use the `file:///` prefix.
+- **Batch size = 1**: `BatchNorm1d` in the neural ScoringHead fails with a single
+  sample; `_forward_single()` is used automatically by the MC Dropout path.
+- **Qwen2.5-VL**: requires `transformers >= 4.51.3` and `qwen-vl-utils >= 0.0.10`.
+- **yt-dlp on Windows**: use `python -m yt_dlp`, not the `yt-dlp` command directly.
+- **Nexar dataset**: use `hf_hub_download()` directly; the `datasets` library
+  requires `torchcodec` which is not available on all platforms.
+
+---
+
+## Platform Verification
+
+### Fresh Linux / Ubuntu 22.04
+
+```bash
+git clone https://github.com/maruyamakoju/sopilot.git
+cd sopilot
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e ".[insurance,dev]"
+python scripts/smoke_e2e.py --verbose
+python -m pytest insurance_mvp/tests/ -q
+```
+
+### Windows 10/11
+
 ```powershell
 git clone https://github.com/maruyamakoju/sopilot.git
 cd sopilot
 python -m venv .venv
 .venv\Scripts\activate
+pip install -e ".[insurance,dev]"
+python scripts/smoke_e2e.py --verbose
+python -m pytest insurance_mvp/tests/ -q
 ```
 
-**Tests**:
-- [ ] `pip install -e "."` succeeds
-- [ ] `python scripts/quick_demo.py` runs and shows "Success!"
-- [ ] Path handling works (no Unix-specific assumptions)
-- [ ] OpenCV works (video codec available)
+### Docker (CPU-only)
 
-**Time**: ~10 minutes
-**Blockers**: Document any Windows-specific issues
-
----
-
-### Environment 3: Docker (CPU-only)
-
-**Setup**:
 ```bash
 docker build -t sopilot:test -f Dockerfile .
+docker run sopilot:test python scripts/smoke_e2e.py --verbose
+docker run sopilot:test python -m pytest insurance_mvp/tests/ -q
 ```
-
-**Tests**:
-- [ ] Build completes without errors
-- [ ] Image size < 3GB
-- [ ] `docker run sopilot:test python scripts/quick_demo.py` works
-- [ ] `docker run sopilot:test python scripts/smoke_e2e.py --verbose` passes
-
-**Time**: ~15 minutes (build + test)
-**Blockers**: Document Docker-specific issues
 
 ---
 
-### Environment 4: macOS (M1/M2 Silicon)
+## File Checksums (demo data)
 
-**Setup**:
+Run to verify demo data integrity after checkout:
+
 ```bash
-git clone https://github.com/maruyamakoju/sopilot.git
-cd sopilot
-python3 -m venv .venv
-source .venv/bin/activate
+python -c "
+import hashlib, pathlib
+for p in sorted(pathlib.Path('data/dashcam_demo').glob('*.mp4')):
+    h = hashlib.sha256(p.read_bytes()).hexdigest()[:16]
+    print(f'{h}  {p.name}')
+"
 ```
 
-**Tests**:
-- [ ] `pip install -e "."` succeeds (numpy/opencv work on ARM)
-- [ ] `python scripts/quick_demo.py` runs
-- [ ] No x86 vs ARM64 conflicts
-
-**Time**: ~10 minutes
-**Blockers**: Document ARM-specific issues
-
----
-
-## 🔬 Advanced Checks (Optional)
-
-### VIGIL-RAG Full Stack
-
-**Prerequisites**:
-- Docker Compose installed
-- 8GB+ RAM
-
-**Setup**:
-```bash
-docker-compose up -d qdrant postgres
-pip install -e ".[vigil]"
-```
-
-**Tests**:
-- [ ] Qdrant starts and is accessible
-- [ ] `python scripts/generate_test_video.py` creates video
-- [ ] VIGIL smoke test runs (with real video)
-
-**Time**: ~20 minutes
-**Blockers**: Document infrastructure issues
-
----
-
-### Neural Training Pipeline
-
-**Prerequisites**:
-- PyTorch installed
-- 4GB+ RAM
-
-**Setup**:
-```bash
-pip install -e ".[ml]"
-```
-
-**Tests**:
-- [ ] `python scripts/demo_training_convergence.py --epochs-multiplier 0.01` runs
-- [ ] Training completes without OOM
-- [ ] Models save/load correctly
-
-**Time**: ~30 minutes
-**Blockers**: Document ML-specific issues
-
----
-
-## 🐛 Known Issues
-
-### Issue 1: PySceneDetect slow on large videos
-- **Impact**: Indexing >1hour videos can take 10+ minutes
-- **Workaround**: Pre-chunk videos or use lower frame sample rate
-- **Fix**: Future optimization
-
-### Issue 2: Qwen2.5-VL requires 14GB VRAM
-- **Impact**: Video-LLM won't work on small GPUs
-- **Workaround**: Use mock mode or CPU (very slow)
-- **Fix**: Add quantization support
-
-### Issue 3: Windows path handling in some scripts
-- **Impact**: Some demo scripts may fail on Windows
-- **Workaround**: Use WSL or Linux
-- **Fix**: Audit all Path() usage for Windows compatibility
-
----
-
-## 📊 Reproducibility Score
-
-**Target**: 90% (9/10 environments reproduce successfully)
-
-**Current**: [To be measured after manual verification]
-
-**Environments Tested**:
-- [ ] Linux/Ubuntu 22.04 (Python 3.10)
-- [ ] Linux/Ubuntu 22.04 (Python 3.11)
-- [ ] Linux/Ubuntu 22.04 (Python 3.12)
-- [ ] Windows 11 (Python 3.10)
-- [ ] macOS Intel (Python 3.10)
-- [ ] macOS ARM (Python 3.11)
-- [ ] Docker CPU-only
-- [ ] Docker GPU (CUDA 12.1)
-- [ ] Google Colab (Python 3.10)
-- [ ] GitHub Codespaces
-
----
-
-## 🚀 Next Steps
-
-1. **Manual verification**: Test on 3+ environments (Linux, Windows, Docker minimum)
-2. **Document blockers**: Add any issues to GitHub Issues
-3. **Update README**: Add platform-specific notes if needed
-4. **Create quick start video**: 3-minute screen recording of installation → quick_demo.py
-
----
-
-**Goal**: Partner should be able to run `quick_demo.py` in under 5 minutes on any platform.
+*(Actual checksums depend on your local demo video generation run.
+Re-generate with `python scripts/generate_test_video.py` if needed.)*

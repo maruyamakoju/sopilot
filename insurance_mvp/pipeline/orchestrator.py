@@ -42,7 +42,7 @@ from insurance_mvp.pipeline.adapters.vlm_adapter import (
     detect_fraud_from_vlm,
 )
 from insurance_mvp.pipeline.results import save_checkpoint, save_results
-from insurance_mvp.pipeline.stages.conformal_stage import apply_conformal
+from insurance_mvp.pipeline.stages.conformal_stage import apply_conformal, apply_conformal_single
 from insurance_mvp.pipeline.stages.mining import mock_danger_clips, run_mining
 from insurance_mvp.pipeline.stages.ranking import rank_by_severity
 from insurance_mvp.pipeline.stages.recalibration import recalibrate_severity
@@ -87,7 +87,7 @@ class VideoResult:
     success: bool
     error_message: str | None = None
 
-    danger_clips: list[Any] = None
+    danger_clips: list[dict] = None
     assessments: list[ClaimAssessment] = None
 
     output_json_path: str | None = None
@@ -128,6 +128,19 @@ class InsurancePipeline:
     def _init_components(self):
         self.logger.info("Initializing pipeline components...")
 
+        # Global seed — guarantees deterministic results across runs
+        import random
+        random.seed(self.config.seed)
+        np.random.seed(self.config.seed)
+        try:
+            import torch
+            torch.manual_seed(self.config.seed)
+            if torch.cuda.is_available():
+                torch.cuda.manual_seed_all(self.config.seed)
+        except ImportError:
+            pass
+        self.logger.info("RNG seeded with seed=%d", self.config.seed)
+
         # B1: Mining
         self.audio_analyzer = AudioAnalyzer()
         self.motion_analyzer = MotionAnalyzer()
@@ -136,10 +149,20 @@ class InsurancePipeline:
         self.signal_fuser.set_analyzers(
             self.audio_analyzer, self.motion_analyzer, self.proximity_analyzer
         )
+
+        # Protocol enforcement: validate that components satisfy their contracts
+        from insurance_mvp.pipeline.protocols import MiningBackend
+        if not isinstance(self.signal_fuser, MiningBackend):
+            raise TypeError(
+                f"signal_fuser must satisfy MiningBackend protocol, "
+                f"got {type(self.signal_fuser).__name__}"
+            )
+        self.logger.info("Protocol contracts verified for mining backend")
+
         self.logger.info("Mining components initialized")
 
-        # B2: Video-LLM (lazy)
-        self.cosmos_client = None
+        # B2: Video-LLM backend
+        self._init_vlm_backend()
 
         # B3: Insurance domain logic
         from insurance_mvp.insurance.fault_assessment import (
@@ -178,6 +201,46 @@ class InsurancePipeline:
             self.conformal_predictor = None
             self.logger.info("Conformal prediction disabled")
 
+    def _init_vlm_backend(self) -> None:
+        """Instantiate the VLM client based on configured backend.
+
+        - MOCK backend: ``cosmos_client`` stays None; ``mock_vlm_result()`` is used instead.
+        - Real backend (QWEN25VL): constructs ``VideoLLMClient``; falls back to mock on failure.
+        """
+        from insurance_mvp.config import CosmosBackend
+
+        backend = self.config.cosmos.backend
+        if backend == CosmosBackend.MOCK:
+            self.cosmos_client = None
+            self.logger.info("VLM backend: mock")
+            return
+
+        try:
+            from insurance_mvp.cosmos.client import VLMConfig, VideoLLMClient
+
+            vlm_cfg = VLMConfig(
+                model_name=backend.value,
+                device=self.config.cosmos.device.value,
+                fps=self.config.vlm.fps,
+                max_frames=self.config.vlm.max_frames,
+                max_new_tokens=self.config.vlm.max_new_tokens,
+                temperature=self.config.vlm.temperature,
+                timeout_sec=self.config.vlm.timeout_sec,
+            )
+            # VLMConfig sets these as attributes rather than constructor params
+            vlm_cfg.max_clip_duration_sec = self.config.vlm.max_clip_duration_sec
+            vlm_cfg.enable_cpu_fallback = self.config.vlm.enable_cpu_fallback
+            vlm_cfg.gpu_cleanup = self.config.vlm.gpu_cleanup
+            vlm_cfg.frame_extraction_timeout_sec = self.config.vlm.frame_extraction_timeout_sec
+            self.cosmos_client = VideoLLMClient(vlm_cfg)
+            self.logger.info("VLM client initialized: %s on %s", backend.value, self.config.cosmos.device.value)
+        except (ImportError, RuntimeError, OSError) as exc:
+            self.logger.warning(
+                "Failed to initialize VLM backend '%s': %s — falling back to mock.",
+                backend.value, exc,
+            )
+            self.cosmos_client = None
+
     def _load_conformal_calibration(self):
         if not self.config.conformal.calibration_data_path:
             self.logger.info("Using mock calibration (no pretrained data)")
@@ -191,9 +254,10 @@ class InsurancePipeline:
             self._mock_conformal_calibration()
 
     def _mock_conformal_calibration(self):
+        rng = np.random.RandomState(self.config.seed)
         n_calib = 100
-        scores = np.random.dirichlet(np.ones(4), size=n_calib)
-        y_true = np.random.randint(0, 4, size=n_calib)
+        scores = rng.dirichlet(np.ones(4), size=n_calib)
+        y_true = rng.randint(0, 4, size=n_calib)
         self.conformal_predictor.fit(scores, y_true)
 
     # ------------------------------------------------------------------
@@ -319,9 +383,9 @@ class InsurancePipeline:
         else:
             try:
                 clips = run_mining(self.signal_fuser, video_path, video_id, self.config.mining.top_k_clips)
-            except Exception:
+            except (RuntimeError, ValueError, OSError, MemoryError) as exc:
                 if self.config.continue_on_error:
-                    self.logger.warning("Mining failed, falling back to mock danger clips.")
+                    self.logger.warning("Mining failed (%s), falling back to mock danger clips.", exc)
                     clips = mock_danger_clips(video_path, video_id, self.config.mining.top_k_clips)
                 else:
                     raise
@@ -387,20 +451,36 @@ class InsurancePipeline:
                 fraud = FraudRisk(risk_score=0.0, indicators=[], reasoning="Fraud detection disabled")
 
         processing_time = time.time() - start_time
-        severity = vlm_result.get("severity", "LOW")
-        confidence = vlm_result.get("confidence", 0.5)
+        raw_severity = vlm_result.get("severity", "LOW")
+        raw_confidence = vlm_result.get("confidence", 0.5)
 
-        # Post-VLM recalibration using mining signals
+        # Stage 4 (per-clip): Conformal prediction on RAW VLM output — BEFORE recalibration.
+        # Applying conformal here (not after recalibration) preserves the exchangeability
+        # assumption required for valid coverage guarantees (Vovk et al. 2005).
+        if self.config.enable_conformal and self.conformal_predictor:
+            prediction_set = apply_conformal_single(
+                raw_severity, raw_confidence, self.conformal_predictor
+            )
+        else:
+            prediction_set = {raw_severity}
+
+        # Post-VLM recalibration: adjusts point estimate only, NOT the prediction set.
+        # The prediction set already reflects the raw VLM distribution.
+        severity = raw_severity
+        confidence = raw_confidence
         if self.config.enable_recalibration:
             severity, confidence, recal_reason = recalibrate_severity(
-                vlm_severity=severity,
-                vlm_confidence=confidence,
+                vlm_severity=raw_severity,
+                vlm_confidence=raw_confidence,
                 danger_score=clip.get("danger_score", 0.5),
                 motion_score=clip.get("motion_score", 0.0),
                 proximity_score=clip.get("proximity_score", 0.0),
             )
             if recal_reason != "no_adjustment":
-                self.logger.info("[%s] Recalibrated: %s", video_id, recal_reason)
+                self.logger.info(
+                    "[%s] Recalibrated severity: %s→%s (reason=%s)",
+                    video_id, raw_severity, severity, recal_reason,
+                )
 
         # Severity-aware fault ratio adjustment
         if severity == "NONE":
@@ -421,7 +501,7 @@ class InsurancePipeline:
         return ClaimAssessment(
             severity=severity,
             confidence=confidence,
-            prediction_set={severity},
+            prediction_set=prediction_set,
             review_priority="STANDARD",
             fault_assessment=fault,
             fraud_risk=fraud,
@@ -434,15 +514,24 @@ class InsurancePipeline:
         )
 
     def _vlm_inference_with_retry(self, clip: Any) -> dict[str, Any]:
+        video_path = clip.get("video_path")
+        start_sec = clip.get("start_sec", 0.0)
+        end_sec = clip.get("end_sec", 5.0)
+        clip_id = clip.get("clip_id", "unknown")
         for attempt in range(self.config.max_retries):
             try:
-                video_path = clip.get("video_path")
-                start_sec = clip.get("start_sec", 0.0)
-                end_sec = clip.get("end_sec", 5.0)
-                return self.cosmos_client.analyze_clip(
-                    video_path=video_path, start_sec=start_sec, end_sec=end_sec
+                assessment = self.cosmos_client.assess_claim(
+                    video_path=video_path,
+                    video_id=clip_id,
+                    start_sec=start_sec,
+                    end_sec=end_sec,
                 )
-            except Exception as e:
+                return {
+                    "severity": assessment.severity,
+                    "confidence": assessment.confidence,
+                    "reasoning": assessment.causal_reasoning,
+                }
+            except (RuntimeError, ValueError, OSError, TimeoutError) as e:
                 self.logger.warning("VLM inference attempt %d failed: %s", attempt + 1, e)
                 if attempt < self.config.max_retries - 1:
                     time.sleep(self.config.retry_delay_sec)

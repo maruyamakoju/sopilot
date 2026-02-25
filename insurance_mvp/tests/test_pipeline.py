@@ -237,16 +237,13 @@ class TestInsurancePipeline:
         mock_fuser = Mock()
         mock_fuser.extract_danger_clips.return_value = mock_danger_clips
 
-        # Mock Cosmos client
-        mock_vlm_result = {
-            "severity": "HIGH",
-            "confidence": 0.85,
-            "reasoning": "Dangerous situation detected",
-            "hazards": [],
-            "evidence": [],
-        }
+        # Mock Cosmos client — uses new assess_claim() API (returns object with attributes)
+        mock_assessment = Mock()
+        mock_assessment.severity = "HIGH"
+        mock_assessment.confidence = 0.85
+        mock_assessment.causal_reasoning = "Dangerous situation detected"
         mock_cosmos = Mock()
-        mock_cosmos.analyze_clip.return_value = mock_vlm_result
+        mock_cosmos.assess_claim.return_value = mock_assessment
 
         # Create pipeline with mocks
         pipeline = InsurancePipeline(default_config)
@@ -481,6 +478,157 @@ class TestPipelineIntegration:
         # Should succeed even with mock components
         assert result.success or not result.success  # Either outcome is valid
         assert result.video_id == "e2e_test"
+
+
+# --- Wave 1 Regression Tests ---
+
+
+class TestWave1Regressions:
+    """Regression tests that pin the Wave 1 critical bug fixes."""
+
+    # ------------------------------------------------------------------
+    # VLM backend wiring (Bug 1.D)
+    # ------------------------------------------------------------------
+
+    def test_vlm_wiring_mock_backend(self, temp_dir):
+        """Regression: MOCK backend must leave cosmos_client as None.
+
+        Before the Wave 1 fix, cosmos_client was always None regardless of
+        backend setting, so real VLM was never instantiated.  After the fix,
+        _init_vlm_backend() is called during __init__ and for MOCK it must
+        explicitly set cosmos_client = None (no VLM instantiation).
+        """
+        config = PipelineConfig(output_dir=temp_dir)
+        config.cosmos.backend = CosmosBackend.MOCK
+
+        pipeline = InsurancePipeline(config)
+
+        assert pipeline.cosmos_client is None, (
+            "MOCK backend should set cosmos_client to None "
+            f"(got {type(pipeline.cosmos_client).__name__})"
+        )
+
+    def test_vlm_wiring_real_backend_falls_back_gracefully(self, temp_dir):
+        """Regression: Real backend without GPU should fall back to None, not crash.
+
+        With backend=QWEN25VL and no model installed, _init_vlm_backend() must
+        catch the ImportError/RuntimeError and set cosmos_client = None, logging
+        a warning rather than propagating the exception.
+
+        VideoLLMClient is imported lazily inside _init_vlm_backend() so it must be
+        patched at its definition site (insurance_mvp.cosmos.client).
+        """
+        from unittest.mock import patch
+
+        config = PipelineConfig(output_dir=temp_dir)
+        config.cosmos.backend = CosmosBackend.QWEN25VL
+
+        # Patch at the definition site — the lazy import inside _init_vlm_backend
+        # resolves names against insurance_mvp.cosmos.client, not orchestrator.
+        with patch(
+            "insurance_mvp.cosmos.client.VideoLLMClient",
+            side_effect=RuntimeError("No GPU available"),
+        ):
+            pipeline = InsurancePipeline(config)
+
+        # Must fall back gracefully, not crash
+        assert pipeline.cosmos_client is None, (
+            "When VLM instantiation fails, cosmos_client must fall back to None"
+        )
+
+    # ------------------------------------------------------------------
+    # Conformal / recalibration ordering (Bug 1.C)
+    # ------------------------------------------------------------------
+
+    def test_prediction_set_uses_raw_vlm(self, default_config, mock_video_file):
+        """Regression: apply_conformal_single must be called with RAW VLM severity (before recalibration).
+
+        The conformal prediction set must be built from the original VLM scores
+        *before* recalibration bumps the severity.  If recalibration changes
+        LOW → MEDIUM, apply_conformal_single must still receive "LOW" / 0.90
+        (the raw values), not the recalibrated "MEDIUM" / 0.75.
+
+        We spy on apply_conformal_single via mock.patch and verify the arguments.
+        The spy also returns {"LOW", "NONE"} (len > 1) so that Stage 4's batch
+        apply_conformal() skips the assessment (it only re-applies on singletons),
+        keeping the prediction_set intact for inspection.
+        """
+        from unittest.mock import patch
+
+        # Set up a scenario where recalibration will bump LOW → MEDIUM
+        # (danger_score > 0.7 triggers Rule 1 in recalibrate_severity)
+        clip_list = [
+            {
+                "clip_id": "bump_clip",
+                "start_sec": 0.0,
+                "end_sec": 5.0,
+                "danger_score": 0.85,  # > high_danger_threshold (0.7)
+                "motion_score": 0.0,
+                "proximity_score": 0.0,
+                "video_path": mock_video_file,
+            }
+        ]
+        mock_fuser = Mock()
+        mock_fuser.extract_danger_clips.return_value = clip_list
+
+        # VLM says LOW with high confidence
+        mock_assessment = Mock()
+        mock_assessment.severity = "LOW"
+        mock_assessment.confidence = 0.90
+        mock_assessment.causal_reasoning = "Only minor event"
+        mock_cosmos = Mock()
+        mock_cosmos.assess_claim.return_value = mock_assessment
+
+        default_config.enable_conformal = True
+        default_config.enable_recalibration = True
+
+        conformal_call_args = []
+
+        def _spy_conformal(raw_severity, raw_confidence, predictor):
+            conformal_call_args.append((raw_severity, raw_confidence))
+            # Return multi-element set so Stage 4 batch apply_conformal skips this assessment
+            return {"LOW", "NONE"}
+
+        pipeline = InsurancePipeline(default_config)
+        pipeline.signal_fuser = mock_fuser
+        pipeline.cosmos_client = mock_cosmos
+        pipeline.fault_assessor = None
+        pipeline.fraud_detector = None
+
+        target = "insurance_mvp.pipeline.orchestrator.apply_conformal_single"
+        with patch(target, side_effect=_spy_conformal):
+            result = pipeline.process_video(mock_video_file, video_id="ordering_test")
+
+        assert result.success, f"Pipeline failed: {result.error_message}"
+        assert len(result.assessments) == 1
+        assessment = result.assessments[0]
+
+        # Conformal must have been called exactly once (once per clip)
+        assert len(conformal_call_args) == 1, (
+            f"apply_conformal_single called {len(conformal_call_args)} times; expected 1"
+        )
+        called_severity, called_confidence = conformal_call_args[0]
+
+        # The argument must be the RAW VLM output ("LOW"), not the recalibrated "MEDIUM"
+        assert called_severity == "LOW", (
+            f"apply_conformal_single called with severity={called_severity!r}; "
+            "expected 'LOW' (raw VLM output before recalibration). "
+            "Conformal must run before recalibrate_severity()."
+        )
+        assert called_confidence == pytest.approx(0.90), (
+            f"apply_conformal_single called with confidence={called_confidence}; "
+            "expected 0.90 (raw VLM confidence before recalibration penalty)."
+        )
+
+        # After recalibration, severity should be bumped to MEDIUM (danger_score=0.85 > 0.7)
+        assert assessment.severity == "MEDIUM", (
+            f"Expected recalibration to bump LOW→MEDIUM, got {assessment.severity}"
+        )
+        # prediction_set comes from the spy which returned {"LOW", "NONE"}
+        assert assessment.prediction_set == {"LOW", "NONE"}, (
+            f"prediction_set={assessment.prediction_set} should be the raw-VLM-based "
+            "set {{'LOW', 'NONE'}} returned by the conformal spy."
+        )
 
 
 if __name__ == "__main__":

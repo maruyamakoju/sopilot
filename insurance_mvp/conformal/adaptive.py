@@ -242,7 +242,7 @@ class MondrianConformal:
                     (severity-conditional coverage).
         """
         if groups is None:
-            groups = y_true
+            groups = np.argmax(scores, axis=1)
 
         unique_groups = np.unique(groups)
         for g in unique_groups:
@@ -306,7 +306,7 @@ class MondrianConformal:
             Dict mapping group label to coverage rate.
         """
         if groups is None:
-            groups = y_true
+            groups = np.argmax(scores, axis=1)
 
         pred_sets = self.predict_set(scores, groups)
         unique_groups = np.unique(groups)

@@ -13,6 +13,10 @@ import random
 
 def mock_inference(prompt: str) -> str:
     """Generate deterministic mock VLM output based on prompt keywords."""
+    # NOTE: For pipeline-level mocking, prefer mock_vlm_result() from
+    # pipeline/stages/vlm_inference.py which is filename-aware and gives
+    # scenario-specific ground truth. This function is retained for
+    # cosmos/client.py backward compatibility only.
     prompt_lower = prompt.lower()
     is_collision = any(w in prompt_lower for w in ["collision", "crash", "impact", "hit"])
     is_near_miss = any(w in prompt_lower for w in ["near-miss", "near miss", "avoid", "brake"])

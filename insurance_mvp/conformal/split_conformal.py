@@ -6,6 +6,7 @@ Reference: Vovk et al. (2005) "Algorithmic Learning in a Random World"
 """
 
 from dataclasses import dataclass
+import warnings
 
 import numpy as np
 
@@ -62,7 +63,20 @@ class SplitConformal:
 
         # Compute quantile for conformal prediction
         q_level = np.ceil((n_calib + 1) * (1 - self.config.alpha)) / n_calib
-        self.quantile = np.quantile(non_conformity_scores, q_level)
+        if q_level > 1.0:
+            warnings.warn(
+                f"Conformal coverage guarantee cannot be satisfied: "
+                f"n_calib={n_calib} is too small for alpha={self.config.alpha}. "
+                f"Need at least {int(np.ceil((1 - self.config.alpha + 1) / 1))} samples. "
+                f"q_level={q_level:.4f} clipped to 1.0; coverage guarantee may not hold.",
+                RuntimeWarning,
+                stacklevel=2,
+            )
+            self._coverage_guarantee_valid = False
+        else:
+            self._coverage_guarantee_valid = True
+        q_level = float(np.clip(q_level, 0, 1))
+        self.quantile = float(np.quantile(non_conformity_scores, q_level))
 
         self._calibrated = True
 
@@ -120,6 +134,15 @@ class SplitConformal:
 
         coverage = n_covered / n_test
         return coverage
+
+    @property
+    def coverage_guarantee_valid(self) -> bool:
+        """Whether the coverage guarantee is theoretically valid.
+
+        False when n_calib < ceil((1-alpha) * (n+1)) requires q_level > 1.0,
+        meaning the quantile was clipped and the coverage guarantee may not hold.
+        """
+        return getattr(self, '_coverage_guarantee_valid', True)
 
     def compute_set_sizes(self, scores: np.ndarray) -> np.ndarray:
         """Compute prediction set sizes (indicator of uncertainty)"""

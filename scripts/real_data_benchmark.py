@@ -25,6 +25,12 @@ from insurance_mvp.config import CosmosBackend, PipelineConfig
 from insurance_mvp.cosmos import create_client
 from insurance_mvp.pipeline import InsurancePipeline
 
+try:
+    from insurance_mvp.evaluation.statistical import evaluate as bca_evaluate
+    _HAS_STATISTICAL = True
+except ImportError:
+    _HAS_STATISTICAL = False
+
 
 def load_ground_truth(input_dir: Path):
     """Load ground truth annotations if available."""
@@ -199,8 +205,16 @@ def main():
 
     if metrics:
         print(f"\n=== Accuracy Metrics ===")
-        print(f"Severity accuracy: {metrics.get('severity_accuracy', 0):.1f}%")
-        print(f"Exact matches: {metrics.get('severity_exact_matches', 0)}/{metrics.get('total_with_gt', 0)}")
+        n = metrics.get("total_with_gt", 0)
+        matches = metrics.get("severity_exact_matches", 0)
+        acc = metrics.get("severity_accuracy", 0)
+        ci = metrics.get("bca_ci_95")
+        if ci:
+            lo, hi = ci
+            print(f"Severity accuracy: {acc:.1f}% [{lo*100:.1f}%, {hi*100:.1f}%] (95% CI, BCa, n={n})")
+        else:
+            print(f"Severity accuracy: {acc:.1f}%")
+        print(f"Exact matches: {matches}/{n}")
         print(f"Mean distance: {metrics.get('mean_severity_distance', 0):.2f}")
 
         if metrics.get("confusion_matrix"):
@@ -251,10 +265,34 @@ def calculate_metrics(videos):
     if total_with_gt == 0:
         return None
 
+    accuracy = exact_matches / total_with_gt
+
+    # BCa bootstrap confidence interval
+    bca_ci = None
+    if _HAS_STATISTICAL:
+        try:
+            labels_true = []
+            labels_pred = []
+            for video_id, result in videos.items():
+                if not result.get("success"):
+                    continue
+                gt = result.get("ground_truth") or {}
+                pred = result.get("predicted") or {}
+                gt_sev = gt.get("gt_severity")
+                pred_sev = pred.get("severity") if pred else None
+                if gt_sev and gt_sev != "UNKNOWN":
+                    labels_true.append(gt_sev)
+                    labels_pred.append(pred_sev or "NONE")
+            report = bca_evaluate(labels_true, labels_pred, n_bootstrap=2000)
+            bca_ci = (report.accuracy.lower, report.accuracy.upper)
+        except Exception:
+            bca_ci = None
+
     return {
         "total_with_gt": total_with_gt,
         "severity_exact_matches": exact_matches,
-        "severity_accuracy": 100.0 * exact_matches / total_with_gt,
+        "severity_accuracy": 100.0 * accuracy,
+        "bca_ci_95": bca_ci,
         "mean_severity_distance": sum(severity_distances) / len(severity_distances) if severity_distances else 0,
         "confusion_matrix": confusion,
     }

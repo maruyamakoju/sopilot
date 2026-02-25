@@ -254,7 +254,7 @@ class VideoLLMClient:
             logger.info("Loading Qwen2.5-VL-7B-Instruct...")
             load_kwargs = {
                 "torch_dtype": torch_dtype,
-                "device_map": "auto" if self.config.device == "cuda" else "cpu",
+                "device_map": "auto" if self.config.device in ("cuda", "auto") else "cpu",
             }
             if quantization_config is not None:
                 load_kwargs["quantization_config"] = quantization_config
@@ -548,9 +548,10 @@ class VideoLLMClient:
                 text=[text], images=image_inputs, videos=video_inputs, padding=True, return_tensors="pt", **fixed_kwargs
             )
 
-            # Move to device
-            if self.config.device == "cuda":
-                inputs = inputs.to("cuda")
+            # Move to device — use first model parameter's device so device_map="auto" works
+            if self.config.device in ("cuda", "auto"):
+                model_device = next(self._model.parameters()).device
+                inputs = inputs.to(model_device)
 
             # Generate
             with torch.no_grad():

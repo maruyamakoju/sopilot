@@ -175,6 +175,55 @@ class TestSplitConformal:
         assert sc._calibrated
         assert 0.0 <= sc.quantile <= 1.0
 
+    def test_q_level_overflow_warning(self):
+        """Regression: n=5, alpha=0.05 → q_level > 1.0 triggers RuntimeWarning.
+
+        ceil((5+1) * 0.95) / 5 = ceil(5.7) / 5 = 6/5 = 1.2 > 1.0.
+        Before the Wave 1 fix, np.clip silently clamped this with no signal to
+        the caller, making it impossible to detect invalid coverage guarantees.
+        After the fix, a RuntimeWarning is emitted and coverage_guarantee_valid
+        is set to False.
+        """
+        import warnings as _warnings
+
+        n = 5
+        alpha = 0.05  # q_level = ceil(6 * 0.95) / 5 = 6/5 = 1.2
+
+        rng = np.random.RandomState(7)
+        y_true = rng.randint(0, 4, size=n)
+        scores = np.full((n, 4), 0.1)
+        for i in range(n):
+            scores[i, y_true[i]] = 0.7
+        scores /= scores.sum(axis=1, keepdims=True)
+
+        sc = SplitConformal(ConformalConfig(alpha=alpha))
+        with _warnings.catch_warnings(record=True) as caught:
+            _warnings.simplefilter("always")
+            sc.fit(scores, y_true)
+
+        runtime_warnings = [w for w in caught if issubclass(w.category, RuntimeWarning)]
+        assert len(runtime_warnings) >= 1, (
+            f"Expected a RuntimeWarning for n_calib={n}, alpha={alpha} "
+            f"(q_level > 1.0), but none was raised."
+        )
+        assert not sc.coverage_guarantee_valid, (
+            "coverage_guarantee_valid should be False when q_level > 1.0"
+        )
+
+    def test_sufficient_calibration_no_warning(self):
+        """n=200, alpha=0.1 → q_level <= 1.0; no overflow warning emitted."""
+        import warnings as _warnings
+
+        scores, y_true = _make_synthetic_calibration(n=200)
+        sc = SplitConformal(ConformalConfig(alpha=0.1))
+        with _warnings.catch_warnings(record=True) as caught:
+            _warnings.simplefilter("always")
+            sc.fit(scores, y_true)
+
+        runtime_warnings = [w for w in caught if issubclass(w.category, RuntimeWarning)]
+        assert len(runtime_warnings) == 0
+        assert sc.coverage_guarantee_valid is True
+
 
 # ============================================================================
 # TestConvenienceFunctions

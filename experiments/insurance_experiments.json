@@ -1,0 +1,416 @@
+{
+  "schema_version": 1,
+  "configs": {
+    "insurance_pipeline_full": {
+      "name": "insurance_pipeline_full",
+      "seed": 42,
+      "description": "Full-feature insurance pipeline on dashcam_demo",
+      "hyperparams": {
+        "backend": "mock",
+        "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo",
+        "n_bootstrap": 10000,
+        "alpha": 0.05
+      },
+      "ablation_flags": {
+        "recalibration": true,
+        "conformal": true,
+        "audio_signal": true,
+        "motion_signal": true,
+        "proximity_signal": true
+      }
+    },
+    "insurance_ablation_base": {
+      "name": "insurance_ablation_base",
+      "seed": 42,
+      "description": "Ablation baseline: all selected features enabled",
+      "hyperparams": {
+        "backend": "mock",
+        "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo"
+      },
+      "ablation_flags": {
+        "recalibration": true,
+        "conformal": true,
+        "audio_signal": true,
+        "motion_signal": true,
+        "proximity_signal": true
+      }
+    },
+    "insurance_ablation_base__no_recalibration": {
+      "name": "insurance_ablation_base__no_recalibration",
+      "seed": 42,
+      "description": "Ablation baseline: all selected features enabled",
+      "hyperparams": {
+        "backend": "mock",
+        "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo"
+      },
+      "ablation_flags": {
+        "recalibration": false,
+        "conformal": true,
+        "audio_signal": true,
+        "motion_signal": true,
+        "proximity_signal": true
+      }
+    },
+    "insurance_ablation_base__no_conformal": {
+      "name": "insurance_ablation_base__no_conformal",
+      "seed": 42,
+      "description": "Ablation baseline: all selected features enabled",
+      "hyperparams": {
+        "backend": "mock",
+        "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo"
+      },
+      "ablation_flags": {
+        "recalibration": true,
+        "conformal": false,
+        "audio_signal": true,
+        "motion_signal": true,
+        "proximity_signal": true
+      }
+    },
+    "insurance_ablation_base__no_audio_signal": {
+      "name": "insurance_ablation_base__no_audio_signal",
+      "seed": 42,
+      "description": "Ablation baseline: all selected features enabled",
+      "hyperparams": {
+        "backend": "mock",
+        "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo"
+      },
+      "ablation_flags": {
+        "recalibration": true,
+        "conformal": true,
+        "audio_signal": false,
+        "motion_signal": true,
+        "proximity_signal": true
+      }
+    },
+    "insurance_ablation_base__no_motion_signal": {
+      "name": "insurance_ablation_base__no_motion_signal",
+      "seed": 42,
+      "description": "Ablation baseline: all selected features enabled",
+      "hyperparams": {
+        "backend": "mock",
+        "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo"
+      },
+      "ablation_flags": {
+        "recalibration": true,
+        "conformal": true,
+        "audio_signal": true,
+        "motion_signal": false,
+        "proximity_signal": true
+      }
+    },
+    "insurance_ablation_base__no_proximity_signal": {
+      "name": "insurance_ablation_base__no_proximity_signal",
+      "seed": 42,
+      "description": "Ablation baseline: all selected features enabled",
+      "hyperparams": {
+        "backend": "mock",
+        "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo"
+      },
+      "ablation_flags": {
+        "recalibration": true,
+        "conformal": true,
+        "audio_signal": true,
+        "motion_signal": true,
+        "proximity_signal": false
+      }
+    }
+  },
+  "results": [
+    {
+      "config": {
+        "name": "insurance_pipeline_full",
+        "seed": 42,
+        "description": "Full-feature insurance pipeline on dashcam_demo",
+        "hyperparams": {
+          "backend": "mock",
+          "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo",
+          "n_bootstrap": 10000,
+          "alpha": 0.05
+        },
+        "ablation_flags": {
+          "recalibration": true,
+          "conformal": true,
+          "audio_signal": true,
+          "motion_signal": true,
+          "proximity_signal": true
+        }
+      },
+      "metrics": {
+        "accuracy": 1.0,
+        "macro_f1": 1.0,
+        "weighted_f1": 1.0,
+        "cohen_kappa": 1.0,
+        "per_class_f1_0": 1.0,
+        "per_class_f1_1": 1.0,
+        "per_class_f1_2": 1.0,
+        "per_class_f1_3": 1.0,
+        "n_samples": 10.0
+      },
+      "timing_sec": 16.87775492668152,
+      "timestamp": "2026-02-23T23:40:44.266282+00:00",
+      "git_hash": "5a11159",
+      "metadata": {
+        "backend": "mock",
+        "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo",
+        "correct": 10,
+        "total": 10
+      }
+    },
+    {
+      "config": {
+        "name": "insurance_pipeline_full",
+        "seed": 42,
+        "description": "Full-feature insurance pipeline on dashcam_demo",
+        "hyperparams": {
+          "backend": "mock",
+          "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo",
+          "n_bootstrap": 10000,
+          "alpha": 0.05
+        },
+        "ablation_flags": {
+          "recalibration": true,
+          "conformal": true,
+          "audio_signal": true,
+          "motion_signal": true,
+          "proximity_signal": true
+        }
+      },
+      "metrics": {
+        "accuracy": 1.0,
+        "macro_f1": 1.0,
+        "weighted_f1": 1.0,
+        "cohen_kappa": 1.0,
+        "per_class_f1_0": 1.0,
+        "per_class_f1_1": 1.0,
+        "per_class_f1_2": 1.0,
+        "per_class_f1_3": 1.0,
+        "n_samples": 10.0
+      },
+      "timing_sec": 20.161550760269165,
+      "timestamp": "2026-02-25T00:07:11.166897+00:00",
+      "git_hash": "5a11159",
+      "metadata": {
+        "backend": "mock",
+        "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo",
+        "correct": 10,
+        "total": 10
+      }
+    },
+    {
+      "config": {
+        "name": "insurance_ablation_base",
+        "seed": 42,
+        "description": "Ablation baseline: all selected features enabled",
+        "hyperparams": {
+          "backend": "mock",
+          "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo"
+        },
+        "ablation_flags": {
+          "recalibration": true,
+          "conformal": true,
+          "audio_signal": true,
+          "motion_signal": true,
+          "proximity_signal": true
+        }
+      },
+      "metrics": {
+        "accuracy": 1.0,
+        "macro_f1": 1.0,
+        "weighted_f1": 1.0,
+        "cohen_kappa": 1.0,
+        "per_class_f1_0": 1.0,
+        "per_class_f1_1": 1.0,
+        "per_class_f1_2": 1.0,
+        "per_class_f1_3": 1.0,
+        "n_samples": 10.0
+      },
+      "timing_sec": 15.432544231414795,
+      "timestamp": "2026-02-25T00:07:38.189092+00:00",
+      "git_hash": "5a11159",
+      "metadata": {
+        "ablation_role": "baseline"
+      }
+    },
+    {
+      "config": {
+        "name": "insurance_ablation_base__no_recalibration",
+        "seed": 42,
+        "description": "Ablation baseline: all selected features enabled",
+        "hyperparams": {
+          "backend": "mock",
+          "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo"
+        },
+        "ablation_flags": {
+          "recalibration": false,
+          "conformal": true,
+          "audio_signal": true,
+          "motion_signal": true,
+          "proximity_signal": true
+        }
+      },
+      "metrics": {
+        "accuracy": 1.0,
+        "macro_f1": 1.0,
+        "weighted_f1": 1.0,
+        "cohen_kappa": 1.0,
+        "per_class_f1_0": 1.0,
+        "per_class_f1_1": 1.0,
+        "per_class_f1_2": 1.0,
+        "per_class_f1_3": 1.0,
+        "n_samples": 10.0
+      },
+      "timing_sec": 12.32522201538086,
+      "timestamp": "2026-02-25T00:07:50.534628+00:00",
+      "git_hash": "5a11159",
+      "metadata": {
+        "ablation_role": "ablated",
+        "disabled_flag": "recalibration"
+      }
+    },
+    {
+      "config": {
+        "name": "insurance_ablation_base__no_conformal",
+        "seed": 42,
+        "description": "Ablation baseline: all selected features enabled",
+        "hyperparams": {
+          "backend": "mock",
+          "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo"
+        },
+        "ablation_flags": {
+          "recalibration": true,
+          "conformal": false,
+          "audio_signal": true,
+          "motion_signal": true,
+          "proximity_signal": true
+        }
+      },
+      "metrics": {
+        "accuracy": 1.0,
+        "macro_f1": 1.0,
+        "weighted_f1": 1.0,
+        "cohen_kappa": 1.0,
+        "per_class_f1_0": 1.0,
+        "per_class_f1_1": 1.0,
+        "per_class_f1_2": 1.0,
+        "per_class_f1_3": 1.0,
+        "n_samples": 10.0
+      },
+      "timing_sec": 12.34351897239685,
+      "timestamp": "2026-02-25T00:08:02.907209+00:00",
+      "git_hash": "5a11159",
+      "metadata": {
+        "ablation_role": "ablated",
+        "disabled_flag": "conformal"
+      }
+    },
+    {
+      "config": {
+        "name": "insurance_ablation_base__no_audio_signal",
+        "seed": 42,
+        "description": "Ablation baseline: all selected features enabled",
+        "hyperparams": {
+          "backend": "mock",
+          "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo"
+        },
+        "ablation_flags": {
+          "recalibration": true,
+          "conformal": true,
+          "audio_signal": false,
+          "motion_signal": true,
+          "proximity_signal": true
+        }
+      },
+      "metrics": {
+        "accuracy": 1.0,
+        "macro_f1": 1.0,
+        "weighted_f1": 1.0,
+        "cohen_kappa": 1.0,
+        "per_class_f1_0": 1.0,
+        "per_class_f1_1": 1.0,
+        "per_class_f1_2": 1.0,
+        "per_class_f1_3": 1.0,
+        "n_samples": 10.0
+      },
+      "timing_sec": 12.320714950561523,
+      "timestamp": "2026-02-25T00:08:15.244482+00:00",
+      "git_hash": "5a11159",
+      "metadata": {
+        "ablation_role": "ablated",
+        "disabled_flag": "audio_signal"
+      }
+    },
+    {
+      "config": {
+        "name": "insurance_ablation_base__no_motion_signal",
+        "seed": 42,
+        "description": "Ablation baseline: all selected features enabled",
+        "hyperparams": {
+          "backend": "mock",
+          "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo"
+        },
+        "ablation_flags": {
+          "recalibration": true,
+          "conformal": true,
+          "audio_signal": true,
+          "motion_signal": false,
+          "proximity_signal": true
+        }
+      },
+      "metrics": {
+        "accuracy": 0.2,
+        "macro_f1": 0.08333333333333334,
+        "weighted_f1": 0.06666666666666668,
+        "cohen_kappa": 0.0,
+        "per_class_f1_0": 0.33333333333333337,
+        "per_class_f1_1": 0.0,
+        "per_class_f1_2": 0.0,
+        "per_class_f1_3": 0.0,
+        "n_samples": 10.0
+      },
+      "timing_sec": 12.241142272949219,
+      "timestamp": "2026-02-25T00:08:27.501533+00:00",
+      "git_hash": "5a11159",
+      "metadata": {
+        "ablation_role": "ablated",
+        "disabled_flag": "motion_signal"
+      }
+    },
+    {
+      "config": {
+        "name": "insurance_ablation_base__no_proximity_signal",
+        "seed": 42,
+        "description": "Ablation baseline: all selected features enabled",
+        "hyperparams": {
+          "backend": "mock",
+          "videos_dir": "C:\\Users\\07013\\Desktop\\02081\\data\\dashcam_demo"
+        },
+        "ablation_flags": {
+          "recalibration": true,
+          "conformal": true,
+          "audio_signal": true,
+          "motion_signal": true,
+          "proximity_signal": false
+        }
+      },
+      "metrics": {
+        "accuracy": 1.0,
+        "macro_f1": 1.0,
+        "weighted_f1": 1.0,
+        "cohen_kappa": 1.0,
+        "per_class_f1_0": 1.0,
+        "per_class_f1_1": 1.0,
+        "per_class_f1_2": 1.0,
+        "per_class_f1_3": 1.0,
+        "n_samples": 10.0
+      },
+      "timing_sec": 12.752679109573364,
+      "timestamp": "2026-02-25T00:08:40.276794+00:00",
+      "git_hash": "5a11159",
+      "metadata": {
+        "ablation_role": "ablated",
+        "disabled_flag": "proximity_signal"
+      }
+    }
+  ]
+}

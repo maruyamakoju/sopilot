@@ -24,7 +24,26 @@ def mock_vlm_result(clip: Any) -> dict[str, Any]:
     video_path = str(clip.get("video_path", "")).lower()
     filename = Path(video_path).stem if video_path else ""
 
-    if "collision" in filename or "crash" in filename:
+    # Nexar dataset naming: pos_XXXXX = collision (HIGH), neg_XXXXX = normal (NONE)
+    if filename.startswith("pos_") or "pos_" in filename:
+        return {
+            "severity": "HIGH",
+            "confidence": 0.91,
+            "reasoning": "Mock: Nexar positive sample — collision event detected",
+            "causal_reasoning": "dashcam collision: significant vehicular impact observed",
+            "hazards": [{"type": "collision", "actors": ["car", "car"]}],
+            "evidence": [{"timestamp_sec": 5.0, "description": "Impact detected"}],
+        }
+    elif filename.startswith("neg_") or "neg_" in filename:
+        return {
+            "severity": "NONE",
+            "confidence": 0.93,
+            "reasoning": "Mock: Nexar negative sample — normal driving, no incident",
+            "causal_reasoning": "normal driving conditions, no collision or hazard observed",
+            "hazards": [],
+            "evidence": [],
+        }
+    elif "collision" in filename or "crash" in filename:
         return {
             "severity": "HIGH",
             "confidence": 0.92,

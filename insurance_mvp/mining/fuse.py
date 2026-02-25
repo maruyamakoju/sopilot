@@ -111,6 +111,12 @@ class SignalFuser:
         self._motion_analyzer = motion
         self._proximity_analyzer = proximity
 
+    def extract_clips(self, video_path: str, top_k: int = 5) -> list:
+        """Protocol wrapper: satisfies MiningBackend.extract_clips()."""
+        from insurance_mvp.pipeline.stages.mining import run_mining
+        clips = run_mining(self, video_path, video_path.split("/")[-1].split(".")[0], top_k)
+        return clips
+
     def extract_danger_clips(self, video_path: str, top_k: int = 20) -> list[dict]:
         """End-to-end pipeline: analyze video → fuse signals → return top-K clips.
 

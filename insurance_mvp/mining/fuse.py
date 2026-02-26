@@ -42,12 +42,12 @@ class FusionConfig:
     min_peak_distance: int = 3  # Minimum distance between peaks (seconds)
 
     # Clip extraction
-    clip_padding_sec: float = 5.0  # Extract ±5 seconds around each peak
+    clip_padding_sec: float = 3.0  # Extract ±3 seconds around each peak (was 5.0 — tighter focus)
     min_clip_duration: float = 2.0  # Minimum clip duration (seconds)
-    max_clip_duration: float = 15.0  # Maximum clip duration (seconds)
+    max_clip_duration: float = 10.0  # Hard cap: clip is trimmed to this length around peak_sec
 
     # Merge nearby peaks
-    merge_gap_sec: float = 3.0  # Merge peaks within 3 seconds
+    merge_gap_sec: float = 1.0  # Merge peaks within 1 second (was 3.0 — prevents runaway merges)
 
     def __post_init__(self):
         # Validate weights sum to 1.0
@@ -297,6 +297,35 @@ class SignalFuser:
         merged_clips = self._merge_nearby_clips(clips)
 
         logger.info(f"Extracted {len(merged_clips)} clips after merging (before: {len(clips)})")
+
+        # Enforce max_clip_duration: trim oversized clips to focus on the peak second
+        if self.config.max_clip_duration > 0:
+            trimmed = []
+            for clip in merged_clips:
+                if clip.duration_sec > self.config.max_clip_duration:
+                    half = self.config.max_clip_duration / 2.0
+                    new_start = max(0.0, clip.peak_sec - half)
+                    new_end = min(video_duration_sec, clip.peak_sec + half)
+                    # If one boundary hit the edge, extend the other side to preserve duration
+                    if new_start == 0.0:
+                        new_end = min(video_duration_sec, self.config.max_clip_duration)
+                    elif new_end == video_duration_sec:
+                        new_start = max(0.0, video_duration_sec - self.config.max_clip_duration)
+                    clip = HazardClip(
+                        start_sec=new_start,
+                        end_sec=new_end,
+                        peak_sec=clip.peak_sec,
+                        score=clip.score,
+                        audio_score=clip.audio_score,
+                        motion_score=clip.motion_score,
+                        proximity_score=clip.proximity_score,
+                    )
+                    logger.debug(
+                        "Trimmed clip to max_clip_duration=%.1fs: [%.1fs, %.1fs] (peak=%.1fs)",
+                        self.config.max_clip_duration, clip.start_sec, clip.end_sec, clip.peak_sec,
+                    )
+                trimmed.append(clip)
+            merged_clips = trimmed
 
         # Sort by score (descending)
         merged_clips.sort(key=lambda c: c.score, reverse=True)

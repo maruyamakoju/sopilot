@@ -184,7 +184,7 @@ class TestSignalFuser:
         assert config.motion_weight == 0.4
         assert config.proximity_weight == 0.3
         assert config.top_k_peaks == 20
-        assert config.clip_padding_sec == 5.0
+        assert config.clip_padding_sec == 3.0  # Updated: tighter focus around peaks
 
     def test_fusion_config_weight_normalization(self):
         """Test automatic weight normalization"""

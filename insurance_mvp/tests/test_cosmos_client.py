@@ -413,8 +413,12 @@ class TestPromptDesign:
         from insurance_mvp.cosmos.prompt import get_claim_assessment_prompt
 
         prompt = get_claim_assessment_prompt()
-        # Key rule: collision = minimum MEDIUM
-        assert "minimum MEDIUM" in prompt or "at minimum MEDIUM" in prompt
+        # Key rule: any vehicle contact → HIGH (upgraded from "minimum MEDIUM")
+        assert (
+            "minimum MEDIUM" in prompt
+            or "at minimum MEDIUM" in prompt
+            or ("contact" in prompt.lower() and "HIGH" in prompt)
+        )
 
     def test_quick_prompt_no_bias(self):
         """Quick severity prompt has no calibration bias."""

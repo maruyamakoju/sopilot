@@ -69,22 +69,31 @@ class TestRecalibrationBasic:
 
 
 class TestMaxBumpLimit:
-    """Never bump more than max_bump_levels."""
+    """Bump limits and very-high-danger escalation."""
 
-    def test_none_only_bumps_to_low(self):
-        """NONE with max_bump_levels=1 → bumps to LOW, not MEDIUM."""
+    def test_none_very_high_danger_jumps_to_high(self):
+        """NONE + danger > very_high_threshold → jumps directly to HIGH (Rule 1b)."""
         severity, conf, reason = recalibrate_severity(
             vlm_severity="NONE", vlm_confidence=0.9, danger_score=0.9
         )
-        assert severity == "LOW"  # Only 1 level bump
+        assert severity == "HIGH"  # Rule 1b: skip directly to HIGH
+        assert "very_high_threshold" in reason
 
-    def test_custom_max_bump(self):
-        """max_bump_levels=2 allows NONE → MEDIUM."""
-        config = RecalibrationConfig(max_bump_levels=2)
+    def test_none_moderate_danger_bumps_one_level(self):
+        """NONE + danger in (high_threshold, very_high_threshold] → bumps to LOW only."""
+        config = RecalibrationConfig(very_high_danger_threshold=0.85)
+        severity, conf, reason = recalibrate_severity(
+            vlm_severity="NONE", vlm_confidence=0.9, danger_score=0.75, config=config
+        )
+        assert severity == "LOW"  # Rule 1: 1 level bump
+
+    def test_custom_max_bump_below_very_high(self):
+        """max_bump_levels=2 with danger below very_high_threshold → NONE→MEDIUM."""
+        config = RecalibrationConfig(max_bump_levels=2, very_high_danger_threshold=0.95)
         severity, conf, reason = recalibrate_severity(
             vlm_severity="NONE", vlm_confidence=0.9, danger_score=0.9, config=config
         )
-        assert severity == "MEDIUM"
+        assert severity == "MEDIUM"  # Rule 1 with max_bump=2, very_high=0.95 not triggered
 
 
 class TestConfidencePenalty:

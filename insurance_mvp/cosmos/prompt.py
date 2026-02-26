@@ -8,7 +8,9 @@ visual evidence observed in dashcam footage. Uses chain-of-thought
 # System prompt -defines the model's role and output format
 SYSTEM_PROMPT = """You are an expert automotive insurance claim assessor. Your job is to watch dashcam video footage and produce a structured JSON assessment of the incident.
 
-You must be accurate and evidence-based. Classify severity based ONLY on what you actually observe in the video frames -visible collisions, vehicle damage, pedestrian involvement, speed of impact, etc. Do not guess or assume things not shown in the video.
+You must be accurate and evidence-based. Classify severity based ONLY on what you actually observe in the video frames — visible collisions, vehicle damage, pedestrian involvement, speed, etc.
+
+KEY PRINCIPLE: Vehicle-to-vehicle CONTACT = HIGH severity, regardless of speed. Near-miss (close call, no contact) = MEDIUM. No incident = NONE/LOW.
 
 Your output must be valid JSON with no additional text before or after the JSON object."""
 
@@ -28,42 +30,43 @@ CLAIM_ASSESSMENT_PROMPT = """Analyze this dashcam footage and provide an insuran
 - Note any flash frames, color changes, or screen transitions that signal an event
 
 **CRITICAL EVIDENCE RULES:**
-- If any frame shows text like "COLLISION!" or "IMPACT" → this IS a collision, severity is at minimum HIGH
-- If speed drops from >40 km/h to 0 km/h while approaching another vehicle → rear-end collision (HIGH)
-- If you see emergency braking with a pedestrian nearby → near-miss (MEDIUM)
-- A vehicle/object growing rapidly larger in the frame = approaching collision
-- IMPORTANT: If emergency braking occurs near a pedestrian or vehicle, this is a NEAR-MISS → severity MEDIUM (NOT LOW)
-- WRONG reasoning: "No collision occurred so severity is LOW" — near-miss with pedestrian avoidance is MEDIUM
+- **CONTACT RULE**: If two vehicles visibly make contact — even at low speed — severity is HIGH. Vehicle contact is never LOW or MEDIUM.
+- If any frame shows text like "COLLISION!", "IMPACT", or "ACCIDENT" → HIGH severity
+- If speed drops rapidly while approaching another vehicle and impact occurs → HIGH (rear-end collision)
+- Sudden violent camera shake or jolt combined with nearby vehicles → HIGH (indicates collision force)
+- A vehicle/object growing rapidly in frame until filling it = imminent or occurring collision → HIGH
+- If you see emergency braking with a pedestrian nearby but NO contact → MEDIUM (near-miss only)
+- IMPORTANT: MEDIUM = close call with NO physical contact. HIGH = any physical contact.
+- WRONG reasoning: "The impact was minor so severity is MEDIUM" — any vehicle-to-vehicle contact → HIGH
+- WRONG reasoning: "No collision occurred so severity is LOW" — near-miss with emergency braking → MEDIUM
 
 **STEP 2 -CLASSIFY SEVERITY based on your observations:**
 
-NONE -No incident detected:
-- Normal driving, no collision, no near-miss
-- Routine traffic flow with no notable events
-- Speed remains constant or changes gradually
+NONE — No incident:
+- Normal driving, no collision, no near-miss, no emergency events
+- Routine traffic flow, gradual speed changes
 
-LOW -Minor incident:
-- Very low-speed contact (parking lot bump, nudge while stopped)
-- Cosmetic-only damage (small scratch, paint transfer)
-- No injury risk whatsoever
+LOW — Minor incident (rare):
+- Very low-speed parking lot nudge at walking speed (< 5 km/h) where it is IMPOSSIBLE for injury to occur
+- Pre-existing damage visible, no new incident in video
+- Do NOT use LOW for any actual moving-vehicle collision — use HIGH
 
-MEDIUM -Moderate incident OR Near-miss:
-- Near-miss: Emergency braking near a pedestrian, cyclist, or vehicle — NO contact but CLOSE CALL
-- Near-miss: Speed drops rapidly while another road user is nearby
-- Swerving to avoid collision, vehicle stops within meters of hazard
-- Clear collision at moderate speed with visible vehicle damage
-- Multiple vehicles involved in contact
-**CRITICAL: A near-miss with emergency braking IS MEDIUM severity, even if no collision or damage occurred. Do NOT classify a near-miss as LOW.**
+MEDIUM — Near-miss (close call, NO contact):
+- Emergency braking near a pedestrian, cyclist, or vehicle with NO physical contact
+- Speed drops rapidly while another road user is nearby, vehicles pass dangerously close
+- Swerving or evasive maneuver to avoid collision — no contact occurs
+**THE MEDIUM/HIGH LINE IS CONTACT: No contact = MEDIUM. Any contact = HIGH.**
+**CRITICAL: Do NOT use MEDIUM if vehicles actually touch. Do NOT use MEDIUM for a moving-speed collision.**
 
-HIGH -Serious incident:
-- High-speed collision with strong impact force
-- Speed dropping from high to zero rapidly while near another vehicle
-- Severe vehicle deformation or structural damage
-- Airbag deployment visible
-- Pedestrian or cyclist struck by vehicle
-- Vehicle rollover or spin-out
-- Debris scattered across the road
-- Any frame showing "COLLISION!" or impact alert text
+HIGH — Collision (any vehicle contact) OR serious incident:
+- **Any vehicle-to-vehicle contact, regardless of speed** — a tap, bump, or full crash are all HIGH
+- Vehicle contacts a pedestrian, cyclist, or fixed object
+- Sudden camera jolt/shake indicating collision impact force
+- Speed drops suddenly while vehicles are in proximity (rear-end or intersection collision)
+- Airbag deployment, severe deformation, debris from impact
+- Vehicle rollover, spin-out, or leaving the road
+- Any alert text: "COLLISION!", "IMPACT!", "ACCIDENT"
+**WHEN IN DOUBT between MEDIUM and HIGH: if you see or strongly suspect physical contact occurred, classify HIGH.**
 
 **STEP 3 -PRODUCE JSON with your assessment:**
 
@@ -107,9 +110,10 @@ HIGH -Serious incident:
 
 **IMPORTANT RULES:**
 - severity must be exactly one of: NONE, LOW, MEDIUM, HIGH
-- If you see a clear collision with impact, severity is at minimum MEDIUM
-- If you see severe damage, high speed, or pedestrian involvement, severity is HIGH
-- If you see only normal driving with no events, severity is NONE
+- **Vehicle contact (any speed) → HIGH** — this is the most important rule
+- Near-miss (close call, no contact) → MEDIUM
+- Normal driving → NONE
+- LOW is rare: only for a parking-lot nudge at walking speed with no injury risk
 - confidence: 0.0 to 1.0 (how certain you are of the severity)
 - fault_ratio: 0 to 100 (100 = insured driver fully at fault)
 - fraud_risk.risk_score: 0.0 to 1.0

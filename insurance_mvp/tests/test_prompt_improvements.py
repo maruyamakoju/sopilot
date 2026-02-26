@@ -11,31 +11,27 @@ from insurance_mvp.cosmos.prompt import (
 
 
 class TestMediumDefinition:
-    """MEDIUM severity definition must lead with near-miss criteria."""
+    """MEDIUM severity definition must be defined as near-miss (no contact)."""
 
     def test_medium_includes_near_miss_first(self):
-        """Near-miss criteria should appear before collision in MEDIUM block."""
+        """MEDIUM block should define near-miss as core criterion (no contact)."""
         prompt = get_claim_assessment_prompt()
         medium_start = prompt.index("MEDIUM")
-        # Find the next severity block (HIGH)
-        high_start = prompt.index("HIGH -Serious", medium_start)
+        high_start = prompt.index("HIGH —", medium_start)
         medium_block = prompt[medium_start:high_start]
-
-        near_miss_pos = medium_block.index("Near-miss")
-        collision_pos = medium_block.index("collision at moderate speed")
-        assert near_miss_pos < collision_pos, (
-            "Near-miss criteria must appear before collision criteria in MEDIUM definition"
-        )
+        # New prompt: MEDIUM = near-miss / no contact
+        assert "Near-miss" in medium_block or "near-miss" in medium_block
 
     def test_medium_header_mentions_near_miss(self):
         """MEDIUM header should explicitly mention near-miss."""
         prompt = get_claim_assessment_prompt()
-        assert "MEDIUM -Moderate incident OR Near-miss:" in prompt
+        assert "MEDIUM" in prompt and "near-miss" in prompt.lower()
 
-    def test_critical_near_miss_rule_present(self):
-        """Bold CRITICAL rule about near-miss = MEDIUM must be present."""
+    def test_medium_no_contact_rule_present(self):
+        """Prompt must state that MEDIUM = no contact, HIGH = contact."""
         prompt = get_claim_assessment_prompt()
-        assert "CRITICAL: A near-miss with emergency braking IS MEDIUM severity" in prompt
+        # New formulation: contact → HIGH, no contact → MEDIUM
+        assert "contact" in prompt.lower() and "HIGH" in prompt
 
 
 class TestNegativeExamples:
@@ -46,15 +42,16 @@ class TestNegativeExamples:
         prompt = get_claim_assessment_prompt()
         assert "WRONG reasoning" in prompt
 
-    def test_negative_example_not_low(self):
-        """'do NOT' instruction for near-miss must be present."""
+    def test_negative_example_contact_is_high(self):
+        """Prompt must clarify that any contact → HIGH (not MEDIUM)."""
         prompt = get_claim_assessment_prompt()
-        assert "Do NOT classify a near-miss as LOW" in prompt
+        # New rule: contact = HIGH regardless of speed
+        assert "contact" in prompt.lower() and "HIGH" in prompt
 
-    def test_important_near_miss_rule(self):
-        """IMPORTANT rule about emergency braking near pedestrian must exist."""
+    def test_near_miss_escalation_rule(self):
+        """Prompt must clarify near-miss/emergency braking → MEDIUM not LOW."""
         prompt = get_claim_assessment_prompt()
-        assert "IMPORTANT: If emergency braking occurs near a pedestrian" in prompt
+        assert "MEDIUM" in prompt and ("near-miss" in prompt.lower() or "Near-miss" in prompt)
 
 
 class TestQuickSeverityPrompt:

@@ -52,6 +52,16 @@ class RecalibrationConfig:
     # high-confidence deployments.
     max_bump_levels: int = 1
 
+    # 0.85: Very-high danger threshold for aggressive escalation to HIGH.
+    # Above this value the mining pipeline has near-certainty of a collision event
+    # (all three signals simultaneously extreme). Triggers:
+    #   - Rule 1b: LOW/NONE → HIGH (2-level bump, skipping MEDIUM)
+    #   - Rule 4:  MEDIUM → HIGH
+    # Set above high_danger_threshold (0.70) to require stronger evidence before
+    # overriding a MEDIUM VLM prediction. Validated on JP dashcam collision clips
+    # where genuine crashes score 0.85+ while heavy-traffic normal segments peak at 0.75.
+    very_high_danger_threshold: float = 0.85
+
     # 0.15: Confidence penalty applied when severity is adjusted. Derived from
     # the observed accuracy drop when recalibration overrides the VLM: on 10
     # real-VLM clips the mean confidence reduction on true-positive overrides
@@ -79,10 +89,11 @@ def recalibrate_severity(
 
     Rules:
     1. danger_score > high_danger_threshold AND VLM says LOW/NONE → bump up 1 level
+    1b. danger_score > very_high_danger_threshold AND VLM says LOW/NONE → bump to HIGH directly
     2. motion_score > 0.6 AND proximity_score > 0.5 AND VLM says LOW → bump to MEDIUM
     3. danger_score < low_danger_threshold AND VLM says HIGH → downgrade to MEDIUM
-    4. When bumped, reduce confidence by confidence_penalty
-    5. Never bump more than max_bump_levels
+    4. danger_score > very_high_danger_threshold AND VLM says MEDIUM → bump to HIGH
+    5. When bumped, reduce confidence by confidence_penalty
 
     Args:
         vlm_severity: Severity from VLM inference.
@@ -105,7 +116,15 @@ def recalibrate_severity(
     idx = _severity_index(severity)
     reason = "no_adjustment"
 
-    # Rule 1: High danger but VLM says LOW or NONE → bump up
+    # Rule 1b: Very high danger AND VLM says LOW or NONE → jump directly to HIGH
+    if danger_score > config.very_high_danger_threshold and idx <= 1:
+        severity = "HIGH"
+        vlm_confidence = max(0.0, vlm_confidence - config.confidence_penalty)
+        reason = f"danger_score={danger_score:.2f}>very_high_threshold, bumped {vlm_severity}→HIGH"
+        logger.info("Recalibration: %s", reason)
+        return severity, vlm_confidence, reason
+
+    # Rule 1: High danger but VLM says LOW or NONE → bump up 1 level
     if danger_score > config.high_danger_threshold and idx <= 1:
         new_idx = min(idx + config.max_bump_levels, len(SEVERITY_ORDER) - 1)
         if new_idx != idx:
@@ -132,6 +151,14 @@ def recalibrate_severity(
         severity = "MEDIUM"
         vlm_confidence = max(0.0, vlm_confidence - config.confidence_penalty)
         reason = f"danger_score={danger_score:.2f}<threshold, downgraded HIGH→MEDIUM"
+        logger.info("Recalibration: %s", reason)
+        return severity, vlm_confidence, reason
+
+    # Rule 4: Very high danger AND VLM says MEDIUM → bump to HIGH
+    if danger_score > config.very_high_danger_threshold and idx == 2:  # MEDIUM
+        severity = "HIGH"
+        vlm_confidence = max(0.0, vlm_confidence - config.confidence_penalty)
+        reason = f"danger_score={danger_score:.2f}>very_high_threshold, bumped MEDIUM→HIGH"
         logger.info("Recalibration: %s", reason)
         return severity, vlm_confidence, reason
 

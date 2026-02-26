@@ -154,6 +154,18 @@
         "n_videos": 53
       },
       "ablation_flags": {}
+    },
+    "nexar_real_vlm_50_fps4_mf48": {
+      "name": "nexar_real_vlm_50_fps4_mf48",
+      "seed": 42,
+      "description": "Nexar 50-video fps=4 max_frames=48 SDPA RTX 5090 \u2014 valid run (no OOM)",
+      "hyperparams": {
+        "fps": 4.0,
+        "max_frames": 48,
+        "backend": "qwen2.5-vl-7b",
+        "n_videos": 53
+      },
+      "ablation_flags": {}
     }
   },
   "results": [
@@ -567,6 +579,50 @@
         "valid": false,
         "invalid_reason": "52/53 OOM \u2014 80 frames x ~512 tokens/frame requires ~39.8 GiB KV cache, GPU has 31.84 GiB",
         "commit": "98265f8"
+      }
+    },
+    {
+      "config": {
+        "name": "nexar_real_vlm_50_fps4_mf48",
+        "seed": 42,
+        "description": "Nexar 50-video fps=4 max_frames=48 SDPA RTX 5090 \u2014 valid run (no OOM)",
+        "hyperparams": {
+          "fps": 4.0,
+          "max_frames": 48,
+          "backend": "qwen2.5-vl-7b",
+          "n_videos": 53
+        },
+        "ablation_flags": {}
+      },
+      "metrics": {
+        "accuracy": 0.18,
+        "collision_recall": 0.0,
+        "normal_recall": 0.36,
+        "mean_severity_distance": 1.38,
+        "macro_f1": 0.0
+      },
+      "timing_sec": 8718.0,
+      "timestamp": "2026-02-26T02:30:38.413784+00:00",
+      "git_hash": "a61ed86",
+      "metadata": {
+        "bca_ci_95": [
+          0.08,
+          0.3
+        ],
+        "total_with_gt": 50,
+        "exact_matches": 9,
+        "valid": true,
+        "confusion_HIGH": {
+          "MEDIUM": 17,
+          "NONE": 7,
+          "LOW": 1
+        },
+        "confusion_NONE": {
+          "NONE": 9,
+          "MEDIUM": 13,
+          "LOW": 3
+        },
+        "note": "For 40s clips: effective fps = 48/40 = 1.2fps (same as fps=2/mf48). No improvement vs 2fps. VLM bias to MEDIUM persists regardless of fps."
       }
     }
   ]

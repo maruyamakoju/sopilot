@@ -94,7 +94,7 @@ python -m insurance_mvp.pipeline benchmark --backend mock --seed 42
 | **Nexar real VLM — collision recall**    | **0% (0/25 HIGH detected — 2fps misses <1s events)** | `real_data_benchmark.py`    |
 | **Nexar real VLM — normal recall**       | **40% (10/25 NONE; 12→MEDIUM, 3→LOW)**    | `real_data_benchmark.py`            |
 | **Nexar fps=4 max_frames=80 (RTX 5090)** | **INVALID — 52/53 OOM (39.8 GiB req > 31.84 GiB avail)** | `real_data_benchmark.py --fps 4 --max-frames 80` |
-| **Nexar fps=4 max_frames=48 (RTX 5090)** | **TBD** (running)                          | `real_data_benchmark.py --fps 4 --max-frames 48` |
+| **Nexar fps=4 max_frames=48 (RTX 5090)** | **18.0% [8.0%, 30.0%] (95% CI, BCa, n=50) — collision recall 0%, normal recall 36%** | `real_data_benchmark.py --fps 4 --max-frames 48` |
 
 ---
 
@@ -332,6 +332,12 @@ Real-world timing: ~66 s for a 20-minute 720p video (9x speedup vs naive).
   LOW→MEDIUM → 0% accuracy — **this result is invalid/not comparable**.
   SDPA (`attn_implementation="sdpa"`) reduces peak activation memory but NOT KV-cache size.
   Maximum safe frame count on this GPU: **max_frames=48** (covers full clip at ~2.5fps effective).
+- **fps=4 / max_frames=48 does NOT improve over fps=2 / max_frames=48 for Nexar**: Both achieve
+  0% collision recall. For 40-second Nexar clips, both configurations produce exactly 48 frames
+  uniformly sampled → identical effective rate of ~1.2fps. The theoretical 4fps benefit only
+  applies to clips shorter than 24s. Collision recall remained 0% (0/25 HIGH). The root cause
+  is the **VLM's systematic MEDIUM bias on dashcam footage** — it predicts MEDIUM for 68% of
+  collision clips and 52% of normal clips regardless of temporal sampling rate.
 - **swerve_avoidance** scenario: real VLM predicts LOW (correct label: MEDIUM).
   No nearby objects trigger recalibration, so the VLM score stands. This is the
   single miss in the 9/10 real-VLM result.

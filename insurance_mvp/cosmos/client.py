@@ -108,8 +108,10 @@ class VLMConfig:
         self.enable_cpu_fallback = True  # Fall back to CPU on CUDA errors
         self.frame_extraction_timeout_sec = 120.0  # Timeout for frame extraction (prevents hangs)
         # Adaptive FPS: use higher sampling rate for short clips to catch sub-second collision events
-        self.adaptive_fps = True  # Enable adaptive fps
-        self.adaptive_fps_max = 4.0  # Max fps for short clips (4fps × 12s = 48 frames — safe limit)
+        # VRAM budget: 40 frames → 16.5 GB KV + 14 GB model = 30.5 GB → near 31.84 GB limit → 720s/clip
+        # Safe limit: 28 frames → 11.5 GB KV + 14 GB = 25.5 GB → ~29s/clip
+        self.adaptive_fps = False  # Disabled: 4fps caused VRAM pressure (720s/clip). Use context injection instead.
+        self.adaptive_fps_max = 2.8  # 2.8fps × 10s = 28 frames (safe VRAM budget)
         self.adaptive_fps_threshold_sec = 12.0  # Clips ≤ this duration get higher fps
 
 

@@ -275,20 +275,12 @@ def get_mining_context_addendum(
     Returns:
         Context string to prepend to the main prompt
     """
-    if danger_score > 0.85:
-        intensity = "VERY HIGH — strong collision indicator"
-    elif danger_score > 0.6:
-        intensity = "HIGH — significant hazard detected"
-    else:
-        intensity = "MODERATE"
-
     return (
         f"[SIGNAL ANALYSIS CONTEXT]\n"
-        f"Automated hazard sensors detected a DANGER PEAK at t≈{peak_sec:.1f}s in this clip.\n"
-        f"- Danger score: {danger_score:.2f}/1.00 ({intensity})\n"
-        f"- Motion score: {motion_score:.2f} (sudden acceleration/deceleration, camera jolt)\n"
-        f"- Proximity score: {proximity_score:.2f} (nearby vehicles or pedestrians)\n"
-        f"- Audio score: {audio_score:.2f} (impact sounds, horn, tire screech)\n"
-        f"INSTRUCTION: Focus your analysis on the frames at approximately t={peak_sec:.1f}s.\n"
-        f"If you see vehicle contact at or near this timestamp, classify as HIGH.\n\n"
+        f"Pre-processing sensors detected unusual activity at t≈{peak_sec:.1f}s in this clip.\n"
+        f"Scores: danger={danger_score:.2f}, motion={motion_score:.2f}, "
+        f"proximity={proximity_score:.2f}, audio={audio_score:.2f}\n"
+        f"INSTRUCTION: Examine the frames around t={peak_sec:.1f}s carefully — "
+        f"this is where the sensor detected unusual activity. "
+        f"Classify based ONLY on what you visually observe. Do not assume severity from sensor scores alone.\n\n"
     )

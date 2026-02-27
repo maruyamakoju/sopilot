@@ -519,17 +519,12 @@ class InsurancePipeline:
         end_sec = clip.get("end_sec", 5.0)
         clip_id = clip.get("clip_id", "unknown")
         # Pass mining signal metadata so VLM knows where the danger peak is
-        # Convert peak_sec from absolute video time to clip-relative time.
-        # The VLM receives frames [start_sec, end_sec] with no knowledge of absolute offsets.
-        abs_peak = clip.get("peak_sec", (start_sec + end_sec) / 2)
-        clip_relative_peak = max(0.0, abs_peak - start_sec)
-        clip_context = {
-            "peak_sec": clip_relative_peak,
-            "danger_score": clip.get("danger_score", 0.5),
-            "motion_score": clip.get("motion_score", 0.0),
-            "proximity_score": clip.get("proximity_score", 0.0),
-            "audio_score": clip.get("audio_score", 0.0),
-        }
+        # Context injection disabled: Nexar mining scores (0.6-0.7) are non-discriminative
+        # — both collision and normal videos produce similar scores (busy urban traffic).
+        # Text context confused VLM visual judgment without improving accuracy (54%→48%).
+        # Infrastructure kept for future use when mining signals are more discriminative
+        # (e.g., with audio impact detection or finer temporal resolution).
+        clip_context = None
         for attempt in range(self.config.max_retries):
             try:
                 assessment = self.cosmos_client.assess_claim(

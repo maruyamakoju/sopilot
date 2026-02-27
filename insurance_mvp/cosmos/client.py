@@ -107,6 +107,10 @@ class VLMConfig:
         self.max_clip_duration_sec = 60.0  # Maximum clip duration to process
         self.enable_cpu_fallback = True  # Fall back to CPU on CUDA errors
         self.frame_extraction_timeout_sec = 120.0  # Timeout for frame extraction (prevents hangs)
+        # Adaptive FPS: use higher sampling rate for short clips to catch sub-second collision events
+        self.adaptive_fps = True  # Enable adaptive fps
+        self.adaptive_fps_max = 4.0  # Max fps for short clips (4fps × 12s = 48 frames — safe limit)
+        self.adaptive_fps_threshold_sec = 12.0  # Clips ≤ this duration get higher fps
 
 
 class VideoLLMClient:
@@ -277,7 +281,11 @@ class VideoLLMClient:
             raise RuntimeError(f"Qwen2.5-VL loading failed: {exc}") from exc
 
     def _sample_frames(
-        self, video_path: Path | str, start_sec: float = 0.0, end_sec: float | None = None
+        self,
+        video_path: Path | str,
+        start_sec: float = 0.0,
+        end_sec: float | None = None,
+        fps_override: float | None = None,
     ) -> list[Path]:
         """Sample frames from video clip at configured FPS.
 
@@ -316,9 +324,10 @@ class VideoLLMClient:
             cap.release()
             raise ValueError(f"Invalid frame range: [{start_frame}, {end_frame})")
 
-        # Calculate sampling interval
+        # Calculate sampling interval (fps_override takes priority over config.fps)
+        sampling_fps = fps_override if fps_override is not None else self.config.fps
         duration_sec = (end_frame - start_frame) / fps
-        target_frames = min(self.config.max_frames, max(8, int(duration_sec * self.config.fps)))
+        target_frames = min(self.config.max_frames, max(8, int(duration_sec * sampling_fps)))
 
         # Uniform sampling
         num_frames = end_frame - start_frame
@@ -388,7 +397,7 @@ class VideoLLMClient:
                 len(frame_paths),
                 start_sec,
                 end_sec or (total_frames / fps),
-                self.config.fps,
+                sampling_fps,
             )
 
             return frame_paths
@@ -788,7 +797,12 @@ class VideoLLMClient:
             return create_default_claim_assessment(video_id)
 
     def assess_claim(
-        self, video_path: Path | str, video_id: str, start_sec: float = 0.0, end_sec: float | None = None
+        self,
+        video_path: Path | str,
+        video_id: str,
+        start_sec: float = 0.0,
+        end_sec: float | None = None,
+        clip_context: dict | None = None,
     ) -> ClaimAssessment:
         """Assess insurance claim from dashcam video clip.
 
@@ -799,6 +813,10 @@ class VideoLLMClient:
             video_id: Unique identifier for this video
             start_sec: Start time in seconds (default: 0.0)
             end_sec: End time in seconds (None = entire video)
+            clip_context: Optional mining signal metadata dict with keys:
+                peak_sec, danger_score, motion_score, proximity_score, audio_score.
+                When provided, the signal context is prepended to the VLM prompt
+                and adaptive fps is applied for short clips.
 
         Returns:
             ClaimAssessment object with structured evaluation
@@ -831,15 +849,39 @@ class VideoLLMClient:
             t1 = time.time()
             logger.info("[TIMING] Clip duration check: %.2fs", t1 - t0)
 
+            # Compute effective fps: adaptive fps for short clips
+            effective_fps: float | None = None
+            if self.config.adaptive_fps and end_sec is not None:
+                clip_duration = end_sec - start_sec
+                if clip_duration <= self.config.adaptive_fps_threshold_sec:
+                    effective_fps = min(
+                        self.config.adaptive_fps_max,
+                        self.config.max_frames / clip_duration,
+                    )
+                    logger.info(
+                        "Adaptive fps: clip=%.1fs → %.1f fps (%d frames)",
+                        clip_duration, effective_fps, int(clip_duration * effective_fps),
+                    )
+
             # Step 1: Sample frames
             logger.info("Assessing claim for video: %s [%.2f-%.2f sec]", video_id, start_sec, end_sec or 0)
-            frame_paths = self._sample_frames(video_path, start_sec, end_sec)
+            frame_paths = self._sample_frames(video_path, start_sec, end_sec, fps_override=effective_fps)
 
             t2 = time.time()
             logger.info("[TIMING] Frame extraction: %.2fs (%d frames)", t2 - t1, len(frame_paths))
 
-            # Step 2: Prepare prompt
+            # Step 2: Prepare prompt — prepend mining signal context if available
             prompt = get_claim_assessment_prompt(include_calibration=True)
+            if clip_context:
+                from insurance_mvp.cosmos.prompt import get_mining_context_addendum
+                addendum = get_mining_context_addendum(
+                    peak_sec=clip_context.get("peak_sec", (start_sec + (end_sec or start_sec + 5)) / 2),
+                    danger_score=clip_context.get("danger_score", 0.5),
+                    motion_score=clip_context.get("motion_score", 0.0),
+                    proximity_score=clip_context.get("proximity_score", 0.0),
+                    audio_score=clip_context.get("audio_score", 0.0),
+                )
+                prompt = addendum + prompt
 
             # Step 3: Run inference with retry (frames already extracted, no re-extraction on retry)
             raw_output = self._run_inference_with_retry(frame_paths, prompt, max_retries=3)

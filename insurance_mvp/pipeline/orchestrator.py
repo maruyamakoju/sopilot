@@ -518,6 +518,14 @@ class InsurancePipeline:
         start_sec = clip.get("start_sec", 0.0)
         end_sec = clip.get("end_sec", 5.0)
         clip_id = clip.get("clip_id", "unknown")
+        # Pass mining signal metadata so VLM knows where the danger peak is
+        clip_context = {
+            "peak_sec": clip.get("peak_sec", (start_sec + end_sec) / 2),
+            "danger_score": clip.get("danger_score", 0.5),
+            "motion_score": clip.get("motion_score", 0.0),
+            "proximity_score": clip.get("proximity_score", 0.0),
+            "audio_score": clip.get("audio_score", 0.0),
+        }
         for attempt in range(self.config.max_retries):
             try:
                 assessment = self.cosmos_client.assess_claim(
@@ -525,6 +533,7 @@ class InsurancePipeline:
                     video_id=clip_id,
                     start_sec=start_sec,
                     end_sec=end_sec,
+                    clip_context=clip_context,
                 )
                 return {
                     "severity": assessment.severity,

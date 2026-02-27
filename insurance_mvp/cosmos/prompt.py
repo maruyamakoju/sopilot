@@ -250,3 +250,45 @@ def get_fault_assessment_prompt() -> str:
 def get_fraud_detection_prompt() -> str:
     """Get fraud detection prompt (given incident details)."""
     return FRAUD_DETECTION_PROMPT
+
+
+def get_mining_context_addendum(
+    peak_sec: float,
+    danger_score: float,
+    motion_score: float,
+    proximity_score: float,
+    audio_score: float = 0.0,
+) -> str:
+    """Build a signal-context string to prepend to the VLM prompt.
+
+    Tells the model WHERE the danger peak is and what the sensor signals
+    indicate, so it can focus on the right frames instead of averaging
+    over the entire clip.
+
+    Args:
+        peak_sec: Time (seconds into the clip) of the danger peak
+        danger_score: Fused danger score 0-1
+        motion_score: Motion component 0-1 (sudden acceleration/camera jolt)
+        proximity_score: Proximity component 0-1 (nearby vehicles/pedestrians)
+        audio_score: Audio component 0-1 (impact sounds, horn, tires)
+
+    Returns:
+        Context string to prepend to the main prompt
+    """
+    if danger_score > 0.85:
+        intensity = "VERY HIGH — strong collision indicator"
+    elif danger_score > 0.6:
+        intensity = "HIGH — significant hazard detected"
+    else:
+        intensity = "MODERATE"
+
+    return (
+        f"[SIGNAL ANALYSIS CONTEXT]\n"
+        f"Automated hazard sensors detected a DANGER PEAK at t≈{peak_sec:.1f}s in this clip.\n"
+        f"- Danger score: {danger_score:.2f}/1.00 ({intensity})\n"
+        f"- Motion score: {motion_score:.2f} (sudden acceleration/deceleration, camera jolt)\n"
+        f"- Proximity score: {proximity_score:.2f} (nearby vehicles or pedestrians)\n"
+        f"- Audio score: {audio_score:.2f} (impact sounds, horn, tire screech)\n"
+        f"INSTRUCTION: Focus your analysis on the frames at approximately t={peak_sec:.1f}s.\n"
+        f"If you see vehicle contact at or near this timestamp, classify as HIGH.\n\n"
+    )

@@ -166,6 +166,21 @@
         "n_videos": 53
       },
       "ablation_flags": {}
+    },
+    "nexar_real_vlm_v2_prompt_recal_clip": {
+      "name": "nexar_real_vlm_v2_prompt_recal_clip",
+      "seed": 42,
+      "description": "v2: new prompt (contact=HIGH) + recal Rule1b/4 + clip trim 37s\u219210s, RTX5090",
+      "hyperparams": {
+        "fps": 2.0,
+        "max_frames": 48,
+        "clip_padding_sec": 3.0,
+        "merge_gap_sec": 1.0,
+        "max_clip_duration": 10.0,
+        "very_high_danger_threshold": 0.85,
+        "backend": "qwen2.5-vl-7b"
+      },
+      "ablation_flags": {}
     }
   },
   "results": [
@@ -623,6 +638,55 @@
           "LOW": 3
         },
         "note": "For 40s clips: effective fps = 48/40 = 1.2fps (same as fps=2/mf48). No improvement vs 2fps. VLM bias to MEDIUM persists regardless of fps."
+      }
+    },
+    {
+      "config": {
+        "name": "nexar_real_vlm_v2_prompt_recal_clip",
+        "seed": 42,
+        "description": "v2: new prompt (contact=HIGH) + recal Rule1b/4 + clip trim 37s\u219210s, RTX5090",
+        "hyperparams": {
+          "fps": 2.0,
+          "max_frames": 48,
+          "clip_padding_sec": 3.0,
+          "merge_gap_sec": 1.0,
+          "max_clip_duration": 10.0,
+          "very_high_danger_threshold": 0.85,
+          "backend": "qwen2.5-vl-7b"
+        },
+        "ablation_flags": {}
+      },
+      "metrics": {
+        "accuracy": 0.54,
+        "collision_recall": 0.44,
+        "normal_recall": 0.64,
+        "mean_severity_distance": 1.16,
+        "macro_f1": 0.0
+      },
+      "timing_sec": 1662.0,
+      "timestamp": "2026-02-27T01:29:30.753442+00:00",
+      "git_hash": "c91071e",
+      "metadata": {
+        "bca_ci_95": [
+          0.38,
+          0.66
+        ],
+        "total_with_gt": 50,
+        "exact_matches": 27,
+        "valid": true,
+        "mean_time_per_video_sec": 31.3,
+        "confusion_HIGH": {
+          "HIGH": 11,
+          "NONE": 10,
+          "LOW": 3,
+          "MEDIUM": 1
+        },
+        "confusion_NONE": {
+          "NONE": 16,
+          "HIGH": 6,
+          "LOW": 3
+        },
+        "vs_v1": "accuracy 20%\u219254%, HIGH_recall 0%\u219244%, NONE_recall 40%\u219264%, speed 90s\u219231s"
       }
     }
   ]

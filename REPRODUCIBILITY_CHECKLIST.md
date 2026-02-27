@@ -3,7 +3,7 @@
 This document records the exact steps, commands, seeds, and hardware used to
 reproduce all reported results for the Insurance MVP dashcam evaluation pipeline.
 
-**Last Updated**: 2026-02-24
+**Last Updated**: 2026-02-26
 
 ---
 
@@ -95,6 +95,7 @@ python -m insurance_mvp.pipeline benchmark --backend mock --seed 42
 | **Nexar real VLM — normal recall**       | **40% (10/25 NONE; 12→MEDIUM, 3→LOW)**    | `real_data_benchmark.py`            |
 | **Nexar fps=4 max_frames=80 (RTX 5090)** | **INVALID — 52/53 OOM (39.8 GiB req > 31.84 GiB avail)** | `real_data_benchmark.py --fps 4 --max-frames 80` |
 | **Nexar fps=4 max_frames=48 (RTX 5090)** | **18.0% [8.0%, 30.0%] (95% CI, BCa, n=50) — collision recall 0%, normal recall 36%** | `real_data_benchmark.py --fps 4 --max-frames 48` |
+| **Nexar real VLM v2 — prompt+recal+clip (RTX 5090)** | **54.0% [38.0%, 66.0%] (95% CI, BCa, n=50) — HIGH recall 44%, NONE recall 64%, 31s/video** | `real_data_benchmark.py` (v2 config) |
 
 ---
 
@@ -349,6 +350,65 @@ Real-world timing: ~66 s for a 20-minute 720p video (9x speedup vs naive).
 - **yt-dlp on Windows**: use `python -m yt_dlp`, not the `yt-dlp` command directly.
 - **Nexar dataset**: use `hf_hub_download()` directly; the `datasets` library
   requires `torchcodec` which is not available on all platforms.
+- **SDPA 2× slowdown (fixed 2026-02-26)**: `attn_implementation="sdpa"` with PyTorch's
+  math backend (no `flash_attn` installed) takes ~164s/video vs ~31s/video for the same
+  48-frame input. Removed from `cosmos/client.py`. Install `flash_attn` for optimal speed.
+- **Mining clip merging → 37s windows (fixed 2026-02-26)**: Default `clip_padding_sec=5.0`
+  and `merge_gap_sec=3.0` caused all detected peaks in a 40s Nexar video to merge into
+  a single 37s clip. The VLM then received 1.2fps effective temporal density, causing
+  collision events (<1s) to be almost certainly missed.
+  Fix: `clip_padding_sec=3.0`, `merge_gap_sec=1.0`, `max_clip_duration=10.0` (now enforced).
+  Clips are now 6–10s and center-trimmed around the peak when a merge would exceed the max.
+
+---
+
+## v2 Product Improvements (2026-02-26)
+
+Three simultaneous changes that improved Nexar real-VLM accuracy from **20% → 54%**:
+
+### Change 1 — Prompt Engineering (`cosmos/prompt.py`)
+- Added KEY PRINCIPLE: "Vehicle contact = HIGH regardless of speed; near-miss = MEDIUM"
+- HIGH definition: any vehicle-to-vehicle contact (removed "high-speed" qualifier)
+- MEDIUM definition: strictly near-miss with **NO physical contact**
+- LOW definition: walking-speed parking nudge <5 km/h only
+- Added WRONG REASONING example: "impact was minor → MEDIUM" (correct: any contact → HIGH)
+
+### Change 2 — Recalibration Rules (`pipeline/stages/recalibration.py`)
+Added `very_high_danger_threshold = 0.85`:
+- Rule 1b: `danger > 0.85` AND VLM ∈ {NONE, LOW} → **HIGH** (jumps past MEDIUM)
+- Rule 4: `danger > 0.85` AND VLM == MEDIUM → **HIGH**
+
+### Change 3 — Mining Clip Focus (`mining/fuse.py`)
+| Parameter | Before | After |
+|-----------|--------|-------|
+| `clip_padding_sec` | 5.0 | **3.0** |
+| `merge_gap_sec` | 3.0 | **1.0** |
+| `max_clip_duration` | 15.0 (unenforced) | **10.0 (enforced)** |
+
+Clips per video: one 37s merged clip → **2–3 focused 6–10s clips**.
+Frames per clip: 48 → **~20** (2fps × 10s), enabling 3× faster inference.
+
+### v2 Result vs Baseline
+
+| Metric | Baseline (fps=2, v1) | v2 (prompt+recal+clip) |
+|--------|----------------------|------------------------|
+| Overall accuracy | 20.0% [8%, 32%] | **54.0% [38%, 66%]** |
+| HIGH recall | 0% (0/25) | **44% (11/25)** |
+| NONE recall | 40% (10/25) | **64% (16/25)** |
+| Mean time/video | ~90s | **~31s** |
+
+To reproduce v2 results (requires RTX ≥ 16 GB VRAM, Nexar data downloaded):
+
+```bash
+python scripts/real_data_benchmark.py \
+    --input data/real_dashcam/nexar \
+    --backend real \
+    --output reports/nexar_v2_benchmark.json
+```
+
+Remaining failure modes: 10/25 collision clips predicted NONE (VLM sees traffic clearing
+as normal), 6/25 normal clips predicted HIGH (high-traffic intersections with aggressive
+driving → recalibration Rule 1b fires on real danger signals).
 
 ---
 

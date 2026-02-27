@@ -258,29 +258,32 @@ def get_mining_context_addendum(
     motion_score: float,
     proximity_score: float,
     audio_score: float = 0.0,
+    clip_duration: float | None = None,
 ) -> str:
     """Build a signal-context string to prepend to the VLM prompt.
 
-    Tells the model WHERE the danger peak is and what the sensor signals
-    indicate, so it can focus on the right frames instead of averaging
-    over the entire clip.
+    Tells the model WHERE the danger peak is within the clip so it can focus
+    on the right frames. peak_sec must be clip-relative (0 = start of clip).
 
     Args:
-        peak_sec: Time (seconds into the clip) of the danger peak
+        peak_sec: Time in seconds from the START of this clip (clip-relative)
         danger_score: Fused danger score 0-1
-        motion_score: Motion component 0-1 (sudden acceleration/camera jolt)
-        proximity_score: Proximity component 0-1 (nearby vehicles/pedestrians)
-        audio_score: Audio component 0-1 (impact sounds, horn, tires)
+        motion_score: Motion component 0-1
+        proximity_score: Proximity component 0-1
+        audio_score: Audio component 0-1
+        clip_duration: Total duration of this clip in seconds
 
     Returns:
         Context string to prepend to the main prompt
     """
+    duration_str = f" (clip duration: {clip_duration:.1f}s)" if clip_duration else ""
+    pct = f" — {100 * peak_sec / clip_duration:.0f}% through the clip" if clip_duration and clip_duration > 0 else ""
     return (
         f"[SIGNAL ANALYSIS CONTEXT]\n"
-        f"Pre-processing sensors detected unusual activity at t≈{peak_sec:.1f}s in this clip.\n"
+        f"Pre-processing sensors detected unusual activity at t≈{peak_sec:.1f}s into this clip{duration_str}{pct}.\n"
         f"Scores: danger={danger_score:.2f}, motion={motion_score:.2f}, "
         f"proximity={proximity_score:.2f}, audio={audio_score:.2f}\n"
-        f"INSTRUCTION: Examine the frames around t={peak_sec:.1f}s carefully — "
-        f"this is where the sensor detected unusual activity. "
-        f"Classify based ONLY on what you visually observe. Do not assume severity from sensor scores alone.\n\n"
+        f"INSTRUCTION: Examine the frames around t={peak_sec:.1f}s into this clip carefully. "
+        f"Classify based ONLY on what you visually observe. "
+        f"Do not assume severity from sensor scores alone.\n\n"
     )

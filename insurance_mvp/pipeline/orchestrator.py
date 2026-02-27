@@ -519,8 +519,12 @@ class InsurancePipeline:
         end_sec = clip.get("end_sec", 5.0)
         clip_id = clip.get("clip_id", "unknown")
         # Pass mining signal metadata so VLM knows where the danger peak is
+        # Convert peak_sec from absolute video time to clip-relative time.
+        # The VLM receives frames [start_sec, end_sec] with no knowledge of absolute offsets.
+        abs_peak = clip.get("peak_sec", (start_sec + end_sec) / 2)
+        clip_relative_peak = max(0.0, abs_peak - start_sec)
         clip_context = {
-            "peak_sec": clip.get("peak_sec", (start_sec + end_sec) / 2),
+            "peak_sec": clip_relative_peak,
             "danger_score": clip.get("danger_score", 0.5),
             "motion_score": clip.get("motion_score", 0.0),
             "proximity_score": clip.get("proximity_score", 0.0),

@@ -876,12 +876,16 @@ class VideoLLMClient:
             prompt = get_claim_assessment_prompt(include_calibration=True)
             if clip_context:
                 from insurance_mvp.cosmos.prompt import get_mining_context_addendum
+                clip_dur = (end_sec - start_sec) if end_sec is not None else 10.0
+                # peak_sec in clip_context is already clip-relative (converted by orchestrator)
+                peak_in_clip = clip_context.get("peak_sec", clip_dur / 2)
                 addendum = get_mining_context_addendum(
-                    peak_sec=clip_context.get("peak_sec", (start_sec + (end_sec or start_sec + 5)) / 2),
+                    peak_sec=peak_in_clip,
                     danger_score=clip_context.get("danger_score", 0.5),
                     motion_score=clip_context.get("motion_score", 0.0),
                     proximity_score=clip_context.get("proximity_score", 0.0),
                     audio_score=clip_context.get("audio_score", 0.0),
+                    clip_duration=clip_dur,
                 )
                 prompt = addendum + prompt
 

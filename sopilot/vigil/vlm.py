@@ -79,7 +79,7 @@ class ClaudeVisionClient(VLMClient):
     def __init__(
         self,
         api_key: str,
-        model: str = "claude-sonnet-4-6-20251022",
+        model: str = "claude-sonnet-4-6",
         max_tokens: int = 512,
         timeout: float = 30.0,
     ) -> None:
@@ -179,7 +179,7 @@ def build_vlm_client(backend: str | None = None, api_key: str | None = None) -> 
         or os.environ.get("VIGIL_VLM_API_KEY")
         or os.environ.get("ANTHROPIC_API_KEY", "")
     )
-    model = os.environ.get("VIGIL_VLM_MODEL", "claude-sonnet-4-6-20251022")
+    model = os.environ.get("VIGIL_VLM_MODEL", "claude-sonnet-4-6")
 
     if backend == "claude":
         return ClaudeVisionClient(api_key=key, model=model)

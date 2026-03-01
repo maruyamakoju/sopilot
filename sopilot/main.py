@@ -1,4 +1,5 @@
 import logging
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -20,6 +21,10 @@ from sopilot.services.score_queue import ScoreJobQueue
 from sopilot.services.sopilot_service import SOPilotService
 from sopilot.services.storage import FileStorage
 from sopilot.services.video_processor import VideoProcessor
+from sopilot.vigil import build_vigil_router
+from sopilot.vigil.pipeline import VigilPipeline
+from sopilot.vigil.repository import VigilRepository
+from sopilot.vigil.vlm import build_vlm_client
 
 logger = logging.getLogger(__name__)
 
@@ -104,10 +109,23 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
     app.add_middleware(CorrelationIDMiddleware)
+    # VigilPilot — surveillance camera violation detection
+    vigil_repo = VigilRepository(settings.database_path)
+    vigil_vlm_key = os.environ.get("VIGIL_VLM_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
+    vigil_frames_root = Path(settings.data_dir) / "vigil_frames"
+    if vigil_vlm_key:
+        vigil_vlm = build_vlm_client(api_key=vigil_vlm_key)
+    else:
+        vigil_vlm = build_vlm_client(api_key="not-configured")  # will fail gracefully at analysis time
+    vigil_pipeline = VigilPipeline(repo=vigil_repo, vlm=vigil_vlm, frames_root=vigil_frames_root)
+
     app.state.sopilot_service = service
     app.state.score_queue = queue
     app.state.settings = settings
     app.state.embedder = embedder
+    app.state.vigil_repo = vigil_repo
+    app.state.vigil_pipeline = vigil_pipeline
+    app.include_router(build_vigil_router())
     app.include_router(build_router(), prefix="/api/v1")
     # Backward-compatible: mount same routes at root for existing clients
     app.include_router(build_router())

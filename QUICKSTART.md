@@ -682,3 +682,150 @@ Default: 120 requests/min with a burst of 20. For high-throughput batch pipeline
 ```dotenv
 SOPILOT_RATE_LIMIT_RPM=0
 ```
+
+---
+
+## 8. VigilPilot — Surveillance Camera Violation Detection
+
+VigilPilot extends SOPilot with rule-based video monitoring via Claude Vision.
+No gold video is required — you define detection rules as plain Japanese text.
+
+### 8.1 Environment Setup
+
+Add your Anthropic API key to `.env`:
+
+```dotenv
+ANTHROPIC_API_KEY=sk-ant-your-key-here
+# Optional: dedicated key for VigilPilot
+# VIGIL_VLM_API_KEY=sk-ant-your-vigil-key-here
+```
+
+### 8.2 Create a Monitoring Session
+
+```bash
+curl -X POST "$BASE/vigil/sessions" \
+  -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "工場入口カメラ",
+    "rules": [
+      "ヘルメット未着用の作業者を検出してください",
+      "立入禁止エリアへの侵入を検出してください"
+    ],
+    "sample_fps": 1.0,
+    "severity_threshold": "warning"
+  }'
+```
+
+Response:
+
+```json
+{
+  "session_id": 1,
+  "name": "工場入口カメラ",
+  "rules": ["ヘルメット未着用の作業者を検出してください", "立入禁止エリアへの侵入を検出してください"],
+  "sample_fps": 1.0,
+  "severity_threshold": "warning",
+  "status": "idle",
+  "total_frames_analyzed": 0,
+  "violation_count": 0
+}
+```
+
+Parameters:
+
+| Field | Type | Description |
+|---|---|---|
+| `name` | string | Human-readable label for this camera/session |
+| `rules` | list[str] | Detection rules in natural language (Japanese recommended) |
+| `sample_fps` | float | Frames per second to analyze (0.1–5.0, default 1.0) |
+| `severity_threshold` | string | Minimum severity to store: `info` / `warning` / `critical` |
+
+### 8.3 Upload Video and Start Analysis
+
+```bash
+curl -X POST "$BASE/vigil/sessions/1/analyze" \
+  -H "X-API-Key: $KEY" \
+  -F "file=@/path/to/camera_footage.mp4"
+# → {"session_id": 1, "status": "processing", "message": "解析を開始しました..."}
+```
+
+The analysis runs in a background thread. Poll the session endpoint to check progress:
+
+```bash
+curl "$BASE/vigil/sessions/1" -H "X-API-Key: $KEY"
+# → {"status": "processing", "total_frames_analyzed": 45, "violation_count": 2, ...}
+```
+
+Status transitions: `idle → processing → completed | failed`
+
+### 8.4 Retrieve Violation Events
+
+```bash
+# List all events for this session
+curl "$BASE/vigil/sessions/1/events" -H "X-API-Key: $KEY"
+```
+
+Each event:
+
+```json
+{
+  "event_id": 3,
+  "session_id": 1,
+  "timestamp_sec": 14.0,
+  "frame_number": 14,
+  "frame_url": "/vigil/events/3/frame",
+  "violations": [
+    {
+      "rule_index": 0,
+      "rule": "ヘルメット未着用の作業者を検出してください",
+      "description_ja": "作業者がヘルメットを着用していません",
+      "severity": "warning",
+      "confidence": 0.91
+    }
+  ]
+}
+```
+
+Retrieve the frame thumbnail:
+
+```bash
+curl "$BASE/vigil/events/3/frame" -H "X-API-Key: $KEY" -o frame_14.jpg
+```
+
+### 8.5 Full Session Report
+
+```bash
+curl "$BASE/vigil/sessions/1/report" -H "X-API-Key: $KEY"
+```
+
+Returns aggregated statistics:
+
+```json
+{
+  "total_frames_analyzed": 120,
+  "violation_count": 3,
+  "severity_breakdown": {"critical": 0, "warning": 3, "info": 0},
+  "rule_breakdown": {"ヘルメット未着用の作業者を検出してください": 3},
+  "events": [...]
+}
+```
+
+### 8.6 Session Management
+
+```bash
+# List all sessions
+curl "$BASE/vigil/sessions" -H "X-API-Key: $KEY"
+
+# Delete a session (also deletes all events)
+curl -X DELETE "$BASE/vigil/sessions/1" -H "X-API-Key: $KEY"
+```
+
+### 8.7 UI Usage
+
+Click the **「監視」** button in the topbar (or press `V`) to open the VigilPilot panel.
+
+The panel provides:
+- Left sidebar: session list + session creation form (name, rules, fps, threshold)
+- Right area: session detail, upload button, violation event timeline with thumbnails
+- Status polling: updates automatically every 3 seconds while processing

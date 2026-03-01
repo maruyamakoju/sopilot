@@ -282,8 +282,13 @@ open score_report.pdf
 > - Enhanced operator trend (moving average, team baseline, volatility, KPI row)
 > - Multi-task deployment (`GET /tasks`, per-task config via `?task_id=` query param)
 >
+> **VigilPilot — surveillance camera AI:**
+> - Text-rule violation detection on any video at configurable fps (0.1–5.0)
+> - Claude Vision VLM backend (pluggable) — no gold video required
+> - Severity filtering (info / warning / critical), per-frame evidence thumbnails
+>
 > **Production hardening (all versions):**
-> 902 automated tests, FP=0, 99.40% accuracy, Docker single-container, no GPU required."
+> 951 automated tests, FP=0, 99.40% accuracy, Docker single-container, no GPU required."
 
 ---
 
@@ -299,8 +304,73 @@ open score_report.pdf
 | Critical Miss Rate | **0.75%** |
 | False Positive Rate | **0%** (zero false positives) |
 | Decision threshold | 60.0 (LOSO-validated) |
-| Automated tests | **902** |
+| Automated tests | **951** |
 | Deployment | Docker Compose, single container, no GPU |
+
+---
+
+---
+
+### 12. VigilPilot — Surveillance Camera Violation Detection  *(~60 sec)*
+
+> "VigilPilot is the business pivot: surveillance cameras are already installed
+> everywhere. Instead of requiring gold videos, VigilPilot lets you define rules
+> in plain Japanese text and runs Claude Vision on the footage at 1 fps."
+
+Click the **「監視」** button in the topbar (or press `V`).
+
+**Step 1 — Create a monitoring session:**
+
+```bash
+curl -X POST "http://localhost:8000/vigil/sessions" \
+  -H "X-API-Key: demo-key" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "工場入口カメラ",
+    "rules": ["ヘルメット未着用の作業者を検出", "立入禁止エリアへの侵入を検出"],
+    "sample_fps": 1.0,
+    "severity_threshold": "warning"
+  }'
+# → {"session_id": 1, "status": "idle", "rules": [...]}
+```
+
+**Step 2 — Upload footage and start analysis:**
+
+```bash
+curl -X POST "http://localhost:8000/vigil/sessions/1/analyze" \
+  -H "X-API-Key: demo-key" \
+  -F "file=@factory_entrance.mp4"
+# → {"session_id": 1, "status": "processing", "message": "解析を開始しました..."}
+```
+
+> "The pipeline samples 1 frame/sec, sends each JPEG to Claude Vision with the rules,
+> and stores violation events in SQLite. The UI polls every 3 seconds and updates live."
+
+**Step 3 — View violation report:**
+
+```bash
+curl "http://localhost:8000/vigil/sessions/1/report" -H "X-API-Key: demo-key"
+```
+
+```json
+{
+  "session_id": 1, "status": "completed",
+  "total_frames_analyzed": 120, "violation_count": 3,
+  "severity_breakdown": {"critical": 0, "warning": 3, "info": 0},
+  "rule_breakdown": {"ヘルメット未着用の作業者を検出": 3},
+  "events": [
+    {
+      "timestamp_sec": 14.0, "frame_number": 14,
+      "frame_url": "/vigil/events/1/frame",
+      "violations": [{"severity": "warning", "description_ja": "作業者がヘルメットを着用していません",
+                      "confidence": 0.91}]
+    }
+  ]
+}
+```
+
+> "Zero new hardware required. The rules are plain Japanese text —
+> a facility manager can configure them without writing a single line of code."
 
 ---
 
@@ -318,4 +388,10 @@ curl -X POST "$BASE/score"  -H "X-API-Key: $KEY" -H "Content-Type: application/j
 curl "$BASE/score/1" -H "X-API-Key: $KEY" | python -m json.tool
 curl "$BASE/tasks"   -H "X-API-Key: $KEY"   # v1.1 multi-task list
 curl "$BASE/docs"    # OpenAPI Swagger UI
+
+# VigilPilot
+curl -X POST "$BASE/vigil/sessions" -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
+  -d '{"name":"テスト","rules":["ヘルメット未着用を検出"],"sample_fps":1.0,"severity_threshold":"warning"}'
+curl -X POST "$BASE/vigil/sessions/1/analyze" -H "X-API-Key: $KEY" -F "file=@camera.mp4"
+curl "$BASE/vigil/sessions/1/report" -H "X-API-Key: $KEY"
 ```

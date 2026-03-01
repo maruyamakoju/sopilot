@@ -1,7 +1,7 @@
 # SOPilot — Technical Summary
 
-**Version:** v1.0.0
-**Date:** 2026-03-01
+**Version:** v1.2.0
+**Date:** 2026-03-02
 **Evaluation dataset:** 3,507 scored video pairs (96-hour production run)
 
 ---
@@ -18,7 +18,39 @@ events, and a `pass / needs_review / retrain / fail` verdict within seconds.
 
 ---
 
-## v1.0 New Features
+## v1.2 New Feature: VigilPilot
+
+VigilPilot is a surveillance camera AI module that detects rule violations in any video footage
+using Claude Vision, without requiring gold reference videos. The operator defines detection rules
+as plain natural-language text; the system samples frames at configurable fps and reports
+violations with severity levels, confidence scores, and frame thumbnails.
+
+**Key capabilities:**
+- **Text-defined rules** — no ML training, no reference video; rules change in seconds
+- **Claude Vision backend** — Claude Sonnet via Anthropic API; pluggable architecture
+- **Severity filtering** — `info / warning / critical` threshold per session
+- **Frame evidence** — each violation event stores the JPEG frame (`GET /vigil/events/{id}/frame`)
+- **Background processing** — non-blocking; poll `GET /vigil/sessions/{id}` for progress
+- **Full reporting** — `GET /vigil/sessions/{id}/report` with severity and rule breakdowns
+
+**Deployment note:** Set `ANTHROPIC_API_KEY` in `.env`. No additional dependencies or GPU required.
+
+See §VigilPilot API Surface below and `QUICKSTART.md §8` for usage examples.
+
+---
+
+## v1.1 Features
+
+- **Deep-link routing**: `#score/{jobId}/dev/{devIndex}` — every result and deviation is
+  shareable via URL. The UI restores the selected job and deviation on load.
+- **Enhanced operator trend**: moving average (5-job window), team baseline comparison,
+  volatility metric, and pass rate in `GET /analytics/operators/{id}/trend`.
+- **Multi-task deployment**: `GET /tasks` returns all task IDs with video counts; all video,
+  score, and analytics endpoints accept a `?task_id=` query parameter.
+
+---
+
+## v1.0 Features
 
 - **Gold Builder**: `POST /gold` accepts `enforce_quality=true` to reject low-quality gold videos
   at upload time (HTTP 422 with per-axis quality breakdown). Prevents bad references from
@@ -56,29 +88,38 @@ precision). The 21 FNs represent genuine near-threshold borderline cases.
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│  Browser UI  (single-page HTML/JS, served at /)         │
-└────────────────────────┬────────────────────────────────┘
-                         │ HTTP
-┌────────────────────────▼────────────────────────────────┐
-│  FastAPI application  (sopilot/main.py)                  │
-│  ├── Middleware: CorrelationID → CORS → APIKey → Rate    │
-│  └── Routers: videos · scoring · analytics · admin      │
-└────────┬──────────────────────────────┬─────────────────┘
-         │                              │
-┌────────▼──────────┐        ┌──────────▼──────────────┐
-│  Video Pipeline   │        │  Scoring Pipeline        │
-│  ├── Quality Gate │        │  ├── DTW alignment       │
-│  │   (5 checks)   │        │  ├── Step detection      │
-│  ├── ColorMotion  │        │  ├── Deviation scoring   │
-│  │   embedder     │        │  │   + template comments │
-│  └── Clip store   │        │  └── Ensemble / CI       │
-└────────┬──────────┘        └──────────┬──────────────┘
-         │                              │
-┌────────▼──────────────────────────────▼──────────────┐
-│  SQLite (WAL mode)  —  connection pool, atomic ops    │
-│  ./data/sopilot.db                                    │
-└───────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────┐
+│  Browser UI  (single-page HTML/JS, served at /)                 │
+│  SOPilot tabs + VigilPilot 監視タブ                               │
+└──────────────────────────┬──────────────────────────────────────┘
+                           │ HTTP
+┌──────────────────────────▼──────────────────────────────────────┐
+│  FastAPI application  (sopilot/main.py)                          │
+│  ├── Middleware: CorrelationID → CORS → APIKey → Rate            │
+│  ├── Routers: videos · scoring · analytics · admin  (/api/v1)   │
+│  └── VigilPilot router  (/vigil/*)                               │
+└────────┬─────────────────────────────┬──────────────────────────┘
+         │                             │
+┌────────▼──────────┐    ┌─────────────▼──────────────────────────┐
+│  Video Pipeline   │    │  VigilPilot Pipeline (sopilot/vigil/)  │
+│  ├── Quality Gate │    │  ├── Frame extractor (OpenCV, 1 fps)   │
+│  │   (5 checks)   │    │  ├── VLM client (Claude Vision API)    │
+│  ├── ColorMotion  │    │  ├── Severity filter + event store     │
+│  │   embedder     │    │  └── Background thread (daemon)        │
+│  └── Clip store   │    └────────────────┬───────────────────────┘
+└────────┬──────────┘                     │
+         │              ┌─────────────────▼─────────────────────┐
+         │              │  Scoring Pipeline                      │
+         │              │  ├── DTW alignment (Sakoe-Chiba)       │
+         │              │  ├── Step detection (cosine CP)        │
+         │              │  ├── Deviation scoring + comments      │
+         │              │  └── Ensemble / Bootstrap CI           │
+         │              └─────────────────┬─────────────────────┘
+         │                                │
+┌────────▼────────────────────────────────▼──────────────────────┐
+│  SQLite (WAL mode)  —  connection pool, atomic ops             │
+│  ./data/sopilot.db   (+ vigil_sessions / vigil_events tables)  │
+└────────────────────────────────────────────────────────────────┘
 ```
 
 ### Key algorithmic components
@@ -117,6 +158,8 @@ Thresholds are configurable per task profile and evidence-based (LOSO-validated 
 
 ## API Surface
 
+### SOPilot Endpoints
+
 | Category | Endpoints |
 |---|---|
 | Video management | `POST /gold` (`enforce_quality=true` → 422 on failure), `POST /videos`, `GET /videos`, `GET /videos/{id}`, `DELETE /videos/{id}` |
@@ -125,9 +168,19 @@ Thresholds are configurable per task profile and evidence-based (LOSO-validated 
 | Scoring | `POST /score`, `GET /score`, `GET /score/{id}`, `POST /score/{id}/rerun`, `POST /score/batch`, `POST /score/ensemble` |
 | Reports | `GET /score/{id}/report`, `GET /score/{id}/report/pdf`, `GET /score/{id}/uncertainty` |
 | Analytics | `GET /analytics`, `GET /analytics/compliance`, `GET /analytics/steps`, `GET /analytics/operators/{id}/trend` |
-| Task config | `GET /task-profile`, `PUT /task-profile`, `PUT /tasks/steps` |
+| Task config | `GET /tasks`, `GET /task-profile`, `PUT /task-profile`, `PUT /tasks/steps` |
 | Administration | `POST /admin/rescore`, `POST /admin/backup`, `GET /admin/db-stats` |
 | Observability | `GET /health`, `GET /readiness`, `GET /status`, `GET /metrics` (Prometheus) |
+
+### VigilPilot API Surface
+
+| Category | Endpoints |
+|---|---|
+| Session management | `POST /vigil/sessions`, `GET /vigil/sessions`, `GET /vigil/sessions/{id}`, `DELETE /vigil/sessions/{id}` |
+| Analysis | `POST /vigil/sessions/{id}/analyze` — upload video, start background analysis |
+| Events | `GET /vigil/sessions/{id}/events` — violation events with timestamps |
+| Frame evidence | `GET /vigil/events/{event_id}/frame` — JPEG frame at violation timestamp |
+| Reports | `GET /vigil/sessions/{id}/report` — severity + rule breakdown aggregation |
 
 Full OpenAPI spec at `http://localhost:8000/docs` (Swagger UI) or `/redoc`.
 
@@ -141,7 +194,7 @@ Full OpenAPI spec at `http://localhost:8000/docs` (Swagger UI) or `/redoc`.
 - **Reliability:** Score job retry (2 attempts), webhook notification with exponential backoff
 - **Security:** CORS allowlist, `X-Request-ID` correlation, non-root container user (uid 1000)
 - **Audit log:** Structured JSON events for video deletion, job creation, completion, reviews
-- **Test coverage:** 902 automated tests (unit + integration + property-based + concurrency)
+- **Test coverage:** 951 automated tests (unit + integration + property-based + concurrency)
 
 ---
 

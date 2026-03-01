@@ -589,6 +589,33 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
   .metrics-grid{grid-template-columns:1fr}
   .analytics-body{grid-template-columns:1fr 1fr}
 }
+
+/* ── VIGIL PANEL ── */
+#vigilModal{position:fixed;inset:0;z-index:200;background:rgba(5,10,21,.95);
+  backdrop-filter:blur(16px);display:none;flex-direction:column;overflow:hidden}
+#vigilModal.active{display:flex}
+.vigil-session-item{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.04);
+  cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px}
+.vigil-session-item:hover{background:rgba(13,148,136,.06)}
+.vigil-session-item.selected{background:rgba(13,148,136,.1);border-left:3px solid var(--accent-b);padding-left:11px}
+.vigil-status-badge{font-size:9px;padding:2px 8px;border-radius:999px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.03em;flex-shrink:0}
+.vigil-status-idle{background:rgba(148,163,184,.12);color:#94a3b8;border:1px solid rgba(148,163,184,.2)}
+.vigil-status-processing{background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.2)}
+.vigil-status-completed{background:rgba(16,185,129,.12);color:#10b981;border:1px solid rgba(16,185,129,.2)}
+.vigil-status-failed{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)}
+.sev-critical{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.sev-warning{background:rgba(245,158,11,.15);color:#f59e0b;border:1px solid rgba(245,158,11,.3)}
+.sev-info{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
+.vigil-event-card{background:rgba(15,23,42,.7);border:1px solid rgba(255,255,255,.06);
+  border-radius:12px;padding:14px;display:flex;gap:12px;margin-bottom:10px;transition:all .15s}
+.vigil-event-card:hover{border-color:rgba(13,148,136,.2);background:rgba(13,148,136,.04)}
+.vigil-frame-thumb{width:160px;min-width:160px;height:90px;object-fit:cover;border-radius:8px;
+  border:1px solid rgba(255,255,255,.08);cursor:pointer;transition:all .15s}
+.vigil-frame-thumb:hover{border-color:rgba(13,148,136,.4);transform:scale(1.02)}
+.vigil-frame-placeholder{width:160px;min-width:160px;height:90px;border-radius:8px;
+  border:1px solid rgba(255,255,255,.06);background:rgba(30,41,59,.4);
+  display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10px}
 </style>
 </head>
 <body>
@@ -619,6 +646,7 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
   <button class="btn btn-secondary btn-sm" onclick="openBatch()" title="バッチ採点 (B)">バッチ<span class="kbd">B</span></button>
   <button class="btn btn-primary btn-sm" onclick="openAnalytics()" title="分析ダッシュボード (A)">分析<span class="kbd">A</span></button>
   <button class="btn btn-ghost btn-sm" onclick="openStepDefs()" id="navStepDefs">手順定義</button>
+  <button class="btn btn-ghost btn-sm" onclick="openVigil()" title="監視カメラ違反検知 (V)">監視<span class="kbd">V</span></button>
   <button class="btn btn-secondary btn-sm" onclick="openSettings()">設定</button>
   <button class="btn btn-ghost btn-sm" onclick="openHelp()" title="ショートカット (?)">?</button>
 </div>
@@ -982,6 +1010,57 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
   </div>
 </div>
 
+<!-- VigilPilot — 監視カメラ違反検知 -->
+<div id="vigilModal">
+  <div class="analytics-top">
+    <button class="btn btn-secondary btn-sm" onclick="closeVigil()">← 戻る</button>
+    <span class="analytics-title">VigilPilot — 監視カメラ違反検知</span>
+    <div class="top-spacer"></div>
+    <span id="vigilStatus" style="font-size:11px;color:var(--muted)"></span>
+  </div>
+  <div style="flex:1;display:grid;grid-template-columns:310px 1fr;overflow:hidden">
+    <!-- Left: session list + create form -->
+    <div style="border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:rgba(5,10,21,.5)">
+      <!-- Create form -->
+      <div style="padding:14px;border-bottom:1px solid var(--border);flex-shrink:0">
+        <div class="panel-title">新規セッション</div>
+        <div style="display:flex;flex-direction:column;gap:6px">
+          <input id="vigilNewName" placeholder="セッション名 (例: 玄関カメラ)" style="font-size:12px"/>
+          <textarea id="vigilNewRules" rows="3"
+            style="background:rgba(30,41,59,.6);border:1px solid var(--glass-border);border-radius:8px;padding:7px 10px;color:var(--text);font:inherit;font-size:11px;resize:vertical;outline:none;min-height:60px;transition:all .2s"
+            placeholder="ルール (1行1件)&#10;例: ヘルメット未着用&#10;例: 立入禁止エリア侵入"></textarea>
+          <div style="display:flex;gap:6px">
+            <select id="vigilNewFps" style="flex:1;font-size:11px">
+              <option value="0.5">0.5 fps</option>
+              <option value="1.0" selected>1.0 fps</option>
+              <option value="2.0">2.0 fps</option>
+            </select>
+            <select id="vigilNewThreshold" style="flex:1;font-size:11px">
+              <option value="info">info以上</option>
+              <option value="warning" selected>warning以上</option>
+              <option value="critical">criticalのみ</option>
+            </select>
+          </div>
+          <button class="btn btn-primary btn-sm" onclick="createVigilSession()" style="width:100%">セッション作成</button>
+        </div>
+      </div>
+      <!-- Session list -->
+      <div style="flex:1;overflow-y:auto">
+        <div id="vigilSessionList" style="display:flex;flex-direction:column">
+          <div class="empty-state">セッションなし</div>
+        </div>
+      </div>
+    </div>
+    <!-- Right: session detail -->
+    <div id="vigilDetail" style="flex:1;overflow-y:auto;padding:20px">
+      <div style="height:200px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px">
+        <div style="font-size:40px;opacity:.2">&#127909;</div>
+        <div style="color:var(--muted);font-size:13px">セッションを選択してください</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- OPERATOR DETAIL MODAL -->
 <div id="operatorDetailModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeOperatorDetail()">
   <div class="modal-box" style="width:680px;max-width:96vw">
@@ -1028,6 +1107,7 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
       <span class="help-key">C</span><span class="help-desc">選択ジョブ比較</span>
       <span class="help-key">J/K</span><span class="help-desc">動画リスト上下移動</span>
       <span class="help-key">Enter</span><span class="help-desc">ハイライト動画を選択</span>
+      <span class="help-key">V</span><span class="help-desc">監視パネル</span>
       <span class="help-key">Esc</span><span class="help-desc">モーダルを閉じる</span>
       <span class="help-key">?</span><span class="help-desc">このヘルプを表示</span>
     </div>
@@ -3757,6 +3837,7 @@ document.addEventListener("keydown",(e)=>{
     if($("settingsModal").style.display==="flex"){closeSettings();return;}
     if($("batchPanel").style.display==="flex"){closeBatch();return;}
     if($("stepDefsModal").style.display==="flex"){closeStepDefs();return;}
+    if($("vigilModal").classList.contains("active")){closeVigil();return;}
     return;
   }
 
@@ -3770,6 +3851,7 @@ document.addEventListener("keydown",(e)=>{
   if(key==="r"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();loadVideos();return;}
   if(key==="e"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();exportJob();return;}
   if(key==="p"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();downloadPDF();return;}
+  if(key==="v"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();openVigil();return;}
 
   // Tab switching: 1-4
   if(key==="1"){switchTab("gold",$("tabGold"));return;}
@@ -3892,6 +3974,215 @@ async function saveStepDefs(){
   }catch(e){
     if(msgEl){msgEl.style.color="var(--danger)";msgEl.textContent="通信エラー";}
   }
+}
+
+// =============================================
+// VIGILPILOT — 監視カメラ違反検知
+// =============================================
+let _vigilSessions=[];
+let _vigilActiveSession=null;
+let _vigilPollTimer=null;
+
+function openVigil(){
+  $("vigilModal").classList.add("active");
+  loadVigilSessions();
+}
+
+function closeVigil(){
+  $("vigilModal").classList.remove("active");
+  if(_vigilPollTimer){clearInterval(_vigilPollTimer);_vigilPollTimer=null;}
+}
+
+async function loadVigilSessions(){
+  $("vigilStatus").textContent="読み込み中...";
+  try{
+    const rows=await api("/vigil/sessions");
+    _vigilSessions=rows;
+    renderVigilSessionList();
+    $("vigilStatus").textContent=`${rows.length}件のセッション`;
+  }catch(e){
+    $("vigilStatus").textContent="エラー";
+    console.warn("loadVigilSessions",e);
+  }
+}
+
+function vigilStatusLabel(s){return{idle:"待機中",processing:"解析中",completed:"完了",failed:"失敗"}[s]||s;}
+function vigilSevLabel(s){return{critical:"重大",warning:"警告",info:"情報"}[s]||s;}
+
+function renderVigilSessionList(){
+  const el=$("vigilSessionList");
+  if(!_vigilSessions.length){
+    el.innerHTML=`<div class="empty-state">セッションなし<br><span style="font-size:10px">左フォームから新規作成</span></div>`;
+    return;
+  }
+  el.innerHTML=_vigilSessions.map(s=>`
+    <div class="vigil-session-item${_vigilActiveSession?.session_id===s.session_id?" selected":""}"
+      onclick="selectVigilSession(${s.session_id})">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:12px;font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis">${escHtml(s.name)}</div>
+        <div style="font-size:10px;color:var(--muted);margin-top:2px">${s.violation_count}件の違反 / ${s.total_frames_analyzed}フレーム</div>
+      </div>
+      <span class="vigil-status-badge vigil-status-${s.status}">${vigilStatusLabel(s.status)}</span>
+      <button class="vigil-del-btn" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;padding:2px 5px;border-radius:4px;opacity:0;transition:all .15s"
+        onclick="event.stopPropagation();deleteVigilSession(${s.session_id})" title="削除">✕</button>
+    </div>`).join("");
+  el.querySelectorAll(".vigil-session-item").forEach(item=>{
+    item.addEventListener("mouseenter",()=>item.querySelector(".vigil-del-btn").style.opacity=".7");
+    item.addEventListener("mouseleave",()=>item.querySelector(".vigil-del-btn").style.opacity="0");
+  });
+}
+
+async function createVigilSession(){
+  const name=$("vigilNewName").value.trim();
+  if(!name){toast("セッション名を入力してください","info");return;}
+  const rulesText=$("vigilNewRules").value.trim();
+  const rules=rulesText?rulesText.split("\n").map(r=>r.trim()).filter(Boolean):[];
+  if(!rules.length){toast("ルールを1件以上入力してください","info");return;}
+  const sample_fps=parseFloat($("vigilNewFps").value);
+  const severity_threshold=$("vigilNewThreshold").value;
+  try{
+    await api("/vigil/sessions",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name,rules,sample_fps,severity_threshold})
+    });
+    $("vigilNewName").value="";
+    $("vigilNewRules").value="";
+    toast("セッションを作成しました","success");
+    await loadVigilSessions();
+  }catch(e){toast(`作成失敗: ${e.message}`,"error");}
+}
+
+async function deleteVigilSession(sessionId){
+  if(!confirm(`セッション #${sessionId} を削除しますか？`))return;
+  try{
+    await api(`/vigil/sessions/${sessionId}`,{method:"DELETE"});
+    if(_vigilActiveSession?.session_id===sessionId){
+      _vigilActiveSession=null;
+      $("vigilDetail").innerHTML=`<div style="height:200px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px"><div style="font-size:40px;opacity:.2">&#127909;</div><div style="color:var(--muted);font-size:13px">セッションを選択してください</div></div>`;
+    }
+    toast("削除しました","success");
+    await loadVigilSessions();
+  }catch(e){toast(`削除失敗: ${e.message}`,"error");}
+}
+
+async function selectVigilSession(sessionId){
+  if(_vigilPollTimer){clearInterval(_vigilPollTimer);_vigilPollTimer=null;}
+  try{
+    const session=await api(`/vigil/sessions/${sessionId}`);
+    _vigilActiveSession=session;
+    renderVigilSessionList();
+    await renderVigilDetail(session);
+    if(session.status==="processing"){
+      _vigilPollTimer=setInterval(()=>pollVigilSession(sessionId),3000);
+    }
+  }catch(e){toast(`セッション取得失敗: ${e.message}`,"error");}
+}
+
+async function pollVigilSession(sessionId){
+  try{
+    const session=await api(`/vigil/sessions/${sessionId}`);
+    _vigilActiveSession=session;
+    renderVigilSessionList();
+    await renderVigilDetail(session);
+    if(session.status!=="processing"){
+      clearInterval(_vigilPollTimer);_vigilPollTimer=null;
+      if(session.status==="completed")toast(`解析完了: ${session.violation_count}件の違反を検出`,"success");
+      else if(session.status==="failed")toast("解析に失敗しました","error");
+    }
+  }catch(e){console.warn("pollVigilSession",e);}
+}
+
+async function renderVigilDetail(session){
+  const el=$("vigilDetail");
+  let html=`<div style="max-width:900px;margin:0 auto">
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
+      <h2 style="font-size:16px;font-weight:700">${escHtml(session.name)}</h2>
+      <span class="vigil-status-badge vigil-status-${session.status}">${vigilStatusLabel(session.status)}</span>
+      <span style="font-size:11px;color:var(--muted)">${session.total_frames_analyzed}フレーム解析済 / ${session.violation_count}件の違反</span>
+      <div class="top-spacer"></div>
+      ${session.status==="idle"||session.status==="failed"?`
+        <label class="btn btn-primary btn-sm" style="cursor:pointer">
+          動画をアップロードして解析
+          <input type="file" accept="video/*" style="display:none" onchange="uploadVigilVideo(this,${session.session_id})"/>
+        </label>`:
+      session.status==="processing"?`
+        <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--warn)">
+          <div style="width:12px;height:12px;border:2px solid rgba(245,158,11,.2);border-top-color:var(--warn);border-radius:50%;animation:spin .7s linear infinite"></div>
+          解析中...
+        </span>`:""}
+    </div>
+    <div style="background:rgba(15,23,42,.7);border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:14px;margin-bottom:16px">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">監視ルール</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">
+        ${session.rules.map(r=>`<span style="font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(13,148,136,.1);border:1px solid rgba(13,148,136,.2);color:var(--accent-b)">${escHtml(r)}</span>`).join("")}
+      </div>
+    </div>`;
+
+  if(session.status==="completed"||(session.status==="processing"&&session.violation_count>0)){
+    try{
+      const events=await api(`/vigil/sessions/${session.session_id}/events`);
+      if(!events.length){
+        html+=`<div class="empty-state" style="border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:32px">違反は検出されませんでした ✓</div>`;
+      }else{
+        const sevOrder={critical:2,warning:1,info:0};
+        html+=`<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">違反イベント (${events.length}件)</div>`;
+        events.forEach(ev=>{
+          const maxSev=ev.violations.reduce((m,v)=>(sevOrder[v.severity]||0)>(sevOrder[m]||0)?v.severity:m,"info");
+          html+=`<div class="vigil-event-card">
+            ${ev.frame_url
+              ?`<img src="${ev.frame_url}" class="vigil-frame-thumb" loading="lazy" alt="frame" onclick="window.open('${ev.frame_url}','_blank')" title="クリックで拡大"/>`
+              :`<div class="vigil-frame-placeholder">No Frame</div>`}
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
+                <span style="font-size:12px;font-weight:700;color:var(--accent-b)">${vigilFormatTs(ev.timestamp_sec)}</span>
+                <span style="font-size:10px;color:var(--muted)">Frame ${ev.frame_number}</span>
+                <span class="vigil-status-badge sev-${maxSev}">${vigilSevLabel(maxSev)}</span>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                ${ev.violations.map(v=>`
+                  <div>
+                    <div style="display:flex;gap:7px;align-items:flex-start">
+                      <span class="vigil-status-badge sev-${v.severity}" style="margin-top:1px">${vigilSevLabel(v.severity)}</span>
+                      <span style="font-size:12px;color:var(--text)">${escHtml(v.description)}</span>
+                    </div>
+                    ${v.rule?`<div style="font-size:10px;color:var(--muted);margin-top:2px;padding-left:2px">ルール: ${escHtml(v.rule)}</div>`:""}
+                  </div>`).join("")}
+              </div>
+            </div>
+          </div>`;
+        });
+      }
+    }catch(e){html+=`<div style="color:var(--danger);font-size:12px">イベント取得エラー: ${e.message}</div>`;}
+  }else if(session.status==="idle"){
+    html+=`<div class="empty-state" style="border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:32px">動画をアップロードして解析を開始してください</div>`;
+  }else if(session.status==="processing"){
+    html+=`<div class="empty-state" style="border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:32px;display:flex;gap:10px;align-items:center;justify-content:center"><div style="width:16px;height:16px;border:2px solid rgba(245,158,11,.2);border-top-color:var(--warn);border-radius:50%;animation:spin .7s linear infinite"></div>解析中... 完了後に自動更新されます</div>`;
+  }
+
+  html+=`</div>`;
+  el.innerHTML=html;
+}
+
+function vigilFormatTs(sec){
+  const m=Math.floor(sec/60);
+  const s=Math.floor(sec%60);
+  return`${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`;
+}
+
+async function uploadVigilVideo(input,sessionId){
+  const file=input.files[0];
+  if(!file)return;
+  const fd=new FormData();
+  fd.append("file",file);
+  toast("アップロード中...","info");
+  try{
+    const r=await fetch(`/vigil/sessions/${sessionId}/analyze`,{method:"POST",body:fd});
+    if(!r.ok){const err=await r.json().catch(()=>({}));throw new Error(err.detail||"解析開始失敗");}
+    toast("解析を開始しました","success");
+    await selectVigilSession(sessionId);
+    await loadVigilSessions();
+  }catch(e){toast(`エラー: ${e.message}`,"error");}
 }
 </script>
 </body>

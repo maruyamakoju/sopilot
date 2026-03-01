@@ -60,6 +60,38 @@ MIGRATIONS: list[Migration] = [
         description="Add index on score_jobs(trainee_video_id) for faster joins",
         sql="CREATE INDEX IF NOT EXISTS idx_score_jobs_trainee ON score_jobs(trainee_video_id);",
     ),
+    Migration(
+        version=5,
+        description="VigilPilot: add vigil_sessions and vigil_events tables",
+        sql="""
+        CREATE TABLE IF NOT EXISTS vigil_sessions (
+            id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+            name                  TEXT    NOT NULL,
+            rules_json            TEXT    NOT NULL DEFAULT '[]',
+            sample_fps            REAL    NOT NULL DEFAULT 1.0,
+            severity_threshold    TEXT    NOT NULL DEFAULT 'warning',
+            status                TEXT    NOT NULL DEFAULT 'idle',
+            video_filename        TEXT,
+            total_frames_analyzed INTEGER NOT NULL DEFAULT 0,
+            violation_count       INTEGER NOT NULL DEFAULT 0,
+            created_at            TEXT    NOT NULL,
+            updated_at            TEXT    NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS vigil_events (
+            id             INTEGER PRIMARY KEY AUTOINCREMENT,
+            session_id     INTEGER NOT NULL REFERENCES vigil_sessions(id) ON DELETE CASCADE,
+            timestamp_sec  REAL    NOT NULL,
+            frame_number   INTEGER NOT NULL,
+            violations_json TEXT   NOT NULL DEFAULT '[]',
+            frame_path     TEXT,
+            created_at     TEXT    NOT NULL
+        );
+
+        CREATE INDEX IF NOT EXISTS idx_vigil_events_session
+            ON vigil_events(session_id, timestamp_sec);
+        """,
+    ),
 ]
 
 

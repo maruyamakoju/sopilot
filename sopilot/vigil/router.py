@@ -6,9 +6,9 @@ import logging
 import os
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, Request, UploadFile
+from fastapi import APIRouter, HTTPException, Query, Request, UploadFile
 from fastapi.concurrency import run_in_threadpool
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 
 from sopilot.vigil.pipeline import VigilPipeline
 from sopilot.vigil.repository import VigilRepository
@@ -66,6 +66,67 @@ def _row_to_event(row: dict) -> ViolationEvent:
         ),
         created_at=row["created_at"],
     )
+
+
+def _annotate_frame_with_bboxes(
+    frame_path: Path,
+    bbox_groups: list[tuple[list, str, str]],
+) -> bytes:
+    """Draw bounding boxes on a JPEG frame and return annotated JPEG bytes.
+
+    Parameters
+    ----------
+    frame_path:
+        Path to the source JPEG frame.
+    bbox_groups:
+        List of (bboxes, rule_text, severity) tuples.
+        bboxes: [[x1,y1,x2,y2], ...] in 0-1000 normalized scale.
+    """
+    from io import BytesIO
+
+    from PIL import Image, ImageDraw, ImageFont
+
+    img = Image.open(frame_path).convert("RGB")
+    w, h = img.size
+    draw = ImageDraw.Draw(img, "RGBA")
+
+    _colors = {
+        "critical": (220, 50, 50),
+        "warning": (255, 140, 0),
+        "info": (50, 180, 50),
+    }
+
+    try:
+        font = ImageFont.truetype("DejaVuSans.ttf", max(10, h // 40))
+    except (OSError, IOError):
+        font = ImageFont.load_default()
+
+    for bboxes, rule_text, severity in bbox_groups:
+        rgb = _colors.get(severity, _colors["warning"])
+        fill_rgba = (*rgb, 45)
+        label = f"[{severity.upper()}] {rule_text[:28]}"
+
+        for bbox in bboxes:
+            if len(bbox) != 4:
+                continue
+            x1, y1, x2, y2 = bbox
+            # Scale from 0-1000 to pixel coordinates
+            px1 = int(x1 / 1000 * w)
+            py1 = int(y1 / 1000 * h)
+            px2 = int(x2 / 1000 * w)
+            py2 = int(y2 / 1000 * h)
+
+            draw.rectangle([px1, py1, px2, py2], fill=fill_rgba, outline=rgb, width=3)
+
+            # Label background + text
+            text_y = max(0, py1 - 18)
+            label_w = min(len(label) * 7, w - px1)
+            draw.rectangle([px1, text_y, px1 + label_w, text_y + 16], fill=(*rgb, 200))
+            draw.text((px1 + 2, text_y + 1), label, fill=(255, 255, 255), font=font)
+
+    buf = BytesIO()
+    img.save(buf, format="JPEG", quality=90)
+    return buf.getvalue()
 
 
 def build_vigil_router() -> APIRouter:
@@ -177,8 +238,12 @@ def build_vigil_router() -> APIRouter:
         rows = await run_in_threadpool(repo.list_events, session_id)
         return [_row_to_event(r) for r in rows]
 
-    @router.get("/events/{event_id}/frame", summary="違反フレーム画像取得")
-    async def get_frame(event_id: int, request: Request) -> FileResponse:
+    @router.get("/events/{event_id}/frame", summary="違反フレーム画像取得（bbox描画対応）")
+    async def get_frame(
+        event_id: int,
+        request: Request,
+        annotate: bool = Query(default=True, description="Qwen3-VLのbboxをフレームに描画する"),
+    ) -> Response:
         repo = _get_repo(request)
         row = await run_in_threadpool(repo.get_event, event_id)
         if row is None:
@@ -186,6 +251,23 @@ def build_vigil_router() -> APIRouter:
         frame_path = row.get("frame_path")
         if not frame_path or not Path(frame_path).exists():
             raise HTTPException(status_code=404, detail="Frame image not found")
+
+        # Draw bounding boxes if any violation has bbox data (Qwen3-VL backend)
+        if annotate:
+            bbox_groups = [
+                (v["bboxes"], v.get("rule", ""), v.get("severity", "warning"))
+                for v in row.get("violations", [])
+                if v.get("bboxes")
+            ]
+            if bbox_groups:
+                try:
+                    annotated = await run_in_threadpool(
+                        _annotate_frame_with_bboxes, Path(frame_path), bbox_groups
+                    )
+                    return Response(content=annotated, media_type="image/jpeg")
+                except Exception:
+                    logger.exception("bbox annotation failed for event %d", event_id)
+
         return FileResponse(frame_path, media_type="image/jpeg")
 
     # ── Report ────────────────────────────────────────────────────────────

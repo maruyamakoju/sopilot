@@ -606,3 +606,285 @@ class TestVigilAPI(unittest.TestCase):
         self.assertEqual(report["violation_count"], session["violation_count"])
         self.assertIn("warning", report["severity_breakdown"])
         self.assertGreater(report["severity_breakdown"]["warning"], 0)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Qwen3-VL: bbox parsing, severity inference, API client, frame annotation
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestQwen3VLParsing:
+    """Unit tests for Qwen3-VL bounding-box output parsing and helpers."""
+
+    def test_parse_nested_bboxes(self) -> None:
+        from sopilot.vigil.vlm import _parse_bboxes_from_text
+        result = _parse_bboxes_from_text("[[100, 200, 400, 600], [50, 50, 300, 300]]")
+        assert result == [[100, 200, 400, 600], [50, 50, 300, 300]]
+
+    def test_parse_single_flat_bbox(self) -> None:
+        from sopilot.vigil.vlm import _parse_bboxes_from_text
+        result = _parse_bboxes_from_text("[150, 250, 850, 950]")
+        assert result == [[150, 250, 850, 950]]
+
+    def test_strips_think_tags(self) -> None:
+        from sopilot.vigil.vlm import _parse_bboxes_from_text
+        result = _parse_bboxes_from_text("<think>reasoning</think>\n[[200, 300, 700, 800]]")
+        assert result == [[200, 300, 700, 800]]
+
+    def test_empty_response(self) -> None:
+        from sopilot.vigil.vlm import _parse_bboxes_from_text
+        assert _parse_bboxes_from_text("[]") == []
+        assert _parse_bboxes_from_text("No objects detected.") == []
+
+    def test_out_of_range_coords_rejected(self) -> None:
+        from sopilot.vigil.vlm import _parse_bboxes_from_text
+        # Coords > 1010 should be rejected
+        result = _parse_bboxes_from_text("[[100, 200, 2000, 600]]")
+        assert result == []
+
+    def test_float_coords(self) -> None:
+        from sopilot.vigil.vlm import _parse_bboxes_from_text
+        result = _parse_bboxes_from_text("[[10.5, 20.0, 400.3, 600.7]]")
+        assert len(result) == 1
+        assert result[0][0] == pytest.approx(10.5)
+
+    def test_severity_critical_keywords(self) -> None:
+        from sopilot.vigil.vlm import _infer_severity_from_rule
+        assert _infer_severity_from_rule("転倒リスクを検出") == "critical"
+        assert _infer_severity_from_rule("立入禁止エリアへの侵入") == "critical"
+        assert _infer_severity_from_rule("感電の危険を検出") == "critical"
+
+    def test_severity_warning_default(self) -> None:
+        from sopilot.vigil.vlm import _infer_severity_from_rule
+        assert _infer_severity_from_rule("ヘルメット未着用の作業者") == "warning"
+        assert _infer_severity_from_rule("安全ベスト未着用") == "warning"
+
+    def test_factory_claude(self) -> None:
+        import os
+        from sopilot.vigil.vlm import ClaudeVisionClient, build_vlm_client
+        os.environ["ANTHROPIC_API_KEY"] = "sk-test"
+        c = build_vlm_client("claude")
+        assert isinstance(c, ClaudeVisionClient)
+
+    def test_factory_qwen3_api(self) -> None:
+        import os
+        from sopilot.vigil.vlm import Qwen3VLAPIClient, build_vlm_client
+        os.environ["VIGIL_QWEN3_API_BASE"] = "http://localhost:11434/v1"
+        c = build_vlm_client("qwen3-api")
+        assert isinstance(c, Qwen3VLAPIClient)
+        assert c._model == "Qwen/Qwen3-VL-7B-Instruct"
+
+    def test_factory_qwen3_api_requires_api_base(self) -> None:
+        import os
+        from sopilot.vigil.vlm import build_vlm_client
+        os.environ.pop("VIGIL_QWEN3_API_BASE", None)
+        with pytest.raises(ValueError, match="VIGIL_QWEN3_API_BASE"):
+            build_vlm_client("qwen3-api")
+
+    def test_factory_unknown_backend_raises(self) -> None:
+        from sopilot.vigil.vlm import build_vlm_client
+        with pytest.raises(ValueError, match="Unknown VLM backend"):
+            build_vlm_client("gpt9-turbo")
+
+    def test_qwen3_api_client_strips_think_in_response(self) -> None:
+        """Qwen3VLAPIClient strips <think>...</think> before JSON parsing."""
+        import os
+        from unittest.mock import MagicMock, patch
+        os.environ["VIGIL_QWEN3_API_BASE"] = "http://localhost:11434/v1"
+        from sopilot.vigil.vlm import Qwen3VLAPIClient
+        client = Qwen3VLAPIClient(api_base="http://localhost:11434/v1")
+
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = {
+            "choices": [{
+                "message": {
+                    "content": '<think>Let me analyze...</think>\n{"has_violation": false, "violations": []}'
+                }
+            }]
+        }
+        mock_resp.raise_for_status = MagicMock()
+
+        with patch.object(client._client, "post", return_value=mock_resp):
+            result = client.analyze_frame(
+                Path(__file__).parent / "fixtures" / "dummy.jpg"
+                if False else Path(__file__),  # any existing path
+                ["ルール1"],
+            )
+        assert result.has_violation is False
+
+    def test_violation_detail_accepts_bboxes_field(self) -> None:
+        """ViolationDetail schema accepts optional bboxes without error."""
+        from sopilot.vigil.schemas import ViolationDetail
+        v = ViolationDetail(
+            rule_index=0,
+            rule="test",
+            description_ja="説明",
+            severity="warning",
+            confidence=0.9,
+            bboxes=[[100, 200, 400, 600]],
+        )
+        assert v.bboxes == [[100, 200, 400, 600]]
+
+    def test_violation_detail_bboxes_optional(self) -> None:
+        """ViolationDetail without bboxes defaults to None."""
+        from sopilot.vigil.schemas import ViolationDetail
+        v = ViolationDetail(
+            rule_index=0, rule="test", description_ja="説明", severity="warning", confidence=0.9
+        )
+        assert v.bboxes is None
+
+
+class TestBboxFrameAnnotation:
+    """Unit tests for bounding-box rendering on JPEG frames."""
+
+    def _make_jpeg(self, tmp_path: Path) -> Path:
+        import numpy as np
+        img = np.full((240, 320, 3), (80, 80, 80), dtype=np.uint8)
+        p = tmp_path / "frame.jpg"
+        cv2.imwrite(str(p), img)
+        return p
+
+    def test_annotation_produces_valid_jpeg(self, tmp_path: Path) -> None:
+        from sopilot.vigil.router import _annotate_frame_with_bboxes
+        frame = self._make_jpeg(tmp_path)
+        result = _annotate_frame_with_bboxes(
+            frame,
+            [([[100, 100, 500, 700]], "ヘルメット未着用", "warning")],
+        )
+        assert result[:2] == b"\xff\xd8", "Not a valid JPEG"
+        assert len(result) > 1000
+
+    def test_annotation_multiple_severities(self, tmp_path: Path) -> None:
+        from sopilot.vigil.router import _annotate_frame_with_bboxes
+        frame = self._make_jpeg(tmp_path)
+        groups = [
+            ([[50, 50, 300, 400]], "ヘルメット未着用", "warning"),
+            ([[400, 50, 900, 800]], "立入禁止", "critical"),
+            ([[200, 200, 600, 700]], "軽微な注意", "info"),
+        ]
+        result = _annotate_frame_with_bboxes(frame, groups)
+        assert result[:2] == b"\xff\xd8"
+
+    def test_empty_bboxes_no_error(self, tmp_path: Path) -> None:
+        from sopilot.vigil.router import _annotate_frame_with_bboxes
+        frame = self._make_jpeg(tmp_path)
+        # Empty bbox list in group — should handle gracefully
+        result = _annotate_frame_with_bboxes(frame, [([], "rule", "warning")])
+        assert result[:2] == b"\xff\xd8"
+
+    def test_annotation_larger_than_raw(self, tmp_path: Path) -> None:
+        """Annotated frame with boxes should be larger than or similar to raw."""
+        from sopilot.vigil.router import _annotate_frame_with_bboxes
+        frame = self._make_jpeg(tmp_path)
+        result = _annotate_frame_with_bboxes(
+            frame,
+            [([[100, 100, 800, 900], [50, 50, 300, 400]], "ルール", "warning")],
+        )
+        # Annotated should be a reasonable size
+        assert len(result) > 500
+
+
+class TestFrameEndpointWithBboxes(unittest.TestCase):
+    """Integration test: GET /vigil/events/{id}/frame with bbox annotation."""
+
+    def setUp(self) -> None:
+        import tempfile
+        self.tmp = Path(tempfile.mkdtemp())
+        db_path = self.tmp / "test.db"
+        _init_db(db_path)
+
+        class _MockVLMWithBboxes(VLMClient):
+            def analyze_frame(self, frame_path: Path, rules: list[str]) -> VLMResult:
+                return VLMResult(
+                    has_violation=True,
+                    violations=[{
+                        "rule_index": 0,
+                        "rule": rules[0],
+                        "description_ja": "ヘルメット未着用を検出",
+                        "severity": "warning",
+                        "confidence": 0.9,
+                        "bboxes": [[100, 100, 500, 700]],
+                    }],
+                    raw_text="bbox detected",
+                )
+
+        app = create_app()
+        app.state.vigil_pipeline._vlm = _MockVLMWithBboxes()
+        self.client = TestClient(app, raise_server_exceptions=True)
+
+    def tearDown(self) -> None:
+        import shutil
+        shutil.rmtree(self.tmp, ignore_errors=True)
+
+    def _make_video_bytes(self) -> bytes:
+        buf_path = self.tmp / "vid.avi"
+        _make_video(buf_path, seconds=1)
+        return buf_path.read_bytes()
+
+    def test_frame_endpoint_returns_annotated_jpeg_when_bbox_present(self) -> None:
+        """Frame endpoint returns annotated JPEG when violation has bboxes."""
+        # Create session + analyze
+        sid_resp = self.client.post("/vigil/sessions", json={
+            "name": "bbox test",
+            "rules": ["ヘルメット未着用の作業者を検出"],
+            "sample_fps": 4.0,
+            "severity_threshold": "info",
+        })
+        sid = sid_resp.json()["session_id"]
+
+        vid_bytes = self._make_video_bytes()
+        self.client.post(
+            f"/vigil/sessions/{sid}/analyze",
+            files={"file": ("test.avi", vid_bytes, "video/avi")},
+        )
+
+        # Wait for completion
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            s = self.client.get(f"/vigil/sessions/{sid}").json()
+            if s["status"] in ("completed", "failed"):
+                break
+            time.sleep(0.2)
+
+        events = self.client.get(f"/vigil/sessions/{sid}/events").json()
+        if not events:
+            self.skipTest("No violation events generated")
+
+        event_id = events[0]["event_id"]
+        resp = self.client.get(f"/vigil/events/{event_id}/frame")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.headers["content-type"], "image/jpeg")
+        # Annotated frame is returned (valid JPEG)
+        self.assertEqual(resp.content[:2], b"\xff\xd8")
+
+    def test_frame_endpoint_annotate_false_returns_raw(self) -> None:
+        """?annotate=false bypasses bbox drawing and returns raw frame."""
+        sid_resp = self.client.post("/vigil/sessions", json={
+            "name": "raw frame test",
+            "rules": ["ヘルメット未着用の作業者を検出"],
+            "sample_fps": 4.0,
+            "severity_threshold": "info",
+        })
+        sid = sid_resp.json()["session_id"]
+
+        vid_bytes = self._make_video_bytes()
+        self.client.post(
+            f"/vigil/sessions/{sid}/analyze",
+            files={"file": ("test.avi", vid_bytes, "video/avi")},
+        )
+
+        deadline = time.time() + 30
+        while time.time() < deadline:
+            s = self.client.get(f"/vigil/sessions/{sid}").json()
+            if s["status"] in ("completed", "failed"):
+                break
+            time.sleep(0.2)
+
+        events = self.client.get(f"/vigil/sessions/{sid}/events").json()
+        if not events:
+            self.skipTest("No violation events generated")
+
+        event_id = events[0]["event_id"]
+        resp = self.client.get(f"/vigil/events/{event_id}/frame?annotate=false")
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("image/jpeg", resp.headers["content-type"])

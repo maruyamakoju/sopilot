@@ -35,6 +35,7 @@ class ViolationDetail(BaseModel):
     description_ja: str
     severity: str  # info | warning | critical
     confidence: float
+    bboxes: list[list[float]] | None = None  # Qwen3-VL: [[x1,y1,x2,y2],...] 0-1000 scale
 
 
 class ViolationEvent(BaseModel):

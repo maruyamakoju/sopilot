@@ -9,13 +9,13 @@ available; the module degrades gracefully when torch is absent.
 
 from __future__ import annotations
 
-import json
 import logging
 import random
 import warnings
-from dataclasses import dataclass, field, asdict
+from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 
@@ -28,7 +28,7 @@ try:
     import torch
     import torch.nn as nn
     import torch.optim as optim
-    from torch.utils.data import Dataset, DataLoader
+    from torch.utils.data import DataLoader, Dataset
 
     _TORCH_AVAILABLE = True
 except ImportError:  # pragma: no cover
@@ -119,7 +119,7 @@ class SOPAdapterHead(nn.Module):  # type: ignore[misc]
             nn.Linear(half, output_dim),
         )
 
-    def forward(self, x: "torch.Tensor") -> "torch.Tensor":  # type: ignore[name-defined]
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore[name-defined]
         out = self.net(x)
         # L2 normalise to the unit hypersphere for cosine similarity learning.
         norm = out.norm(dim=-1, keepdim=True).clamp(min=1e-12)
@@ -165,10 +165,10 @@ class TripletLoss(nn.Module):  # type: ignore[misc]
 
     def forward(
         self,
-        anchors: "torch.Tensor",    # (B, D)  # type: ignore[name-defined]
-        positives: "torch.Tensor",  # (B, D)  # type: ignore[name-defined]
-        negatives: "torch.Tensor",  # (B, D)  # type: ignore[name-defined]
-    ) -> "torch.Tensor":  # type: ignore[name-defined]
+        anchors: torch.Tensor,    # (B, D)  # type: ignore[name-defined]
+        positives: torch.Tensor,  # (B, D)  # type: ignore[name-defined]
+        negatives: torch.Tensor,  # (B, D)  # type: ignore[name-defined]
+    ) -> torch.Tensor:  # type: ignore[name-defined]
         """
         Compute triplet loss from pre-mined triplets.
 
@@ -183,9 +183,9 @@ class TripletLoss(nn.Module):  # type: ignore[misc]
 
     def mine_batch(
         self,
-        embeddings: "torch.Tensor",  # (N, D)  # type: ignore[name-defined]
-        labels: "torch.Tensor",      # (N,) int  # type: ignore[name-defined]
-    ) -> tuple["torch.Tensor", "torch.Tensor", "torch.Tensor"]:  # type: ignore[name-defined]
+        embeddings: torch.Tensor,  # (N, D)  # type: ignore[name-defined]
+        labels: torch.Tensor,      # (N,) int  # type: ignore[name-defined]
+    ) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:  # type: ignore[name-defined]
         """
         Mine anchors, positives, negatives from a labelled embedding batch.
 
@@ -347,7 +347,7 @@ class TripletDataset(Dataset):  # type: ignore[misc]
 
     def _resample(self) -> None:
         """Re-draw all triplets for the upcoming epoch."""
-        triplets = []
+        triplets: list[tuple[np.ndarray, np.ndarray, np.ndarray]] = []
         attempts = 0
         max_attempts = self.triplets_per_epoch * 10
         while len(triplets) < self.triplets_per_epoch and attempts < max_attempts:
@@ -364,7 +364,7 @@ class TripletDataset(Dataset):  # type: ignore[misc]
     def __len__(self) -> int:
         return len(self._triplets)
 
-    def __getitem__(self, idx: int) -> tuple["torch.Tensor", "torch.Tensor", "torch.Tensor"]:  # type: ignore[name-defined]
+    def __getitem__(self, idx: int) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:  # type: ignore[name-defined]
         anchor, positive, negative = self._triplets[idx]
         return (
             torch.from_numpy(anchor),
@@ -542,7 +542,7 @@ class AdapterTrainer:
     def _run_epoch(
         self,
         dataset: TripletDataset,
-        optimizer: "optim.Optimizer",  # type: ignore[name-defined]
+        optimizer: optim.Optimizer,  # type: ignore[name-defined]
         batch_size: int,
         *,
         training: bool,
@@ -577,15 +577,7 @@ class AdapterTrainer:
                 n_emb = self.adapter(negatives)
 
                 # Online hard/semi-hard mining within the batch.
-                # Concatenate all embeddings + labels, then mine.
-                batch_size_actual = a_emb.shape[0]
-                all_emb = torch.cat([a_emb, p_emb, n_emb], dim=0)   # (3B, D)
-
-                # Re-derive step labels from which "slot" each embedding came from.
-                # All anchors share a dummy label 0, positives 0, negatives 1.
-                # This is a conservative approximation: for proper mining each
-                # embedding should carry its true step label.  The pre-built
-                # triplet structure is used directly as a fallback.
+                # The pre-built triplet structure is used directly.
                 loss = self._criterion(a_emb, p_emb, n_emb)
 
                 if training:
@@ -620,7 +612,7 @@ class AdapterTrainer:
         logger.info("[AdapterTrainer] saved adapter to %s", path)
 
     @classmethod
-    def load(cls, path: str | Path) -> "AdapterTrainer":
+    def load(cls, path: str | Path) -> AdapterTrainer:
         """Load a previously saved AdapterTrainer from disk."""
         if not _TORCH_AVAILABLE:
             raise RuntimeError("torch is required to load AdapterTrainer")
@@ -671,7 +663,7 @@ class AdapterTrainer:
 class _null_context:
     """No-op context manager used to unify training/eval code paths."""
 
-    def __enter__(self) -> "_null_context":
+    def __enter__(self) -> _null_context:
         return self
 
     def __exit__(self, *_: Any) -> None:

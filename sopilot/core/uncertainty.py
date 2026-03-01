@@ -40,10 +40,8 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Optional
 
 import numpy as np
-
 
 # ---------------------------------------------------------------------------
 # Public dataclasses
@@ -214,11 +212,11 @@ def heuristic_ci(
 
 def bootstrap_score_ci(
     base_score: float,
-    clip_embeddings_gold: Optional[np.ndarray],
-    clip_embeddings_trainee: Optional[np.ndarray],
+    clip_embeddings_gold: np.ndarray | None,
+    clip_embeddings_trainee: np.ndarray | None,
     n_bootstrap: int = 1000,
     alpha: float = 0.05,
-    rng: Optional[np.random.Generator] = None,
+    rng: np.random.Generator | None = None,
 ) -> BootstrapCI:
     """Compute a non-parametric bootstrap confidence interval for a score.
 
@@ -304,12 +302,12 @@ def compute_score_uncertainty(
     dtw_cost: float,
     n_clips_gold: int,
     n_clips_trainee: int,
-    clip_embeddings_gold: Optional[np.ndarray] = None,
-    clip_embeddings_trainee: Optional[np.ndarray] = None,
+    clip_embeddings_gold: np.ndarray | None = None,
+    clip_embeddings_trainee: np.ndarray | None = None,
     *,
     n_bootstrap: int = 1000,
     alpha: float = 0.05,
-    rng: Optional[np.random.Generator] = None,
+    rng: np.random.Generator | None = None,
 ) -> ScoreUncertainty:
     """Compute a full uncertainty decomposition for a score result.
 

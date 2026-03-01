@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Optional
 
 import numpy as np
 
@@ -25,7 +24,8 @@ logger = logging.getLogger(__name__)
 
 # Uncertainty module — imported lazily to avoid circular issues at collection time
 try:
-    from sopilot.core.uncertainty import BootstrapCI, heuristic_ci as _heuristic_ci
+    from sopilot.core.uncertainty import BootstrapCI
+    from sopilot.core.uncertainty import heuristic_ci as _heuristic_ci
     _UNCERTAINTY_AVAILABLE = True
 except Exception:  # pragma: no cover
     _UNCERTAINTY_AVAILABLE = False
@@ -85,8 +85,8 @@ def score_alignment(
     weights: ScoreWeights,
     deviation_threshold: float = 0.25,
     *,
-    gold_embeddings: Optional[np.ndarray] = None,
-    trainee_embeddings: Optional[np.ndarray] = None,
+    gold_embeddings: np.ndarray | None = None,
+    trainee_embeddings: np.ndarray | None = None,
 ) -> dict:
     """Evaluate a DTW alignment and produce a score in [0, 100].
 

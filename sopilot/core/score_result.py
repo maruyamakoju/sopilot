@@ -7,6 +7,8 @@ from typing import Any, TypedDict, cast
 class ScoreSummary(TypedDict, total=False):
     decision: str
     decision_reason: str
+    decision_basis: str
+    score_band: str | None
     severity_counts: dict[str, int]
     pass_score: float
     retrain_score: float

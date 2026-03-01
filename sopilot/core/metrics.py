@@ -23,8 +23,8 @@ from itertools import combinations
 from typing import Any
 
 import numpy as np
-from scipy.stats import chi2, f as f_dist
-
+from scipy.stats import chi2
+from scipy.stats import f as f_dist
 
 # ---------------------------------------------------------------------------
 # Helper
@@ -210,7 +210,7 @@ def compute_icc(
     ms_between_subjects = ss_between_subjects / df_between_subjects  # MS_S
     ms_between_raters   = ss_between_raters   / df_between_raters    # MS_R  (unused in ICC(2,1) formula directly)
     ms_error            = ss_error            / df_error              # MS_E
-    ms_within           = ss_within           / df_within             # MS_W  (ICC(3,1) denominator)
+    _ms_within          = ss_within           / df_within             # MS_W  (ICC(3,1) denominator, kept for reference)
 
     # Perfect agreement edge case: zero error variance → ICC = 1.0
     if ms_error < 1e-10:

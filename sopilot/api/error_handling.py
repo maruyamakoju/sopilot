@@ -146,7 +146,7 @@ def service_errors(fn: Callable[..., Coroutine[Any, Any, Any]]) -> Callable[...,
             # Let FastAPI's own HTTPException propagate untouched so that
             # endpoints can still use `raise HTTPException(...)` directly.
             raise
-        except Exception as exc:
+        except Exception:
             # Catch-all for unexpected exceptions — never leak internals.
             duration_ms = (time.monotonic() - t0) * 1000
             meta = _extract_request_meta(args, kwargs)

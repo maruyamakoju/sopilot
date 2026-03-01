@@ -1,7 +1,7 @@
 # SOPilot — 5-Minute Demo Script
 
 **Audience:** Google DeepMind technical reviewers
-**Goal:** Demonstrate end-to-end SOP compliance scoring with the v1.0.0 system
+**Goal:** Demonstrate end-to-end SOP compliance scoring with the v1.1.0 system
 
 ---
 
@@ -27,8 +27,9 @@ Point to the browser UI.
 > comparing their video against a gold-standard reference video.
 > Everything runs on-premises, no GPU, no cloud dependency."
 
-- Show the dark topbar: **SOP評価コンソール — v1.0**
+- Show the dark topbar: **SOP評価コンソール — v1.1**
 - Note: Japanese UI because the target operator is Japanese-speaking
+- Point to the task selector dropdown in the topbar (v1.1 multi-task feature)
 
 ---
 
@@ -131,9 +132,12 @@ Point to the browser result card:
 - Green score badge
 - Summary comment: *"スコア 78.5点 — 合格ですが、品質逸脱1件の改善を推奨します。"*
 
+> "Notice the URL has updated to `#score/1` — the result is now deep-linkable.
+> Share this URL and anyone on the team can open directly to this result."
+
 ---
 
-### 5. Deviation Detail  *(~45 sec)*
+### 5. Deviation Detail + Evidence Clips  *(~45 sec)*
 
 Expand a deviation in the UI.
 
@@ -156,8 +160,10 @@ Expand a deviation in the UI.
 > of the overall score.
 >
 > **Evidence Clips** (v1.0): `gold_timecode` and `trainee_timecode` pin the exact
-> seconds in each video where the deviation occurred. The UI renders a 'ジャンプ' button
-> that seeks the video player directly to that moment."
+> seconds in each video where the deviation occurred. Click 'ジャンプ' to seek both
+> video players to that moment simultaneously.
+>
+> The URL updates to `#score/1/dev/0` — this exact deviation is now deep-linkable."
 
 ---
 
@@ -175,7 +181,48 @@ UI shows:
 
 ---
 
-### 7. Evaluation Evidence  *(~45 sec)*
+### 7. Operator Trend Dashboard  *(~45 sec)*
+
+Click an operator name in the analytics panel.
+
+> "v1.1 enhanced trend dashboard. The chart shows:
+>
+> - **Blue line**: raw score per job
+> - **Orange line**: 5-job moving average — smooths noise
+> - **Dashed blue**: team baseline — where this operator stands vs. the group
+>
+> The KPI row shows average score, job count, trend (improving/declining),
+> and delta vs. team average. At a glance, a supervisor can see if this operator
+> is on a growth trajectory or needs intervention."
+
+```bash
+curl "http://localhost:8000/analytics/operators/OP_HASH/trend" -H "X-API-Key: demo-key"
+# → {"scores": [...], "moving_avg": [...], "pass_rate": 0.87, "volatility": 4.2, "team_avg": 76.3}
+```
+
+---
+
+### 8. Multi-Task Deployment  *(~30 sec)*
+
+Point to the task selector dropdown in the topbar.
+
+> "v1.1 multi-task mode. A single SOPilot instance can manage multiple SOP task IDs —
+> for example, 'assembly_line_A' and 'quality_inspection_B'.
+> Switch tasks in the dropdown; all videos, scores, and analytics reload for that task.
+> Per-task configuration (pass threshold, step definitions) is fully independent."
+
+```bash
+# List all tasks with video counts
+curl "http://localhost:8000/tasks" -H "X-API-Key: demo-key"
+# → {"tasks": [{"task_id": "pilot_task", "video_count": 24, "gold_count": 2, ...}]}
+
+# Per-task configuration
+curl "http://localhost:8000/task-profile?task_id=pilot_task" -H "X-API-Key: demo-key"
+```
+
+---
+
+### 9. Evaluation Evidence  *(~45 sec)*
 
 ```bash
 python scripts/run_loso_evaluation.py \
@@ -210,7 +257,7 @@ the full interactive report.
 
 ---
 
-### 8. PDF Report  *(~15 sec)*
+### 10. PDF Report  *(~15 sec)*
 
 ```bash
 curl "http://localhost:8000/score/1/report/pdf" \
@@ -221,22 +268,22 @@ open score_report.pdf
 
 ---
 
-### 9. v1.0 Features Shipped + Roadmap  *(~30 sec)*
+### 11. All Features Shipped  *(~30 sec)*
 
-> "All v1.0 features are shipped and in this build:
+> "All features are shipped and in this build:
 >
-> **Gold Builder** — quality gate enforcement for gold uploads (`enforce_quality=true`
-> returns HTTP 422 with a per-axis quality breakdown if the reference video is too dark,
-> blurry, or unstable). UI: "品質ゲート" checkbox.
+> **v1.0 — Core scoring + quality:**
+> - Gold Builder (`enforce_quality=true` → HTTP 422 with per-axis breakdown)
+> - SOP Versioning (`gold_version` badge in UI and API)
+> - Evidence Clips (`gold_timecode` / `trainee_timecode` per deviation + ジャンプ button)
 >
-> **SOP Versioning** — each gold upload gets a sequential version number per task
-> (`gold_version: 1`, `2`, …). The UI shows 'v1' / 'v2' badges in the gold list.
+> **v1.1 — Operational features:**
+> - Deep-link routing (`#score/{jobId}/dev/{devIndex}`) — shareable URLs for every result
+> - Enhanced operator trend (moving average, team baseline, volatility, KPI row)
+> - Multi-task deployment (`GET /tasks`, per-task config via `?task_id=` query param)
 >
-> **Evidence Clips** — every deviation includes `gold_timecode` and `trainee_timecode`
-> pinpointing the exact second range in each video. UI: 'ジャンプ' button seeks the player.
->
-> **v1.1 roadmap**: Video-seek deep-link from evidence clips, operator growth-trend
-> dashboard visualization, multi-task deployment mode."
+> **Production hardening (all versions):**
+> 902 automated tests, FP=0, 99.40% accuracy, Docker single-container, no GPU required."
 
 ---
 
@@ -252,7 +299,7 @@ open score_report.pdf
 | Critical Miss Rate | **0.75%** |
 | False Positive Rate | **0%** (zero false positives) |
 | Decision threshold | 60.0 (LOSO-validated) |
-| Automated tests | **895** |
+| Automated tests | **902** |
 | Deployment | Docker Compose, single container, no GPU |
 
 ---
@@ -269,5 +316,6 @@ curl "$BASE/videos/2/quality" -H "X-API-Key: $KEY"
 curl -X POST "$BASE/score"  -H "X-API-Key: $KEY" -H "Content-Type: application/json" \
   -d '{"gold_video_id": 1, "trainee_video_id": 2}'
 curl "$BASE/score/1" -H "X-API-Key: $KEY" | python -m json.tool
+curl "$BASE/tasks"   -H "X-API-Key: $KEY"   # v1.1 multi-task list
 curl "$BASE/docs"    # OpenAPI Swagger UI
 ```

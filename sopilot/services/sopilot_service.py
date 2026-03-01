@@ -10,8 +10,6 @@ from pathlib import Path
 from typing import BinaryIO
 
 from sopilot.config import Settings
-
-logger = logging.getLogger(__name__)
 from sopilot.database import Database
 from sopilot.exceptions import InvalidStateError, NotFoundError, ServiceError
 from sopilot.schemas import ScoreWeights
@@ -23,6 +21,8 @@ from sopilot.services.storage import FileStorage
 from sopilot.services.task_profile_service import TaskProfileService
 from sopilot.services.video_processor import VideoProcessor
 from sopilot.services.video_service import VideoLoadResult, VideoService
+
+logger = logging.getLogger(__name__)
 
 # Re-export for backward compatibility
 __all__ = [

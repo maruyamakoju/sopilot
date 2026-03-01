@@ -62,13 +62,12 @@ ensures calibrated score *intervals*, not just ordinal correctness.
 
 from __future__ import annotations
 
-import json
 import logging
 import math
 import warnings
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
 
@@ -82,7 +81,7 @@ try:
     import torch.nn as nn
     import torch.nn.functional as F
     import torch.optim as optim
-    from torch.utils.data import Dataset, DataLoader
+    from torch.utils.data import DataLoader, Dataset
 
     _TORCH_AVAILABLE = True
 except ImportError:  # pragma: no cover
@@ -119,7 +118,7 @@ except ImportError:  # pragma: no cover
 class _null_context:
     """No-op context manager to unify training/eval code paths."""
 
-    def __enter__(self) -> "_null_context":
+    def __enter__(self) -> _null_context:
         return self
 
     def __exit__(self, *_: Any) -> None:
@@ -142,7 +141,7 @@ class MeanTemporalPool(nn.Module):  # type: ignore[misc]
     Given input of shape (B, T, D), returns (B, D) by averaging across T.
     """
 
-    def forward(self, x: "torch.Tensor") -> "torch.Tensor":  # type: ignore[name-defined]
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore[name-defined]
         return x.mean(dim=1)
 
 
@@ -166,7 +165,7 @@ class AttentionTemporalPool(nn.Module):  # type: ignore[misc]
         self.query = nn.Parameter(torch.randn(embed_dim) * 0.02)
         self._scale = math.sqrt(embed_dim)
 
-    def forward(self, x: "torch.Tensor") -> "torch.Tensor":  # type: ignore[name-defined]
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore[name-defined]
         # x: (B, T, D)
         keys = torch.tanh(self.key_proj(x))  # (B, T, D)
         scores = (keys * self.query.unsqueeze(0).unsqueeze(0)).sum(dim=-1)  # (B, T)
@@ -191,9 +190,9 @@ class LearnedTemporalEmbeddingPool(nn.Module):  # type: ignore[misc]
         self.pos_embedding = nn.Parameter(torch.randn(1, max_len, embed_dim) * 0.02)
         self.max_len = max_len
 
-    def forward(self, x: "torch.Tensor") -> "torch.Tensor":  # type: ignore[name-defined]
+    def forward(self, x: torch.Tensor) -> torch.Tensor:  # type: ignore[name-defined]
         B, T, D = x.shape
-        if T <= self.max_len:
+        if self.max_len >= T:
             pos = self.pos_embedding[:, :T, :]
         else:
             # Interpolate positional embeddings for longer sequences.
@@ -274,7 +273,7 @@ class ContrastiveRegressionHead(nn.Module):  # type: ignore[misc]
 
         # Temporal pooling (shared weights for gold and trainee).
         if pooling == "attention":
-            self.pool = AttentionTemporalPool(embed_dim)
+            self.pool: AttentionTemporalPool | LearnedTemporalEmbeddingPool | MeanTemporalPool = AttentionTemporalPool(embed_dim)
         elif pooling == "learned":
             self.pool = LearnedTemporalEmbeddingPool(embed_dim, max_len=max_temporal_len)
         else:
@@ -298,9 +297,9 @@ class ContrastiveRegressionHead(nn.Module):  # type: ignore[misc]
 
     def _extract_pairwise_features(
         self,
-        gold_pooled: "torch.Tensor",    # (B, D)
-        trainee_pooled: "torch.Tensor",  # (B, D)
-    ) -> "torch.Tensor":  # type: ignore[name-defined]
+        gold_pooled: torch.Tensor,    # (B, D)
+        trainee_pooled: torch.Tensor,  # (B, D)
+    ) -> torch.Tensor:  # type: ignore[name-defined]
         """Compute pairwise features from pooled representations.
 
         Returns (B, 3*D): [gold; gold - trainee; gold * trainee]
@@ -311,9 +310,9 @@ class ContrastiveRegressionHead(nn.Module):  # type: ignore[misc]
 
     def forward(
         self,
-        gold_emb: "torch.Tensor",    # (B, T_g, D) or (T_g, D)
-        trainee_emb: "torch.Tensor",  # (B, T_t, D) or (T_t, D)
-    ) -> tuple["torch.Tensor", "torch.Tensor"]:  # type: ignore[name-defined]
+        gold_emb: torch.Tensor,    # (B, T_g, D) or (T_g, D)
+        trainee_emb: torch.Tensor,  # (B, T_t, D) or (T_t, D)
+    ) -> tuple[torch.Tensor, torch.Tensor]:  # type: ignore[name-defined]
         """Forward pass producing a quality score and intermediate features.
 
         Parameters
@@ -394,10 +393,10 @@ class MarginRankingLoss(nn.Module):  # type: ignore[misc]
 
     def forward(
         self,
-        score_better: "torch.Tensor",    # (B,) predicted scores for higher-quality videos
-        score_worse: "torch.Tensor",      # (B,) predicted scores for lower-quality videos
-        true_diff: "torch.Tensor",        # (B,) |true_score_better - true_score_worse|
-    ) -> "torch.Tensor":  # type: ignore[name-defined]
+        score_better: torch.Tensor,    # (B,) predicted scores for higher-quality videos
+        score_worse: torch.Tensor,      # (B,) predicted scores for lower-quality videos
+        true_diff: torch.Tensor,        # (B,) |true_score_better - true_score_worse|
+    ) -> torch.Tensor:  # type: ignore[name-defined]
         """Compute calibrated margin ranking loss.
 
         Loss = max(0, margin - (score_better - score_worse))
@@ -451,9 +450,9 @@ class ContrastiveRegressionLoss(nn.Module):  # type: ignore[misc]
 
     def forward(
         self,
-        pred_scores: "torch.Tensor",   # (B,) predicted scores
-        true_scores: "torch.Tensor",    # (B,) ground-truth scores
-    ) -> tuple["torch.Tensor", dict[str, float]]:  # type: ignore[name-defined]
+        pred_scores: torch.Tensor,   # (B,) predicted scores
+        true_scores: torch.Tensor,    # (B,) ground-truth scores
+    ) -> tuple[torch.Tensor, dict[str, float]]:  # type: ignore[name-defined]
         """Compute combined contrastive regression loss.
 
         Pairs are formed from all unique (i, j) with i < j within the batch
@@ -582,7 +581,7 @@ class PairwiseDataset(Dataset):  # type: ignore[misc]
     def _truncate(self, emb: np.ndarray) -> np.ndarray:
         """Random sub-window truncation for sequences exceeding max_len."""
         T = emb.shape[0]
-        if T <= self._max_len:
+        if self._max_len >= T:
             return emb
         start = int(self._rng.integers(0, T - self._max_len))
         return emb[start : start + self._max_len]
@@ -812,7 +811,7 @@ class ContrastiveTrainer:
     def _run_epoch(
         self,
         dataset: PairwiseDataset,
-        optimizer: "optim.Optimizer",  # type: ignore[name-defined]
+        optimizer: optim.Optimizer,  # type: ignore[name-defined]
         batch_size: int,
         *,
         training: bool,
@@ -823,7 +822,7 @@ class ContrastiveTrainer:
             return 0.0, 0.0, 0.0
 
         # Custom collation: pad variable-length sequences.
-        def collate_fn(batch: list[dict]) -> dict[str, "torch.Tensor"]:
+        def collate_fn(batch: list[dict]) -> dict[str, torch.Tensor]:
             gold_list = [item["gold_emb"] for item in batch]
             trainee_list = [item["trainee_emb"] for item in batch]
             scores = torch.stack([item["score"] for item in batch])
@@ -903,7 +902,7 @@ class ContrastiveTrainer:
         logger.info("[ContrastiveTrainer] saved model to %s", path)
 
     @classmethod
-    def load(cls, path: str | Path, device: str = "auto") -> "ContrastiveTrainer":
+    def load(cls, path: str | Path, device: str = "auto") -> ContrastiveTrainer:
         """Load a previously saved ContrastiveTrainer from disk."""
         _require_torch("ContrastiveTrainer.load")
         path = Path(path)

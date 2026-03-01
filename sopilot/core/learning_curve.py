@@ -20,7 +20,6 @@ import warnings
 from dataclasses import dataclass, field
 from typing import Any
 
-
 # ---------------------------------------------------------------------------
 # Data structures (backward-compatible with v0.7 schema)
 # ---------------------------------------------------------------------------
@@ -183,7 +182,7 @@ def _bootstrap_tau_ci(
         except Exception:
             continue
         L, s0, tau = float(popt[0]), float(popt[1]), float(popt[2])
-        if L < pass_threshold or tau <= 0:
+        if pass_threshold > L or tau <= 0:
             continue
         # Solve L - (L-s0)*exp(-n_cert/tau) = threshold
         ratio = (L - pass_threshold) / max(L - s0, 1e-8)

@@ -26,8 +26,6 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-logger = logging.getLogger(__name__)
-
 from sopilot.analytics_repository import ScoreAnalyticsRepository
 from sopilot.migrations import run_migrations
 from sopilot.repositories import (
@@ -46,6 +44,8 @@ from sopilot.types import (
     VideoListRow,
     VideoRow,
 )
+
+logger = logging.getLogger(__name__)
 
 
 def utc_now_iso() -> str:

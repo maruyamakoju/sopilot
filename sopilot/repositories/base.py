@@ -11,8 +11,8 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from collections.abc import Callable, Iterator
-from contextlib import AbstractContextManager, contextmanager
+from collections.abc import Callable
+from contextlib import AbstractContextManager
 from typing import Any
 
 # Type alias for the connect callable shared across all repositories.

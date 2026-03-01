@@ -48,7 +48,7 @@ line-length = 120
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "UP", "B", "SIM"]
-ignore = ["E501"]
+ignore = ["E501", "SIM105", "SIM108", "B023", "B905"]
 
 [tool.ruff.lint.per-file-ignores]
 "sopilot/api/routes.py" = ["B008"]
@@ -61,6 +61,17 @@ warn_unused_configs = true
 disallow_untyped_defs = true
 check_untyped_defs = true
 ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+module = [
+    "sopilot.core.fine_tuning",
+    "sopilot.core.optimal_transport",
+    "sopilot.core.soft_dtw",
+    "sopilot.core.metrics",
+    "sopilot.core.uncertainty",
+]
+warn_return_any = false
+disallow_untyped_defs = false
 
 [tool.setuptools.packages.find]
 include = ["sopilot*"]

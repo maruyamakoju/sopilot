@@ -1,4 +1,4 @@
-# SOPilot Quickstart — v1.0.0
+# SOPilot Quickstart — v1.1.0
 
 On-prem SOP video scoring service. Evaluates trainee videos against gold-standard references
 using DTW-based alignment of video embeddings. Produces a 0–100 score and a
@@ -51,7 +51,7 @@ Expected health response:
     "disk":     {"status": "up", "free_gb": 120.0, "total_gb": 500.0, "writable": true},
     "embedder": {"status": "up", "name": "color-motion-v1", "failed_over": false}
   },
-  "version": "1.0.0"
+  "version": "1.1.0"
 }
 ```
 
@@ -353,7 +353,111 @@ Default thresholds: `pass_score = 60.0`, `retrain_score = 50.0`.
 
 ---
 
-## 5. Key API Calls
+## 5. v1.1 Features
+
+### 5.1 Multi-Task Deployment
+
+A single SOPilot instance supports multiple SOP task IDs simultaneously. Control this with
+the `SOPILOT_ENFORCE_PRIMARY_TASK` environment variable (`false` to enable multi-task mode).
+
+```bash
+# List all tasks with video and job counts
+curl "$BASE/tasks" -H "X-API-Key: $KEY"
+```
+
+```json
+{
+  "tasks": [
+    {
+      "task_id": "assembly_line_a",
+      "task_name": "組立ライン A",
+      "gold_count": 2,
+      "trainee_count": 18,
+      "video_count": 20,
+      "pass_score": 60.0,
+      "retrain_score": 50.0
+    },
+    {
+      "task_id": "quality_inspection_b",
+      "task_name": "品質検査 B",
+      "gold_count": 1,
+      "trainee_count": 6,
+      "video_count": 7,
+      "pass_score": 65.0,
+      "retrain_score": 55.0
+    }
+  ]
+}
+```
+
+Task-profile endpoints accept an optional `?task_id=` query parameter for per-task
+configuration:
+
+```bash
+# Get config for a specific task
+curl "$BASE/task-profile?task_id=assembly_line_a" -H "X-API-Key: $KEY"
+
+# Update thresholds for a specific task
+curl -X PUT "$BASE/task-profile?task_id=assembly_line_a" \
+  -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"pass_score": 65.0, "retrain_score": 55.0}'
+```
+
+The browser UI shows a task selector dropdown in the topbar. Switching tasks reloads all
+video lists, score history, and analytics for that task. The selection is persisted in
+`localStorage`.
+
+---
+
+### 5.2 Enhanced Operator Trend
+
+The operator trend endpoint now returns additional statistical fields:
+
+```bash
+curl "$BASE/analytics/operators/OPERATOR_HASH/trend" -H "X-API-Key: $KEY"
+```
+
+```json
+{
+  "operator_id_hash": "abc123",
+  "scores": [72.1, 75.4, 68.9, 80.2, 77.5],
+  "moving_avg": [null, null, null, null, 74.8],
+  "pass_rate": 0.80,
+  "volatility": 4.2,
+  "team_avg": 76.3,
+  "trend": "improving"
+}
+```
+
+| Field | Description |
+|---|---|
+| `moving_avg` | 5-job rolling average. `null` for early jobs where the window isn't full yet. |
+| `pass_rate` | Fraction of this operator's jobs that resulted in `pass`. |
+| `volatility` | Standard deviation of scores — higher = less consistent performance. |
+| `team_avg` | Mean score across all operators on the same task for baseline comparison. |
+
+The browser UI renders these as: orange moving-average line, dashed team-baseline,
+4-column KPI row (avg score / job count / trend / vs team).
+
+---
+
+### 5.3 Deep-Link Routing
+
+Score results are addressable via URL hash, enabling shareable links to specific results
+and deviations:
+
+| Hash | Content |
+|---|---|
+| `#score/{jobId}` | Opens and displays the score result for that job |
+| `#score/{jobId}/dev/{devIndex}` | Opens result and highlights the specified deviation |
+
+The "ジャンプ" button updates the URL to `#score/{jobId}/dev/{N}` when seeking to a
+deviation timecode, making it easy to share a direct link to the exact moment in question.
+
+---
+
+## 6. Key API Calls
 
 All authenticated endpoints require `X-API-Key: <value>`. Public paths (no auth required):
 `/health`, `/readiness`, `/status`, `/metrics`.
@@ -436,7 +540,7 @@ curl       "$BASE/admin/db-stats"   -H "X-API-Key: $KEY"
 
 ---
 
-## 6. Smoke Test
+## 7. Smoke Test
 
 After deploying, run the automated smoke test to verify the full pipeline end-to-end:
 
@@ -454,7 +558,7 @@ are present in responses.
 
 ---
 
-## 7. Configuration Reference
+## 8. Configuration Reference
 
 All variables are read from the process environment. Docker Compose forwards them from `.env`.
 Restart the container after any change.
@@ -508,7 +612,7 @@ Restart the container after any change.
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 ### Container not starting
 

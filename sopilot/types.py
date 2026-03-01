@@ -36,6 +36,7 @@ class VideoListRow(TypedDict):
     created_at: str
     clip_count: int
     original_filename: str | None
+    gold_version: int | None
 
 
 class ClipRow(TypedDict):

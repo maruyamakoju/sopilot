@@ -290,7 +290,7 @@ class VideoService:
                 "created_at": row["created_at"],
                 "clip_count": int(row["clip_count"]),
                 "original_filename": row.get("original_filename"),
-                "gold_version": int(row["gold_version"]) if row.get("gold_version") is not None else None,
+                "gold_version": int(row["gold_version"]) if row.get("gold_version") is not None else None,  # type: ignore[arg-type]
             }
             for row in rows
         ]

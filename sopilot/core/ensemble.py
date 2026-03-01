@@ -18,7 +18,6 @@ from typing import NamedTuple
 import numpy as np
 from scipy import stats as scipy_stats
 
-
 # ---------------------------------------------------------------------------
 # Constants
 # ---------------------------------------------------------------------------
@@ -475,7 +474,7 @@ def aggregate_ensemble(results: list[dict]) -> EnsembleResult:
     # In a single-trainee context each gold provides exactly one score, so the
     # Friedman matrix is (n_gold × 1 trainee) — degenerate.  We still attempt
     # it so callers with multi-trainee data can call friedman_test() directly.
-    friedman_stat, friedman_p = float("nan"), float("nan")
+    friedman_p = float("nan")
     if n >= 2:
         # Treat each gold score as a separate "block" with one observation;
         # Friedman reduces to Kendall's W test direction in this edge case.

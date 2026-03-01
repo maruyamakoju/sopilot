@@ -28,22 +28,25 @@ class TaskProfileService:
             deviation_policy=DEFAULT_DEVIATION_POLICY,
         )
 
-    def get_task_profile(self) -> dict[str, Any]:
-        profile = self.database.get_task_profile(self.settings.primary_task_id)
+    def get_task_profile(self, task_id: str | None = None) -> dict[str, Any]:
+        tid = task_id or self.settings.primary_task_id
+        profile = self.database.get_task_profile(tid)
         if profile is None:
-            raise NotFoundError("Primary task profile not found")
+            raise NotFoundError(f"Task profile for '{tid}' not found")
         return dict(profile)
 
     def update_task_profile(
         self,
         *,
+        task_id: str | None = None,
         task_name: str | None,
         pass_score: float | None,
         retrain_score: float | None,
         default_weights: dict[str, float] | None,
         deviation_policy: dict[str, str] | None,
     ) -> dict[str, Any]:
-        profile = self.get_task_profile()
+        tid = task_id or self.settings.primary_task_id
+        profile = self.get_task_profile(tid)
         new_name = task_name if task_name is not None else profile["task_name"]
         new_pass = pass_score if pass_score is not None else float(profile["pass_score"])
         new_retrain = retrain_score if retrain_score is not None else float(profile["retrain_score"])
@@ -53,14 +56,17 @@ class TaskProfileService:
         parsed_weights = ScoreWeights(**new_weights)
         new_policy = deviation_policy if deviation_policy is not None else dict(profile["deviation_policy"])
         self.database.upsert_task_profile(
-            task_id=self.settings.primary_task_id,
+            task_id=tid,
             task_name=new_name,
             pass_score=float(new_pass),
             retrain_score=float(new_retrain),
             default_weights=parsed_weights.model_dump(),
             deviation_policy=new_policy,
         )
-        return self.get_task_profile()
+        return self.get_task_profile(tid)
+
+    def list_tasks(self) -> list[dict[str, Any]]:
+        return self.database.list_tasks()
 
     def get_task_profile_for(self, task_id: str) -> dict[str, Any]:
         profile = self.database.get_task_profile(task_id)

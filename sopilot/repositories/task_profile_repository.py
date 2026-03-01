@@ -143,3 +143,24 @@ class TaskProfileRepository(RepositoryBase):
         with self._connect() as conn:
             cur = conn.execute("DELETE FROM sop_steps WHERE task_id = ?", (task_id,))
         return cur.rowcount
+
+    def list_tasks(self) -> list[dict]:
+        """Return all known task_ids with metadata (from task_profiles + videos)."""
+        with self._connect() as conn:
+            rows = conn.execute(
+                """
+                SELECT
+                    tp.task_id,
+                    tp.task_name,
+                    tp.pass_score,
+                    tp.retrain_score,
+                    COUNT(DISTINCT CASE WHEN v.is_gold = 1 THEN v.id END) AS gold_count,
+                    COUNT(DISTINCT CASE WHEN v.is_gold = 0 THEN v.id END) AS trainee_count,
+                    COUNT(DISTINCT v.id) AS video_count
+                FROM task_profiles tp
+                LEFT JOIN videos v ON v.task_id = tp.task_id
+                GROUP BY tp.task_id
+                ORDER BY tp.task_id
+                """,
+            ).fetchall()
+        return [dict(r) for r in rows]

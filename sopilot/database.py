@@ -526,6 +526,10 @@ class Database:
         """Delete all step definitions for a task. Returns count deleted."""
         return self._task_profiles.delete_sop_steps(task_id)
 
+    def list_tasks(self) -> list[dict]:
+        """Return all known task_ids with metadata."""
+        return self._task_profiles.list_tasks()
+
     # ==================================================================
     # Delegated Admin operations
     # ==================================================================

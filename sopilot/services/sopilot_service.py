@@ -61,12 +61,13 @@ class SOPilotService:
     def _ensure_primary_task_profile(self) -> None:
         self.task_profile_service._ensure_primary_task_profile()
 
-    def get_task_profile(self) -> dict:
-        return self.task_profile_service.get_task_profile()
+    def get_task_profile(self, task_id: str | None = None) -> dict:
+        return self.task_profile_service.get_task_profile(task_id)
 
     def update_task_profile(
         self,
         *,
+        task_id: str | None = None,
         task_name: str | None,
         pass_score: float | None,
         retrain_score: float | None,
@@ -74,12 +75,16 @@ class SOPilotService:
         deviation_policy: dict[str, str] | None,
     ) -> dict:
         return self.task_profile_service.update_task_profile(
+            task_id=task_id,
             task_name=task_name,
             pass_score=pass_score,
             retrain_score=retrain_score,
             default_weights=default_weights,
             deviation_policy=deviation_policy,
         )
+
+    def list_tasks(self) -> list[dict]:
+        return self.task_profile_service.list_tasks()
 
     def get_task_profile_for(self, task_id: str) -> dict:
         return self.task_profile_service.get_task_profile_for(task_id)

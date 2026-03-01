@@ -403,5 +403,173 @@ class EvidenceClipsTests(unittest.TestCase):
         self.assertNotIn("trainee_timecode", enriched[0])
 
 
+# ══════════════════════════════════════════════════════════════════════
+# v1.1 Features: Multi-task, Enhanced Trend Dashboard, Deep-link
+# ══════════════════════════════════════════════════════════════════════
+
+
+class MultiTaskListTests(unittest.TestCase):
+    """Verify GET /tasks returns task list with metadata."""
+
+    def _seed_task_profile(self, db: Database, task_id: str = "task-v1") -> None:
+        """Ensure a task profile exists for testing."""
+        from sopilot.constants import DEFAULT_DEVIATION_POLICY, DEFAULT_WEIGHTS
+
+        db.upsert_task_profile(
+            task_id=task_id,
+            task_name="Test Task",
+            pass_score=60.0,
+            retrain_score=50.0,
+            default_weights=DEFAULT_WEIGHTS,
+            deviation_policy=DEFAULT_DEVIATION_POLICY,
+        )
+
+    def test_list_tasks_returns_primary_task(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env = _Env(tmp)
+            self._seed_task_profile(env.db)
+            tasks = env.db.list_tasks()
+            self.assertTrue(len(tasks) >= 1)
+            task_ids = [t["task_id"] for t in tasks]
+            self.assertIn("task-v1", task_ids)
+
+    def test_list_tasks_video_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env = _Env(tmp)
+            self._seed_task_profile(env.db)
+            env.ingest("g1.avi", [(100, 100, 200)], is_gold=True)
+            env.ingest("t1.avi", [(100, 100, 200)], is_gold=False)
+            tasks = env.db.list_tasks()
+            task = next(t for t in tasks if t["task_id"] == "task-v1")
+            self.assertEqual(task["gold_count"], 1)
+            self.assertEqual(task["trainee_count"], 1)
+            self.assertEqual(task["video_count"], 2)
+
+    def test_list_tasks_http_endpoint(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            data_dir = Path(tmp) / "data"
+            data_dir.mkdir()
+            (data_dir / "raw").mkdir()
+            old_data = os.environ.get("SOPILOT_DATA_DIR")
+            old_backend = os.environ.get("SOPILOT_EMBEDDER_BACKEND")
+            os.environ["SOPILOT_DATA_DIR"] = str(data_dir)
+            os.environ["SOPILOT_EMBEDDER_BACKEND"] = "color-motion"
+            try:
+                app = create_app()
+                client = TestClient(app)
+                r = client.get("/tasks")
+                self.assertEqual(r.status_code, 200)
+                data = r.json()
+                self.assertIn("tasks", data)
+                self.assertIsInstance(data["tasks"], list)
+            finally:
+                if old_data is not None:
+                    os.environ["SOPILOT_DATA_DIR"] = old_data
+                else:
+                    os.environ.pop("SOPILOT_DATA_DIR", None)
+                if old_backend is not None:
+                    os.environ["SOPILOT_EMBEDDER_BACKEND"] = old_backend
+                else:
+                    os.environ.pop("SOPILOT_EMBEDDER_BACKEND", None)
+
+    def test_get_task_profile_with_task_id_param(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            data_dir = Path(tmp) / "data"
+            data_dir.mkdir()
+            (data_dir / "raw").mkdir()
+            old_data = os.environ.get("SOPILOT_DATA_DIR")
+            old_backend = os.environ.get("SOPILOT_EMBEDDER_BACKEND")
+            os.environ["SOPILOT_DATA_DIR"] = str(data_dir)
+            os.environ["SOPILOT_EMBEDDER_BACKEND"] = "color-motion"
+            try:
+                app = create_app()
+                client = TestClient(app)
+                # Default primary task should exist
+                r = client.get("/task-profile")
+                self.assertEqual(r.status_code, 200)
+                self.assertIn("task_id", r.json())
+            finally:
+                if old_data is not None:
+                    os.environ["SOPILOT_DATA_DIR"] = old_data
+                else:
+                    os.environ.pop("SOPILOT_DATA_DIR", None)
+                if old_backend is not None:
+                    os.environ["SOPILOT_EMBEDDER_BACKEND"] = old_backend
+                else:
+                    os.environ.pop("SOPILOT_EMBEDDER_BACKEND", None)
+
+
+class EnhancedOperatorTrendTests(unittest.TestCase):
+    """Verify enhanced operator trend with moving_avg, pass_rate, volatility, team_avg."""
+
+    def test_trend_includes_new_fields(self) -> None:
+        """Operator trend response includes moving_avg, pass_rate, volatility, team_avg."""
+        with tempfile.TemporaryDirectory() as tmp:
+            env = _Env(tmp)
+            # Create operator with several jobs
+            _insert_operator_jobs(env.db, "op-enhanced", num_jobs=6)
+            result = env.db.get_operator_trend("op-enhanced")
+            self.assertIn("moving_avg", result)
+            self.assertIn("pass_rate", result)
+            self.assertIn("volatility", result)
+            self.assertIn("team_avg", result)
+            # moving_avg should have same length as jobs
+            self.assertEqual(len(result["moving_avg"]), len(result["jobs"]))
+            # First few should be None (window warmup)
+            self.assertIsNone(result["moving_avg"][0])
+            # Last should be a number
+            self.assertIsNotNone(result["moving_avg"][-1])
+
+    def test_volatility_is_numeric(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env = _Env(tmp)
+            _insert_operator_jobs(env.db, "op-vol", num_jobs=5)
+            result = env.db.get_operator_trend("op-vol")
+            self.assertIsInstance(result["volatility"], float)
+
+    def test_team_avg_is_numeric(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            env = _Env(tmp)
+            _insert_operator_jobs(env.db, "op-team", num_jobs=3)
+            result = env.db.get_operator_trend("op-team")
+            self.assertIsNotNone(result["team_avg"])
+            self.assertIsInstance(result["team_avg"], float)
+
+
+def _insert_operator_jobs(db: Database, operator_id: str, num_jobs: int = 5) -> None:
+    """Insert synthetic score jobs for testing operator trend."""
+    import json
+
+    with db.connect() as conn:
+        # Create gold video
+        conn.execute(
+            "INSERT INTO videos (task_id, original_filename, is_gold, status, site_id, operator_id_hash, created_at, updated_at) "
+            "VALUES (?, ?, 1, 'ready', 'site-a', ?, datetime('now'), datetime('now'))",
+            ("pilot_task", "gold.avi", operator_id),
+        )
+        gold_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+        for i in range(num_jobs):
+            # Create trainee video
+            conn.execute(
+                "INSERT INTO videos (task_id, original_filename, is_gold, status, site_id, operator_id_hash, created_at, updated_at) "
+                "VALUES (?, ?, 0, 'ready', 'site-a', ?, datetime('now'), datetime('now'))",
+                ("pilot_task", f"trainee_{i}.avi", operator_id),
+            )
+            trainee_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+
+            score = 60.0 + i * 5  # improving scores
+            score_json = json.dumps({
+                "score": score,
+                "summary": {"decision": "pass" if score >= 60 else "fail"},
+                "deviations": [],
+            })
+            conn.execute(
+                "INSERT INTO score_jobs (gold_video_id, trainee_video_id, status, score_json, created_at, updated_at) "
+                "VALUES (?, ?, 'completed', ?, datetime('now', ?), datetime('now', ?))",
+                (gold_id, trainee_id, score_json, f"-{num_jobs - i} hours", f"-{num_jobs - i} hours"),
+            )
+
+
 if __name__ == "__main__":
     unittest.main()

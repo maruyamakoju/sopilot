@@ -12,14 +12,14 @@ a numeric score plus a pass/fail decision within seconds.
 
 | Property | Value |
 |---|---|
-| Version | v1.0.0 |
+| Version | v1.1.0 |
 | Evaluation dataset | 3,507 scored video pairs (96-hour production run) |
 | Accuracy | **99.40%** [99.14%, 99.63%] |
 | F1 Score | **99.62%** |
 | AUC-ROC | **99.69%** |
 | Decision threshold | 60.0 (LOSO-validated) |
 | Deployment | Docker Compose, single container, no GPU required |
-| Test coverage | 895 automated tests |
+| Test coverage | 902 automated tests |
 
 ---
 
@@ -149,7 +149,7 @@ sopilot/              # Application package
 scripts/
   smoke_test.py       # End-to-end deployment verification (9 checks)
   run_loso_evaluation.py
-tests/                # 895 automated tests
+tests/                # 902 automated tests
 artifacts/
   loso_eval_human_t60/  # LOSO evaluation results (N=3507)
   fp_analysis/          # False positive root-cause analysis

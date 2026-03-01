@@ -18,19 +18,34 @@ def build_analytics_router() -> APIRouter:
 
     # ── Configuration ──────────────────────────────────────────────
 
+    @router.get("/tasks", tags=["Configuration"], summary="List all tasks")
+    @service_errors
+    async def list_tasks(request: Request) -> dict:
+        service = get_service(request)
+        tasks = await run_in_threadpool(service.list_tasks)
+        return {"tasks": tasks}
+
     @router.get("/task-profile", response_model=TaskProfileResponse, tags=["Configuration"], summary="Get task profile")
     @service_errors
-    async def get_task_profile(request: Request) -> TaskProfileResponse:
+    async def get_task_profile(
+        request: Request,
+        task_id: str | None = Query(default=None),
+    ) -> TaskProfileResponse:
         service = get_service(request)
-        payload = await run_in_threadpool(service.get_task_profile)
+        payload = await run_in_threadpool(service.get_task_profile, task_id)
         return TaskProfileResponse(**payload)
 
     @router.put("/task-profile", response_model=TaskProfileResponse, tags=["Configuration"], summary="Update task profile")
     @service_errors
-    async def update_task_profile(request: Request, body: TaskProfileUpdateRequest) -> TaskProfileResponse:
+    async def update_task_profile(
+        request: Request,
+        body: TaskProfileUpdateRequest,
+        task_id: str | None = Query(default=None),
+    ) -> TaskProfileResponse:
         service = get_service(request)
         payload = await run_in_threadpool(
             service.update_task_profile,
+            task_id=task_id,
             task_name=body.task_name,
             pass_score=body.pass_score,
             retrain_score=body.retrain_score,

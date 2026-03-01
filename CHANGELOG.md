@@ -4,6 +4,29 @@ All notable changes to SOPilot are documented in this file.
 
 ---
 
+## [1.1.0] — 2026-03-02
+
+### Added
+- **Deep-link routing**: Score results are now addressable via URL hash
+  (`#score/{jobId}/dev/{devIndex}`). Opening a deep-link auto-loads the score
+  result and jumps to the specified deviation. The "ジャンプ" button updates
+  the URL for sharing.
+- **Enhanced operator trend dashboard**: Operator trend API returns `moving_avg`
+  (5-job window), `pass_rate`, `volatility`, and `team_avg` for team comparison.
+  Chart now renders moving average line (orange), team baseline (dashed blue),
+  and 4-column KPI row (avg score, count, trend, vs team).
+- **Multi-task deployment mode**: New `GET /tasks` endpoint lists all tasks with
+  video counts. `GET /task-profile` and `PUT /task-profile` accept `?task_id=`
+  query param for per-task configuration. UI task selector dropdown in topbar
+  with localStorage persistence and automatic data reload on switch.
+- 7 new automated tests for v1.1 features.
+
+### Changed
+- Version bump: 1.0.0 → 1.1.0.
+- Test count: 895 → 902.
+
+---
+
 ## [1.0.0] — 2026-03-02
 
 ### Added

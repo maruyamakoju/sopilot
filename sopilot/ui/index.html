@@ -598,7 +598,7 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
   <div class="logo">
     <div class="logo-icon">SP</div>
     <span class="logo-name">SOPilot</span>
-    <span class="logo-badge">v1.0</span>
+    <span class="logo-badge">v1.1</span>
   </div>
   <div class="top-sep"></div>
   <div id="profileChips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
@@ -606,6 +606,9 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
     準拠率 <strong id="complianceRate" style="color:var(--pass)">--</strong>
     <span id="complianceTrend" style="font-size:10px"></span>
   </div>
+  <select id="taskSelector" style="background:var(--glass);border:1px solid var(--glass-border);border-radius:999px;padding:5px 12px;color:var(--accent-b);font-size:12px;font-weight:700;outline:none;cursor:pointer;max-width:180px" title="タスク切替">
+    <option value="">読込中...</option>
+  </select>
   <div class="top-spacer"></div>
   <div class="status-dot" id="statusDot"></div>
   <span id="statusText">接続中...</span>
@@ -1134,7 +1137,9 @@ const S={
   videos:[],
   selGold:null,selTrainee:null,
   currentJob:null,pollTimer:null,
-  activeTab:"gold"
+  activeTab:"gold",
+  selectedTask:null,
+  tasks:[]
 };
 
 // =============================================
@@ -1734,6 +1739,8 @@ function decisionPill(d){
 
 function renderResult(j){
   const r=j.result;if(!r)return;
+  // Set deep-link hash
+  if(j.job_id)setHash(j.job_id);
   $("placeholder").style.display="none";
   $("reportBtn").disabled=false;
   $("pdfBtn").disabled=false;
@@ -1862,6 +1869,7 @@ function renderResult(j){
       逸脱なし -- 手順完全遵守</div>`;
   }else{
     devs.forEach((d,i)=>{
+      d._devIndex=i; // for deep-link
       const div=document.createElement("div");
       div.className="dev-item";
       div.style.animationDelay=`${0.3+i*0.08}s`;
@@ -2087,6 +2095,9 @@ function fmtIso(v){
 function jumpTo(dev){
   if(dev.gold_timecode?.[0]!=null&&goldVideo.style.display!=="none"){goldVideo.currentTime=dev.gold_timecode[0];goldVideo.play().catch(()=>{});}
   if(dev.trainee_timecode?.[0]!=null&&traineeVideo.style.display!=="none"){traineeVideo.currentTime=dev.trainee_timecode[0];traineeVideo.play().catch(()=>{});}
+  // Update URL hash for deep-link sharing
+  if(S.currentJob&&dev._devIndex!=null){setHash(S.currentJob.job_id,dev._devIndex);}
+  else if(S.currentJob){setHash(S.currentJob.job_id);}
 }
 
 // =============================================
@@ -2505,26 +2516,51 @@ function renderOperatorDetail(operatorId,trend,rec,proj){
   const slopeStr=slope!=null?(slope>0?`▲改善中 (+${slope.toFixed(2)}/件)`:slope<0?`▼低下中 (${slope.toFixed(2)}/件)`:"→安定"):"";
   const slopeCol=slope>0?"var(--pass)":slope<0?"var(--danger)":"var(--muted)";
 
-  let html=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
-    <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-size:22px;font-weight:900;color:var(--accent-b)">${trend.avg_score!=null?trend.avg_score.toFixed(1):"--"}</div>
+  const teamAvg=trend.team_avg;
+  const volat=trend.volatility;
+  const impPct=trend.improvement_pct;
+  const teamDiff=teamAvg!=null&&trend.avg_score!=null?trend.avg_score-teamAvg:null;
+  const teamDiffStr=teamDiff!=null?(teamDiff>=0?`+${teamDiff.toFixed(1)}`:`${teamDiff.toFixed(1)}`):"--";
+  const teamDiffCol=teamDiff!=null?(teamDiff>=0?"var(--pass)":"var(--danger)"):"var(--muted)";
+
+  let html=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+    <div style="background:var(--surface2);border-radius:10px;padding:10px;text-align:center">
+      <div style="font-size:20px;font-weight:900;color:var(--accent-b)">${trend.avg_score!=null?trend.avg_score.toFixed(1):"--"}</div>
       <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px">平均スコア</div>
     </div>
-    <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-size:22px;font-weight:900;color:var(--text)">${trend.job_count||0}</div>
+    <div style="background:var(--surface2);border-radius:10px;padding:10px;text-align:center">
+      <div style="font-size:20px;font-weight:900;color:var(--text)">${trend.job_count||0}</div>
       <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px">評価件数</div>
     </div>
-    <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
-      <div style="font-size:18px;font-weight:900;color:${slopeCol}">${slopeStr||"--"}</div>
+    <div style="background:var(--surface2);border-radius:10px;padding:10px;text-align:center">
+      <div style="font-size:16px;font-weight:900;color:${slopeCol}">${slopeStr||"--"}</div>
       <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px">トレンド</div>
     </div>
+    <div style="background:var(--surface2);border-radius:10px;padding:10px;text-align:center">
+      <div style="font-size:16px;font-weight:900;color:${teamDiffCol}">${teamDiffStr}</div>
+      <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px">vs チーム平均</div>
+    </div>
+  </div>`;
+
+  // Mini stats row
+  html+=`<div style="display:flex;gap:12px;margin-bottom:12px;font-size:11px;color:var(--muted)">
+    ${teamAvg!=null?`<span>チーム平均: <strong style="color:var(--ink)">${teamAvg.toFixed(1)}</strong></span>`:""}
+    ${volat!=null?`<span>変動性: <strong style="color:${volat>10?"var(--warn)":"var(--ink)}">${volat.toFixed(1)}</strong></span>`:""}
+    ${impPct!=null?`<span>成長率: <strong style="color:${impPct>=0?"var(--pass)":"var(--danger)"}">${impPct>=0?"+":""}${impPct.toFixed(1)}%</strong></span>`:""}
   </div>`;
 
   // Score trend chart
   if(jobs.length>=2){
     html+=`<div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px">
-      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">スコア推移</div>
-      <canvas id="operatorTrendCanvas" style="width:100%;height:120px;display:block"></canvas>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">スコア推移</div>
+        <div style="font-size:9px;color:var(--muted);display:flex;gap:10px;margin-left:auto">
+          <span><span style="display:inline-block;width:8px;height:2px;background:#0d9488;vertical-align:middle"></span> スコア</span>
+          <span><span style="display:inline-block;width:8px;height:2px;background:rgba(245,158,11,0.6);vertical-align:middle"></span> 移動平均</span>
+          ${teamAvg!=null?`<span><span style="display:inline-block;width:8px;height:2px;background:rgba(59,130,246,0.4);vertical-align:middle;border-top:1px dashed rgba(59,130,246,0.4)"></span> チーム平均</span>`:""}
+        </div>
+      </div>
+      <canvas id="operatorTrendCanvas" style="width:100%;height:140px;display:block"></canvas>
     </div>`;
   }
 
@@ -2593,11 +2629,11 @@ function renderOperatorDetail(operatorId,trend,rec,proj){
 
   // Draw trend chart after DOM update
   if(jobs.length>=2){
-    requestAnimationFrame(()=>drawOperatorTrendChart(jobs));
+    requestAnimationFrame(()=>drawOperatorTrendChart(jobs,trend.moving_avg||[],trend.team_avg));
   }
 }
 
-function drawOperatorTrendChart(jobs){
+function drawOperatorTrendChart(jobs,movingAvg,teamAvg){
   const canvas=$("operatorTrendCanvas");
   if(!canvas)return;
   const W=canvas.clientWidth,H=canvas.clientHeight;
@@ -2652,6 +2688,29 @@ function drawOperatorTrendChart(jobs){
     ctx.bezierCurveTo(cx,getY(pts[i-1].score||0),cx,getY(pts[i].score||0),getX(i),getY(pts[i].score||0));
   }
   ctx.strokeStyle="#0d9488";ctx.lineWidth=2;ctx.stroke();
+
+  // Team baseline (dashed blue line)
+  if(teamAvg!=null&&teamAvg>=minS&&teamAvg<=maxS){
+    const ty=getY(teamAvg);
+    ctx.setLineDash([4,4]);
+    ctx.strokeStyle="rgba(59,130,246,0.4)";ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(padL,ty);ctx.lineTo(W-padR,ty);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font="7px system-ui";ctx.fillStyle="rgba(59,130,246,0.5)";ctx.textAlign="left";
+    ctx.fillText("Team "+teamAvg.toFixed(0),W-padR-38,ty-3);
+  }
+
+  // Moving average line (orange)
+  if(movingAvg&&movingAvg.length===pts.length){
+    ctx.beginPath();
+    let started=false;
+    movingAvg.forEach((v,i)=>{
+      if(v==null)return;
+      const x=getX(i),y=getY(v);
+      if(!started){ctx.moveTo(x,y);started=true;}else ctx.lineTo(x,y);
+    });
+    ctx.strokeStyle="rgba(245,158,11,0.6)";ctx.lineWidth=1.5;ctx.stroke();
+  }
 
   // Dots
   pts.forEach((p,i)=>{
@@ -3540,15 +3599,90 @@ function selectHighlightedVideo(){
 }
 
 // =============================================
+// TASK SELECTOR (multi-task mode)
+// =============================================
+async function loadTasks(){
+  try{
+    const d=await api("/tasks");
+    S.tasks=d.tasks||[];
+    const sel=$("taskSelector");
+    sel.innerHTML="";
+    S.tasks.forEach(t=>{
+      const o=document.createElement("option");
+      o.value=t.task_id;
+      o.textContent=`${t.task_name||t.task_id} (${t.video_count||0})`;
+      sel.appendChild(o);
+    });
+    // Restore previous selection or default to first
+    const stored=localStorage.getItem("sopilot_task");
+    if(stored&&S.tasks.find(t=>t.task_id===stored)){
+      sel.value=stored;S.selectedTask=stored;
+    }else if(S.tasks.length){
+      sel.value=S.tasks[0].task_id;S.selectedTask=S.tasks[0].task_id;
+    }
+    sel.onchange=()=>{
+      S.selectedTask=sel.value;
+      localStorage.setItem("sopilot_task",sel.value);
+      reloadForTask();
+    };
+  }catch(e){/* tasks endpoint may not exist in older builds */}
+}
+async function reloadForTask(){
+  setStatus("タスク切替中...");
+  await loadProfile();
+  await loadVideos();
+  await loadTrend();
+  await loadComplianceKPI();
+  setStatus("Ready");
+}
+
+// =============================================
+// HASH ROUTING (deep-link)
+// =============================================
+function parseHash(){
+  const h=location.hash.replace(/^#/,"");
+  if(!h)return null;
+  // Format: score/{jobId} or score/{jobId}/dev/{devIndex}
+  const m=h.match(/^score\/(\d+)(?:\/dev\/(\d+))?$/);
+  if(!m)return null;
+  return{jobId:Number(m[1]),devIndex:m[2]!=null?Number(m[2]):null};
+}
+function setHash(jobId,devIndex){
+  const h=devIndex!=null?`#score/${jobId}/dev/${devIndex}`:`#score/${jobId}`;
+  if(location.hash!==h)history.replaceState(null,"",h);
+}
+async function handleHashRoute(){
+  const route=parseHash();
+  if(!route)return;
+  try{
+    const d=await api(`/score/${route.jobId}`);
+    if(d&&d.status==="completed"){
+      S.currentJob=d;
+      renderResult(d);
+      if(route.devIndex!=null){
+        const devs=d.deviations||[];
+        if(route.devIndex<devs.length){
+          setTimeout(()=>jumpTo(devs[route.devIndex]),300);
+        }
+      }
+    }
+  }catch(e){/* invalid job id — ignore */}
+}
+window.addEventListener("hashchange",handleHashRoute);
+
+// =============================================
 // INIT
 // =============================================
 async function init(){
   try{
+    await loadTasks();
     await loadProfile();
     await loadVideos();
     await loadTrend();
     await loadComplianceKPI();
     _origSetStatus("Ready");
+    // Handle deep-link on first load
+    await handleHashRoute();
     // Start periodic health check
     setInterval(healthPing,30000);
   }catch(e){_origSetStatus(e.message,true);}

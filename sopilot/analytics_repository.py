@@ -317,6 +317,50 @@ class ScoreAnalyticsRepository:
             round((last_score - first_score) / first_score * 100, 2) if first_score != 0 else None
         )
 
+        # Moving average (window=5)
+        window = min(5, n)
+        moving_avg: list[float | None] = []
+        for i in range(n):
+            if i < window - 1:
+                moving_avg.append(None)
+            else:
+                chunk = scores[i - window + 1 : i + 1]
+                moving_avg.append(round(sum(chunk) / len(chunk), 2))
+
+        # Rolling pass rate (window=5)
+        decisions = [j["decision"] for j in jobs]
+        pass_rate: list[float | None] = []
+        for i in range(n):
+            if i < window - 1:
+                pass_rate.append(None)
+            else:
+                chunk = decisions[i - window + 1 : i + 1]
+                pass_rate.append(round(sum(1 for d in chunk if d == "pass") / len(chunk), 4))
+
+        # Score volatility (stdev of last 5)
+        recent = scores[-window:]
+        if len(recent) >= 2:
+            rmean = sum(recent) / len(recent)
+            volatility = round((sum((s - rmean) ** 2 for s in recent) / (len(recent) - 1)) ** 0.5, 2)
+        else:
+            volatility = 0.0
+
+        # Team baseline (avg score across all operators for comparison)
+        team_avg: float | None = None
+        team_params: tuple[Any, ...] = (task_id,) if task_id else ()
+        with self._connect() as conn:
+            team_row = conn.execute(
+                f"""
+                SELECT AVG(json_extract(sj.score_json, '$.score')) AS team_avg
+                FROM score_jobs sj
+                LEFT JOIN videos gv ON gv.id = sj.gold_video_id
+                WHERE sj.status = 'completed' AND sj.score_json IS NOT NULL{task_filter}
+                """,
+                team_params,
+            ).fetchone()
+            if team_row and team_row["team_avg"] is not None:
+                team_avg = round(float(team_row["team_avg"]), 2)
+
         return {
             "operator_id": operator_id,
             "job_count": job_count,
@@ -324,6 +368,10 @@ class ScoreAnalyticsRepository:
             "latest_decision": latest_decision,
             "trend_slope": trend_slope,
             "improvement_pct": improvement_pct,
+            "moving_avg": moving_avg,
+            "pass_rate": pass_rate,
+            "volatility": volatility,
+            "team_avg": team_avg,
             "jobs": jobs,
         }
 

@@ -829,3 +829,38 @@ The panel provides:
 - Left sidebar: session list + session creation form (name, rules, fps, threshold)
 - Right area: session detail, upload button, violation event timeline with thumbnails
 - Status polling: updates automatically every 3 seconds while processing
+
+### 8.8 RTSPライブストリーム解析
+
+```bash
+# Start streaming from an RTSP camera
+curl -X POST "$BASE/vigil/sessions/1/stream" \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"rtsp_url": "rtsp://camera-host:554/live"}'
+
+# Check status while streaming (violation_count increases in real-time)
+curl "$BASE/vigil/sessions/1" -H "X-API-Key: $API_KEY"
+
+# Stop streaming
+curl -X DELETE "$BASE/vigil/sessions/1/stream" -H "X-API-Key: $API_KEY"
+```
+
+### 8.9 Qwen3-VL バックエンド設定
+
+```bash
+# Option A: Local GPU (requires CUDA + 10GB VRAM)
+VIGIL_VLM_BACKEND=qwen3
+VIGIL_QWEN3_MODEL_ID=prithivMLmods/Qwen3-VL-4B-Instruct-Unredacted-MAX
+
+# Option B: OpenAI-compatible API (no GPU needed)
+VIGIL_VLM_BACKEND=qwen3-api
+VIGIL_QWEN3_API_BASE=https://api.together.xyz/v1
+VIGIL_QWEN3_API_KEY=your-together-api-key
+VIGIL_QWEN3_MODEL=Qwen/Qwen3-VL-7B-Instruct
+
+# Qwen3-VL returns bounding boxes alongside violations
+# Frame thumbnails are auto-annotated with colored bbox overlays
+curl "$BASE/vigil/events/1/frame?annotate=true" \
+  -H "X-API-Key: $API_KEY" -o annotated_frame.jpg
+```

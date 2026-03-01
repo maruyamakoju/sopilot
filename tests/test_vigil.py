@@ -888,3 +888,167 @@ class TestFrameEndpointWithBboxes(unittest.TestCase):
         resp = self.client.get(f"/vigil/events/{event_id}/frame?annotate=false")
         self.assertEqual(resp.status_code, 200)
         self.assertIn("image/jpeg", resp.headers["content-type"])
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Webcam single-frame API tests
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _make_jpeg_bytes(width: int = 64, height: int = 64) -> bytes:
+    """Create a minimal synthetic JPEG as raw bytes."""
+    img = np.full((height, width, 3), (100, 150, 200), dtype=np.uint8)
+    ok, buf = cv2.imencode(".jpg", img)
+    assert ok
+    return buf.tobytes()
+
+
+class TestWebcamFrameAPI(unittest.TestCase):
+    """E2E HTTP tests for POST /vigil/sessions/{id}/webcam-frame."""
+
+    def setUp(self) -> None:
+        self._tmp = tempfile.TemporaryDirectory()
+        self.root = Path(self._tmp.name)
+        os.environ["SOPILOT_DATA_DIR"] = str(self.root / "data")
+        os.environ["SOPILOT_EMBEDDER_BACKEND"] = "color-motion"
+        os.environ["SOPILOT_PRIMARY_TASK_ID"] = "vigil-webcam-test"
+        os.environ["SOPILOT_RATE_LIMIT_RPM"] = "0"
+        self.app = create_app()
+        self.client = TestClient(self.app)
+
+    def tearDown(self) -> None:
+        self._tmp.cleanup()
+        for k in ("SOPILOT_DATA_DIR", "SOPILOT_EMBEDDER_BACKEND",
+                  "SOPILOT_PRIMARY_TASK_ID", "SOPILOT_RATE_LIMIT_RPM"):
+            os.environ.pop(k, None)
+
+    def _create_session(self, severity_threshold: str = "warning") -> int:
+        r = self.client.post("/vigil/sessions", json={
+            "name": "Webcamテスト",
+            "rules": ["ヘルメット未着用の作業者を検出", "安全ベルトなし高所作業"],
+            "sample_fps": 1.0,
+            "severity_threshold": severity_threshold,
+        })
+        self.assertEqual(r.status_code, 200, r.text)
+        return r.json()["session_id"]
+
+    def _post_frame(self, sid: int, jpeg: bytes, store: bool = True) -> dict:
+        r = self.client.post(
+            f"/vigil/sessions/{sid}/webcam-frame",
+            params={"store": "true" if store else "false"},
+            files={"file": ("frame.jpg", io.BytesIO(jpeg), "image/jpeg")},
+        )
+        return r
+
+    # ── No violation ──────────────────────────────────────────────────────────
+
+    def test_no_violation_returns_has_violation_false(self) -> None:
+        self.app.state.vigil_pipeline._vlm = _MockVLMNoViolation()
+        sid = self._create_session()
+        jpeg = _make_jpeg_bytes()
+        r = self._post_frame(sid, jpeg)
+        self.assertEqual(r.status_code, 200, r.text)
+        data = r.json()
+        self.assertFalse(data["has_violation"])
+        self.assertEqual(data["violations"], [])
+        self.assertIsNone(data["event_id"])
+        self.assertIsNone(data["frame_url"])
+
+    def test_no_violation_does_not_create_event(self) -> None:
+        self.app.state.vigil_pipeline._vlm = _MockVLMNoViolation()
+        sid = self._create_session()
+        self._post_frame(sid, _make_jpeg_bytes())
+        events = self.client.get(f"/vigil/sessions/{sid}/events").json()
+        self.assertEqual(events, [])
+
+    # ── With violation ────────────────────────────────────────────────────────
+
+    def test_violation_detected_has_violation_true(self) -> None:
+        self.app.state.vigil_pipeline._vlm = _MockVLMWithViolation()
+        sid = self._create_session()
+        r = self._post_frame(sid, _make_jpeg_bytes())
+        self.assertEqual(r.status_code, 200, r.text)
+        data = r.json()
+        self.assertTrue(data["has_violation"])
+        self.assertEqual(len(data["violations"]), 1)
+        self.assertEqual(data["violations"][0]["severity"], "warning")
+
+    def test_violation_creates_event_when_store_true(self) -> None:
+        self.app.state.vigil_pipeline._vlm = _MockVLMWithViolation()
+        sid = self._create_session()
+        r = self._post_frame(sid, _make_jpeg_bytes(), store=True)
+        data = r.json()
+        self.assertIsNotNone(data["event_id"])
+        self.assertIsNotNone(data["frame_url"])
+        # Event should appear in list
+        events = self.client.get(f"/vigil/sessions/{sid}/events").json()
+        self.assertEqual(len(events), 1)
+        self.assertEqual(events[0]["event_id"], data["event_id"])
+
+    def test_violation_no_event_when_store_false(self) -> None:
+        self.app.state.vigil_pipeline._vlm = _MockVLMWithViolation()
+        sid = self._create_session()
+        r = self._post_frame(sid, _make_jpeg_bytes(), store=False)
+        self.assertEqual(r.status_code, 200, r.text)
+        data = r.json()
+        self.assertTrue(data["has_violation"])
+        self.assertIsNone(data["event_id"])
+        self.assertIsNone(data["frame_url"])
+        # Nothing stored
+        events = self.client.get(f"/vigil/sessions/{sid}/events").json()
+        self.assertEqual(events, [])
+
+    def test_session_counters_incremented_on_violation(self) -> None:
+        self.app.state.vigil_pipeline._vlm = _MockVLMWithViolation()
+        sid = self._create_session()
+        self._post_frame(sid, _make_jpeg_bytes(), store=True)
+        sess = self.client.get(f"/vigil/sessions/{sid}").json()
+        self.assertEqual(sess["total_frames_analyzed"], 1)
+        self.assertEqual(sess["violation_count"], 1)
+
+    def test_multiple_frames_accumulate_events(self) -> None:
+        self.app.state.vigil_pipeline._vlm = _MockVLMWithViolation()
+        sid = self._create_session()
+        for _ in range(3):
+            self._post_frame(sid, _make_jpeg_bytes(), store=True)
+        events = self.client.get(f"/vigil/sessions/{sid}/events").json()
+        self.assertEqual(len(events), 3)
+        sess = self.client.get(f"/vigil/sessions/{sid}").json()
+        self.assertEqual(sess["total_frames_analyzed"], 3)
+        self.assertEqual(sess["violation_count"], 3)
+
+    # ── Severity filtering ────────────────────────────────────────────────────
+
+    def test_severity_filter_suppresses_info_below_warning_threshold(self) -> None:
+        """Info-level violations are not stored when threshold=warning."""
+        self.app.state.vigil_pipeline._vlm = _MockVLMInfoOnly()
+        sid = self._create_session(severity_threshold="warning")
+        r = self._post_frame(sid, _make_jpeg_bytes(), store=True)
+        data = r.json()
+        # Below threshold → treated as no violation
+        self.assertFalse(data["has_violation"])
+        self.assertIsNone(data["event_id"])
+
+    def test_severity_filter_passes_info_at_info_threshold(self) -> None:
+        """Info-level violations are reported when threshold=info."""
+        self.app.state.vigil_pipeline._vlm = _MockVLMInfoOnly()
+        sid = self._create_session(severity_threshold="info")
+        r = self._post_frame(sid, _make_jpeg_bytes(), store=True)
+        data = r.json()
+        self.assertTrue(data["has_violation"])
+        self.assertIsNotNone(data["event_id"])
+
+    # ── Error handling ────────────────────────────────────────────────────────
+
+    def test_webcam_frame_unknown_session_404(self) -> None:
+        r = self._post_frame(9999, _make_jpeg_bytes())
+        self.assertEqual(r.status_code, 404)
+
+    def test_response_fields_present(self) -> None:
+        self.app.state.vigil_pipeline._vlm = _MockVLMWithViolation()
+        sid = self._create_session()
+        r = self._post_frame(sid, _make_jpeg_bytes())
+        data = r.json()
+        for field in ("session_id", "has_violation", "violations", "event_id", "frame_url"):
+            self.assertIn(field, data, f"Missing field: {field}")
+        self.assertEqual(data["session_id"], sid)

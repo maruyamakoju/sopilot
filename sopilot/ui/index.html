@@ -625,6 +625,15 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
 #vigilLightbox.active{display:flex}
 #vigilLightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;
   box-shadow:0 8px 48px rgba(0,0,0,.7)}
+
+/* ── VIGIL SOURCE TABS ── */
+.vigil-source-tabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
+.vigil-source-tabs button{padding:5px 12px;font-size:11px;font-weight:600;border-radius:6px;
+  border:1px solid rgba(255,255,255,.1);background:rgba(30,41,59,.5);color:var(--muted);
+  cursor:pointer;transition:all .15s;outline:none}
+.vigil-source-tabs button:hover{background:rgba(13,148,136,.12);border-color:rgba(13,148,136,.3);color:var(--accent-b)}
+.vigil-source-tabs button.active{background:rgba(13,148,136,.18);border-color:rgba(13,148,136,.45);
+  color:var(--accent-b);box-shadow:0 0 0 1px rgba(13,148,136,.2)}
 </style>
 </head>
 <body>
@@ -1026,6 +1035,7 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
     <span class="analytics-title">VigilPilot — 監視カメラ違反検知</span>
     <div class="top-spacer"></div>
     <span id="vigilStatus" style="font-size:11px;color:var(--muted)"></span>
+    <button class="btn btn-secondary btn-sm" onclick="Notification.requestPermission().then(p=>toast(p==='granted'?'通知が有効になりました':'通知が許可されませんでした',p==='granted'?'success':'info'))" title="違反検出時にブラウザ通知を受け取る">🔔 通知を有効にする</button>
   </div>
   <div style="flex:1;display:grid;grid-template-columns:310px 1fr;overflow:hidden">
     <!-- Left: session list + create form -->
@@ -3992,6 +4002,10 @@ async function saveStepDefs(){
 let _vigilSessions=[];
 let _vigilActiveSession=null;
 let _vigilPollTimer=null;
+let currentVigilSession=null;
+let _vigilPrevViolationCount=0;
+let _webcamInterval=null;
+let _webcamStream=null;
 
 function openVigil(){
   $("vigilModal").classList.add("active");
@@ -4078,9 +4092,12 @@ async function deleteVigilSession(sessionId){
 
 async function selectVigilSession(sessionId){
   if(_vigilPollTimer){clearInterval(_vigilPollTimer);_vigilPollTimer=null;}
+  currentVigilSession=sessionId;
+  _vigilPrevViolationCount=0;
   try{
     const session=await api(`/vigil/sessions/${sessionId}`);
     _vigilActiveSession=session;
+    _vigilPrevViolationCount=session.violation_count||0;
     renderVigilSessionList();
     await renderVigilDetail(session);
     if(session.status==="processing"){
@@ -4089,9 +4106,53 @@ async function selectVigilSession(sessionId){
   }catch(e){toast(`セッション取得失敗: ${e.message}`,"error");}
 }
 
+function _vigilPlayBeep(freq,durationMs){
+  try{
+    const ctx=new(window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+    osc.frequency.value=freq;
+    gain.gain.setValueAtTime(0.3,ctx.currentTime);
+    osc.start();
+    setTimeout(()=>{osc.stop();ctx.close();},durationMs);
+  }catch(e){console.warn("_vigilPlayBeep",e);}
+}
+
 async function pollVigilSession(sessionId){
   try{
     const session=await api(`/vigil/sessions/${sessionId}`);
+    const newCount=(session.violation_count||0);
+    const prevCount=_vigilPrevViolationCount;
+
+    // Violation alert: new violations appeared
+    if(newCount>prevCount&&(session.status==="processing"||session.status==="completed")){
+      // Fetch latest events to inspect severity of new ones
+      try{
+        const events=await api(`/vigil/sessions/${sessionId}/events`);
+        const newEvents=events.slice(-(newCount-prevCount));
+        let hasCritical=false;
+        let hasWarning=false;
+        let criticalDesc="";
+        newEvents.forEach(ev=>{
+          ev.violations.forEach(v=>{
+            if(v.severity==="critical"){hasCritical=true;if(!criticalDesc)criticalDesc=v.description||"重大違反を検出";}
+            else if(v.severity==="warning"){hasWarning=true;}
+          });
+        });
+        if(hasCritical){
+          _vigilPlayBeep(880,300);
+          if(Notification.permission==="granted"){
+            new Notification("⚠️ 重大違反検出",{body:criticalDesc,icon:"/favicon.ico"});
+          }
+        }else if(hasWarning){
+          _vigilPlayBeep(440,150);
+        }
+      }catch(e){console.warn("pollVigilSession events",e);}
+    }
+    _vigilPrevViolationCount=newCount;
+
     _vigilActiveSession=session;
     renderVigilSessionList();
     await renderVigilDetail(session);
@@ -4112,10 +4173,37 @@ async function renderVigilDetail(session){
       <span style="font-size:11px;color:var(--muted)">${session.total_frames_analyzed}フレーム解析済 / ${session.violation_count}件の違反</span>
       <div class="top-spacer"></div>
       ${session.status==="idle"||session.status==="failed"?`
-        <label class="btn btn-primary btn-sm" style="cursor:pointer">
-          動画をアップロードして解析
-          <input type="file" accept="video/*" style="display:none" onchange="uploadVigilVideo(this,${session.session_id})"/>
-        </label>`:
+        <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+          <div class="vigil-source-tabs">
+            <button onclick="setVigilSource('file')" id="vsrcFile" class="active">動画ファイル</button>
+            <button onclick="setVigilSource('rtsp')" id="vsrcRtsp">RTSPストリーム</button>
+            <button onclick="setVigilSource('webcam')" id="vsrcWebcam">📷 Webカメラ</button>
+          </div>
+          <div id="vsrc-file">
+            <label class="btn btn-primary btn-sm" style="cursor:pointer">
+              動画をアップロードして解析
+              <input type="file" accept="video/*" style="display:none" onchange="uploadVigilVideo(this,${session.session_id})"/>
+            </label>
+          </div>
+          <div id="vsrc-rtsp" style="display:none">
+            <input id="vigilRtspUrl" type="text" placeholder="rtsp://camera-ip:554/stream"
+              style="background:rgba(30,41,59,.6);border:1px solid var(--glass-border);border-radius:8px;padding:5px 10px;color:var(--text);font-size:11px;outline:none;width:260px;margin-bottom:6px"/>
+            <div style="display:flex;gap:6px">
+              <button id="vigilRtspStartBtn" onclick="startVigilRTSP(currentVigilSession)" class="btn btn-sm btn-primary">解析開始</button>
+              <button id="vigilRtspStopBtn" onclick="stopVigilRTSP(currentVigilSession)" class="btn btn-sm btn-error" style="display:none">停止</button>
+            </div>
+            <div id="vigilRtspStatus" style="font-size:11px;color:var(--warn);margin-top:4px"></div>
+          </div>
+          <div id="vsrc-webcam" style="display:none">
+            <video id="vigilWebcamVideo" autoplay muted
+              style="width:100%;max-height:200px;border-radius:8px;display:none;border:1px solid rgba(255,255,255,.1);margin-bottom:6px"></video>
+            <canvas id="vigilWebcamCanvas" style="display:none"></canvas>
+            <div style="display:flex;gap:6px">
+              <button id="vigilWebcamStartBtn" onclick="startVigilWebcam(currentVigilSession)" class="btn btn-sm btn-primary">カメラ起動</button>
+              <button id="vigilWebcamStopBtn" onclick="stopVigilWebcam()" class="btn btn-sm btn-error" style="display:none">停止</button>
+            </div>
+          </div>
+        </div>`:
       session.status==="processing"?`
         <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--warn)">
           <div style="width:12px;height:12px;border:2px solid rgba(245,158,11,.2);border-top-color:var(--warn);border-radius:50%;animation:spin .7s linear infinite"></div>
@@ -4193,6 +4281,134 @@ async function uploadVigilVideo(input,sessionId){
     await selectVigilSession(sessionId);
     await loadVigilSessions();
   }catch(e){toast(`エラー: ${e.message}`,"error");}
+}
+
+function setVigilSource(mode){
+  const modes=["file","rtsp","webcam"];
+  modes.forEach(m=>{
+    const panel=document.getElementById(`vsrc-${m}`);
+    const btn=document.getElementById(`vsrc${m.charAt(0).toUpperCase()+m.slice(1)}`);
+    if(panel)panel.style.display=m===mode?"block":"none";
+    if(btn){btn.classList.toggle("active",m===mode);}
+  });
+  // Stop webcam if switching away from it
+  if(mode!=="webcam"&&(_webcamInterval||_webcamStream)){stopVigilWebcam();}
+}
+
+async function startVigilRTSP(sessionId){
+  if(!sessionId){toast("セッションを選択してください","info");return;}
+  const urlEl=document.getElementById("vigilRtspUrl");
+  const url=urlEl?urlEl.value.trim():"";
+  if(!url||!url.startsWith("rtsp://")){toast("rtsp:// で始まるURLを入力してください","info");return;}
+  try{
+    await api(`/vigil/sessions/${sessionId}/stream`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({rtsp_url:url})
+    });
+    // Update button states
+    const startBtn=document.getElementById("vigilRtspStartBtn");
+    const stopBtn=document.getElementById("vigilRtspStopBtn");
+    const statusEl=document.getElementById("vigilRtspStatus");
+    if(startBtn)startBtn.style.display="none";
+    if(stopBtn)stopBtn.style.display="";
+    if(statusEl)statusEl.textContent="ストリーム解析中...";
+    toast("RTSPストリーム解析を開始しました","success");
+    // Start polling
+    if(_vigilPollTimer)clearInterval(_vigilPollTimer);
+    _vigilPollTimer=setInterval(()=>pollVigilSession(sessionId),3000);
+  }catch(e){toast(`RTSP開始失敗: ${e.message}`,"error");}
+}
+
+async function stopVigilRTSP(sessionId){
+  if(!sessionId)return;
+  try{
+    await api(`/vigil/sessions/${sessionId}/stream`,{method:"DELETE"});
+    const startBtn=document.getElementById("vigilRtspStartBtn");
+    const stopBtn=document.getElementById("vigilRtspStopBtn");
+    const statusEl=document.getElementById("vigilRtspStatus");
+    if(startBtn)startBtn.style.display="";
+    if(stopBtn)stopBtn.style.display="none";
+    if(statusEl)statusEl.textContent="";
+    if(_vigilPollTimer){clearInterval(_vigilPollTimer);_vigilPollTimer=null;}
+    toast("ストリームを停止しました","info");
+  }catch(e){toast(`RTSP停止失敗: ${e.message}`,"error");}
+}
+
+async function startVigilWebcam(sessionId){
+  if(!sessionId){toast("セッションを選択してください","info");return;}
+  if(_webcamStream){stopVigilWebcam();}
+  try{
+    _webcamStream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480}});
+  }catch(e){toast(`カメラへのアクセスに失敗しました: ${e.message}`,"error");return;}
+
+  const videoEl=document.getElementById("vigilWebcamVideo");
+  const canvasEl=document.getElementById("vigilWebcamCanvas");
+  const startBtn=document.getElementById("vigilWebcamStartBtn");
+  const stopBtn=document.getElementById("vigilWebcamStopBtn");
+
+  if(videoEl){
+    videoEl.srcObject=_webcamStream;
+    videoEl.style.display="block";
+  }
+  if(startBtn)startBtn.style.display="none";
+  if(stopBtn)stopBtn.style.display="";
+
+  // Determine interval from session sample_fps
+  const fps=(_vigilActiveSession&&_vigilActiveSession.sample_fps)||1.0;
+  const intervalMs=Math.max(500,Math.round(1000/fps));
+
+  toast("カメラ解析を開始しました","success");
+
+  _webcamInterval=setInterval(async()=>{
+    if(!videoEl||videoEl.readyState<2)return;
+    if(!canvasEl)return;
+    canvasEl.width=videoEl.videoWidth||640;
+    canvasEl.height=videoEl.videoHeight||480;
+    const ctx2d=canvasEl.getContext("2d");
+    ctx2d.drawImage(videoEl,0,0,canvasEl.width,canvasEl.height);
+    canvasEl.toBlob(async(blob)=>{
+      if(!blob)return;
+      const fd=new FormData();
+      fd.append("file",blob,"frame.jpg");
+      try{
+        const r=await fetch(`/vigil/sessions/${sessionId}/webcam-frame`,{method:"POST",body:fd});
+        if(!r.ok)return;
+        const result=await r.json().catch(()=>null);
+        if(result&&result.violations&&result.violations.length){
+          // Trigger severity alerts
+          const hasCritical=result.violations.some(v=>v.severity==="critical");
+          const hasWarning=result.violations.some(v=>v.severity==="warning");
+          if(hasCritical){
+            _vigilPlayBeep(880,300);
+            const desc=result.violations.find(v=>v.severity==="critical")?.description||"重大違反を検出";
+            if(Notification.permission==="granted"){
+              new Notification("⚠️ 重大違反検出",{body:desc,icon:"/favicon.ico"});
+            }
+          }else if(hasWarning){
+            _vigilPlayBeep(440,150);
+          }
+          // Refresh detail to show new violations
+          const session=await api(`/vigil/sessions/${sessionId}`).catch(()=>null);
+          if(session){_vigilActiveSession=session;await renderVigilDetail(session);}
+        }
+      }catch(e){console.warn("webcam-frame upload",e);}
+    },"image/jpeg",0.85);
+  },intervalMs);
+}
+
+async function stopVigilWebcam(){
+  if(_webcamInterval){clearInterval(_webcamInterval);_webcamInterval=null;}
+  if(_webcamStream){
+    _webcamStream.getTracks().forEach(t=>t.stop());
+    _webcamStream=null;
+  }
+  const videoEl=document.getElementById("vigilWebcamVideo");
+  if(videoEl){videoEl.srcObject=null;videoEl.style.display="none";}
+  const startBtn=document.getElementById("vigilWebcamStartBtn");
+  const stopBtn=document.getElementById("vigilWebcamStopBtn");
+  if(startBtn)startBtn.style.display="";
+  if(stopBtn)stopBtn.style.display="none";
 }
 
 function openVigilLightbox(url){

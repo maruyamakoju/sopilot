@@ -286,6 +286,9 @@ open score_report.pdf
 > - Text-rule violation detection on any video at configurable fps (0.1–5.0)
 > - Claude Vision VLM backend (pluggable) — no gold video required
 > - Severity filtering (info / warning / critical), per-frame evidence thumbnails
+> - RTSPライブストリーミング (POST/DELETE /vigil/sessions/{id}/stream)
+> - Qwen3-VL multi-backend (claude / qwen3 / qwen3-api), bbox overlay
+> - UIWebカメラモード, 違反アラート音（Web Audio API）, ブラウザ通知
 >
 > **Production hardening (all versions):**
 > 951 automated tests, FP=0, 99.40% accuracy, Docker single-container, no GPU required."
@@ -371,6 +374,42 @@ curl "http://localhost:8000/vigil/sessions/1/report" -H "X-API-Key: demo-key"
 
 > "Zero new hardware required. The rules are plain Japanese text —
 > a facility manager can configure them without writing a single line of code."
+
+---
+
+### 12.4 RTSPライブストリーム解析
+
+```bash
+# Start live RTSP stream analysis
+curl -X POST "http://localhost:8000/vigil/sessions/1/stream" \
+  -H "X-API-Key: demo-key" \
+  -H "Content-Type: application/json" \
+  -d '{"rtsp_url": "rtsp://192.168.1.100:554/stream"}'
+# → {"session_id": 1, "status": "processing", "message": "RTSPストリーム解析を開始しました..."}
+
+# Stop streaming
+curl -X DELETE "http://localhost:8000/vigil/sessions/1/stream" -H "X-API-Key: demo-key"
+```
+
+> "RTSPをサポートするカメラからリアルタイムに違反を検出。停止するまで連続解析。UIの「RTSPストリーム」タブからもURLを入力して操作できます。"
+
+---
+
+### 12.5 Qwen3-VL バックエンド（バウンディングボックス付き）
+
+```bash
+# Switch to Qwen3-VL backend (requires GPU or OpenAI-compatible API)
+# In .env: VIGIL_VLM_BACKEND=qwen3-api
+#          VIGIL_QWEN3_API_BASE=https://api.together.xyz/v1
+#          VIGIL_QWEN3_API_KEY=your-key
+
+# Frame endpoint returns bbox-annotated JPEG when Qwen3-VL detected violations
+curl "http://localhost:8000/vigil/events/1/frame?annotate=true" \
+  -H "X-API-Key: demo-key" -o frame_annotated.jpg
+open frame_annotated.jpg
+```
+
+> "Qwen3-VLバックエンドは違反箇所をバウンディングボックスで示します。フレームサムネイルには色付きボックスとラベルが描画されます（critical=赤、warning=オレンジ）。GPUなしでも Together.ai / Hyperbolic 等のAPIで利用可能。"
 
 ---
 

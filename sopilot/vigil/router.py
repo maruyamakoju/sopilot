@@ -21,6 +21,7 @@ from sopilot.vigil.schemas import (
     StreamRequest,
     ViolationDetail,
     ViolationEvent,
+    WebcamFrameResult,
 )
 from sopilot.vigil.vlm import build_vlm_client
 
@@ -302,6 +303,107 @@ def build_vigil_router() -> APIRouter:
             "stopped": True,
             "message": "ストリーム停止シグナルを送信しました。",
         }
+
+    # ── Webcam single-frame (synchronous) ─────────────────────────────────
+
+    @router.post(
+        "/sessions/{session_id}/webcam-frame",
+        summary="Webカメラフレーム即時解析",
+        response_model=WebcamFrameResult,
+    )
+    async def analyze_webcam_frame(
+        session_id: int,
+        file: UploadFile,
+        request: Request,
+        store: bool = Query(default=True, description="違反が検出された場合イベントとして保存する"),
+    ) -> WebcamFrameResult:
+        """Synchronously analyze a single JPEG frame (e.g. from a webcam).
+
+        The VLM runs in the request thread and the result is returned immediately.
+        If violations are detected and ``store=true``, the frame is saved as a
+        violation event associated with this session.
+        """
+        import tempfile
+        import time
+
+        repo = _get_repo(request)
+        pipeline = _get_pipeline(request)
+
+        row = await run_in_threadpool(repo.get_session, session_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        # Write upload to a temp file
+        content = await file.read()
+        suffix = ".jpg"
+        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as tmp:
+            tmp.write(content)
+            frame_path = Path(tmp.name)
+
+        try:
+            rules = row["rules"]
+            severity_threshold = row["severity_threshold"]
+
+            # Run VLM synchronously
+            vlm_result = await run_in_threadpool(pipeline._vlm.analyze_frame, frame_path, rules)
+
+            # Filter by severity threshold
+            sev_order = {"info": 0, "warning": 1, "critical": 2}
+            threshold_level = sev_order.get(severity_threshold, 0)
+            violations_above = [
+                v for v in vlm_result.violations
+                if sev_order.get(v.get("severity", "warning"), 1) >= threshold_level
+            ]
+
+            event_id: int | None = None
+            frame_url: str | None = None
+
+            # Store event if violations found and store=True
+            if store and violations_above:
+                settings = request.app.state.settings
+                frame_dir = Path(settings.data_dir) / "vigil_frames" / f"session_{session_id}"
+                frame_dir.mkdir(parents=True, exist_ok=True)
+                ts = time.time()
+                saved_path = frame_dir / f"webcam_{ts:.3f}.jpg"
+                saved_path.write_bytes(content)
+
+                # Get current frame count for frame_number
+                cur_row = await run_in_threadpool(repo.get_session, session_id)
+                frame_no = (cur_row or {}).get("total_frames_analyzed", 0)
+
+                event_id = await run_in_threadpool(
+                    repo.create_event,
+                    session_id,
+                    ts,
+                    frame_no,
+                    violations_above,
+                    str(saved_path),
+                )
+                # Update session counters
+                await run_in_threadpool(
+                    repo.update_session_status,
+                    session_id,
+                    row["status"],
+                    None,  # video_filename unchanged
+                    frame_no + 1,
+                    (cur_row or {}).get("violation_count", 0) + len(violations_above),
+                )
+                frame_url = f"/vigil/events/{event_id}/frame"
+
+            violation_details = [
+                ViolationDetail(**{k: v for k, v in viol.items() if k in ViolationDetail.model_fields})
+                for viol in violations_above
+            ]
+
+            return WebcamFrameResult(
+                session_id=session_id,
+                has_violation=bool(violations_above),
+                violations=violation_details,
+                event_id=event_id,
+                frame_url=frame_url,
+            )
+        finally:
+            frame_path.unlink(missing_ok=True)
 
     # ── Events ────────────────────────────────────────────────────────────
 

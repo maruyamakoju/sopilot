@@ -95,6 +95,16 @@ class SessionReport(BaseModel):
     created_at: str
 
 
+class WebcamFrameResult(BaseModel):
+    """Response from POST /vigil/sessions/{id}/webcam-frame (synchronous single-frame analysis)."""
+
+    session_id: int
+    has_violation: bool
+    violations: list[ViolationDetail]
+    event_id: int | None = None   # set when violations were stored as an event
+    frame_url: str | None = None  # URL to retrieve the annotated frame
+
+
 class VLMResult(BaseModel):
     """Parsed response from VLM for a single frame."""
 

@@ -1,0 +1,268 @@
+{
+  "score": 68.33,
+  "metrics": {
+    "miss_steps": 1,
+    "swap_steps": 0,
+    "deviation_steps": 2,
+    "over_time_ratio": 0.0,
+    "dtw_normalized_cost": 0.329825
+  },
+  "boundaries": {
+    "gold": [
+      34,
+      40
+    ],
+    "trainee": [
+      5
+    ]
+  },
+  "alignment": {
+    "path": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        4,
+        0
+      ],
+      [
+        5,
+        0
+      ],
+      [
+        6,
+        0
+      ],
+      [
+        7,
+        0
+      ],
+      [
+        8,
+        0
+      ],
+      [
+        9,
+        0
+      ],
+      [
+        10,
+        0
+      ],
+      [
+        11,
+        0
+      ],
+      [
+        12,
+        0
+      ],
+      [
+        13,
+        0
+      ],
+      [
+        14,
+        0
+      ],
+      [
+        15,
+        0
+      ],
+      [
+        16,
+        0
+      ],
+      [
+        17,
+        0
+      ],
+      [
+        18,
+        0
+      ],
+      [
+        19,
+        0
+      ],
+      [
+        20,
+        0
+      ],
+      [
+        21,
+        0
+      ],
+      [
+        22,
+        0
+      ],
+      [
+        23,
+        0
+      ],
+      [
+        24,
+        0
+      ],
+      [
+        25,
+        0
+      ],
+      [
+        26,
+        0
+      ],
+      [
+        27,
+        0
+      ],
+      [
+        28,
+        0
+      ],
+      [
+        29,
+        0
+      ],
+      [
+        30,
+        0
+      ],
+      [
+        31,
+        0
+      ],
+      [
+        32,
+        0
+      ],
+      [
+        33,
+        0
+      ],
+      [
+        34,
+        0
+      ],
+      [
+        35,
+        0
+      ],
+      [
+        36,
+        1
+      ],
+      [
+        37,
+        2
+      ],
+      [
+        38,
+        3
+      ],
+      [
+        39,
+        4
+      ],
+      [
+        40,
+        5
+      ]
+    ],
+    "normalized_cost": 0.329825
+  },
+  "deviations": [
+    {
+      "type": "missing_step",
+      "step_index": 0,
+      "gold_clip_range": [
+        0,
+        33
+      ],
+      "trainee_clip_range": [
+        0,
+        0
+      ],
+      "detail": "Aligned span is overly collapsed; step likely skipped or incomplete.",
+      "unique_positions": 1,
+      "gold_span_len": 34,
+      "expected_span_len": 5,
+      "mean_distance": 0.239148,
+      "severity": "critical"
+    },
+    {
+      "type": "step_deviation",
+      "step_index": 1,
+      "gold_clip_range": [
+        34,
+        39
+      ],
+      "trainee_clip_range": [
+        0,
+        4
+      ],
+      "distance": 0.6770293017228445,
+      "severity": "quality"
+    },
+    {
+      "type": "step_deviation",
+      "step_index": 2,
+      "gold_clip_range": [
+        40,
+        40
+      ],
+      "trainee_clip_range": [
+        5,
+        5
+      ],
+      "distance": 1.3295966386795044,
+      "severity": "quality"
+    }
+  ],
+  "gold_video_id": 10,
+  "trainee_video_id": -1,
+  "task_id": "filter_change",
+  "summary": {
+    "decision": "fail",
+    "decision_reason": "Critical deviation detected",
+    "severity_counts": {
+      "critical": 1,
+      "quality": 2,
+      "efficiency": 0
+    },
+    "pass_score": 90.0,
+    "retrain_score": 80.0
+  },
+  "_meta": {
+    "synthesized": true,
+    "source_video": "C:\\Users\\07013\\Desktop\\0208word\\gold_respirator.mp4",
+    "gold_clips": 41,
+    "trainee_clips": 6,
+    "n_correct": 1,
+    "sample_fps": 2,
+    "clip_seconds": 15,
+    "embedder": "color-motion-v1",
+    "db": "C:\\Users\\07013\\Desktop\\0208word\\data_tesda_cm\\sopilot.db",
+    "gold_boundaries": [
+      34,
+      40
+    ],
+    "trainee_boundaries": [
+      5
+    ]
+  }
+}

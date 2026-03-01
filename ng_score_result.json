@@ -1,0 +1,148 @@
+{
+  "score": 55.0,
+  "metrics": {
+    "miss_steps": 2,
+    "swap_steps": 0,
+    "deviation_steps": 0,
+    "over_time_ratio": 0.0,
+    "dtw_normalized_cost": 0.339949
+  },
+  "boundaries": {
+    "gold": [
+      4
+    ],
+    "trainee": [
+      3
+    ]
+  },
+  "alignment": {
+    "path": [
+      [
+        0,
+        0
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        4,
+        0
+      ],
+      [
+        5,
+        0
+      ],
+      [
+        6,
+        0
+      ],
+      [
+        7,
+        0
+      ],
+      [
+        8,
+        0
+      ],
+      [
+        9,
+        0
+      ],
+      [
+        10,
+        0
+      ],
+      [
+        11,
+        0
+      ],
+      [
+        12,
+        1
+      ],
+      [
+        13,
+        2
+      ],
+      [
+        14,
+        3
+      ]
+    ],
+    "normalized_cost": 0.339949
+  },
+  "deviations": [
+    {
+      "type": "missing_step",
+      "step_index": 0,
+      "gold_clip_range": [
+        0,
+        3
+      ],
+      "trainee_clip_range": [
+        0,
+        0
+      ],
+      "detail": "Aligned span is overly collapsed; step likely skipped or incomplete.",
+      "unique_positions": 1,
+      "gold_span_len": 4,
+      "expected_span_len": 1,
+      "mean_distance": 0.237223,
+      "severity": "critical"
+    },
+    {
+      "type": "missing_step",
+      "step_index": 1,
+      "gold_clip_range": [
+        4,
+        14
+      ],
+      "trainee_clip_range": [
+        0,
+        3
+      ],
+      "detail": "Aligned span is overly collapsed; step likely skipped or incomplete.",
+      "unique_positions": 4,
+      "gold_span_len": 11,
+      "expected_span_len": 3,
+      "mean_distance": 0.377304,
+      "severity": "critical"
+    }
+  ],
+  "gold_video_id": 2,
+  "trainee_video_id": -1,
+  "task_id": "filter_change",
+  "summary": {
+    "decision": "fail",
+    "decision_reason": "Critical deviation detected",
+    "severity_counts": {
+      "critical": 2,
+      "quality": 0,
+      "efficiency": 0
+    },
+    "pass_score": 90.0,
+    "retrain_score": 80.0
+  },
+  "_meta": {
+    "synthesized": true,
+    "gold_clips": 15,
+    "trainee_clips": 4,
+    "n_correct": 1,
+    "db": "C:\\Users\\07013\\Desktop\\0208word\\data_tesda_cm\\sopilot.db",
+    "gold_boundaries": [
+      4
+    ],
+    "trainee_boundaries": [
+      3
+    ]
+  }
+}

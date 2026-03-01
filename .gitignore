@@ -1,0 +1,59 @@
+__pycache__/
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+
+# Data (mounted as volumes in Docker)
+data/
+data*/
+backups/
+
+# Video files (too large for git)
+*.mp4
+*.webm
+*.avi
+*.mov
+poc_videos/
+poc_videos_*/
+
+# Secrets
+.env
+.env.*
+*.pem
+*.key
+*.crt
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Claude Code session data
+.claude/
+
+# Temporary bundles
+_tmp_*/
+
+# Hypothesis (property-based testing cache)
+.hypothesis/
+
+# One-off result files
+NUL
+
+# Artifacts (evaluation outputs — too large for git)
+artifacts/

@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SOPilot 技術提案書 — SOP遵守の動画AI自動評価システム</title>
+<style>
+/* ── Reset & base ──────────────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0f1a;
+  --bg2:#111827;
+  --bg3:#1a2235;
+  --border:rgba(255,255,255,.08);
+  --text:#f0f4ff;
+  --muted:#8b9cbf;
+  --accent:#0d9488;
+  --accent-b:#06b6d4;
+  --accent-warm:#f59e0b;
+  --pass:#10b981;
+  --fail:#ef4444;
+  --warn:#f59e0b;
+  --r:12px;
+  --font:'Inter','Helvetica Neue',sans-serif;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:var(--font);font-size:15px;line-height:1.7;-webkit-font-smoothing:antialiased}
+a{color:inherit;text-decoration:none}
+h2{font-size:clamp(22px,3vw,32px);font-weight:700;letter-spacing:-.02em}
+h3{font-size:18px;font-weight:600}
+p{color:var(--muted);line-height:1.8}
+strong{color:var(--text)}
+
+/* ── Nav ───────────────────────────────────────────────────────── */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:100;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 40px;
+  background:rgba(10,15,26,.9);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+}
+.nav-logo{font-weight:800;font-size:18px;background:linear-gradient(90deg,var(--accent),var(--accent-b));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.nav-links{display:flex;gap:28px;font-size:14px;color:var(--muted)}
+.nav-links a:hover{color:var(--text)}
+.nav-cta{background:var(--accent);color:#fff;padding:8px 20px;border-radius:8px;font-size:13px;font-weight:600;transition:opacity .2s}
+.nav-cta:hover{opacity:.85}
+
+/* ── Sections ──────────────────────────────────────────────────── */
+.section{max-width:960px;margin:0 auto;padding:80px 24px}
+.section-tag{font-size:12px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px}
+.section-lead{color:var(--muted);font-size:16px;margin-top:14px;max-width:640px;line-height:1.8}
+
+/* ── Hero ──────────────────────────────────────────────────────── */
+.hero{
+  min-height:100vh;
+  display:flex;align-items:center;justify-content:center;
+  text-align:center;
+  padding:120px 24px 80px;
+  position:relative;overflow:hidden;
+}
+.hero-bg{
+  position:absolute;inset:0;
+  background:radial-gradient(ellipse 80% 60% at 50% 30%,rgba(13,148,136,.12),transparent),
+             radial-gradient(ellipse 60% 50% at 80% 70%,rgba(6,182,212,.07),transparent);
+}
+.hero-badge{
+  display:inline-block;padding:6px 16px;
+  border:1px solid rgba(13,148,136,.4);border-radius:99px;
+  font-size:12px;font-weight:600;color:var(--accent);
+  background:rgba(13,148,136,.08);
+  margin-bottom:28px;
+}
+.hero-title{font-size:clamp(36px,6vw,68px);font-weight:900;letter-spacing:-.03em;line-height:1.1;margin-bottom:24px}
+.hero-title em{font-style:normal;background:linear-gradient(90deg,var(--accent),var(--accent-b));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero-sub{font-size:18px;color:var(--muted);max-width:580px;margin:0 auto 40px;line-height:1.75}
+.hero-cta-row{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin-bottom:60px}
+
+/* ── Buttons ───────────────────────────────────────────────────── */
+.btn{display:inline-block;font-size:15px;font-weight:600;padding:13px 28px;border-radius:9px;border:none;cursor:pointer;transition:opacity .2s,transform .15s}
+.btn:hover{opacity:.85;transform:translateY(-1px)}
+.btn-primary{background:linear-gradient(135deg,var(--accent),var(--accent-b));color:#fff}
+.btn-ghost{background:transparent;color:var(--text);border:1px solid var(--border)}
+.btn-outline{background:transparent;color:var(--accent);border:1px solid var(--accent)}
+
+/* ── KPI strip ─────────────────────────────────────────────────── */
+.kpi-strip{
+  display:flex;gap:1px;background:var(--border);border-radius:var(--r);
+  border:1px solid var(--border);overflow:hidden;
+  max-width:800px;margin:0 auto;
+}
+.kpi-cell{flex:1;padding:24px 16px;text-align:center;background:var(--bg2)}
+.kpi-val{font-size:32px;font-weight:800;background:linear-gradient(90deg,var(--accent),var(--accent-b));-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.kpi-label{font-size:12px;color:var(--muted);margin-top:4px}
+
+/* ── Problem / Solution cards ──────────────────────────────────── */
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+@media(max-width:680px){.two-col{grid-template-columns:1fr}}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);padding:32px}
+.card h3{margin-bottom:12px}
+.card p{font-size:14px}
+.card-icon{font-size:36px;margin-bottom:16px}
+.problem-card{border-color:rgba(239,68,68,.25);background:rgba(239,68,68,.04)}
+.solution-card{border-color:rgba(13,148,136,.3);background:rgba(13,148,136,.05)}
+
+/* ── Arch diagram ──────────────────────────────────────────────── */
+.arch{display:flex;align-items:stretch;gap:12px;flex-wrap:wrap}
+.arch-step{
+  flex:1;min-width:150px;
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  padding:22px 18px;text-align:center;
+  position:relative;
+}
+.arch-step::after{
+  content:'→';
+  position:absolute;right:-16px;top:50%;transform:translateY(-50%);
+  color:var(--muted);font-size:18px;
+}
+.arch-step:last-child::after{display:none}
+.arch-icon{font-size:28px;margin-bottom:10px}
+.arch-name{font-size:13px;font-weight:700;color:var(--text)}
+.arch-desc{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* ── Spec table ────────────────────────────────────────────────── */
+table.spec{width:100%;border-collapse:collapse}
+table.spec th,table.spec td{padding:13px 16px;text-align:left;font-size:14px;border-bottom:1px solid var(--border)}
+table.spec th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600;width:35%}
+table.spec td{color:var(--text)}
+table.spec tr:last-child th,table.spec tr:last-child td{border-bottom:none}
+
+/* ── Timeline ──────────────────────────────────────────────────── */
+.timeline{display:flex;flex-direction:column;gap:0}
+.tl-item{display:flex;gap:20px;padding-bottom:32px;position:relative}
+.tl-item::before{
+  content:'';position:absolute;left:19px;top:40px;bottom:0;
+  width:2px;background:var(--border);
+}
+.tl-item:last-child::before{display:none}
+.tl-dot{
+  width:40px;height:40px;flex-shrink:0;
+  border-radius:50%;background:var(--bg3);border:2px solid var(--accent);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:800;font-size:14px;color:var(--accent);
+}
+.tl-body h4{font-size:15px;font-weight:700;margin-bottom:6px}
+.tl-body p{font-size:14px;color:var(--muted)}
+.tl-week{font-size:11px;font-weight:700;text-transform:uppercase;color:var(--accent-b);margin-bottom:4px}
+
+/* ── PDF export button ─────────────────────────────────────────── */
+.pdf-fab{
+  position:fixed;bottom:28px;right:28px;z-index:200;
+  background:linear-gradient(135deg,var(--accent),var(--accent-b));
+  color:#fff;border:none;border-radius:50px;
+  padding:12px 22px;font-size:14px;font-weight:700;
+  cursor:pointer;box-shadow:0 4px 20px rgba(13,148,136,.4);
+  display:flex;align-items:center;gap:8px;
+  transition:transform .2s,box-shadow .2s;
+}
+.pdf-fab:hover{transform:translateY(-2px);box-shadow:0 8px 28px rgba(13,148,136,.5)}
+
+/* ── Print / PDF media query ───────────────────────────────────── */
+@media print{
+  *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+  nav,.pdf-fab,.hero-scroll,#contact form .form-submit,
+  .back-link{display:none!important}
+  body{background:#fff!important;color:#111!important;font-size:11pt}
+  :root{
+    --bg:#fff;--bg2:#f5f7fa;--bg3:#eef1f6;
+    --text:#111;--muted:#555;
+    --border:#ddd;
+    --accent:#0a7a70;--accent-b:#0891b2;
+    --pass:#059669;--fail:#dc2626;--warn:#d97706;
+  }
+  .hero{min-height:auto;padding:40pt 0 24pt}
+  .hero-bg{display:none}
+  .hero-badge{border-color:#0a7a70;color:#0a7a70;background:rgba(10,122,112,.07)}
+  .hero-title{font-size:28pt}
+  .hero-sub{font-size:12pt}
+  .hero-cta-row{display:none}
+  .kpi-strip{background:#f5f7fa!important;border:1pt solid #ddd!important}
+  .kpi-cell{background:#f5f7fa!important;border:none}
+  .section{padding:20pt 0;page-break-inside:avoid}
+  .card{background:#f5f7fa!important;border:1pt solid #ddd!important;page-break-inside:avoid}
+  .problem-card{background:rgba(220,38,38,.04)!important;border-color:rgba(220,38,38,.2)!important}
+  .solution-card{background:rgba(10,122,112,.04)!important;border-color:rgba(10,122,112,.2)!important}
+  .arch{flex-wrap:wrap}
+  .arch-step{min-width:120pt;background:#eef1f6!important;border:1pt solid #ccc!important}
+  .arch-step::after{color:#777}
+  table.spec th{background:#eef1f6!important}
+  .price-card{background:#f5f7fa!important;border:1pt solid #ddd!important}
+  .price-card.featured{border-color:var(--accent)!important;background:rgba(10,122,112,.04)!important}
+  .tl-item::before{background:#ddd}
+  .tl-dot{background:#eef1f6!important;border-color:var(--accent)!important}
+  .gate{background:#eef1f6!important;border:1pt solid #ddd!important}
+  .val-cell{background:#eef1f6!important;border:1pt solid #ddd!important}
+  .nav-logo{-webkit-text-fill-color:var(--accent)!important;color:var(--accent)}
+  footer{border-top:1pt solid #ddd;color:#777}
+  h2{font-size:20pt}
+  h3{font-size:14pt}
+  .divider{background:#ddd}
+  .badge{background:#eef1f6!important;border:1pt solid #ddd!important;color:#333}
+  /* page breaks */
+  #spec{page-break-before:always}
+  #validation{page-break-before:always}
+  #timeline{page-break-before:always}
+  #pricing{page-break-before:always}
+  #faq{page-break-before:always}
+}
+
+/* ── Pricing ───────────────────────────────────────────────────── */
+.pricing-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+@media(max-width:700px){.pricing-grid{grid-template-columns:1fr}}
+.price-card{
+  background:var(--bg2);border:1px solid var(--border);border-radius:var(--r);
+  padding:28px;display:flex;flex-direction:column;gap:16px;
+}
+.price-card.featured{
+  border-color:var(--accent);
+  background:linear-gradient(160deg,rgba(13,148,136,.08),var(--bg2));
+  position:relative;
+}
+.price-badge{
+  position:absolute;top:-12px;left:50%;transform:translateX(-50%);
+  background:var(--accent);color:#fff;font-size:11px;font-weight:700;
+  padding:3px 14px;border-radius:99px;white-space:nowrap;
+}
+.price-name{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+.price-amount{font-size:28px;font-weight:900;color:var(--text)}
+.price-amount span{font-size:14px;font-weight:400;color:var(--muted)}
+.price-ul{list-style:none;display:flex;flex-direction:column;gap:10px;flex:1}
+.price-ul li{font-size:13px;color:var(--muted);display:flex;gap:8px;align-items:flex-start}
+.price-ul li::before{content:'✓';color:var(--pass);flex-shrink:0;font-weight:700}
+
+/* ── FAQ ───────────────────────────────────────────────────────── */
+.faq-item{border-bottom:1px solid var(--border);padding:20px 0}
+.faq-q{font-size:15px;font-weight:600;color:var(--text);margin-bottom:10px}
+.faq-a{font-size:14px;color:var(--muted);line-height:1.75}
+
+/* ── Contact ───────────────────────────────────────────────────── */
+.contact-form{display:flex;flex-direction:column;gap:16px;max-width:560px;margin:40px auto 0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+@media(max-width:500px){.form-row{grid-template-columns:1fr}}
+.form-group{display:flex;flex-direction:column;gap:6px}
+.form-group label{font-size:13px;font-weight:600;color:var(--muted)}
+.form-group input,.form-group select,.form-group textarea{
+  background:var(--bg3);border:1px solid var(--border);border-radius:8px;
+  color:var(--text);font-size:14px;padding:11px 14px;
+  outline:none;transition:border-color .2s;font-family:inherit;
+}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{border-color:var(--accent)}
+.form-group textarea{min-height:110px;resize:vertical}
+.form-group select option{background:var(--bg2)}
+.form-submit{
+  background:linear-gradient(135deg,var(--accent),var(--accent-b));
+  color:#fff;border:none;border-radius:9px;
+  padding:14px;font-size:16px;font-weight:700;cursor:pointer;
+  transition:opacity .2s;margin-top:8px;
+}
+.form-submit:hover{opacity:.85}
+.form-note{font-size:12px;color:var(--muted);text-align:center;margin-top:6px}
+
+/* ── Divider ───────────────────────────────────────────────────── */
+.divider{height:1px;background:var(--border);margin:0 24px}
+
+/* ── Footer ────────────────────────────────────────────────────── */
+footer{text-align:center;padding:36px 24px;font-size:13px;color:var(--muted);border-top:1px solid var(--border)}
+.back-link{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--muted);padding:8px 16px;border:1px solid var(--border);border-radius:8px;transition:color .2s}
+.back-link:hover{color:var(--text)}
+
+/* ── Validation box ────────────────────────────────────────────── */
+.val-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:28px}
+@media(max-width:600px){.val-grid{grid-template-columns:repeat(2,1fr)}}
+.val-cell{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:18px 14px;text-align:center}
+.val-num{font-size:26px;font-weight:800;color:var(--pass)}
+.val-lbl{font-size:11px;color:var(--muted);margin-top:4px}
+
+/* ── Gate list ─────────────────────────────────────────────────── */
+.gate-list{display:flex;flex-direction:column;gap:10px}
+.gate{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--bg3);border-radius:8px;border:1px solid var(--border)}
+.gate-icon{font-size:18px}
+.gate-name{font-size:13px;font-weight:600;flex:1}
+.gate-val{font-size:13px;font-weight:700;color:var(--pass)}
+
+/* ── Security badge row ────────────────────────────────────────── */
+.badge-row{display:flex;gap:12px;flex-wrap:wrap;margin-top:24px}
+.badge{
+  display:flex;align-items:center;gap:8px;
+  padding:10px 16px;border-radius:8px;
+  border:1px solid var(--border);background:var(--bg3);
+  font-size:13px;font-weight:600;
+}
+.badge-icon{font-size:18px}
+</style>
+</head>
+<body>
+
+<!-- ── Nav ──────────────────────────────────────────────────────── -->
+<nav>
+  <div class="nav-logo">SOPilot</div>
+  <div class="nav-links">
+    <a href="#challenge">課題</a>
+    <a href="#spec">システム仕様</a>
+    <a href="#validation">検証実績</a>
+    <a href="#timeline">導入ステップ</a>
+    <a href="#pricing">料金</a>
+    <a href="#contact">お問い合わせ</a>
+  </div>
+  <a href="#contact" class="nav-cta">無料相談を予約</a>
+</nav>
+
+<!-- ── Hero ─────────────────────────────────────────────────────── -->
+<div class="hero" id="top">
+  <div class="hero-bg"></div>
+  <div style="position:relative;z-index:1">
+    <div class="hero-badge">完全オンプレ · 外部接続ゼロ · PoC v0.2 検証済</div>
+    <h1 class="hero-title">
+      SOP遵守を<br><em>動画AIで</em><br>自動採点する
+    </h1>
+    <p class="hero-sub">
+      研修生の作業動画をゴールド基準と即時比較。<br>
+      逸脱箇所をステップ単位・秒単位で特定し、<br>
+      評価工数を大幅に削減します。
+    </p>
+    <div class="hero-cta-row">
+      <a href="#contact" class="btn btn-primary">デモ環境をリクエスト</a>
+      <a href="demo.html" class="btn btn-ghost" target="_blank">ライブデモを見る</a>
+    </div>
+    <div class="kpi-strip">
+      <div class="kpi-cell">
+        <div class="kpi-val">866件</div>
+        <div class="kpi-label">96時間 採点ジョブ数</div>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-val" style="color:var(--pass)">0.0%</div>
+        <div class="kpi-label">NG見逃し率（重大逸脱）</div>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-val" style="color:var(--pass)">±0pt</div>
+        <div class="kpi-label">採点再現性ジッター</div>
+      </div>
+      <div class="kpi-cell">
+        <div class="kpi-val">1日</div>
+        <div class="kpi-label">初回採点完了まで</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── 課題 ──────────────────────────────────────────────────────── -->
+<section id="challenge">
+<div class="section">
+  <div class="section-tag">課題と解決策</div>
+  <h2>評価者依存の SOP 審査に<br>限界を感じていませんか？</h2>
+  <p class="section-lead">製造・医療・建設など手順厳守が求められる現場で、研修評価の属人化と工数増大が深刻な問題になっています。</p>
+  <div class="two-col" style="margin-top:36px">
+    <div class="card problem-card">
+      <div class="card-icon">😓</div>
+      <h3>現状の課題</h3>
+      <p style="margin-top:10px">
+        ・評価者によって合否基準がばらつく<br>
+        ・ベテラン評価者の工数が毎月 <strong>数十〜数百時間</strong> 消費される<br>
+        ・動画で撮っても「どのステップが問題か」の分析に時間がかかる<br>
+        ・リモート拠点の研修生をリアルタイムに評価できない
+      </p>
+    </div>
+    <div class="card solution-card">
+      <div class="card-icon">🤖</div>
+      <h3>SOPilot の解決策</h3>
+      <p style="margin-top:10px">
+        ・Gold 動画との DTW 類似度で <strong>客観的スコア</strong> を算出<br>
+        ・逸脱ステップを自動検出し <strong>秒単位でハイライト</strong><br>
+        ・採点は <strong>1本あたり数秒〜数分</strong> で完了（CPU/GPU 選択可）<br>
+        ・完全オンプレで <strong>映像データが外部に出ない</strong>
+      </p>
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── システム仕様 ────────────────────────────────────────────── -->
+<section id="spec">
+<div class="section">
+  <div class="section-tag">システム仕様</div>
+  <h2>処理フロー</h2>
+  <p class="section-lead">動画ファイルを投入するだけで、AI がステップ境界を自動検出・比較・採点します。</p>
+  <div class="arch" style="margin-top:36px">
+    <div class="arch-step">
+      <div class="arch-icon">🎥</div>
+      <div class="arch-name">動画入力</div>
+      <div class="arch-desc">MP4 / AVI 等<br>カメラ直結 or ファイル</div>
+    </div>
+    <div class="arch-step">
+      <div class="arch-icon">✂️</div>
+      <div class="arch-name">クリップ分割</div>
+      <div class="arch-desc">設定 fps でサンプリング<br>N秒ウィンドウに分割</div>
+    </div>
+    <div class="arch-step">
+      <div class="arch-icon">🧠</div>
+      <div class="arch-name">埋め込み</div>
+      <div class="arch-desc">Color-Motion（CPU）<br>or V-JEPA2（GPU）</div>
+    </div>
+    <div class="arch-step">
+      <div class="arch-icon">📐</div>
+      <div class="arch-name">DTW 整合</div>
+      <div class="arch-desc">Gold と研修生を<br>動的時間伸縮整合</div>
+    </div>
+    <div class="arch-step">
+      <div class="arch-icon">📊</div>
+      <div class="arch-name">採点 &amp; 報告</div>
+      <div class="arch-desc">スコア・逸脱箇所・<br>重大度を JSON 出力</div>
+    </div>
+  </div>
+
+  <div style="margin-top:56px">
+    <h3 style="margin-bottom:20px">技術仕様</h3>
+    <div class="card" style="padding:0;overflow:hidden">
+      <table class="spec">
+        <tr><th>埋め込みモデル</th><td>Color-Motion v1（CPU, 12次元）/ V-JEPA2 ViT-Large（GPU, 高精度）</td></tr>
+        <tr><th>整合アルゴリズム</th><td>Dynamic Time Warping（DTW）— 速度ずれに頑健な比較</td></tr>
+        <tr><th>逸脱検出</th><td>missing_step（重大）/ step_deviation（品質）/ order_swap / over_time の4カテゴリ</td></tr>
+        <tr><th>スコアリング</th><td>重み付き複合スコア（0〜100点）/ Pass≥90 / Needs Review≥80</td></tr>
+        <tr><th>API</th><td>FastAPI + uvicorn（REST JSON）— curl / HTTP クライアントから即利用</td></tr>
+        <tr><th>データベース</th><td>SQLite（シングルファイル、バックアップ容易）</td></tr>
+        <tr><th>動作環境</th><td>Windows 10/11 / Linux / macOS（Python 3.11+, OpenCV, NumPy）</td></tr>
+        <tr><th>GPU 要件</th><td>Color-Motion 使用時は GPU 不要 / V-JEPA2 使用時 VRAM 6 GB以上推奨</td></tr>
+        <tr><th>ネットワーク</th><td>完全オフライン動作可（初回モデルキャッシュ後は外部接続ゼロ）</td></tr>
+        <tr><th>対応動画形式</th><td>MP4, AVI, MOV, MKV（OpenCV 対応形式）</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="badge-row">
+    <div class="badge"><div class="badge-icon">🔒</div>完全オンプレ稼働</div>
+    <div class="badge"><div class="badge-icon">📡</div>外部接続ゼロ</div>
+    <div class="badge"><div class="badge-icon">🗄️</div>映像データは御社サーバ内</div>
+    <div class="badge"><div class="badge-icon">⚡</div>CPU のみで本番稼働可</div>
+    <div class="badge"><div class="badge-icon">🔁</div>採点再現性 ±0pt</div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── 検証実績 ────────────────────────────────────────────────── -->
+<section id="validation">
+<div class="section">
+  <div class="section-tag">検証実績</div>
+  <h2>96 時間 連続稼働検証</h2>
+  <p class="section-lead">実作業動画を使った 866件のジョブを 4日間ノンストップで処理し、4つの品質ゲートすべてに合格しました。</p>
+
+  <div class="val-grid" style="margin-top:36px">
+    <div class="val-cell">
+      <div class="val-num">866</div>
+      <div class="val-lbl">総採点ジョブ数</div>
+    </div>
+    <div class="val-cell">
+      <div class="val-num">0.0%</div>
+      <div class="val-lbl">NG見逃し率（重大逸脱）</div>
+    </div>
+    <div class="val-cell">
+      <div class="val-num">±0pt</div>
+      <div class="val-lbl">採点再現性ジッター</div>
+    </div>
+    <div class="val-cell">
+      <div class="val-num">4 / 4</div>
+      <div class="val-lbl">品質ゲート 合格数</div>
+    </div>
+  </div>
+
+  <div class="gate-list">
+    <div class="gate">
+      <div class="gate-icon">🎯</div>
+      <div class="gate-name">Gate 1: NG見逃し率 ≤ 5%</div>
+      <div class="gate-val">0.0% — PASS</div>
+    </div>
+    <div class="gate">
+      <div class="gate-icon">🔁</div>
+      <div class="gate-name">Gate 2: 採点再現性 ±1pt 以内</div>
+      <div class="gate-val">±0pt — PASS</div>
+    </div>
+    <div class="gate">
+      <div class="gate-icon">⚡</div>
+      <div class="gate-name">Gate 3: 誤検知率 (FPR) ≤ 30%</div>
+      <div class="gate-val">22.7% — PASS</div>
+    </div>
+    <div class="gate">
+      <div class="gate-icon">🏁</div>
+      <div class="gate-name">Gate 4: ジョブ完了率 ≥ 95%</div>
+      <div class="gate-val">100% — PASS</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:28px;background:var(--bg3)">
+    <h3 style="margin-bottom:16px">混同行列（18 本の実 NG 動画テスト）</h3>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;max-width:440px">
+      <div style="background:rgba(16,185,129,.12);border:1px solid rgba(16,185,129,.3);border-radius:8px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:800;color:var(--pass)">18</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">TP — NG を正しく検出</div>
+      </div>
+      <div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:800;color:var(--fail)">0</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">FN — NG を見逃し</div>
+      </div>
+      <div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:800;color:var(--warn)">78</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">FP — 誤検知</div>
+      </div>
+      <div style="background:rgba(16,185,129,.08);border:1px solid rgba(16,185,129,.2);border-radius:8px;padding:16px;text-align:center">
+        <div style="font-size:28px;font-weight:800;color:var(--pass)">266</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px">TN — 正常を正常と判定</div>
+      </div>
+    </div>
+    <p style="font-size:13px;margin-top:16px">
+      重大逸脱の <strong style="color:var(--pass)">見逃しゼロ</strong> を達成。誤検知（FP）は現状 22.7% ですが、Gold 動画の品質向上と閾値チューニングで低減見込みです。
+    </p>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── 導入ステップ ─────────────────────────────────────────────── -->
+<section id="timeline">
+<div class="section">
+  <div class="section-tag">導入ステップ</div>
+  <h2>最短 4 週間で本番稼働</h2>
+  <p class="section-lead">Gold 動画 2 本と研修生動画 数本 からスタート。初期セットアップから最初の採点完了まで 1 日以内に完了します。</p>
+  <div class="timeline" style="margin-top:40px">
+    <div class="tl-item">
+      <div class="tl-dot">1</div>
+      <div class="tl-body">
+        <div class="tl-week">Week 1 — キックオフ・環境構築</div>
+        <h4>サーバへのインストールと初期設定</h4>
+        <p>御社サーバ（Windows / Linux）に SOPilot をインストール。API の起動確認・接続テストを実施します。Gold 動画の収録要件をご説明し、撮影計画を策定します。</p>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot">2</div>
+      <div class="tl-body">
+        <div class="tl-week">Week 2 — Gold 動画登録・初回採点</div>
+        <h4>基準動画の登録とスコア検証</h4>
+        <p>ご提供いただいた Gold 動画を処理してデータベースに登録。研修生動画を数本投入し、採点結果の妥当性を担当者と一緒に確認します。スコア閾値の初期調整を行います。</p>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot">3</div>
+      <div class="tl-body">
+        <div class="tl-week">Week 3 — チューニングと運用フロー設計</div>
+        <h4>精度向上と業務フローへの組み込み</h4>
+        <p>実際の合否判定データをもとにスコア重みと閾値をチューニング。採点結果のレポート形式・通知方法を御社ワークフローに合わせて調整します。</p>
+      </div>
+    </div>
+    <div class="tl-item">
+      <div class="tl-dot">4</div>
+      <div class="tl-body">
+        <div class="tl-week">Week 4 — 並行稼働・引き渡し</div>
+        <h4>既存評価プロセスとの並行運用 &amp; 検収</h4>
+        <p>従来の人手評価と SOPilot を並行稼働させ、一致率を測定。検収基準を満たした時点で担当者へ運用ドキュメントを提出し、移管完了です。</p>
+      </div>
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── 料金 ─────────────────────────────────────────────────────── -->
+<section id="pricing">
+<div class="section">
+  <div class="section-tag">料金プラン</div>
+  <h2>スモールスタートから<br>本番運用まで</h2>
+  <p class="section-lead">まずは PoC パイロットで効果を確認してから、本番契約に移行できます。料金は規模・要件に応じて個別に調整します。</p>
+  <div class="pricing-grid" style="margin-top:40px">
+    <div class="price-card">
+      <div class="price-name">Pilot PoC</div>
+      <div class="price-amount">要相談 <span>/ 2週間〜</span></div>
+      <ul class="price-ul">
+        <li>Gold 動画 2本・研修生動画 数本から開始</li>
+        <li>サーバへのインストール &amp; 初期設定</li>
+        <li>採点レポート（JSON / CSV）</li>
+        <li>オンライン技術サポート</li>
+        <li>成果確認後に本番契約へ移行</li>
+      </ul>
+      <a href="#contact" class="btn btn-outline" style="text-align:center;margin-top:auto">お問い合わせ</a>
+    </div>
+    <div class="price-card featured">
+      <div class="price-badge">最も人気</div>
+      <div class="price-name">Standard</div>
+      <div class="price-amount">個別見積 <span>/ 月額</span></div>
+      <ul class="price-ul">
+        <li>Pilot PoC の内容すべて</li>
+        <li>タスク数 無制限・Gold 動画 無制限</li>
+        <li>カスタム閾値チューニング</li>
+        <li>既存システムへの REST API 連携</li>
+        <li>月次レポートと精度レビュー</li>
+        <li>優先技術サポート（営業日翌日対応）</li>
+      </ul>
+      <a href="#contact" class="btn btn-primary" style="text-align:center;margin-top:auto">詳細を相談する</a>
+    </div>
+    <div class="price-card">
+      <div class="price-name">Enterprise</div>
+      <div class="price-amount">個別見積 <span>/ 年額</span></div>
+      <ul class="price-ul">
+        <li>Standard の内容すべて</li>
+        <li>複数拠点・複数カメラ対応</li>
+        <li>V-JEPA2 高精度モデルへのアップグレード</li>
+        <li>カスタム UI / ダッシュボード開発</li>
+        <li>SLA 保証・専任エンジニア対応</li>
+        <li>ソースコードライセンス（要交渉）</li>
+      </ul>
+      <a href="#contact" class="btn btn-outline" style="text-align:center;margin-top:auto">エンタープライズ相談</a>
+    </div>
+  </div>
+  <p style="text-align:center;font-size:13px;margin-top:28px">
+    ※ 料金は現場規模・タスク数・サポート範囲により変動します。まずはお気軽にご相談ください。
+  </p>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── FAQ ───────────────────────────────────────────────────────── -->
+<section id="faq">
+<div class="section">
+  <div class="section-tag">よくある質問</div>
+  <h2>FAQ</h2>
+  <div style="margin-top:36px">
+    <div class="faq-item">
+      <div class="faq-q">Q. 動画データは外部サーバに送られますか？</div>
+      <div class="faq-a">いいえ。SOPilot は完全オンプレミス動作です。映像・埋め込みベクトル・採点結果はすべて御社サーバ内の SQLite データベースに保存されます。外部 API 呼び出しは一切行いません（初回モデルキャッシュ取得後）。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q. GPU がない環境でも使えますか？</div>
+      <div class="faq-a">はい。Color-Motion embedder（CPU 動作）を使えば GPU 不要で本番稼働できます。96時間検証もこのモードで実施済みです。高精度が必要な場合のみ V-JEPA2（GPU）へ切り替えられます。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q. どんな手順・動画フォーマットに対応していますか？</div>
+      <div class="faq-a">MP4 / AVI / MOV / MKV など OpenCV が対応する形式に対応します。手順は「フィルタ交換」「呼吸器着脱」などの繰り返し作業が最も効果的ですが、任意の SOP に適用できます。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q. Gold 動画は何本必要ですか？</div>
+      <div class="faq-a">最低 1 本から開始できます。精度向上のため、手順ごとに 2〜3 本の Gold 動画を推奨します。Gold 動画の品質（照明・カメラ位置・手順の正確さ）が採点精度に直結します。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q. 既存の研修管理システムと連携できますか？</div>
+      <div class="faq-a">SOPilot は REST JSON API を提供します。curl や Python / JavaScript から呼び出せるため、既存 LMS・業務システムへの組み込みが容易です。Webhook によるスコア通知にも対応予定です。</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q">Q. 採点の精度はどれくらいですか？</div>
+      <div class="faq-a">96 時間連続稼働検証では、重大逸脱の見逃し率 0.0%、採点再現性 ±0pt を達成しました。誤検知率は現状 22.7% ですが、Gold 動画の拡充とチューニングで低減できます。タスク・環境によって精度は異なるため、PoC での検証をお勧めします。</div>
+    </div>
+  </div>
+</div>
+</section>
+
+<div class="divider"></div>
+
+<!-- ── Contact ────────────────────────────────────────────────────── -->
+<section id="contact">
+<div class="section" style="text-align:center">
+  <div class="section-tag">お問い合わせ</div>
+  <h2>まずは無料相談から</h2>
+  <p class="section-lead" style="margin-left:auto;margin-right:auto">
+    Gold 動画 2 本・研修生動画 数本 をご用意いただくだけで、<br>
+    <strong style="color:var(--text)">1 日以内</strong> に最初の採点結果をお見せします。
+  </p>
+  <form class="contact-form" id="contactForm">
+    <div class="form-row">
+      <div class="form-group">
+        <label for="name">お名前 *</label>
+        <input type="text" id="name" name="name" placeholder="山田 太郎" required>
+      </div>
+      <div class="form-group">
+        <label for="company">会社名 *</label>
+        <input type="text" id="company" name="company" placeholder="株式会社〇〇" required>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label for="email">メールアドレス *</label>
+        <input type="email" id="email" name="email" placeholder="taro@example.com" required>
+      </div>
+      <div class="form-group">
+        <label for="phone">電話番号</label>
+        <input type="tel" id="phone" name="phone" placeholder="03-0000-0000">
+      </div>
+    </div>
+    <div class="form-group">
+      <label for="interest">ご関心のある内容</label>
+      <select id="interest" name="interest">
+        <option value="">選択してください</option>
+        <option value="poc">PoC パイロット（まず試したい）</option>
+        <option value="demo">ライブデモを見たい</option>
+        <option value="standard">Standard プランの詳細</option>
+        <option value="enterprise">エンタープライズ・OEM 相談</option>
+        <option value="tech">技術的な詳細を聞きたい</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label for="message">ご質問・ご要望</label>
+      <textarea id="message" name="message" placeholder="評価したい手順・現在の課題・動画環境など、自由にお書きください"></textarea>
+    </div>
+    <button type="submit" class="form-submit">送信する →</button>
+    <p class="form-note">送信後、<strong>2 営業日以内</strong>にご連絡いたします。</p>
+  </form>
+</div>
+</section>
+
+<!-- ── PDF FAB ─────────────────────────────────────────────────────── -->
+<button class="pdf-fab" onclick="window.print()" title="ブラウザの印刷ダイアログで「PDFに保存」を選択してください">
+  <span>⬇</span> PDF で保存
+</button>
+
+<!-- ── Footer ─────────────────────────────────────────────────────── -->
+<footer>
+  <a href="demo.html" class="back-link" style="margin-bottom:20px;display:inline-flex">← ライブデモに戻る</a><br><br>
+  SOPilot &nbsp;·&nbsp; On-Prem SOP Evaluation System &nbsp;·&nbsp; PoC v0.2 &nbsp;·&nbsp; <span id="printDate"></span><br>
+  Powered by V-JEPA2 + DTW &nbsp;·&nbsp; 全データは御社サーバ内に保管されます<br>
+  <span style="font-size:11px;margin-top:8px;display:block">本資料に記載の数値は PoC 検証環境での計測結果です。本番環境での成果は条件によって異なります。</span>
+</footer>
+
+<script>
+// ── Print date ─────────────────────────────────────────────────
+document.getElementById('printDate').textContent =
+  new Date().toLocaleDateString('ja-JP',{year:'numeric',month:'long',day:'numeric'});
+
+// ── Form submit → mailto fallback ──────────────────────────────
+document.getElementById('contactForm').addEventListener('submit', function(e){
+  e.preventDefault();
+  const name     = document.getElementById('name').value.trim();
+  const company  = document.getElementById('company').value.trim();
+  const email    = document.getElementById('email').value.trim();
+  const interest = document.getElementById('interest').value;
+  const message  = document.getElementById('message').value.trim();
+  const subject  = encodeURIComponent(`[SOPilot お問い合わせ] ${company} / ${name}`);
+  const body     = encodeURIComponent(
+    `お名前: ${name}\n会社名: ${company}\nメール: ${email}\n関心: ${interest}\n\n${message}`
+  );
+  // mailto フォールバック（メールクライアントが開く）
+  window.location.href = `mailto:?subject=${subject}&body=${body}`;
+  // 送信完了メッセージ
+  const form = document.getElementById('contactForm');
+  form.innerHTML = `
+    <div style="padding:48px 24px;text-align:center">
+      <div style="font-size:52px;margin-bottom:16px">✅</div>
+      <h3 style="margin-bottom:10px">お問い合わせありがとうございます</h3>
+      <p style="color:var(--muted)">メールクライアントが開いていない場合は、直接メールにて<br>上記内容をお送りください。2 営業日以内にご返信します。</p>
+      <a href="demo.html" class="btn btn-ghost" style="margin-top:24px;display:inline-block">ライブデモを見る</a>
+    </div>
+  `;
+});
+
+// ── Smooth nav active highlight ─────────────────────────────────
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('.nav-links a');
+const obs = new IntersectionObserver(entries => {
+  entries.forEach(e => {
+    if(e.isIntersecting){
+      navLinks.forEach(l => l.style.color = '');
+      const active = document.querySelector(`.nav-links a[href="#${e.target.id}"]`);
+      if(active) active.style.color = 'var(--accent-b)';
+    }
+  });
+},{threshold:0.4});
+sections.forEach(s => obs.observe(s));
+</script>
+</body>
+</html>

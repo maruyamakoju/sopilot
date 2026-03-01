@@ -1,0 +1,13 @@
+{
+  "jobs": [
+    {
+      "job_id": 1,
+      "critical_expected": true
+    },
+    {
+      "job_id": 2,
+      "critical_expected": false
+    }
+  ]
+}
+

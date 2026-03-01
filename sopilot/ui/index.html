@@ -1,0 +1,3764 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SOPilot — SOP評価コンソール</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050a15;--surface:rgba(15,23,42,.85);--surface2:rgba(30,41,59,.7);--surface3:#263348;
+  --border:rgba(255,255,255,0.06);--border2:rgba(255,255,255,0.12);
+  --accent:#0d9488;--accent-b:#14b8a6;--accent-glow:rgba(13,148,136,0.25);
+  --pass:#10b981;--warn:#f59e0b;--danger:#ef4444;--review:#3b82f6;
+  --text:#f1f5f9;--muted:#94a3b8;--ink:#cbd5e1;
+  --r:16px;--r-sm:10px;
+  --glass:rgba(15,23,42,0.6);--glass-border:rgba(255,255,255,0.08);
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);
+  font-family:"Inter","Segoe UI","Hiragino Sans","Yu Gothic UI","Noto Sans JP",system-ui,sans-serif;
+  font-size:14px;line-height:1.5;overflow:hidden;display:flex;flex-direction:column}
+
+/* ── BACKGROUND ── */
+body::before{content:"";position:fixed;inset:0;z-index:-1;
+  background:radial-gradient(ellipse 80% 60% at 20% 10%,rgba(13,148,136,.08),transparent),
+             radial-gradient(ellipse 60% 50% at 80% 80%,rgba(59,130,246,.05),transparent),
+             radial-gradient(ellipse 50% 40% at 50% 50%,rgba(13,148,136,.03),transparent);
+  animation:bgShift 20s ease-in-out infinite alternate}
+@keyframes bgShift{
+  0%{opacity:.8}50%{opacity:1}100%{opacity:.8}
+}
+
+/* ── TOPBAR ── */
+#topbar{height:56px;background:rgba(5,10,21,.92);
+  backdrop-filter:blur(24px) saturate(1.2);
+  border-bottom:1px solid var(--glass-border);
+  display:flex;align-items:center;padding:0 20px;gap:14px;flex-shrink:0;z-index:100;
+  box-shadow:0 1px 20px rgba(0,0,0,.3)}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
+.logo-icon{width:32px;height:32px;border-radius:10px;
+  background:linear-gradient(135deg,#0d9488 0%,#06b6d4 100%);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:13px;color:#fff;
+  box-shadow:0 2px 12px rgba(13,148,136,.4);
+  position:relative;overflow:hidden}
+.logo-icon::after{content:"";position:absolute;inset:0;
+  background:linear-gradient(135deg,transparent 40%,rgba(255,255,255,.2) 50%,transparent 60%);
+  animation:logoShine 3s ease-in-out infinite}
+@keyframes logoShine{0%,100%{transform:translateX(-100%)}50%{transform:translateX(100%)}}
+.logo-name{font-size:1.1rem;font-weight:800;letter-spacing:-.03em;
+  background:linear-gradient(135deg,#f1f5f9,#94a3b8);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.logo-badge{font-size:9px;padding:2px 8px;border-radius:999px;
+  background:linear-gradient(135deg,rgba(13,148,136,.2),rgba(6,182,212,.2));
+  border:1px solid rgba(13,148,136,.3);
+  color:var(--accent-b);font-weight:700;letter-spacing:.05em}
+.top-sep{width:1px;height:28px;background:var(--glass-border);flex-shrink:0}
+.kpi-chip{display:flex;align-items:center;gap:5px;padding:5px 12px;
+  background:var(--glass);border:1px solid var(--glass-border);
+  border-radius:999px;font-size:12px;white-space:nowrap;
+  backdrop-filter:blur(8px);transition:all .2s}
+.kpi-chip:hover{border-color:rgba(13,148,136,.3);background:rgba(13,148,136,.08)}
+.kpi-chip strong{color:var(--accent-b);font-weight:800}
+.top-spacer{flex:1}
+.status-dot{width:8px;height:8px;border-radius:50%;background:#10b981;
+  box-shadow:0 0 8px rgba(16,185,129,.5);
+  animation:pulse 2.5s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 8px rgba(16,185,129,.5)}
+  50%{opacity:.6;box-shadow:0 0 16px rgba(16,185,129,.3)}}
+#statusText{font-size:12px;color:var(--muted)}
+#statusText.error{color:var(--danger)}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;z-index:300;background:rgba(5,10,21,.88);
+  backdrop-filter:blur(12px);display:flex;align-items:center;justify-content:center;
+  animation:fadeIn .2s ease-out}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+.modal-box{background:rgba(15,23,42,.95);border:1px solid var(--glass-border);
+  border-radius:20px;padding:28px;width:520px;max-width:94vw;
+  max-height:82vh;overflow-y:auto;backdrop-filter:blur(20px);
+  box-shadow:0 24px 80px rgba(0,0,0,.5);
+  animation:modalSlide .3s cubic-bezier(.4,0,.2,1)}
+@keyframes modalSlide{from{transform:translateY(20px);opacity:0}to{transform:translateY(0);opacity:1}}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.modal-title{font-size:16px;font-weight:700}
+.modal-close{background:none;border:none;color:var(--muted);cursor:pointer;
+  font-size:22px;line-height:1;padding:4px 8px;border-radius:8px;transition:all .15s}
+.modal-close:hover{color:var(--text);background:rgba(255,255,255,.06)}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-label{font-size:10px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.07em}
+.form-section{font-size:10px;font-weight:700;color:var(--accent-b);
+  text-transform:uppercase;letter-spacing:.1em;margin:18px 0 10px;
+  border-bottom:1px solid var(--border);padding-bottom:6px}
+
+/* ── BATCH PANEL ── */
+#rightPanel{position:relative}
+#batchPanel{position:absolute;inset:0;z-index:50;
+  background:var(--bg);display:flex;flex-direction:column;overflow:hidden}
+.batch-top{display:flex;align-items:center;gap:10px;padding:10px 14px;
+  border-bottom:1px solid var(--border);flex-shrink:0;flex-wrap:wrap}
+.batch-body{flex:1;overflow-y:auto;padding:14px}
+.batch-table{width:100%;border-collapse:collapse;font-size:12px}
+.batch-table th{padding:8px 10px;text-align:left;font-size:11px;font-weight:700;
+  color:var(--muted);text-transform:uppercase;letter-spacing:.07em;
+  border-bottom:1px solid var(--border)}
+.batch-table td{padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.04)}
+.batch-trainee-row{display:flex;align-items:center;gap:8px;padding:6px 8px;
+  border-radius:8px;cursor:pointer;transition:background .12s}
+.batch-trainee-row:hover{background:rgba(13,148,136,.06)}
+
+/* ── LAYOUT ── */
+#app{flex:1;display:grid;grid-template-columns:280px 1fr;grid-template-rows:1fr;overflow:hidden}
+
+/* ── LEFT PANEL ── */
+#leftPanel{display:flex;flex-direction:column;
+  border-right:1px solid var(--glass-border);overflow:hidden;
+  background:rgba(5,10,21,.5);backdrop-filter:blur(12px)}
+.panel-section{padding:12px 14px;border-bottom:1px solid var(--border)}
+.panel-title{font-size:10px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+
+/* Task Profile */
+#profileGrid{display:grid;grid-template-columns:1fr 1fr;gap:5px}
+.profile-chip{background:var(--glass);border:1px solid var(--glass-border);
+  border-radius:8px;padding:5px 8px;font-size:11px;backdrop-filter:blur(8px)}
+.profile-chip-key{color:var(--muted);font-weight:600;font-size:9px;text-transform:uppercase;letter-spacing:.05em}
+.profile-chip-val{color:var(--text);font-weight:700}
+
+/* Controls */
+.ctrl-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:6px}
+input,select{background:rgba(30,41,59,.6);border:1px solid var(--glass-border);
+  border-radius:8px;padding:7px 10px;color:var(--text);font:inherit;font-size:12px;
+  transition:all .2s;outline:none;flex:1;min-width:60px;backdrop-filter:blur(8px)}
+input:focus,select:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136,.15)}
+input::placeholder{color:rgba(148,163,184,.6)}
+.btn{display:inline-flex;align-items:center;gap:5px;padding:7px 14px;
+  border-radius:8px;font:inherit;font-size:12px;font-weight:700;
+  cursor:pointer;transition:all .2s;border:1px solid transparent;white-space:nowrap;
+  position:relative;overflow:hidden}
+.btn::after{content:"";position:absolute;inset:0;opacity:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.1),transparent);transition:opacity .2s}
+.btn:hover::after{opacity:1}
+.btn-primary{background:linear-gradient(135deg,#0d9488,#0ea5e9);color:#fff;
+  border-color:transparent;box-shadow:0 2px 12px rgba(13,148,136,.3)}
+.btn-primary:hover{box-shadow:0 4px 20px rgba(13,148,136,.45);transform:translateY(-1px)}
+.btn-secondary{background:var(--glass);color:var(--text);border-color:var(--glass-border);
+  backdrop-filter:blur(8px)}
+.btn-secondary:hover{border-color:rgba(13,148,136,.4);color:var(--accent-b)}
+.btn-ghost{background:transparent;color:var(--muted);border-color:var(--border);
+  border-style:dashed}
+.btn-ghost:hover{border-color:var(--accent-b);color:var(--accent-b)}
+.btn:disabled{opacity:.4;cursor:not-allowed;transform:none!important}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-danger{background:rgba(239,68,68,.12);color:#f87171;border-color:rgba(239,68,68,.3)}
+
+/* Video list */
+#videoListWrap{flex:1;overflow-y:auto;min-height:0}
+.vid-tab-bar{display:flex;border-bottom:1px solid var(--border)}
+.vid-tab{flex:1;padding:8px 0;text-align:center;font-size:11px;font-weight:700;
+  color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;
+  transition:all .2s;text-transform:uppercase;letter-spacing:.05em}
+.vid-tab.active{color:var(--accent-b);border-bottom-color:var(--accent-b)}
+.vid-tab:hover:not(.active){color:var(--text)}
+.vid-list{display:flex;flex-direction:column}
+.vid-item{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.03);
+  cursor:pointer;transition:all .15s;display:flex;align-items:center;gap:8px}
+.vid-item:hover{background:rgba(13,148,136,.06)}
+.vid-item.selected{background:rgba(13,148,136,.1);border-left:3px solid var(--accent-b);padding-left:11px}
+.vid-id{font-size:10px;font-weight:700;color:var(--muted);flex-shrink:0;width:22px;
+  font-variant-numeric:tabular-nums}
+.vid-name{font-size:12px;font-weight:600;flex:1;overflow:hidden;
+  white-space:nowrap;text-overflow:ellipsis}
+.vid-status{font-size:9px;padding:2px 8px;border-radius:999px;flex-shrink:0;
+  font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.vid-status-ready{background:rgba(16,185,129,.12);color:#10b981;border:1px solid rgba(16,185,129,.2)}
+.vid-status-proc{background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.2)}
+.vid-clips{font-size:10px;color:var(--muted);flex-shrink:0}
+.vid-edit,.vid-del{background:none;border:none;color:var(--muted);cursor:pointer;font-size:11px;
+  padding:2px 5px;border-radius:4px;opacity:0;transition:all .15s;flex-shrink:0}
+.vid-item:hover .vid-edit,.vid-item:hover .vid-del{opacity:.6}
+.vid-edit:hover{opacity:1!important;color:var(--accent-b);background:rgba(13,148,136,.1)}
+.vid-del:hover{opacity:1!important;color:var(--danger);background:rgba(239,68,68,.1)}
+.empty-state{padding:28px;text-align:center;color:var(--muted);font-size:12px}
+
+/* ── RIGHT PANEL ── */
+#rightPanel{display:flex;flex-direction:column;overflow:hidden}
+
+/* Video compare */
+#videoRow{display:grid;grid-template-columns:1fr 1fr;gap:1px;
+  background:var(--border);flex-shrink:0}
+.vid-pane{background:rgba(5,10,21,.8);padding:12px}
+.vid-pane-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.vid-pane-label{font-size:10px;font-weight:800;text-transform:uppercase;
+  letter-spacing:.1em;padding:2px 8px;border-radius:4px}
+.vid-pane-label-gold{background:rgba(13,148,136,.15);color:var(--accent-b);border:1px solid rgba(13,148,136,.3)}
+.vid-pane-label-trainee{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
+.vid-pane-name{font-size:12px;font-weight:600;color:var(--text);flex:1;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+video{width:100%;border-radius:10px;background:#000;display:block;
+  border:1px solid rgba(255,255,255,.06);max-height:220px;object-fit:contain;
+  box-shadow:0 4px 20px rgba(0,0,0,.4)}
+
+/* Video fallback card */
+.vid-fallback{display:none;width:100%;border-radius:10px;
+  background:linear-gradient(135deg,rgba(15,23,42,.9),rgba(30,41,59,.7));
+  border:1px solid var(--glass-border);max-height:220px;min-height:140px;
+  padding:20px;box-shadow:0 4px 20px rgba(0,0,0,.4);
+  flex-direction:column;align-items:center;justify-content:center;gap:10px;
+  position:relative;overflow:hidden}
+.vid-fallback::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(ellipse 70% 60% at 30% 20%,rgba(13,148,136,.06),transparent);
+  pointer-events:none}
+.vid-fallback-icon{width:48px;height:48px;border-radius:14px;
+  background:linear-gradient(135deg,rgba(13,148,136,.12),rgba(6,182,212,.12));
+  border:1px solid rgba(13,148,136,.2);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.vid-fallback-icon svg{width:24px;height:24px;color:var(--accent-b)}
+.vid-fallback-badge{font-size:9px;padding:2px 10px;border-radius:999px;
+  background:linear-gradient(135deg,rgba(13,148,136,.15),rgba(6,182,212,.15));
+  border:1px solid rgba(13,148,136,.25);
+  color:var(--accent-b);font-weight:700;letter-spacing:.05em;text-transform:uppercase}
+.vid-fallback-name{font-size:12px;font-weight:700;color:var(--text);text-align:center;
+  max-width:100%;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.vid-fallback-meta{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+.vid-fallback-tag{font-size:10px;color:var(--muted);padding:2px 8px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06);
+  border-radius:6px;font-variant-numeric:tabular-nums}
+
+/* Result area */
+#resultArea{flex:1;overflow-y:auto;min-height:0;padding:16px}
+
+/* ── SCORE GAUGE ── */
+#scoreSummary{display:none;margin-bottom:16px;animation:resultFadeIn .5s ease-out}
+@keyframes resultFadeIn{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:translateY(0)}}
+.score-card{background:var(--surface);border:1px solid var(--glass-border);
+  border-radius:var(--r);padding:20px;backdrop-filter:blur(12px);
+  box-shadow:0 4px 24px rgba(0,0,0,.2)}
+.score-top{display:flex;align-items:center;gap:20px;margin-bottom:16px}
+
+/* SVG Gauge */
+.gauge-wrap{position:relative;width:140px;height:140px;flex-shrink:0}
+.gauge-svg{width:140px;height:140px;transform:rotate(-90deg)}
+.gauge-bg{fill:none;stroke:rgba(255,255,255,.06);stroke-width:10}
+.gauge-fill{fill:none;stroke-width:10;stroke-linecap:round;
+  transition:stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1),stroke 0.5s ease}
+.gauge-center{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center}
+.gauge-score{font-size:2.2rem;font-weight:900;line-height:1;
+  font-variant-numeric:tabular-nums}
+.gauge-label{font-size:10px;color:var(--muted);margin-top:2px;
+  text-transform:uppercase;letter-spacing:.1em;font-weight:600}
+
+.score-meta{flex:1}
+.score-decision{font-size:15px;font-weight:800;margin-bottom:4px}
+.score-reason{font-size:12px;color:var(--muted);line-height:1.5}
+.band-badge{display:inline-flex;align-items:center;gap:3px;padding:2px 9px;border-radius:999px;font-size:10px;font-weight:700;letter-spacing:.04em;margin-bottom:6px}
+.band-excellent{background:rgba(16,185,129,.15);border:1px solid rgba(16,185,129,.35);color:#10b981}
+.band-passing{background:rgba(14,165,233,.15);border:1px solid rgba(14,165,233,.35);color:#38bdf8}
+.band-needs_review{background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.35);color:#f59e0b}
+.band-poor{background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);color:#ef4444}
+.score-chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.score-chip{display:flex;align-items:center;gap:5px;padding:5px 12px;
+  background:var(--glass);border:1px solid var(--glass-border);
+  border-radius:10px;font-size:11px;backdrop-filter:blur(8px);transition:all .2s}
+.score-chip:hover{border-color:rgba(255,255,255,.15)}
+.score-chip span{color:var(--muted);font-size:10px}
+.score-chip strong{font-weight:800;font-variant-numeric:tabular-nums}
+
+/* Score metric bars */
+.metrics-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px}
+.metric-card{background:rgba(255,255,255,.02);border:1px solid var(--border);
+  border-radius:10px;padding:12px;transition:all .2s}
+.metric-card:hover{border-color:rgba(255,255,255,.1);background:rgba(255,255,255,.04)}
+.metric-label{font-size:10px;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.08em;font-weight:600;margin-bottom:6px}
+.metric-bar{background:rgba(255,255,255,.06);border-radius:999px;height:6px;overflow:hidden;margin-bottom:4px}
+.metric-fill{height:100%;border-radius:999px;transition:width 1.2s cubic-bezier(.4,0,.2,1)}
+.metric-val{font-size:13px;font-weight:800;font-variant-numeric:tabular-nums}
+
+/* ── ALIGNMENT TIMELINE ── */
+#alignTimeline{display:none;margin-bottom:16px;animation:resultFadeIn .5s ease-out .1s both}
+.timeline-card{background:var(--surface);border:1px solid var(--glass-border);
+  border-radius:var(--r);padding:16px;backdrop-filter:blur(12px)}
+.timeline-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.timeline-title{font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.1em}
+.timeline-canvas-wrap{position:relative;border-radius:8px;overflow:hidden;
+  background:rgba(0,0,0,.2);border:1px solid rgba(255,255,255,.04)}
+
+/* Step Timeline */
+.step-timeline{display:flex;flex-direction:column;gap:4px;margin-top:14px}
+.step-timeline-header{display:flex;align-items:center;gap:8px;margin-bottom:6px}
+.step-timeline-label{font-size:10px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.08em}
+.step-timeline-summary{font-size:10px;color:var(--muted)}
+.step-bar-track{display:flex;gap:3px;margin-bottom:10px}
+.step-bar-seg{height:6px;border-radius:3px;flex:1;transition:all .3s;cursor:pointer;
+  position:relative}
+.step-bar-seg:hover{transform:scaleY(1.8);filter:brightness(1.3)}
+.step-bar-seg.status-ok{background:rgba(16,185,129,.5)}
+.step-bar-seg.status-deviation{background:rgba(245,158,11,.55)}
+.step-bar-seg.status-swapped{background:rgba(251,146,60,.55)}
+.step-bar-seg.status-missing{background:rgba(239,68,68,.55)}
+.step-row{display:flex;align-items:stretch;gap:10px;padding:6px 0;
+  border-bottom:1px solid rgba(255,255,255,.03);transition:background .15s}
+.step-row:last-child{border-bottom:none}
+.step-row:hover{background:rgba(255,255,255,.02);border-radius:8px}
+.step-idx{width:28px;flex-shrink:0;display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;color:var(--muted);font-variant-numeric:tabular-nums}
+.step-status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:6px}
+.step-status-dot.status-ok{background:#10b981;box-shadow:0 0 6px rgba(16,185,129,.4)}
+.step-status-dot.status-deviation{background:#f59e0b;box-shadow:0 0 6px rgba(245,158,11,.4)}
+.step-status-dot.status-swapped{background:#fb923c;box-shadow:0 0 6px rgba(251,146,60,.4)}
+.step-status-dot.status-missing{background:#ef4444;box-shadow:0 0 6px rgba(239,68,68,.4)}
+.step-body{flex:1;min-width:0}
+.step-clips{font-size:10px;color:var(--muted);display:flex;gap:10px;margin-bottom:2px}
+.step-clips span{font-variant-numeric:tabular-nums}
+.step-status-label{font-size:11px;font-weight:700}
+.step-status-label.status-ok{color:#10b981}
+.step-status-label.status-deviation{color:#f59e0b}
+.step-status-label.status-swapped{color:#fb923c}
+.step-status-label.status-missing{color:#ef4444}
+.step-devs{margin-top:4px;display:flex;flex-direction:column;gap:3px}
+.step-dev-item{font-size:10px;color:var(--muted);padding:3px 8px;
+  background:rgba(255,255,255,.02);border-radius:6px;border-left:2px solid rgba(245,158,11,.4)}
+
+/* Deviations */
+#deviationWrap{margin-bottom:16px;animation:resultFadeIn .5s ease-out .2s both}
+.dev-header{font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;
+  display:flex;align-items:center;gap:8px}
+.dev-count{font-size:10px;padding:2px 8px;border-radius:999px;
+  background:rgba(245,158,11,.12);color:#f59e0b;font-weight:700}
+.dev-item{display:flex;gap:12px;align-items:flex-start;padding:12px;
+  background:var(--surface);border:1px solid var(--glass-border);
+  border-radius:12px;margin-bottom:8px;transition:all .2s;cursor:pointer;
+  backdrop-filter:blur(8px)}
+.dev-item:hover{border-color:rgba(13,148,136,.25);transform:translateX(2px);
+  box-shadow:0 2px 12px rgba(0,0,0,.15)}
+.dev-pill{flex-shrink:0;padding:3px 10px;border-radius:999px;font-size:9px;
+  font-weight:800;text-transform:uppercase;letter-spacing:.06em}
+.dev-pill-critical{background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.25)}
+.dev-pill-quality{background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.25)}
+.dev-pill-efficiency{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
+.dev-type{font-weight:700;font-size:12px;margin-bottom:2px}
+.dev-detail{font-size:11px;color:var(--muted);line-height:1.5}
+.dev-times{font-size:10px;color:var(--accent-b);margin-top:4px;display:flex;gap:12px;flex-wrap:wrap}
+.dev-jump{font-size:10px;font-weight:700;color:var(--accent-b);
+  cursor:pointer;padding:2px 8px;border-radius:4px;border:1px solid rgba(13,148,136,.3);
+  transition:all .15s}
+.dev-jump:hover{background:rgba(13,148,136,.1)}
+
+/* Gold Builder */
+.gold-ver{display:inline-block;font-size:8px;font-weight:800;padding:1px 5px;
+  border-radius:4px;background:rgba(13,148,136,.2);color:var(--accent-b);
+  border:1px solid rgba(13,148,136,.3);vertical-align:middle;letter-spacing:.04em}
+.qc-card{border-radius:10px;padding:10px 12px;margin-top:6px;font-size:11px;
+  border:1px solid var(--glass-border)}
+.qc-card.pass{border-color:rgba(16,185,129,.3);background:rgba(16,185,129,.05)}
+.qc-card.fail{border-color:rgba(239,68,68,.3);background:rgba(239,68,68,.05)}
+.qc-check{display:flex;align-items:baseline;gap:6px;padding:2px 0;font-size:10px}
+.qc-check-icon{flex-shrink:0;font-style:normal}
+.qc-rec{font-size:10px;color:var(--warn);margin-top:6px;padding-top:6px;
+  border-top:1px solid rgba(255,255,255,.06)}
+
+/* Review */
+#reviewWrap{background:var(--surface);border:1px solid var(--glass-border);
+  border-radius:var(--r);padding:16px;backdrop-filter:blur(12px);
+  animation:resultFadeIn .5s ease-out .3s both}
+.review-title{font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+.review-row{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+textarea{width:100%;background:rgba(30,41,59,.6);border:1px solid var(--glass-border);
+  border-radius:10px;padding:10px;color:var(--text);font:inherit;font-size:12px;
+  resize:vertical;min-height:60px;outline:none;transition:all .2s;
+  backdrop-filter:blur(8px)}
+textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136,.12)}
+.review-meta{font-size:11px;color:var(--muted);margin-top:6px}
+
+/* Pills */
+.pill{display:inline-flex;align-items:center;gap:4px;padding:3px 12px;
+  border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.pill-pass{background:rgba(16,185,129,.12);color:#10b981;border:1px solid rgba(16,185,129,.25)}
+.pill-review{background:rgba(59,130,246,.12);color:#3b82f6;border:1px solid rgba(59,130,246,.25)}
+.pill-fail{background:rgba(239,68,68,.12);color:#ef4444;border:1px solid rgba(239,68,68,.25)}
+.pill-retrain{background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.25)}
+
+/* Upload zone */
+.upload-zone{border:2px dashed var(--border);border-radius:var(--r);
+  padding:16px;text-align:center;cursor:pointer;transition:all .3s;
+  position:relative;overflow:hidden}
+.upload-zone::before{content:"";position:absolute;inset:0;
+  background:radial-gradient(circle at center,rgba(13,148,136,.06),transparent);
+  opacity:0;transition:opacity .3s}
+.upload-zone:hover,.upload-zone.drag{border-color:var(--accent-b);
+  background:rgba(13,148,136,.03)}
+.upload-zone:hover::before,.upload-zone.drag::before{opacity:1}
+.upload-zone input[type=file]{display:none}
+.upload-icon{font-size:20px;margin-bottom:4px}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:5px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.15)}
+
+/* ── PLACEHOLDER / LOADING ── */
+.placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:300px;gap:14px;color:var(--muted);font-size:13px}
+.placeholder-icon{width:80px;height:80px;border-radius:20px;
+  background:linear-gradient(135deg,rgba(13,148,136,.1),rgba(6,182,212,.1));
+  border:1px solid rgba(13,148,136,.2);
+  display:flex;align-items:center;justify-content:center;font-size:32px}
+
+/* AI Processing animation */
+.ai-processing{display:flex;flex-direction:column;align-items:center;gap:20px}
+.neural-net{width:200px;height:120px;position:relative}
+.nn-node{position:absolute;width:10px;height:10px;border-radius:50%;
+  background:var(--accent-b);box-shadow:0 0 12px rgba(13,148,136,.5);
+  animation:nnPulse 1.5s ease-in-out infinite}
+.nn-line{position:absolute;height:1px;background:linear-gradient(90deg,transparent,var(--accent-b),transparent);
+  animation:nnFlow 2s linear infinite;opacity:.3}
+@keyframes nnPulse{0%,100%{transform:scale(1);opacity:.8}50%{transform:scale(1.4);opacity:1}}
+@keyframes nnFlow{0%{opacity:0}50%{opacity:.5}100%{opacity:0}}
+.proc-steps{display:flex;gap:8px;align-items:center}
+.proc-step{display:flex;align-items:center;gap:5px;padding:5px 12px;
+  border-radius:8px;font-size:11px;font-weight:600;
+  border:1px solid var(--glass-border);color:var(--muted);
+  transition:all .4s}
+.proc-step.active{border-color:var(--accent-b);color:var(--accent-b);
+  background:rgba(13,148,136,.08);box-shadow:0 0 12px rgba(13,148,136,.15)}
+.proc-step.done{border-color:var(--pass);color:var(--pass);
+  background:rgba(16,185,129,.08)}
+.proc-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
+.proc-arrow{color:var(--muted);font-size:10px}
+
+/* Dataset summary cards */
+.dataset-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+.dataset-card{background:var(--glass);border:1px solid var(--glass-border);
+  border-radius:10px;padding:8px 10px;text-align:center;
+  backdrop-filter:blur(8px);transition:all .2s}
+.dataset-card:hover{border-color:rgba(255,255,255,.12)}
+.dataset-card-label{font-size:9px;color:var(--muted);text-transform:uppercase;
+  letter-spacing:.08em;font-weight:600}
+.dataset-card-val{font-size:18px;font-weight:900;font-variant-numeric:tabular-nums;
+  line-height:1.3}
+
+/* ── SCORE TREND ── */
+#trendWrap{display:none;margin-bottom:16px;animation:resultFadeIn .5s ease-out .15s both}
+.trend-card{background:var(--surface);border:1px solid var(--glass-border);
+  border-radius:var(--r);padding:16px;backdrop-filter:blur(12px)}
+.trend-header{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.trend-title{font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.1em}
+.trend-count{font-size:10px;color:var(--muted)}
+
+/* Animations */
+@keyframes countUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+/* ── SEARCH PANEL ── */
+#searchPanel{padding:12px;display:none;flex-direction:column;gap:10px}
+#searchPanel.active{display:flex}
+.search-form{display:flex;flex-direction:column;gap:8px}
+.search-form-row{display:flex;gap:6px;align-items:center}
+.search-form-row label{font-size:10px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.05em;min-width:52px;flex-shrink:0}
+.search-form-row input{flex:1;min-width:0}
+.search-results{display:flex;flex-direction:column;gap:6px;margin-top:4px}
+.search-result-card{background:var(--glass);border:1px solid var(--glass-border);
+  border-radius:var(--r-sm);padding:10px 12px;cursor:pointer;
+  backdrop-filter:blur(8px);transition:all .2s;
+  display:flex;flex-direction:column;gap:5px}
+.search-result-card:hover{border-color:rgba(13,148,136,.4);
+  background:rgba(13,148,136,.06);transform:translateX(2px);
+  box-shadow:0 2px 12px rgba(0,0,0,.15)}
+.search-result-top{display:flex;align-items:center;gap:8px}
+.search-result-vid{font-size:11px;font-weight:800;color:var(--text)}
+.search-result-badge{font-size:9px;padding:2px 8px;border-radius:999px;
+  font-weight:700;text-transform:uppercase;letter-spacing:.03em;flex-shrink:0}
+.search-result-badge-gold{background:rgba(13,148,136,.15);color:var(--accent-b);
+  border:1px solid rgba(13,148,136,.3)}
+.search-result-badge-trainee{background:rgba(59,130,246,.12);color:#60a5fa;
+  border:1px solid rgba(59,130,246,.25)}
+.search-result-bottom{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.search-result-time{font-size:10px;color:var(--muted);
+  font-variant-numeric:tabular-nums}
+.search-result-sim{font-size:11px;font-weight:800;padding:2px 8px;
+  border-radius:999px;font-variant-numeric:tabular-nums}
+.search-result-sim-green{background:rgba(16,185,129,.12);color:#10b981;
+  border:1px solid rgba(16,185,129,.25)}
+.search-result-sim-yellow{background:rgba(245,158,11,.12);color:#f59e0b;
+  border:1px solid rgba(245,158,11,.25)}
+.search-result-sim-red{background:rgba(239,68,68,.12);color:#ef4444;
+  border:1px solid rgba(239,68,68,.25)}
+.search-query-info{font-size:10px;color:var(--muted);padding:6px 8px;
+  background:rgba(255,255,255,.02);border:1px solid var(--border);
+  border-radius:8px;line-height:1.5}
+.search-query-info strong{color:var(--accent-b);font-weight:700}
+
+/* ── ANALYTICS DASHBOARD ── */
+#analyticsModal{position:fixed;inset:0;z-index:200;background:rgba(5,10,21,.95);
+  backdrop-filter:blur(16px);display:none;flex-direction:column;overflow:hidden}
+#analyticsModal.active{display:flex}
+.analytics-top{display:flex;align-items:center;gap:12px;padding:14px 20px;
+  border-bottom:1px solid var(--glass-border);flex-shrink:0}
+.analytics-title{font-size:16px;font-weight:800;
+  background:linear-gradient(135deg,#f1f5f9,#94a3b8);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.analytics-body{flex:1;overflow-y:auto;padding:20px;display:grid;
+  grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;align-content:start}
+.analytics-kpi{background:var(--surface);border:1px solid var(--glass-border);
+  border-radius:var(--r);padding:16px;text-align:center;
+  backdrop-filter:blur(12px);transition:all .2s}
+.analytics-kpi:hover{border-color:rgba(13,148,136,.3);transform:translateY(-2px);
+  box-shadow:0 4px 20px rgba(0,0,0,.2)}
+.analytics-kpi-val{font-size:28px;font-weight:900;line-height:1.1;
+  font-variant-numeric:tabular-nums}
+.analytics-kpi-label{font-size:10px;color:var(--muted);font-weight:700;
+  text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+.analytics-wide{grid-column:span 2}
+.analytics-full{grid-column:1 / -1}
+.analytics-card{background:var(--surface);border:1px solid var(--glass-border);
+  border-radius:var(--r);padding:16px;backdrop-filter:blur(12px)}
+.analytics-card-title{font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:12px}
+.analytics-bar-row{display:flex;align-items:center;gap:10px;margin-bottom:8px;transition:background .15s}
+.analytics-bar-row:hover{background:rgba(255,255,255,.03);border-radius:8px}
+.analytics-bar-label{font-size:11px;font-weight:600;width:90px;flex-shrink:0;
+  overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.analytics-bar-track{flex:1;height:22px;background:rgba(255,255,255,.04);
+  border-radius:6px;overflow:hidden;position:relative}
+.analytics-bar-fill{height:100%;border-radius:6px;transition:width 1s cubic-bezier(.4,0,.2,1);
+  display:flex;align-items:center;justify-content:flex-end;padding-right:8px;
+  font-size:10px;font-weight:800;color:rgba(255,255,255,.9);min-width:32px}
+.analytics-bar-score{font-size:11px;font-weight:800;width:48px;text-align:right;
+  flex-shrink:0;font-variant-numeric:tabular-nums}
+.analytics-dist-bar{display:flex;height:32px;border-radius:8px;overflow:hidden;
+  margin-bottom:6px}
+.analytics-dist-seg{display:flex;align-items:center;justify-content:center;
+  font-size:10px;font-weight:800;transition:width 1s cubic-bezier(.4,0,.2,1)}
+.analytics-dist-legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:8px}
+.analytics-dist-dot{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)}
+.analytics-dist-dot::before{content:"";width:10px;height:10px;border-radius:3px;flex-shrink:0}
+
+/* ── SPIN (used by loading indicators) ── */
+@keyframes spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
+
+/* ── TOAST NOTIFICATIONS ── */
+#toastContainer{position:fixed;bottom:20px;right:20px;z-index:400;
+  display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.toast{pointer-events:auto;display:flex;align-items:center;gap:10px;
+  padding:12px 18px;border-radius:12px;font-size:12px;font-weight:600;
+  backdrop-filter:blur(20px) saturate(1.3);
+  box-shadow:0 8px 32px rgba(0,0,0,.4);border:1px solid var(--glass-border);
+  animation:toastIn .35s cubic-bezier(.4,0,.2,1);
+  max-width:380px;line-height:1.4;transition:all .3s}
+.toast.hiding{animation:toastOut .3s cubic-bezier(.4,0,.2,1) forwards}
+.toast-success{background:rgba(16,185,129,.15);border-color:rgba(16,185,129,.3);color:#6ee7b7}
+.toast-error{background:rgba(239,68,68,.15);border-color:rgba(239,68,68,.3);color:#fca5a5}
+.toast-info{background:rgba(59,130,246,.15);border-color:rgba(59,130,246,.3);color:#93c5fd}
+.toast-icon{font-size:16px;flex-shrink:0;width:20px;text-align:center}
+@keyframes toastIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+@keyframes toastOut{from{transform:translateX(0);opacity:1}to{transform:translateX(100%);opacity:0}}
+
+/* ── KEYBOARD SHORTCUT HINTS ── */
+.kbd{display:inline-flex;align-items:center;justify-content:center;
+  font-size:9px;font-weight:700;color:var(--muted);
+  background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);
+  border-radius:4px;padding:1px 5px;margin-left:6px;font-family:monospace;
+  line-height:1.3;vertical-align:middle}
+
+/* ── HELP MODAL ── */
+#helpModal{position:fixed;inset:0;z-index:350;background:rgba(5,10,21,.88);
+  backdrop-filter:blur(12px);display:none;align-items:center;justify-content:center}
+#helpModal.active{display:flex}
+.help-grid{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:12px}
+.help-key{font-family:monospace;font-size:11px;font-weight:800;color:var(--accent-b);
+  background:rgba(13,148,136,.1);border:1px solid rgba(13,148,136,.25);
+  border-radius:6px;padding:3px 10px;text-align:center;white-space:nowrap}
+.help-desc{color:var(--ink);padding:3px 0}
+
+@media(max-width:900px){
+  #app{grid-template-columns:1fr;grid-template-rows:auto 1fr}
+  #leftPanel{max-height:50vh}
+  #videoRow{grid-template-columns:1fr}
+  .score-top{flex-direction:column;text-align:center}
+  .metrics-grid{grid-template-columns:1fr}
+  .analytics-body{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo">
+    <div class="logo-icon">SP</div>
+    <span class="logo-name">SOPilot</span>
+    <span class="logo-badge">v1.0</span>
+  </div>
+  <div class="top-sep"></div>
+  <div id="profileChips" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+  <div class="kpi-chip" id="complianceChip" style="cursor:default">
+    準拠率 <strong id="complianceRate" style="color:var(--pass)">--</strong>
+    <span id="complianceTrend" style="font-size:10px"></span>
+  </div>
+  <div class="top-spacer"></div>
+  <div class="status-dot" id="statusDot"></div>
+  <span id="statusText">接続中...</span>
+  <button class="btn btn-secondary btn-sm" onclick="exportJob()" title="Export JSON (E)">Export<span class="kbd">E</span></button>
+  <button class="btn btn-secondary btn-sm" onclick="exportJobCSV()">CSV</button>
+  <button class="btn btn-secondary btn-sm" id="reportBtn" onclick="openReport()" disabled>報告書</button>
+  <button class="btn btn-secondary btn-sm" id="pdfBtn" onclick="downloadPDF()" disabled title="PDF Report (P)">PDF<span class="kbd">P</span></button>
+  <button class="btn btn-secondary btn-sm" onclick="openBatch()" title="バッチ採点 (B)">バッチ<span class="kbd">B</span></button>
+  <button class="btn btn-primary btn-sm" onclick="openAnalytics()" title="分析ダッシュボード (A)">分析<span class="kbd">A</span></button>
+  <button class="btn btn-ghost btn-sm" onclick="openStepDefs()" id="navStepDefs">手順定義</button>
+  <button class="btn btn-secondary btn-sm" onclick="openSettings()">設定</button>
+  <button class="btn btn-ghost btn-sm" onclick="openHelp()" title="ショートカット (?)">?</button>
+</div>
+
+<!-- APP LAYOUT -->
+<div id="app">
+
+  <!-- LEFT PANEL -->
+  <div id="leftPanel">
+
+    <!-- Controls -->
+    <div class="panel-section">
+      <div class="ctrl-row">
+        <input id="siteFilter" placeholder="サイトIDで絞込" style="max-width:110px"/>
+        <button class="btn btn-secondary btn-sm" onclick="loadVideos()">更新</button>
+        <button class="btn btn-primary btn-sm" id="scoreBtn" onclick="createScore()" disabled title="採点実行 (S)">採点実行<span class="kbd">S</span></button>
+        <button class="btn btn-secondary btn-sm" id="ensembleBtn" onclick="createEnsembleScore()" disabled title="複数Gold動画で合議スコアリング" style="font-size:10px">合議採点</button>
+      </div>
+      <div class="ctrl-row">
+        <input id="jobInput" type="number" min="1" placeholder="Job ID" style="max-width:80px"/>
+        <button class="btn btn-secondary btn-sm" onclick="loadJob()">読込</button>
+        <span id="selInfo" style="font-size:10px;color:var(--muted)">Gold - / Trainee -</span>
+      </div>
+    </div>
+
+    <!-- Upload -->
+    <div class="panel-section">
+      <div class="panel-title">動画アップロード</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer">
+          Gold追加<input type="file" accept="video/*" onchange="uploadVideo(this,'gold')"/>
+        </label>
+        <label class="btn btn-secondary btn-sm" style="cursor:pointer">
+          研修生追加<input type="file" accept="video/*" multiple onchange="uploadMultipleVideos(this,'trainee')"/>
+        </label>
+        <label style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted);cursor:pointer" title="Gold動画が品質基準を満たさない場合にアップロードをブロック">
+          <input type="checkbox" id="enforceQualityChk" style="accent-color:var(--accent)"/>品質ゲート
+        </label>
+      </div>
+      <div style="display:flex;gap:4px;margin-top:6px;flex-wrap:wrap">
+        <input id="uploadSiteId" class="input" style="flex:1;min-width:80px;font-size:10px;padding:3px 6px" placeholder="サイトID"/>
+        <input id="uploadOperatorId" class="input" style="flex:1;min-width:80px;font-size:10px;padding:3px 6px" placeholder="担当者ID"/>
+      </div>
+      <div id="uploadStatus" style="font-size:11px;color:var(--muted);margin-top:6px"></div>
+    </div>
+
+    <!-- Dataset summary -->
+    <div class="panel-section" id="datasetSummary"></div>
+
+    <!-- Video list -->
+    <div class="vid-tab-bar">
+      <div class="vid-tab active" onclick="switchTab('gold',this)" id="tabGold">Gold</div>
+      <div class="vid-tab" onclick="switchTab('trainee',this)" id="tabTrainee">研修生</div>
+      <div class="vid-tab" onclick="switchTab('hist',this)" id="tabHist">履歴</div>
+      <div class="vid-tab" onclick="switchTab('search',this)" id="tabSearch">検索</div>
+    </div>
+    <div id="videoListWrap">
+      <div id="goldList" class="vid-list"></div>
+      <div id="traineeList" class="vid-list" style="display:none"></div>
+      <div id="histList" class="vid-list" style="display:none"></div>
+      <div id="searchPanel" style="display:none">
+        <div class="search-form">
+          <div class="search-form-row">
+            <label>Video ID</label>
+            <input id="searchVideoId" type="number" min="1" placeholder="動画ID"/>
+          </div>
+          <div class="search-form-row">
+            <label>Clip Idx</label>
+            <input id="searchClipIndex" type="number" min="0" placeholder="クリップ番号"/>
+          </div>
+          <div class="search-form-row">
+            <label>件数 k</label>
+            <input id="searchK" type="number" min="1" max="50" value="5" placeholder="5"/>
+          </div>
+          <div class="search-form-row">
+            <button class="btn btn-primary btn-sm" style="flex:1" onclick="searchClips()">類似クリップ検索</button>
+          </div>
+        </div>
+        <div id="searchResults"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT PANEL -->
+  <div id="rightPanel">
+
+    <!-- Video compare -->
+    <div id="videoRow">
+      <div class="vid-pane">
+        <div class="vid-pane-header">
+          <span class="vid-pane-label vid-pane-label-gold">Gold</span>
+          <span class="vid-pane-name" id="goldName">-- 未選択 --</span>
+        </div>
+        <video id="goldVideo" controls preload="metadata"></video>
+        <div class="vid-fallback" id="goldFallback">
+          <div class="vid-fallback-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <div class="vid-fallback-badge">サンプルデータ</div>
+          <div class="vid-fallback-name" id="goldFallbackName"></div>
+          <div class="vid-fallback-meta" id="goldFallbackMeta"></div>
+        </div>
+      </div>
+      <div class="vid-pane">
+        <div class="vid-pane-header">
+          <span class="vid-pane-label vid-pane-label-trainee">研修生</span>
+          <span class="vid-pane-name" id="traineeName">-- 未選択 --</span>
+        </div>
+        <video id="traineeVideo" controls preload="metadata"></video>
+        <div class="vid-fallback" id="traineeFallback">
+          <div class="vid-fallback-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+            </svg>
+          </div>
+          <div class="vid-fallback-badge">サンプルデータ</div>
+          <div class="vid-fallback-name" id="traineeFallbackName"></div>
+          <div class="vid-fallback-meta" id="traineeFallbackMeta"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- BATCH PANEL -->
+    <div id="batchPanel" style="display:none;flex-direction:column">
+      <div class="batch-top">
+        <button class="btn btn-secondary btn-sm" onclick="closeBatch()">← 戻る</button>
+        <span style="font-size:14px;font-weight:700">バッチ採点</span>
+        <div class="top-sep" style="height:20px"></div>
+        <span style="font-size:12px;color:var(--muted)">Gold:</span>
+        <select id="batchGoldSel" style="max-width:200px;font-size:12px;flex:none">
+          <option value="">-- Gold動画を選択 --</option>
+        </select>
+        <label class="btn btn-ghost btn-sm" style="cursor:pointer">
+          研修生動画を追加<input type="file" accept="video/*" multiple onchange="batchAddFiles(this)" style="display:none"/>
+        </label>
+        <button class="btn btn-primary btn-sm" id="batchRunBtn" onclick="batchRun()" disabled>一括採点</button>
+        <div class="top-spacer"></div>
+        <button class="btn btn-ghost btn-sm" id="batchCsvBtn" onclick="batchExportCSV()" disabled>CSV</button>
+      </div>
+      <div class="batch-body">
+        <div id="batchProgressWrap" style="display:none;margin-bottom:12px;padding:8px 12px;
+          background:var(--surface);border:1px solid var(--glass-border);border-radius:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+            <span id="batchProgressLabel" style="font-size:11px;font-weight:700;color:var(--muted)"></span>
+            <span id="batchProgressPct" style="font-size:12px;font-weight:900;color:var(--accent-b)"></span>
+          </div>
+          <div style="height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden">
+            <div id="batchProgressBar" style="height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-b));
+              border-radius:3px;transition:width .4s ease;width:0%"></div>
+          </div>
+          <div id="batchProgressEta" style="font-size:10px;color:var(--muted);margin-top:4px;text-align:right"></div>
+        </div>
+        <div id="batchTraineeArea" style="margin-bottom:12px">
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px">研修生動画（複数選択可）</div>
+          <div id="batchTraineeList"></div>
+        </div>
+        <table class="batch-table" id="batchResultTable" style="display:none">
+          <thead>
+            <tr>
+              <th>#</th><th>ファイル名</th><th>スコア</th><th>判定</th>
+              <th>Critical</th><th>Quality</th><th>Efficiency</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="batchResultBody"></tbody>
+        </table>
+        <div id="batchPlaceholder" class="placeholder">
+          <div class="placeholder-icon">&#128256;</div>
+          <div style="font-weight:700">バッチ採点モード</div>
+          <div style="font-size:12px">Gold動画を選択し、研修生動画を複数追加して一括採点</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Result area -->
+    <div id="resultArea">
+
+      <!-- Score summary -->
+      <div id="scoreSummary">
+        <div class="score-card">
+          <div class="score-top">
+            <!-- SVG Circular Gauge -->
+            <div class="gauge-wrap">
+              <svg class="gauge-svg" viewBox="0 0 140 140">
+                <circle class="gauge-bg" cx="70" cy="70" r="58"/>
+                <circle class="gauge-fill" id="gaugeFill" cx="70" cy="70" r="58"
+                  stroke-dasharray="364.42" stroke-dashoffset="364.42"/>
+              </svg>
+              <div class="gauge-center">
+                <div class="gauge-score" id="gaugeScore">--</div>
+                <div class="gauge-label">Score</div>
+              </div>
+            </div>
+            <div class="score-meta">
+              <div class="score-decision" id="scoreDecision">--</div>
+              <div id="scoreBand" style="text-align:center;margin-bottom:2px"></div>
+              <div class="score-reason" id="scoreReason"></div>
+              <div id="scoreBasis" style="font-size:10px;color:var(--muted);margin-top:2px;text-align:center"></div>
+              <div id="scoreComment" style="display:none;font-size:11px;color:var(--text);margin-top:6px;padding:6px 10px;background:rgba(255,255,255,.04);border-radius:8px;border-left:3px solid var(--accent);text-align:left"></div>
+              <div id="scoreSevChips" class="score-chips"></div>
+              <div id="scoreConfidence" style="display:none;font-size:11px;margin-top:4px;text-align:center"></div>
+            </div>
+          </div>
+          <div class="metrics-grid">
+            <div class="metric-card">
+              <div class="metric-label">手順遺漏 (Miss)</div>
+              <div class="metric-bar"><div class="metric-fill" id="barMiss" style="width:0%;background:linear-gradient(90deg,#ef4444,#f87171)"></div></div>
+              <div class="metric-val" id="valMiss" style="color:#f87171">0</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">手順入替 (Swap)</div>
+              <div class="metric-bar"><div class="metric-fill" id="barSwap" style="width:0%;background:linear-gradient(90deg,#f59e0b,#fbbf24)"></div></div>
+              <div class="metric-val" id="valSwap" style="color:#fbbf24">0</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">実施逸脱 (Deviation)</div>
+              <div class="metric-bar"><div class="metric-fill" id="barDev" style="width:0%;background:linear-gradient(90deg,#f59e0b,#fbbf24)"></div></div>
+              <div class="metric-val" id="valDev" style="color:#fbbf24">0</div>
+            </div>
+            <div class="metric-card">
+              <div class="metric-label">時間超過率</div>
+              <div class="metric-bar"><div class="metric-fill" id="barTime" style="width:0%;background:linear-gradient(90deg,#3b82f6,#60a5fa)"></div></div>
+              <div class="metric-val" id="valTime" style="color:#60a5fa">0%</div>
+            </div>
+          </div>
+          <div id="stepContribWrap" style="display:none;margin-top:10px">
+            <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px">ステップ貢献度</div>
+            <div id="stepContribList" style="display:flex;gap:4px;flex-wrap:wrap"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Alignment Timeline -->
+      <div id="alignTimeline">
+        <div class="timeline-card">
+          <div class="timeline-header">
+            <span class="timeline-title">DTW アラインメント</span>
+            <span id="timelineInfo" style="font-size:10px;color:var(--muted)"></span>
+          </div>
+          <div class="timeline-canvas-wrap">
+            <canvas id="timelineCanvas" style="width:100%;height:80px;display:block"></canvas>
+          </div>
+          <div id="stepTimeline"></div>
+        </div>
+      </div>
+
+      <!-- Deviations -->
+      <div id="deviationWrap" style="display:none">
+        <div class="dev-header">
+          逸脱リスト
+          <span class="dev-count" id="devCount">0</span>
+        </div>
+        <div id="devList"></div>
+      </div>
+
+      <!-- Review -->
+      <div id="reviewWrap" style="display:none">
+        <div class="review-title">評価記録 / 監査メモ</div>
+        <div class="review-row">
+          <select id="verdictSelect">
+            <option value="pass">Pass（合格）</option>
+            <option value="needs_review">要レビュー</option>
+            <option value="retrain">要再訓練</option>
+            <option value="fail">Fail（不合格）</option>
+          </select>
+          <button class="btn btn-primary btn-sm" onclick="saveReview()">保存</button>
+        </div>
+        <textarea id="reviewNote" placeholder="教育担当メモ・監査コメント..."></textarea>
+        <div class="review-meta" id="reviewMeta"></div>
+      </div>
+
+      <!-- Score trend chart -->
+      <div id="trendWrap">
+        <div class="trend-card">
+          <div class="trend-header">
+            <span class="trend-title">スコア推移</span>
+            <span id="trendCount" class="trend-count"></span>
+          </div>
+          <div style="position:relative">
+            <canvas id="trendCanvas" style="width:100%;height:130px;display:block"></canvas>
+          </div>
+        </div>
+      </div>
+
+      <!-- Placeholder -->
+      <div class="placeholder" id="placeholder">
+        <div class="placeholder-icon">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-b)">
+            <path d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+          </svg>
+        </div>
+        <div style="font-weight:700;font-size:15px">SOP評価を開始</div>
+        <div style="font-size:12px;max-width:280px;text-align:center;line-height:1.6">
+          左パネルでGoldと研修生の動画を選択し、<br>「採点実行」で AI による手順整合性評価を実行します
+        </div>
+        <div style="display:flex;gap:12px;margin-top:8px">
+          <div style="font-size:10px;color:var(--accent-b);padding:4px 10px;border:1px solid rgba(13,148,136,.3);border-radius:6px">V-JEPA2 Embeddings</div>
+          <div style="font-size:10px;color:var(--accent-b);padding:4px 10px;border:1px solid rgba(13,148,136,.3);border-radius:6px">DTW Alignment</div>
+          <div style="font-size:10px;color:var(--accent-b);padding:4px 10px;border:1px solid rgba(13,148,136,.3);border-radius:6px">Multi-axis Scoring</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ANALYTICS DASHBOARD -->
+<div id="analyticsModal">
+  <div class="analytics-top">
+    <button class="btn btn-secondary btn-sm" onclick="closeAnalytics()">← 戻る</button>
+    <span class="analytics-title">分析ダッシュボード</span>
+    <div class="top-spacer"></div>
+    <select id="analyticsDaysFilter" style="background:rgba(30,41,59,.6);border:1px solid var(--glass-border);border-radius:8px;padding:4px 8px;color:var(--text);font-size:11px;outline:none">
+      <option value="">全期間</option>
+      <option value="7">直近7日</option>
+      <option value="30">直近30日</option>
+      <option value="90">直近90日</option>
+    </select>
+    <button class="btn btn-ghost btn-sm" onclick="exportAnalyticsCSV()" title="分析データをCSVエクスポート">CSV</button>
+    <button class="btn btn-ghost btn-sm" onclick="downloadAnalyticsPDF()" title="エグゼクティブレポートPDF生成">PDF</button>
+    <span id="analyticsStatus" style="font-size:11px;color:var(--muted)"></span>
+  </div>
+  <div class="analytics-body" id="analyticsBody">
+    <div class="placeholder" style="grid-column:1/-1"><div style="width:20px;height:20px;border:2px solid rgba(13,148,136,.2);border-top-color:var(--accent-b);border-radius:50%;animation:spin .7s linear infinite"></div>読み込み中...</div>
+  </div>
+</div>
+
+<!-- Step Definition Editor -->
+<div id="stepDefsModal" style="position:fixed;inset:0;z-index:200;background:rgba(5,10,21,.95);backdrop-filter:blur(16px);display:none;flex-direction:column;overflow:hidden">
+  <div class="analytics-top">
+    <button class="btn btn-secondary btn-sm" onclick="closeStepDefs()">← 戻る</button>
+    <span class="analytics-title">SOP手順定義</span>
+    <div class="top-spacer"></div>
+    <button class="btn btn-sm btn-secondary" onclick="addStepDefRow()">＋ 手順追加</button>
+    <button class="btn btn-sm btn-primary" onclick="saveStepDefs()">保存</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:20px">
+    <div style="background:rgba(15,23,42,.85);border:1px solid rgba(255,255,255,0.08);border-radius:16px;padding:20px;backdrop-filter:blur(12px);max-width:1100px;margin:0 auto">
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px">各手順の名称・想定所要時間を定義します。保存後はスコアレポートで時間遵守状況が表示されます。</p>
+      <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:12px" id="stepDefsTable">
+          <thead>
+            <tr style="border-bottom:1px solid var(--glass-border)">
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;width:60px">手順</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">日本語名称</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">英語名称</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;width:110px">想定時間(秒)</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;width:90px">最短(秒)</th>
+              <th style="padding:8px 10px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;width:90px">最長(秒)</th>
+              <th style="padding:8px 10px;text-align:center;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;width:60px">重要</th>
+              <th style="padding:8px 10px;width:50px"></th>
+            </tr>
+          </thead>
+          <tbody id="stepDefsBody">
+            <!-- rows filled by JS -->
+          </tbody>
+        </table>
+      </div>
+      <div id="stepDefsMsg" style="margin-top:10px;font-size:12px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- OPERATOR DETAIL MODAL -->
+<div id="operatorDetailModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeOperatorDetail()">
+  <div class="modal-box" style="width:680px;max-width:96vw">
+    <div class="modal-header">
+      <span class="modal-title" id="operatorDetailTitle">担当者分析</span>
+      <button class="modal-close" onclick="closeOperatorDetail()">&times;</button>
+    </div>
+    <div id="operatorDetailBody" style="max-height:70vh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- COMPARE MODAL -->
+<div id="compareModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeCompare()">
+  <div class="modal-box" style="width:680px;max-width:96vw">
+    <div class="modal-header">
+      <span class="modal-title">スコア比較</span>
+      <button class="modal-close" onclick="closeCompare()">&times;</button>
+    </div>
+    <div id="compareBody" style="max-height:60vh;overflow-y:auto"></div>
+  </div>
+</div>
+
+<!-- TOAST CONTAINER -->
+<div id="toastContainer"></div>
+
+<!-- KEYBOARD SHORTCUT HELP -->
+<div id="helpModal" onclick="if(event.target===this)closeHelp()">
+  <div class="modal-box" style="width:420px">
+    <div class="modal-header">
+      <span class="modal-title">キーボードショートカット</span>
+      <button class="modal-close" onclick="closeHelp()">&times;</button>
+    </div>
+    <div class="help-grid">
+      <span class="help-key">S</span><span class="help-desc">採点実行</span>
+      <span class="help-key">A</span><span class="help-desc">分析ダッシュボード</span>
+      <span class="help-key">B</span><span class="help-desc">バッチ採点</span>
+      <span class="help-key">R</span><span class="help-desc">動画一覧を更新</span>
+      <span class="help-key">E</span><span class="help-desc">Export JSON</span>
+      <span class="help-key">P</span><span class="help-desc">PDF レポート</span>
+      <span class="help-key">1</span><span class="help-desc">Gold タブ</span>
+      <span class="help-key">2</span><span class="help-desc">研修生タブ</span>
+      <span class="help-key">3</span><span class="help-desc">履歴タブ</span>
+      <span class="help-key">4</span><span class="help-desc">検索タブ</span>
+      <span class="help-key">C</span><span class="help-desc">選択ジョブ比較</span>
+      <span class="help-key">J/K</span><span class="help-desc">動画リスト上下移動</span>
+      <span class="help-key">Enter</span><span class="help-desc">ハイライト動画を選択</span>
+      <span class="help-key">Esc</span><span class="help-desc">モーダルを閉じる</span>
+      <span class="help-key">?</span><span class="help-desc">このヘルプを表示</span>
+    </div>
+  </div>
+</div>
+
+<!-- SETTINGS MODAL -->
+<div id="settingsModal" class="modal-overlay" style="display:none" onclick="if(event.target===this)closeSettings()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <span class="modal-title">タスクプロファイル設定</span>
+      <button class="modal-close" onclick="closeSettings()">&times;</button>
+    </div>
+    <div class="form-section">スコア閾値</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">Pass スコア</label>
+        <input id="cfgPassScore" type="number" min="0" max="100" step="0.5" placeholder="90"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Retrain スコア</label>
+        <input id="cfgRetrainScore" type="number" min="0" max="100" step="0.5" placeholder="70"/>
+      </div>
+    </div>
+    <div class="form-section">重み設定（合計 = 1 推奨）</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">w_miss（手順遺漏）</label>
+        <input id="cfgWMiss" type="number" min="0" max="1" step="0.05" placeholder="0.4"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">w_swap（手順入替）</label>
+        <input id="cfgWSwap" type="number" min="0" max="1" step="0.05" placeholder="0.3"/>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">w_dev（実施逸脱）</label>
+        <input id="cfgWDev" type="number" min="0" max="1" step="0.05" placeholder="0.2"/>
+      </div>
+      <div class="form-group">
+        <label class="form-label">w_time（時間超過）</label>
+        <input id="cfgWTime" type="number" min="0" max="1" step="0.05" placeholder="0.1"/>
+      </div>
+    </div>
+    <div class="form-section">逸脱ポリシー（severity）</div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">missing_step</label>
+        <select id="cfgPolMiss">
+          <option value="critical">critical</option>
+          <option value="quality">quality</option>
+          <option value="efficiency">efficiency</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">order_swap</label>
+        <select id="cfgPolSwap">
+          <option value="critical">critical</option>
+          <option value="quality">quality</option>
+          <option value="efficiency">efficiency</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label class="form-label">step_deviation</label>
+        <select id="cfgPolDev">
+          <option value="critical">critical</option>
+          <option value="quality">quality</option>
+          <option value="efficiency">efficiency</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">over_time</label>
+        <select id="cfgPolTime">
+          <option value="critical">critical</option>
+          <option value="quality">quality</option>
+          <option value="efficiency">efficiency</option>
+        </select>
+      </div>
+    </div>
+    <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:22px">
+      <button class="btn btn-secondary" onclick="closeSettings()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveSettings()">保存する</button>
+    </div>
+    <div id="settingsSaveMsg" style="font-size:11px;margin-top:8px;text-align:right"></div>
+    <div class="form-section" style="margin-top:18px;border-top:1px solid var(--border);padding-top:14px">管理者操作</div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px">閾値変更後、既存採点結果の合否判定を現在のプロファイルで一括再計算します。</div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+      <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer">
+        <input type="checkbox" id="rescoreDryRun" style="width:14px;height:14px;accent-color:var(--accent)">
+        ドライラン（変更を保存しない）
+      </label>
+      <button class="btn btn-secondary" id="rescoreBtn" onclick="runRescore()" style="margin-left:auto">DB再判定を実行</button>
+    </div>
+    <div id="rescoreResult" style="font-size:11px;padding:8px;border-radius:6px;display:none"></div>
+  </div>
+</div>
+
+<script>
+// =============================================
+// STATE
+// =============================================
+const S={
+  profile:null,summary:null,
+  videos:[],
+  selGold:null,selTrainee:null,
+  currentJob:null,pollTimer:null,
+  activeTab:"gold"
+};
+
+// =============================================
+// DOM refs
+// =============================================
+const $ = id => document.getElementById(id);
+const goldVideo=$("goldVideo"),traineeVideo=$("traineeVideo");
+
+// =============================================
+// STATUS
+// =============================================
+function setStatus(msg,isErr=false){
+  $("statusText").textContent=msg;
+  $("statusText").className=isErr?"error":"";
+  $("statusDot").style.background=isErr?"#ef4444":"#10b981";
+  $("statusDot").style.boxShadow=isErr?"0 0 8px rgba(239,68,68,.5)":"0 0 8px rgba(16,185,129,.5)";
+}
+
+// =============================================
+// API
+// =============================================
+async function api(url,opts={}){
+  const r=await fetch(url,opts);
+  const d=await r.json().catch(()=>({}));
+  if(!r.ok)throw new Error(d.detail||`HTTP ${r.status}`);
+  return d;
+}
+
+// =============================================
+// ANIMATED COUNTER
+// =============================================
+function animateValue(el,start,end,duration=800){
+  const range=end-start;
+  const startTime=performance.now();
+  const isFloat=!Number.isInteger(end);
+  function step(now){
+    const elapsed=Math.min((now-startTime)/duration,1);
+    const ease=1-Math.pow(1-elapsed,3); // ease-out cubic
+    const val=start+range*ease;
+    el.textContent=isFloat?val.toFixed(1):Math.round(val);
+    if(elapsed<1)requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
+// =============================================
+// PROFILE & SUMMARY
+// =============================================
+async function loadProfile(){
+  S.profile=await api("/task-profile");
+  S.summary=await api("/dataset/summary");
+  renderProfile();
+  renderSummary();
+}
+
+function renderProfile(){
+  const p=S.profile;if(!p)return;
+  $("profileChips").innerHTML=`
+    <div class="kpi-chip"><span>Task</span> <strong>${p.task_id}</strong></div>
+    <div class="kpi-chip"><span>Pass</span> <strong>${p.pass_score}pt</strong></div>
+    <div class="kpi-chip"><span>Retrain</span> <strong>${p.retrain_score}pt</strong></div>`;
+}
+
+function renderSummary(){
+  const s=S.summary;if(!s)return;
+  $("datasetSummary").innerHTML=`
+    <div class="panel-title">データセット</div>
+    <div class="dataset-grid">
+      <div class="dataset-card">
+        <div class="dataset-card-label">Gold</div>
+        <div class="dataset-card-val" style="color:var(--accent-b)">${s.gold_videos}</div>
+      </div>
+      <div class="dataset-card">
+        <div class="dataset-card-label">研修生</div>
+        <div class="dataset-card-val" style="color:var(--text)">${s.trainee_videos}</div>
+      </div>
+      <div class="dataset-card">
+        <div class="dataset-card-label">Ready</div>
+        <div class="dataset-card-val" style="color:var(--pass)">${s.ready_videos}</div>
+      </div>
+    </div>`;
+}
+
+// =============================================
+// COMPLIANCE KPI
+// =============================================
+async function loadComplianceKPI(){
+  try{
+    const d=await api("/analytics/compliance");
+    const pct=Math.round((d.compliance_rate||0)*100);
+    const col=pct>=80?"var(--pass)":pct>=60?"var(--warn)":"var(--danger)";
+    $("complianceRate").textContent=pct+"%";
+    $("complianceRate").style.color=col;
+    const dir=d.trend_direction||"stable";
+    $("complianceTrend").textContent=dir==="improving"?" ▲":dir==="declining"?" ▼":" —";
+    $("complianceTrend").style.color=dir==="improving"?"var(--pass)":dir==="declining"?"var(--danger)":"var(--muted)";
+  }catch(e){/* compliance endpoint may not exist yet */}
+}
+
+// =============================================
+// VIDEO LIST
+// =============================================
+async function loadVideos(){
+  setStatus("動画一覧を更新中...");
+  const site=$("siteFilter").value.trim();
+  const qs=new URLSearchParams({limit:"500"});
+  if(site)qs.set("site_id",site);
+  const d=await api(`/videos?${qs}`);
+  S.videos=d.items||[];
+  renderLists();
+  setStatus(`${S.videos.length}本の動画を読込`);
+}
+
+function renderLists(){
+  const gold=S.videos.filter(v=>v.is_gold);
+  const trainee=S.videos.filter(v=>!v.is_gold);
+  renderVidList($("goldList"),gold,true);
+  renderVidList($("traineeList"),trainee,false);
+  $("tabGold").textContent=`Gold (${gold.length})`;
+  $("tabTrainee").textContent=`研修生 (${trainee.length})`;
+}
+
+function renderVidList(el,list,isGold){
+  el.innerHTML="";
+  if(!list.length){
+    el.innerHTML=`<div class="empty-state">動画がありません<br><span style="font-size:11px">上のアップロードボタンで追加</span></div>`;
+    return;
+  }
+  list.forEach(v=>{
+    const isSelected=isGold?(S.selGold===v.video_id):(S.selTrainee===v.video_id);
+    const div=document.createElement("div");
+    div.className="vid-item"+(isSelected?" selected":"");
+    const clipTxt=v.clip_count?`${v.clip_count}clips`:"";
+    const stClass=v.status==="ready"?"vid-status-ready":"vid-status-proc";
+    div.innerHTML=`
+      <span class="vid-id">#${v.video_id}${isGold&&v.gold_version?` <span class="gold-ver">v${v.gold_version}</span>`:""}</span>
+      <span class="vid-name" title="${v.original_filename||""}">${v.original_filename||`Video ${v.video_id}`}</span>
+      <span class="vid-clips">${clipTxt}</span>
+      <span class="vid-status ${stClass}">${v.status}</span>
+      <button class="vid-edit" title="編集" onclick="event.stopPropagation();openEditVideo(${v.video_id})">&#x270E;</button>
+      <button class="vid-del" title="削除" onclick="event.stopPropagation();deleteVideo(${v.video_id},'${(v.original_filename||"Video "+v.video_id).replace(/'/g,"\\'")}')">&#x2715;</button>`;
+    div.addEventListener("click",()=>{
+      if(isGold)selectGold(v);
+      else selectTrainee(v);
+    });
+    el.appendChild(div);
+  });
+}
+
+function showVideoFallback(videoEl,fallbackId,v){
+  videoEl.style.display="none";
+  const fb=$(fallbackId);
+  fb.style.display="flex";
+  const prefix=fallbackId.replace("Fallback","");
+  $(prefix+"FallbackName").textContent=v.original_filename||`Video ${v.video_id}`;
+  const tags=[];
+  tags.push(`ID: ${v.video_id}`);
+  if(v.clip_count)tags.push(`${v.clip_count} clips`);
+  if(v.site_id)tags.push(v.site_id);
+  if(v.status)tags.push(v.status);
+  $(prefix+"FallbackMeta").innerHTML=tags.map(t=>`<span class="vid-fallback-tag">${t}</span>`).join("");
+}
+
+function hideVideoFallback(videoEl,fallbackId){
+  videoEl.style.display="block";
+  $(fallbackId).style.display="none";
+}
+
+function selectGold(v){
+  S.selGold=v.video_id;
+  S._selGoldData=v;
+  const _gname=(v.original_filename||`Video ${v.video_id}`);
+  $("goldName").textContent=v.gold_version?`v${v.gold_version} — ${_gname}`:_gname;
+  hideVideoFallback(goldVideo,"goldFallback");
+  goldVideo.src=`/videos/${v.video_id}/stream`;
+  goldVideo.onerror=()=>showVideoFallback(goldVideo,"goldFallback",v);
+  updateSelInfo();renderLists();
+}
+function selectTrainee(v){
+  S.selTrainee=v.video_id;
+  S._selTraineeData=v;
+  $("traineeName").textContent=v.original_filename||`Video ${v.video_id}`;
+  hideVideoFallback(traineeVideo,"traineeFallback");
+  traineeVideo.src=`/videos/${v.video_id}/stream`;
+  traineeVideo.onerror=()=>showVideoFallback(traineeVideo,"traineeFallback",v);
+  updateSelInfo();renderLists();
+}
+function updateSelInfo(){
+  $("selInfo").textContent=`Gold ${S.selGold||"-"} / Trainee ${S.selTrainee||"-"}`;
+  $("scoreBtn").disabled=!(S.selGold&&S.selTrainee);
+  const goldCount=(S.videos||[]).filter(v=>v.is_gold).length;
+  const ensBtn=$("ensembleBtn");
+  if(ensBtn)ensBtn.disabled=!(goldCount>=2&&S.selTrainee);
+}
+
+// =============================================
+// TAB SWITCH
+// =============================================
+function switchTab(tab,el){
+  S.activeTab=tab;
+  document.querySelectorAll(".vid-tab").forEach(t=>t.classList.remove("active"));
+  el.classList.add("active");
+  $("goldList").style.display=tab==="gold"?"flex":"none";
+  $("traineeList").style.display=tab==="trainee"?"flex":"none";
+  $("histList").style.display=tab==="hist"?"flex":"none";
+  $("searchPanel").style.display=tab==="search"?"flex":"none";
+  if(tab==="hist")loadHistory();
+}
+
+// =============================================
+// DELETE VIDEO
+// =============================================
+async function deleteVideo(id,name){
+  if(!confirm(`動画「${name}」(ID: ${id}) を削除しますか？\n\nスコアジョブで参照されている場合は削除できません。`))return;
+  try{
+    setStatus(`動画 #${id} を削除中...`);
+    await api(`/videos/${id}`,{method:"DELETE"});
+    toast(`動画 #${id} を削除しました`,"success");
+    if(S.selGold===id){S.selGold=null;$("goldName").textContent="未選択";}
+    if(S.selTrainee===id){S.selTrainee=null;$("traineeName").textContent="未選択";}
+    updateSelInfo();
+    await loadVideos();await loadProfile();
+    setStatus("動画を削除しました");
+  }catch(e){
+    toast(`削除失敗: ${e.message}`,"error");
+    setStatus(e.message,true);
+  }
+}
+
+// =============================================
+// EDIT VIDEO METADATA
+// =============================================
+async function openEditVideo(id){
+  try{
+    const v=await api(`/videos/${id}`);
+    const overlay=document.createElement("div");
+    overlay.className="modal-overlay";
+    overlay.onclick=e=>{if(e.target===overlay)overlay.remove()};
+    overlay.innerHTML=`
+      <div class="modal-box" style="width:400px">
+        <div class="modal-header">
+          <span class="modal-title">動画メタデータ編集 #${id}</span>
+          <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label">サイト ID</label>
+          <input id="editSiteId" class="input" value="${v.site_id||""}" placeholder="factory-a"/>
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label">カメラ ID</label>
+          <input id="editCameraId" class="input" value="${v.camera_id||""}" placeholder="cam-01"/>
+        </div>
+        <div class="form-group" style="margin-bottom:10px">
+          <label class="form-label">オペレータ ID ハッシュ</label>
+          <input id="editOperatorId" class="input" value="${v.operator_id_hash||""}" placeholder="abc123"/>
+        </div>
+        <div class="form-group" style="margin-bottom:14px">
+          <label class="form-label">撮影日時 (ISO-8601)</label>
+          <input id="editRecordedAt" class="input" value="${v.recorded_at||""}" placeholder="2025-01-15T09:00:00Z"/>
+        </div>
+        <button class="btn btn-primary" style="width:100%" onclick="saveEditVideo(${id},this.closest('.modal-overlay'))">保存</button>
+      </div>`;
+    document.body.appendChild(overlay);
+  }catch(e){toast(`読込失敗: ${e.message}`,"error")}
+}
+
+async function saveEditVideo(id,overlay){
+  const body={};
+  const site=$("editSiteId").value.trim();
+  const cam=$("editCameraId").value.trim();
+  const op=$("editOperatorId").value.trim();
+  const rec=$("editRecordedAt").value.trim();
+  if(site)body.site_id=site;
+  if(cam)body.camera_id=cam;
+  if(op)body.operator_id_hash=op;
+  if(rec)body.recorded_at=rec;
+  try{
+    await api(`/videos/${id}`,{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify(body)});
+    toast("メタデータを更新しました","success");
+    overlay.remove();
+    await loadVideos();
+  }catch(e){toast(`更新失敗: ${e.message}`,"error")}
+}
+
+// =============================================
+// UPLOAD
+// =============================================
+async function uploadVideo(input,kind){
+  const file=input.files[0];if(!file)return;
+  const stat=$("uploadStatus");
+  stat.textContent=`アップロード中: ${file.name}`;
+  stat.style.color="var(--accent-b)";
+  try{
+    const fd=new FormData();
+    fd.append("file",file);
+    fd.append("task_id",S.profile?.task_id||"pilot_task");
+    const site=$("uploadSiteId").value.trim();
+    const op=$("uploadOperatorId").value.trim();
+    if(site)fd.append("site_id",site);
+    if(op)fd.append("operator_id_hash",op);
+    if(kind==="gold"&&$("enforceQualityChk")?.checked)fd.append("enforce_quality","true");
+    const ep=kind==="gold"?"/gold":"/videos";
+    const r=await api(ep,{method:"POST",body:fd});
+    if(kind==="gold"){
+      renderGoldQualityCard(r,stat,file.name);
+    }else if(r.quality&&!r.quality.overall_pass){
+      const warns=r.quality.recommendations_ja||[];
+      stat.innerHTML=`<span style="color:var(--warn)">⚠ ${file.name} (${r.clip_count} clips) — 品質警告:</span><br>${warns.map(w=>`<span style="font-size:10px;color:var(--muted)">• ${w}</span>`).join("<br>")}`;
+      stat.style.color="var(--warn)";
+      toast(`品質警告: ${warns[0]||"撮影条件を確認してください"}`,"warn");
+    }else{
+      stat.textContent=`${file.name} (${r.clip_count} clips)`;
+      stat.style.color="var(--pass)";
+    }
+    await loadVideos();await loadProfile();
+  }catch(e){
+    stat.textContent=`Error: ${e.message}`;stat.style.color="var(--danger)";
+  }
+  input.value="";
+}
+
+function renderGoldQualityCard(r,stat,filename){
+  const q=r.quality;
+  const ver=r.gold_version?`v${r.gold_version}`:"";
+  if(!q){
+    stat.textContent=`✓ ${filename} (${r.clip_count} clips)${ver?" — "+ver:""}`;
+    stat.style.color="var(--pass)";
+    return;
+  }
+  const pass=q.overall_pass;
+  const checks=(q.checks||[]).map(c=>{
+    const icon=c.passed?"✓":"✗";
+    const col=c.passed?"var(--pass)":"var(--danger)";
+    const msg=c.message_ja?`<span style="color:var(--muted);margin-left:auto;font-size:9px">${c.message_ja}</span>`:"";
+    return`<div class="qc-check"><span class="qc-check-icon" style="color:${col}">${icon}</span><span style="color:${col};font-weight:700">${c.name}</span>${msg}</div>`;
+  }).join("");
+  const recs=(q.recommendations_ja||[]).map(rec=>`<div>• ${rec}</div>`).join("");
+  const header=pass
+    ?`<div style="font-weight:700;color:var(--pass);margin-bottom:6px">✓ 品質OK — ${filename}${ver?" ("+ver+")":""}</div>`
+    :`<div style="font-weight:700;color:var(--danger);margin-bottom:6px">✗ 品質基準未達成 — ${filename}</div>`;
+  stat.innerHTML=`${header}<div class="qc-card ${pass?"pass":"fail"}">${checks}${recs?`<div class="qc-rec">${recs}</div>`:""}</div>`;
+  stat.style.color=pass?"var(--pass)":"var(--warn)";
+  if(!pass)toast("Gold動画の品質確認が必要です","warn");
+}
+
+async function uploadMultipleVideos(input,kind){
+  const files=Array.from(input.files||[]);
+  if(!files.length)return;
+  if(files.length===1){uploadVideo(input,kind);return;}
+  const stat=$("uploadStatus");
+  const total=files.length;
+  let success=0,fail=0;
+  for(let i=0;i<total;i++){
+    stat.textContent=`アップロード中 (${i+1}/${total}): ${files[i].name}`;
+    stat.style.color="var(--accent-b)";
+    try{
+      const fd=new FormData();
+      fd.append("file",files[i]);
+      fd.append("task_id",S.profile?.task_id||"pilot_task");
+      const site=$("uploadSiteId").value.trim();
+      const op=$("uploadOperatorId").value.trim();
+      if(site)fd.append("site_id",site);
+      if(op)fd.append("operator_id_hash",op);
+      await api("/videos",{method:"POST",body:fd});
+      success++;
+    }catch(e){fail++;}
+  }
+  stat.textContent=`${total}件中 ${success}件成功${fail>0?` / ${fail}件失敗`:""}`;
+  stat.style.color=fail>0?"var(--warn)":"var(--pass)";
+  await loadVideos();await loadProfile();
+  input.value="";
+}
+
+// =============================================
+// SCORE
+// =============================================
+async function createScore(){
+  if(!S.selGold||!S.selTrainee){setStatus("Gold/Trainee を選択してください",true);return;}
+  try{
+    setStatus("採点ジョブを作成中...");
+    showProcessing();
+    const d=await api("/score",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({gold_video_id:S.selGold,trainee_video_id:S.selTrainee})
+    });
+    S.currentJob=d;
+    $("jobInput").value=d.job_id;
+    setStatus(`Job #${d.job_id} 採点中...`);
+    startPolling(d.job_id);
+  }catch(e){setStatus(e.message,true);}
+}
+
+async function createEnsembleScore(){
+  if(!S.selTrainee){setStatus("Trainee動画を選択してください",true);return;}
+  // Use all gold videos for ensemble
+  const goldIds=S.videos.filter(v=>v.is_gold).map(v=>v.video_id);
+  if(goldIds.length<2){setStatus("合議採点には2本以上のGold動画が必要です",true);return;}
+  try{
+    setStatus(`${goldIds.length}本のGold動画で合議採点中...`);
+    showProcessing();
+    const d=await api("/score/ensemble",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({gold_video_ids:goldIds,trainee_video_id:S.selTrainee})
+    });
+    // Show ensemble result in a dialog-like status
+    const agreeCol=d.agreement==="high"?"var(--pass)":d.agreement==="medium"?"var(--warn)":"var(--danger)";
+    const agreeLabel={"high":"高","medium":"中","low":"低"}[d.agreement]||d.agreement;
+    const scoreCol=d.consensus_score>=90?"var(--pass)":d.consensus_score>=80?"var(--warn)":"var(--danger)";
+    const indScores=d.individual_scores.map((s,i)=>`G${goldIds[i]}:${s}`).join(", ");
+    setStatus(`合議スコア: ${d.consensus_score} (一致度:${agreeLabel}) [${indScores}]`);
+    hideProcessing();
+  }catch(e){setStatus(e.message,true);hideProcessing();}
+}
+
+async function loadJob(){
+  const id=Number($("jobInput").value);
+  if(!id){setStatus("Job IDを入力してください",true);return;}
+  try{
+    const j=await api(`/score/${id}`);
+    S.currentJob=j;
+    if(j.result){
+      autoSelectVideos(j);
+      renderResult(j);
+    }
+    setStatus(`Job #${j.job_id} status=${j.status}`);
+    if(j.status==="queued"||j.status==="running")startPolling(j.job_id);
+  }catch(e){setStatus(e.message,true);}
+}
+
+function autoSelectVideos(j){
+  if(!j.result)return;
+  const gv=S.videos.find(v=>v.video_id===j.result.gold_video_id);
+  const tv=S.videos.find(v=>v.video_id===j.result.trainee_video_id);
+  if(gv)selectGold(gv);
+  if(tv)selectTrainee(tv);
+}
+
+// =============================================
+// LIVE SCORE PROGRESS (SSE with polling fallback)
+// =============================================
+function stopPolling(){
+  if(S.pollTimer){clearInterval(S.pollTimer);S.pollTimer=null;}
+  if(S._sse){try{S._sse.close()}catch(_){} S._sse=null;}
+}
+
+function startPolling(id){
+  stopPolling();
+  let stepIdx=0;
+
+  // Try SSE first for real-time updates
+  try{
+    const sse=new EventSource(`/score/${id}/stream?poll_interval=0.8`);
+    S._sse=sse;
+
+    sse.addEventListener("status",e=>{
+      const d=JSON.parse(e.data);
+      updateProcessingStep(stepIdx++);
+      setStatus(`Job #${d.job_id} -- ${d.status}`);
+      if(d.score!==undefined){
+        setStatus(`Job #${d.job_id} -- score: ${d.score}`);
+      }
+    });
+
+    sse.addEventListener("done",async e=>{
+      const d=JSON.parse(e.data);
+      sse.close();S._sse=null;
+      try{
+        const j=await api(`/score/${id}`);
+        S.currentJob=j;
+        if(j.result){autoSelectVideos(j);renderResult(j);}
+        await loadProfile();
+        if(d.final_status==="completed"){
+          setStatus(`Job #${id} 採点完了`);
+          loadTrend();
+          loadComplianceKPI();
+        }else setStatus(`Job #${id} 採点失敗`,true);
+      }catch(ex){setStatus(ex.message,true);}
+    });
+
+    sse.addEventListener("error",e=>{
+      const d=e.data?JSON.parse(e.data):{};
+      sse.close();S._sse=null;
+      setStatus(d.error||"SSE接続エラー",true);
+    });
+
+    sse.onerror=()=>{
+      // SSE connection failed — fall back to polling
+      sse.close();S._sse=null;
+      _startPollingFallback(id,stepIdx);
+    };
+  }catch(_){
+    // EventSource not supported — fall back to polling
+    _startPollingFallback(id,stepIdx);
+  }
+}
+
+function _startPollingFallback(id,stepIdx){
+  S.pollTimer=setInterval(async()=>{
+    try{
+      updateProcessingStep(stepIdx++);
+      const j=await api(`/score/${id}`);
+      S.currentJob=j;
+      setStatus(`Job #${j.job_id} -- ${j.status}`);
+      if(j.result){autoSelectVideos(j);renderResult(j);}
+      if(j.status==="completed"||j.status==="failed"){
+        stopPolling();
+        await loadProfile();
+        if(j.status==="completed"){
+          setStatus(`Job #${j.job_id} 採点完了`);
+          loadTrend();
+          loadComplianceKPI();
+        }else setStatus(`Job #${j.job_id} 採点失敗`,true);
+      }
+    }catch(e){stopPolling();setStatus(e.message,true);}
+  },1200);
+}
+
+// =============================================
+// AI PROCESSING ANIMATION
+// =============================================
+function showProcessing(){
+  const ph=$("placeholder");
+  ph.style.display="flex";
+  ph.innerHTML=`
+    <div class="ai-processing">
+      <div class="neural-net" id="neuralNet"></div>
+      <div style="font-weight:700;font-size:16px;color:var(--text)">AI 解析中</div>
+      <div class="proc-steps" id="procSteps">
+        <div class="proc-step active" id="ps0"><div class="proc-dot"></div>エンベディング</div>
+        <span class="proc-arrow">→</span>
+        <div class="proc-step" id="ps1"><div class="proc-dot"></div>DTW整列</div>
+        <span class="proc-arrow">→</span>
+        <div class="proc-step" id="ps2"><div class="proc-dot"></div>スコア計算</div>
+      </div>
+    </div>`;
+  $("scoreSummary").style.display="none";
+  $("deviationWrap").style.display="none";
+  $("reviewWrap").style.display="none";
+  $("alignTimeline").style.display="none";
+  buildNeuralNet();
+}
+
+function buildNeuralNet(){
+  const el=$("neuralNet");if(!el)return;
+  const layers=[3,5,6,5,3];
+  const w=200,h=120;
+  let html="";
+  layers.forEach((count,li)=>{
+    const x=li*(w/(layers.length-1));
+    for(let ni=0;ni<count;ni++){
+      const y=(h/(count+1))*(ni+1);
+      const delay=(li*0.2+ni*0.1).toFixed(1);
+      html+=`<div class="nn-node" style="left:${x-5}px;top:${y-5}px;animation-delay:${delay}s"></div>`;
+      // Lines to next layer
+      if(li<layers.length-1){
+        const nx=(li+1)*(w/(layers.length-1));
+        const nextCount=layers[li+1];
+        for(let nj=0;nj<nextCount;nj++){
+          const ny=(h/(nextCount+1))*(nj+1);
+          const dx=nx-x,dy=ny-y;
+          const len=Math.sqrt(dx*dx+dy*dy);
+          const angle=Math.atan2(dy,dx)*180/Math.PI;
+          const ld=(li*0.3+ni*0.15+nj*0.1).toFixed(1);
+          html+=`<div class="nn-line" style="left:${x}px;top:${y}px;width:${len}px;transform:rotate(${angle}deg);transform-origin:0 0;animation-delay:${ld}s"></div>`;
+        }
+      }
+    }
+  });
+  el.innerHTML=html;
+}
+
+function updateProcessingStep(idx){
+  const steps=["ps0","ps1","ps2"];
+  steps.forEach((id,i)=>{
+    const el=$(id);if(!el)return;
+    if(i<idx%3)el.className="proc-step done";
+    else if(i===idx%3)el.className="proc-step active";
+    else el.className="proc-step";
+  });
+}
+
+// =============================================
+// RENDER RESULT
+// =============================================
+function scoreColor(s){
+  const ps=(S.profile?.pass_score||60);
+  if(s>=ps*1.2)return"#10b981";if(s>=ps)return"#14b8a6";
+  if(s>=(S.profile?.retrain_score||50))return"#f59e0b";return"#ef4444";
+}
+function decisionPill(d){
+  const map={pass:"pill-pass",needs_review:"pill-review",retrain:"pill-retrain",fail:"pill-fail"};
+  const labels={pass:"PASS",needs_review:"REVIEW",retrain:"RETRAIN",fail:"FAIL"};
+  return`<span class="pill ${map[d]||"pill-review"}">${labels[d]||d}</span>`;
+}
+
+function renderResult(j){
+  const r=j.result;if(!r)return;
+  $("placeholder").style.display="none";
+  $("reportBtn").disabled=false;
+  $("pdfBtn").disabled=false;
+
+  // Score gauge
+  const sum=r.summary||{};
+  const m=r.metrics||{};
+  const col=scoreColor(r.score);
+  $("scoreSummary").style.display="block";
+
+  // Animate gauge
+  const circumference=2*Math.PI*58; // ~364.42
+  const offset=circumference*(1-Math.min(r.score,100)/100);
+  const fill=$("gaugeFill");
+  fill.style.stroke=col;
+  // Reset then animate
+  fill.style.transition="none";
+  fill.style.strokeDashoffset=circumference;
+  requestAnimationFrame(()=>{
+    requestAnimationFrame(()=>{
+      fill.style.transition="stroke-dashoffset 1.5s cubic-bezier(.4,0,.2,1)";
+      fill.style.strokeDashoffset=offset;
+    });
+  });
+
+  // Animate score number
+  const gaugeEl=$("gaugeScore");
+  gaugeEl.style.color=col;
+  animateValue(gaugeEl,0,r.score,1200);
+
+  $("scoreDecision").innerHTML=decisionPill(sum.decision||"needs_review");
+  $("scoreReason").textContent=sum.decision_reason||"";
+
+  // Score band badge
+  const bandEl=$("scoreBand");
+  if(bandEl){
+    const band=sum.score_band;
+    const bandLabels={excellent:"★ 優秀",passing:"✓ 合格圏",needs_review:"⚠ 要レビュー",poor:"✗ 不合格圏"};
+    bandEl.innerHTML=band?`<span class="band-badge band-${band}">${bandLabels[band]||band}</span>`:"";
+  }
+  // Decision basis
+  const basisEl=$("scoreBasis");
+  if(basisEl){
+    const basisLabels={critical_deviation:"重大逸脱検出による不合格",score_above_threshold:"スコア基準達成による合格",score_below_retrain:"再訓練推奨スコア以下",score_between_thresholds:"合否判定基準値の間"};
+    basisEl.textContent=basisLabels[sum.decision_basis]||"";
+  }
+  // Summary comment (from deviation templates)
+  const commentEl=$("scoreComment");
+  if(commentEl){
+    commentEl.textContent=sum.comment_ja||"";
+    commentEl.style.display=sum.comment_ja?"block":"none";
+  }
+
+  const sev=sum.severity_counts||{};
+  $("scoreSevChips").innerHTML=`
+    <div class="score-chip"><span>重大</span><strong style="color:${sev.critical>0?"#ef4444":"var(--pass)"}">${sev.critical||0}</strong></div>
+    <div class="score-chip"><span>品質</span><strong style="color:${sev.quality>0?"#f59e0b":"var(--pass)"}">${sev.quality||0}</strong></div>
+    <div class="score-chip"><span>効率</span><strong style="color:${sev.efficiency>0?"#3b82f6":"var(--pass)"}">${sev.efficiency||0}</strong></div>
+    <div class="score-chip"><span>DTW</span><strong>${m.dtw_normalized_cost?.toFixed(4)||"-"}</strong></div>`;
+
+  // Confidence display
+  const conf=r.confidence;
+  const confEl=$("scoreConfidence");
+  if(confEl){
+    if(conf){
+      const stabCol=conf.stability==="high"?"var(--pass)":conf.stability==="medium"?"var(--warn)":"var(--danger)";
+      confEl.style.display="block";
+      confEl.innerHTML=`<span style="font-size:10px;color:var(--muted)">信頼区間 95%:</span> <strong style="color:${stabCol}">${conf.ci_low.toFixed(1)} — ${conf.ci_high.toFixed(1)}</strong> <span style="font-size:9px;color:${stabCol};text-transform:uppercase">(${conf.stability})</span>`;
+    }else{
+      confEl.style.display="none";
+    }
+  }
+
+  // Metric bars (animated)
+  setTimeout(()=>{
+    $("barMiss").style.width=Math.min(m.miss_steps*25,100)+"%";
+    $("barSwap").style.width=Math.min(m.swap_steps*25,100)+"%";
+    $("barDev").style.width=Math.min(m.deviation_steps*25,100)+"%";
+    $("barTime").style.width=Math.min(m.over_time_ratio*50,100)+"%";
+  },200);
+  $("valMiss").textContent=m.miss_steps||0;
+  $("valSwap").textContent=m.swap_steps||0;
+  $("valDev").textContent=m.deviation_steps||0;
+  $("valTime").textContent=((m.over_time_ratio||0)*100).toFixed(0)+"%";
+
+  // Step contributions
+  const stepContribs=r.step_contributions||[];
+  if(stepContribs.length){
+    $("stepContribWrap").style.display="block";
+    const cl=$("stepContribList");
+    cl.innerHTML="";
+    stepContribs.forEach((sc,i)=>{
+      const pct=sc.points_possible>0?Math.round((sc.points_earned/sc.points_possible)*100):100;
+      const col=pct>=90?"var(--pass)":pct>=60?"var(--warn)":"var(--danger)";
+      const div=document.createElement("div");
+      const comp=sc.compliance;
+      const compColors={ok:"var(--pass)",too_fast:"var(--warn)",too_slow:"var(--danger)"};
+      const compLabels={ok:"適正",too_fast:"速すぎ",too_slow:"遅すぎ"};
+      const compBadge=(comp&&comp!=="undefined"&&compColors[comp])?
+        `<div style="font-size:7px;padding:1px 4px;border-radius:3px;font-weight:700;color:#fff;background:${compColors[comp]};white-space:nowrap;margin-top:1px">${compLabels[comp]||comp}</div>`:"";
+      div.title=`Step ${i+1}: ${sc.points_earned.toFixed(1)}/${sc.points_possible.toFixed(1)}点${comp?` [${compLabels[comp]||comp}]`:""}`;
+      div.style.cssText=`display:flex;flex-direction:column;align-items:center;gap:2px;cursor:default`;
+      div.innerHTML=`
+        <div style="width:24px;height:40px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;position:relative;display:flex;align-items:flex-end">
+          <div style="width:100%;height:${pct}%;background:${col};border-radius:3px;transition:height .8s ease"></div>
+        </div>
+        <div style="font-size:8px;color:var(--muted);font-variant-numeric:tabular-nums">${i+1}</div>
+        ${compBadge}`;
+      cl.appendChild(div);
+    });
+  }else{
+    $("stepContribWrap").style.display="none";
+  }
+
+  // Alignment Timeline
+  renderTimeline(r);
+
+  // Deviations
+  const devs=r.deviations||[];
+  $("deviationWrap").style.display="block";
+  $("devCount").textContent=devs.length;
+  const dl=$("devList");dl.innerHTML="";
+  if(!devs.length){
+    dl.innerHTML=`<div style="color:#10b981;font-weight:700;padding:20px;text-align:center;
+      background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.15);border-radius:12px">
+      逸脱なし -- 手順完全遵守</div>`;
+  }else{
+    devs.forEach((d,i)=>{
+      const div=document.createElement("div");
+      div.className="dev-item";
+      div.style.animationDelay=`${0.3+i*0.08}s`;
+      const sev=d.severity||"quality";
+      const sevLabel=d.severity_ja||{critical:"重大",quality:"品質",efficiency:"効率"}[sev]||sev;
+      const tLabel=d.comment_ja||(
+                   d.type==="over_time"?"時間超過":
+                   d.type==="missing_step"?"手順遺漏":
+                   d.type==="order_swap"?"手順入替":
+                   d.type==="step_deviation"?"実施逸脱":d.type);
+      const sevDesc=d.severity_description_ja||"";
+      const goldTime=d.gold_timecode?`Gold ${fmtTime(d.gold_timecode[0])}-${fmtTime(d.gold_timecode[1])}`:"";
+      const traineeTime=d.trainee_timecode?`Trainee ${fmtTime(d.trainee_timecode[0])}-${fmtTime(d.trainee_timecode[1])}`:"";
+      div.innerHTML=`
+        <span class="dev-pill dev-pill-${sev}">${sevLabel}</span>
+        <div style="flex:1">
+          <div class="dev-type">#${i+1} ${tLabel}</div>
+          ${sevDesc?`<div style="font-size:10px;color:var(--muted);margin:2px 0">${sevDesc}</div>`:""}
+          ${goldTime||traineeTime?`<div class="dev-times">
+            ${goldTime?`<span>${goldTime}</span>`:""}
+            ${traineeTime?`<span>${traineeTime}</span>`:""}
+            <span class="dev-jump" onclick="jumpTo(${JSON.stringify(d).replace(/"/g,'&quot;')})">ジャンプ</span>
+          </div>`:""}
+        </div>`;
+      dl.appendChild(div);
+    });
+  }
+
+  // Review
+  $("reviewWrap").style.display="block";
+  const rev=j.review;
+  if(rev){
+    $("verdictSelect").value=rev.verdict||"needs_review";
+    $("reviewNote").value=rev.note||"";
+    $("reviewMeta").textContent=`最終更新: ${fmtIso(rev.updated_at)}`;
+  }else{
+    $("verdictSelect").value=sum.decision||"needs_review";
+    $("reviewNote").value="";
+    $("reviewMeta").textContent="";
+  }
+}
+
+// =============================================
+// ALIGNMENT TIMELINE
+// =============================================
+function renderTimeline(r){
+  const devs=r.deviations||[];
+  const m=r.metrics||{};
+  if(!m.gold_length&&!devs.length){$("alignTimeline").style.display="none";return;}
+
+  $("alignTimeline").style.display="block";
+  $("timelineInfo").textContent=`Gold: ${m.gold_length||"?"}clips / Trainee: ${m.trainee_length||"?"}clips`;
+
+  const canvas=$("timelineCanvas");
+  if(!canvas)return;
+  requestAnimationFrame(()=>drawTimeline(canvas,r));
+
+  // Fetch step-by-step timeline from API
+  const jobId=S.currentJob?.job_id;
+  const stEl=$("stepTimeline");
+  if(!jobId||!stEl)return;
+  stEl.innerHTML="";
+  api(`/score/${jobId}/timeline`).then(tl=>{
+    renderStepTimeline(stEl,tl);
+  }).catch(()=>{/* timeline not available for this job */});
+}
+
+function renderStepTimeline(container,tl){
+  const steps=tl.steps||[];
+  if(!steps.length){container.innerHTML="";return;}
+
+  const statusLabels={ok:"正常",deviation:"逸脱",swapped:"入替",missing:"遺漏"};
+  const okCount=steps.filter(s=>s.status==="ok").length;
+
+  let html=`<div class="step-timeline-header">
+    <span class="step-timeline-label">ステップ分析</span>
+    <span class="step-timeline-summary">${steps.length}ステップ中 ${okCount}正常</span>
+  </div>`;
+
+  // Mini bar chart (overview)
+  html+=`<div class="step-bar-track">`;
+  steps.forEach((s,i)=>{
+    html+=`<div class="step-bar-seg status-${s.status}" title="Step ${i+1}: ${statusLabels[s.status]||s.status}"></div>`;
+  });
+  html+=`</div>`;
+
+  // Step detail rows
+  steps.forEach((s,i)=>{
+    const gc=s.gold_clip_range;
+    const tc=s.trainee_clip_range;
+    const goldLabel=gc?`Gold ${gc[0]}-${gc[1]}`:"--";
+    const traineeLabel=tc?`Trainee ${tc[0]}-${tc[1]}`:"--";
+
+    html+=`<div class="step-row">
+      <div class="step-idx">${i+1}</div>
+      <div class="step-status-dot status-${s.status}"></div>
+      <div class="step-body">
+        <div class="step-clips">
+          <span>${goldLabel}</span>
+          <span>${traineeLabel}</span>
+        </div>
+        <div class="step-status-label status-${s.status}">${statusLabels[s.status]||s.status}</div>`;
+
+    // Inline deviation details for non-ok steps
+    const devs=s.deviations||[];
+    if(devs.length){
+      html+=`<div class="step-devs">`;
+      devs.forEach(d=>{
+        const tLabel=d.type==="missing_step"?"手順遺漏":
+                     d.type==="order_swap"?"手順入替":
+                     d.type==="step_deviation"?"実施逸脱":
+                     d.type==="over_time"?"時間超過":d.type;
+        html+=`<div class="step-dev-item">${tLabel}: ${d.detail||""}</div>`;
+      });
+      html+=`</div>`;
+    }
+
+    html+=`</div></div>`;
+  });
+
+  container.innerHTML=html;
+}
+
+function drawTimeline(canvas,r){
+  const W=canvas.clientWidth,H=canvas.clientHeight;
+  if(!W||!H)return;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  const ctx=canvas.getContext("2d");
+  ctx.scale(dpr,dpr);
+
+  const m=r.metrics||{};
+  const devs=r.deviations||[];
+  const goldLen=m.gold_length||1;
+  const traineeLen=m.trainee_length||1;
+
+  const padL=10,padR=10,padT=12,padB=12;
+  const cW=W-padL-padR;
+  const goldY=padT+12;
+  const traineeY=H-padB-12;
+  const barH=8;
+
+  // Gold bar background
+  ctx.fillStyle="rgba(13,148,136,0.15)";
+  ctx.beginPath();
+  ctx.roundRect(padL,goldY-barH/2,cW,barH,4);
+  ctx.fill();
+
+  // Trainee bar background
+  ctx.fillStyle="rgba(59,130,246,0.12)";
+  ctx.beginPath();
+  ctx.roundRect(padL,traineeY-barH/2,cW,barH,4);
+  ctx.fill();
+
+  // Labels
+  ctx.fillStyle="rgba(13,148,136,0.8)";
+  ctx.font="bold 9px Inter,system-ui,sans-serif";
+  ctx.textAlign="left";
+  ctx.fillText("GOLD",padL,goldY-barH/2-3);
+  ctx.fillStyle="rgba(96,165,250,0.8)";
+  ctx.fillText("TRAINEE",padL,traineeY+barH/2+11);
+
+  // Fill gold bar (matched portions)
+  ctx.fillStyle="rgba(13,148,136,0.5)";
+  ctx.beginPath();
+  ctx.roundRect(padL,goldY-barH/2,cW,barH,4);
+  ctx.fill();
+
+  // Fill trainee bar
+  ctx.fillStyle="rgba(59,130,246,0.35)";
+  ctx.beginPath();
+  ctx.roundRect(padL,traineeY-barH/2,cW,barH,4);
+  ctx.fill();
+
+  // Draw deviation markers
+  devs.forEach(d=>{
+    const gRange=d.gold_clip_range;
+    const tRange=d.trainee_clip_range;
+    const sev=d.severity||"quality";
+    const color=sev==="critical"?"rgba(239,68,68,0.7)":
+                sev==="quality"?"rgba(245,158,11,0.6)":"rgba(59,130,246,0.5)";
+
+    if(Array.isArray(gRange)&&gRange.length===2){
+      const x1=padL+(gRange[0]/goldLen)*cW;
+      const x2=padL+((gRange[1]+1)/goldLen)*cW;
+      ctx.fillStyle=color;
+      ctx.beginPath();
+      ctx.roundRect(x1,goldY-barH/2-1,Math.max(x2-x1,3),barH+2,2);
+      ctx.fill();
+
+      // Connection line to trainee
+      if(Array.isArray(tRange)&&tRange.length===2){
+        const tx1=padL+(tRange[0]/traineeLen)*cW;
+        const tx2=padL+((tRange[1]+1)/traineeLen)*cW;
+        ctx.fillStyle=color;
+        ctx.beginPath();
+        ctx.roundRect(tx1,traineeY-barH/2-1,Math.max(tx2-tx1,3),barH+2,2);
+        ctx.fill();
+
+        // Connection lines
+        ctx.strokeStyle=color.replace(/[\d.]+\)$/,"0.2)");
+        ctx.lineWidth=1;
+        ctx.setLineDash([3,3]);
+        ctx.beginPath();
+        ctx.moveTo((x1+x2)/2,goldY+barH/2+1);
+        ctx.lineTo((tx1+tx2)/2,traineeY-barH/2-1);
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
+    }
+  });
+}
+
+function fmtTime(sec){
+  if(sec==null)return"--";
+  const n=Number(sec),m=Math.floor(n/60),s=(n%60).toFixed(1);
+  return`${m}:${String(s).padStart(4,"0")}`;
+}
+function fmtIso(v){
+  if(!v)return"";
+  const d=new Date(v);return isNaN(d)?v:d.toLocaleString();
+}
+function jumpTo(dev){
+  if(dev.gold_timecode?.[0]!=null&&goldVideo.style.display!=="none"){goldVideo.currentTime=dev.gold_timecode[0];goldVideo.play().catch(()=>{});}
+  if(dev.trainee_timecode?.[0]!=null&&traineeVideo.style.display!=="none"){traineeVideo.currentTime=dev.trainee_timecode[0];traineeVideo.play().catch(()=>{});}
+}
+
+// =============================================
+// REVIEW SAVE
+// =============================================
+async function saveReview(){
+  if(!S.currentJob){setStatus("先にJobを読み込んでください",true);return;}
+  try{
+    const d=await api(`/score/${S.currentJob.job_id}/review`,{
+      method:"PUT",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({verdict:$("verdictSelect").value,note:$("reviewNote").value.trim()||null})
+    });
+    $("reviewMeta").textContent=`保存済み: ${fmtIso(d.updated_at)}`;
+    setStatus("レビューを保存しました");
+  }catch(e){setStatus(e.message,true);}
+}
+
+// =============================================
+// HISTORY
+// =============================================
+async function loadHistory(status=null){
+  const el=$("histList");
+  const filterVal=status||"";
+  el.innerHTML=`
+    <div style="padding:8px 14px;border-bottom:1px solid rgba(255,255,255,.04);display:flex;gap:6px;flex-shrink:0">
+      <select id="histStatusFilter" style="flex:1;background:rgba(30,41,59,.6);border:1px solid var(--glass-border);border-radius:8px;padding:5px 8px;color:var(--text);font-size:11px;outline:none">
+        <option value="">全ステータス</option>
+        <option value="completed" ${filterVal==="completed"?"selected":""}>完了</option>
+        <option value="queued" ${filterVal==="queued"?"selected":""}>待機</option>
+        <option value="failed" ${filterVal==="failed"?"selected":""}>失敗</option>
+        <option value="cancelled" ${filterVal==="cancelled"?"selected":""}>取消</option>
+      </select>
+      <button class="btn btn-ghost btn-sm" onclick="exportHistCSV()" title="全件CSVエクスポート" style="padding:4px 10px">CSV</button>
+      <button class="btn btn-ghost btn-sm" onclick="downloadServerCSV()" title="サーバー側CSV生成" style="padding:4px 10px">DL</button>
+      <button class="btn btn-ghost btn-sm" id="compareBtn" onclick="openCompare()" title="2件選択して比較" style="padding:4px 10px" disabled>比較</button>
+    </div>
+    <div id="histItems"></div>`;
+  $("histStatusFilter").onchange=function(){loadHistory(this.value||null);};
+  $("histItems").innerHTML=`<div class="empty-state" style="padding:20px"><div style="width:20px;height:20px;border:2px solid rgba(13,148,136,.2);border-top-color:var(--accent-b);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 8px"></div>読み込み中...</div>`;
+  try{
+    const qs=new URLSearchParams({limit:"100"});
+    if(status)qs.set("status",status);
+    const d=await api(`/score?${qs}`);
+    const items=(d.items||[]).slice().reverse();
+    $("tabHist").textContent=`履歴 (${d.total||items.length})`;
+    renderHistList(items);
+  }catch(e){
+    const hi=$("histItems");
+    if(hi)hi.innerHTML=`<div class="empty-state">Error: ${e.message}</div>`;
+  }
+}
+
+S.compareIds=new Set();
+function renderHistList(items){
+  const el=$("histItems")||$("histList");
+  el.innerHTML="";
+  S.compareIds.clear();
+  updateCompareBtn();
+  if(!items.length){
+    el.innerHTML=`<div class="empty-state">採点履歴がありません</div>`;
+    return;
+  }
+  items.forEach(j=>{
+    const div=document.createElement("div");
+    div.className="vid-item"+(S.currentJob?.job_id===j.id?" selected":"");
+    const score=j.score!=null?Number(j.score).toFixed(1):"--";
+    const dec=j.decision||"--";
+    const decColor=dec==="pass"?"var(--pass)":dec==="fail"?"var(--danger)":dec==="retrain"?"var(--warn)":"var(--review)";
+    const stClass=dec==="pass"?"vid-status-ready":"vid-status-proc";
+    const cb=document.createElement("input");
+    cb.type="checkbox";cb.style.cssText="width:14px;height:14px;cursor:pointer;flex-shrink:0;accent-color:var(--accent)";
+    cb.title="比較対象に選択";
+    cb.addEventListener("click",(e)=>{
+      e.stopPropagation();
+      if(cb.checked){
+        if(S.compareIds.size>=2){cb.checked=false;toast("比較は2件まで","error");return;}
+        S.compareIds.add(j.id);
+      }else{S.compareIds.delete(j.id);}
+      updateCompareBtn();
+    });
+    div.innerHTML="";
+    div.appendChild(cb);
+    const inner=document.createElement("span");
+    inner.style.cssText="display:flex;align-items:center;gap:6px;flex:1;cursor:pointer";
+    const bandMiniLabel={pass:"合格",fail:"不合格",needs_review:"要確認",retrain:"再訓練"};
+    const decLabel=bandMiniLabel[dec]||dec;
+    const bandBadge=j.score_band
+      ?`<span class="band-badge band-${j.score_band}" style="font-size:9px;padding:1px 6px;margin-left:4px">${decLabel}</span>`
+      :`<span class="vid-status ${stClass}" style="margin-left:4px">${decLabel}</span>`;
+    inner.innerHTML=`
+      <span class="vid-id">#${j.id}</span>
+      <span class="vid-name" style="flex:1">G${j.gold_video_id??"-"} → T${j.trainee_video_id??"-"}</span>
+      <span style="font-size:11px;font-weight:800;color:${decColor}">${score}pt</span>
+      ${bandBadge}`;
+    inner.addEventListener("click",async()=>{
+      $("jobInput").value=j.id;
+      await loadJob();
+      switchTab("gold",$("tabGold"));
+    });
+    div.appendChild(inner);
+    el.appendChild(div);
+  });
+}
+function updateCompareBtn(){
+  const btn=$("compareBtn");
+  if(btn)btn.disabled=S.compareIds.size!==2;
+}
+
+// =============================================
+// EXPORT
+// =============================================
+function exportJob(){
+  if(!S.currentJob){setStatus("Jobが選択されていません",true);return;}
+  window.open(`/score/${S.currentJob.job_id}/export`,"_blank");
+}
+
+async function exportHistCSV(){
+  try{
+    setStatus("履歴CSVを生成中...");
+    const d=await api("/score?limit=500");
+    const items=d.items||[];
+    if(!items.length){setStatus("エクスポートするジョブがありません",true);return;}
+    const ts=new Date().toISOString().slice(0,19).replace("T","_").replace(/:/g,"-");
+    let csv="Job ID,ステータス,スコア,判定,Gold動画ID,研修生動画ID,タスクID,Critical,Quality,Efficiency\n";
+    items.forEach(j=>{
+      const sev=j.severity_counts||{};
+      csv+=`${j.job_id},${j.status||""},${j.score??""}, ${j.decision||""}, ${j.gold_video_id??""}, ${j.trainee_video_id??""}, ${j.task_id||""}, ${sev.critical??""}, ${sev.quality??""}, ${sev.efficiency??""}\n`;
+    });
+    const bom="\uFEFF";
+    const blob=new Blob([bom+csv],{type:"text/csv;charset=utf-8;"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=`sopilot_history_${ts}.csv`;
+    a.click();URL.revokeObjectURL(a.href);
+    setStatus(`CSV エクスポート完了 (${items.length}件)`);
+  }catch(e){setStatus("エクスポートエラー: "+e.message,true);}
+}
+
+function exportJobCSV(){
+  if(!S.currentJob){setStatus("Jobが選択されていません",true);return;}
+  const j=S.currentJob;
+  const r=j.result;
+  if(!r){setStatus("採点結果がありません",true);return;}
+  const sum=r.summary||{};const m=r.metrics||{};const devs=r.deviations||[];
+  const ts=new Date().toISOString().slice(0,19).replace("T","_").replace(/:/g,"-");
+  let csv="フィールド,値\n";
+  csv+=`JobID,${j.job_id}\n`;
+  csv+=`スコア,${r.score}\n`;
+  csv+=`判定,${sum.decision||""}\n`;
+  csv+=`判定理由,"${(sum.decision_reason||"").replace(/"/g,"'")}"\n`;
+  csv+=`Gold動画ID,${r.gold_video_id??""}\n`;
+  csv+=`研修生動画ID,${r.trainee_video_id??""}\n`;
+  csv+=`タスクID,${r.task_id??""}\n`;
+  csv+=`手順遺漏数,${m.miss_steps??0}\n`;
+  csv+=`手順入替数,${m.swap_steps??0}\n`;
+  csv+=`品質逸脱数,${m.deviation_steps??0}\n`;
+  csv+=`時間超過率,${m.over_time_ratio??0}\n`;
+  csv+=`DTW Cost,${m.dtw_normalized_cost??""}\n`;
+  csv+=`Critical件数,${sum.severity_counts?.critical??0}\n`;
+  csv+=`Quality件数,${sum.severity_counts?.quality??0}\n`;
+  csv+=`Efficiency件数,${sum.severity_counts?.efficiency??0}\n`;
+  if(devs.length){
+    csv+="\n#,タイプ,重大度,詳細,Gold開始秒,Gold終了秒,研修生開始秒,研修生終了秒\n";
+    devs.forEach((d,i)=>{
+      const gt=d.gold_timecode||[];const tt=d.trainee_timecode||[];
+      const detail=(d.detail||"").replace(/"/g,"'");
+      csv+=`${i+1},${d.type||""},${d.severity||""},"${detail}",${gt[0]??""},${gt[1]??""},${tt[0]??""},${tt[1]??""}\n`;
+    });
+  }
+  const bom="\uFEFF";
+  const blob=new Blob([bom+csv],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`sopilot_job${j.job_id}_${ts}.csv`;
+  a.click();URL.revokeObjectURL(a.href);
+}
+
+// =============================================
+// SCORE COMPARISON
+// =============================================
+async function openCompare(){
+  const ids=[...S.compareIds];
+  if(ids.length!==2){toast("2件のジョブを選択してください","error");return;}
+  $("compareModal").style.display="flex";
+  $("compareBody").innerHTML=`<div class="empty-state"><div style="width:20px;height:20px;border:2px solid rgba(13,148,136,.2);border-top-color:var(--accent-b);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 8px"></div>読み込み中...</div>`;
+  try{
+    const [a,b]=await Promise.all(ids.map(id=>api(`/score/${id}`)));
+    renderCompare(a,b);
+  }catch(e){$("compareBody").innerHTML=`<div class="empty-state">エラー: ${e.message}</div>`;}
+}
+function closeCompare(){$("compareModal").style.display="none";}
+function renderCompare(a,b){
+  const ra=a.result||{},rb=b.result||{};
+  const ma=ra.metrics||{},mb=rb.metrics||{};
+  const sa=ra.summary||{},sb=rb.summary||{};
+  const decClr=d=>d==="pass"?"var(--pass)":d==="fail"?"var(--danger)":d==="retrain"?"var(--warn)":"var(--review)";
+  function metricRow(label,va,vb,fmt){
+    const fv=fmt||((v)=>v!=null?v:"--");
+    const av=fv(va),bv=fv(vb);
+    const diff=va!=null&&vb!=null?(va-vb):null;
+    const diffStr=diff!=null?(diff>0?`<span style="color:var(--pass)">+${diff.toFixed(2)}</span>`:`<span style="color:${diff<0?"var(--danger)":"var(--muted)"}">${diff.toFixed(2)}</span>`):"--";
+    return `<tr style="border-bottom:1px solid var(--border)"><td style="padding:6px 10px;color:var(--muted);font-size:11px">${label}</td><td style="padding:6px 10px;text-align:center;font-weight:700">${av}</td><td style="padding:6px 10px;text-align:center;font-weight:700">${bv}</td><td style="padding:6px 10px;text-align:center;font-size:11px">${diffStr}</td></tr>`;
+  }
+  const scoreA=ra.score,scoreB=rb.score;
+  const html=`
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px">
+      <div style="background:var(--surface2);border-radius:12px;padding:14px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Job #${a.job_id}</div>
+        <div style="font-size:28px;font-weight:900;color:${decClr(sa.decision)}">${scoreA!=null?scoreA.toFixed(1):"--"}</div>
+        <div style="font-size:11px;color:${decClr(sa.decision)};font-weight:700;margin-top:2px">${sa.decision||"--"}</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:12px;padding:14px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">Job #${b.job_id}</div>
+        <div style="font-size:28px;font-weight:900;color:${decClr(sb.decision)}">${scoreB!=null?scoreB.toFixed(1):"--"}</div>
+        <div style="font-size:11px;color:${decClr(sb.decision)};font-weight:700;margin-top:2px">${sb.decision||"--"}</div>
+      </div>
+    </div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="border-bottom:2px solid var(--border)">
+        <th style="padding:6px 10px;text-align:left;color:var(--accent-b);font-size:10px;text-transform:uppercase">指標</th>
+        <th style="padding:6px 10px;text-align:center;color:var(--accent-b);font-size:10px">#${a.job_id}</th>
+        <th style="padding:6px 10px;text-align:center;color:var(--accent-b);font-size:10px">#${b.job_id}</th>
+        <th style="padding:6px 10px;text-align:center;color:var(--accent-b);font-size:10px">差分</th>
+      </tr></thead>
+      <tbody>
+        ${metricRow("総合スコア",scoreA,scoreB,(v)=>v!=null?v.toFixed(1):"--")}
+        ${metricRow("手順遺漏 (Miss)",ma.miss_steps,mb.miss_steps,(v)=>v!=null?v:0)}
+        ${metricRow("手順入替 (Swap)",ma.swap_steps,mb.swap_steps,(v)=>v!=null?v:0)}
+        ${metricRow("品質逸脱 (Dev)",ma.deviation_steps,mb.deviation_steps,(v)=>v!=null?v:0)}
+        ${metricRow("時間超過率",ma.over_time_ratio,mb.over_time_ratio,(v)=>v!=null?v.toFixed(3):"--")}
+        ${metricRow("DTW コスト",ma.dtw_normalized_cost,mb.dtw_normalized_cost,(v)=>v!=null?v.toFixed(4):"--")}
+      </tbody>
+    </table>
+    <div style="margin-top:12px;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:11px">
+      <div style="background:var(--surface2);border-radius:8px;padding:10px">
+        <div style="color:var(--muted);font-size:9px;text-transform:uppercase;margin-bottom:4px">逸脱件数 #${a.job_id}</div>
+        <span style="color:#ef4444">Critical: ${(sa.severity_counts||{}).critical||0}</span> /
+        <span style="color:#f59e0b">Quality: ${(sa.severity_counts||{}).quality||0}</span> /
+        <span style="color:#3b82f6">Efficiency: ${(sa.severity_counts||{}).efficiency||0}</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px">
+        <div style="color:var(--muted);font-size:9px;text-transform:uppercase;margin-bottom:4px">逸脱件数 #${b.job_id}</div>
+        <span style="color:#ef4444">Critical: ${(sb.severity_counts||{}).critical||0}</span> /
+        <span style="color:#f59e0b">Quality: ${(sb.severity_counts||{}).quality||0}</span> /
+        <span style="color:#3b82f6">Efficiency: ${(sb.severity_counts||{}).efficiency||0}</span>
+      </div>
+    </div>`;
+
+  // Score comparison bars
+  const maxScore=Math.max(scoreA||0,scoreB||0,100);
+  html+=`<div style="margin-top:16px;background:var(--surface2);border-radius:10px;padding:12px">
+    <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">スコア比較</div>
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+      <span style="font-size:10px;width:40px;text-align:right;color:var(--muted)">#${a.job_id}</span>
+      <div style="flex:1;height:16px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${(scoreA||0)/maxScore*100}%;background:${decClr(sa.decision)};border-radius:4px;
+          display:flex;align-items:center;justify-content:flex-end;padding-right:6px;
+          font-size:10px;font-weight:800;color:rgba(255,255,255,.9);min-width:32px;transition:width 1s ease">${scoreA!=null?scoreA.toFixed(1):""}</div>
+      </div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px">
+      <span style="font-size:10px;width:40px;text-align:right;color:var(--muted)">#${b.job_id}</span>
+      <div style="flex:1;height:16px;background:rgba(255,255,255,.04);border-radius:4px;overflow:hidden">
+        <div style="height:100%;width:${(scoreB||0)/maxScore*100}%;background:${decClr(sb.decision)};border-radius:4px;
+          display:flex;align-items:center;justify-content:flex-end;padding-right:6px;
+          font-size:10px;font-weight:800;color:rgba(255,255,255,.9);min-width:32px;transition:width 1s ease">${scoreB!=null?scoreB.toFixed(1):""}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Deviation diff
+  const devsA=ra.deviations||[],devsB=rb.deviations||[];
+  if(devsA.length||devsB.length){
+    const devLabel=d=>{
+      const tl={missing_step:"手順遺漏",order_swap:"手順入替",step_deviation:"実施逸脱",over_time:"時間超過"};
+      return`<span style="font-weight:700">${tl[d.type]||d.type}</span> ${d.detail||""}`;
+    };
+    html+=`<div style="margin-top:12px;background:var(--surface2);border-radius:10px;padding:12px">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">逸脱詳細比較</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <div>
+          <div style="font-size:9px;color:var(--accent-b);text-transform:uppercase;margin-bottom:4px">#${a.job_id} (${devsA.length}件)</div>`;
+    if(!devsA.length) html+=`<div style="font-size:11px;color:var(--pass);padding:4px 0">逸脱なし</div>`;
+    else devsA.forEach(d=>{
+      const sevCol=d.severity==="critical"?"#ef4444":d.severity==="efficiency"?"#3b82f6":"#f59e0b";
+      html+=`<div style="font-size:10px;padding:4px 6px;margin-bottom:3px;border-left:2px solid ${sevCol};
+        background:rgba(255,255,255,.02);border-radius:0 4px 4px 0">${devLabel(d)}</div>`;
+    });
+    html+=`</div><div>
+          <div style="font-size:9px;color:var(--accent-b);text-transform:uppercase;margin-bottom:4px">#${b.job_id} (${devsB.length}件)</div>`;
+    if(!devsB.length) html+=`<div style="font-size:11px;color:var(--pass);padding:4px 0">逸脱なし</div>`;
+    else devsB.forEach(d=>{
+      const sevCol=d.severity==="critical"?"#ef4444":d.severity==="efficiency"?"#3b82f6":"#f59e0b";
+      html+=`<div style="font-size:10px;padding:4px 6px;margin-bottom:3px;border-left:2px solid ${sevCol};
+        background:rgba(255,255,255,.02);border-radius:0 4px 4px 0">${devLabel(d)}</div>`;
+    });
+    html+=`</div></div></div>`;
+  }
+
+  $("compareBody").innerHTML=html;
+}
+
+// =============================================
+// SERVER CSV DOWNLOAD
+// =============================================
+function downloadServerCSV(){
+  const a=document.createElement("a");
+  a.href="/score/export/csv";
+  a.download="sopilot_scores.csv";
+  a.click();
+  toast("CSVダウンロード開始","info");
+}
+
+// =============================================
+// REPORT
+// =============================================
+function openReport(){
+  if(!S.currentJob){setStatus("Jobが選択されていません",true);return;}
+  window.open(`/score/${S.currentJob.job_id}/report`,"_blank");
+}
+function downloadPDF(){
+  if(!S.currentJob){setStatus("Jobが選択されていません",true);return;}
+  window.open(`/score/${S.currentJob.job_id}/report/pdf`,"_blank");
+}
+
+// =============================================
+// ANALYTICS DASHBOARD
+// =============================================
+async function openAnalytics(){
+  $("analyticsModal").classList.add("active");
+  const filter=$("analyticsDaysFilter");
+  filter.onchange=()=>fetchAnalytics(filter.value||null);
+  await fetchAnalytics(filter.value||null);
+}
+async function fetchAnalytics(days){
+  $("analyticsStatus").textContent="読み込み中...";
+  try{
+    const qs=days?`?days=${days}`:"";
+    const [d,stepData]=await Promise.all([
+      api(`/analytics${qs}`),
+      api(`/analytics/steps${qs}`).catch(()=>null)
+    ]);
+    renderAnalytics(d);
+    if(stepData)renderStepDifficultyChart(stepData);
+    const label=days?`直近${days}日`:"全期間";
+    $("analyticsStatus").textContent=`${label} — ${d.completed_jobs||0}件`;
+  }catch(e){
+    $("analyticsBody").innerHTML=`<div class="placeholder" style="grid-column:1/-1">Error: ${e.message}</div>`;
+    $("analyticsStatus").textContent="エラー";
+  }
+}
+function closeAnalytics(){$("analyticsModal").classList.remove("active");}
+
+// =============================================
+// STEP DIFFICULTY CHART
+// =============================================
+function renderStepDifficultyChart(stepData){
+  // Remove existing card if present
+  const existing=$("stepDifficultyCard");
+  if(existing)existing.remove();
+
+  const steps=stepData.steps||[];
+  if(!steps.length)return;
+
+  const body=$("analyticsBody");
+  const card=document.createElement("div");
+  card.id="stepDifficultyCard";
+  card.className="analytics-card analytics-full";
+
+  let html=`<div class="analytics-card-title">ステップ別難易度 (合計${stepData.total_jobs||0}件)</div>`;
+
+  steps.forEach(s=>{
+    const pct=Math.round((s.any_issue_rate||0)*100);
+    const col=pct>=50?"var(--danger)":pct>=25?"var(--warn)":"var(--pass)";
+    html+=`<div class="analytics-bar-row">
+      <div class="analytics-bar-label">Step ${s.step_index+1}</div>
+      <div class="analytics-bar-track">
+        <div class="analytics-bar-fill" style="width:${pct}%;background:${col}">
+          ${pct>15?pct+"%":""}
+        </div>
+      </div>
+      <div class="analytics-bar-score" style="color:${col}">${pct}%</div>
+    </div>`;
+  });
+
+  card.innerHTML=html;
+  body.appendChild(card);
+}
+
+// =============================================
+// OPERATOR DETAIL MODAL
+// =============================================
+function closeOperatorDetail(){$("operatorDetailModal").style.display="none";}
+
+async function openOperatorDetail(operatorId){
+  $("operatorDetailModal").style.display="flex";
+  $("operatorDetailTitle").textContent=`担当者分析: ${operatorId}`;
+  $("operatorDetailBody").innerHTML=`<div style="text-align:center;padding:20px">
+    <div style="width:20px;height:20px;border:2px solid rgba(13,148,136,.2);border-top-color:var(--accent-b);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 8px"></div>読み込み中...
+  </div>`;
+  try{
+    const [trendData,recData,projData]=await Promise.all([
+      api(`/analytics/operators/${encodeURIComponent(operatorId)}/trend`),
+      api(`/analytics/recommendations/${encodeURIComponent(operatorId)}`).catch(()=>null),
+      api(`/analytics/operators/${encodeURIComponent(operatorId)}/projection`).catch(()=>null)
+    ]);
+    renderOperatorDetail(operatorId,trendData,recData,projData);
+  }catch(e){
+    $("operatorDetailBody").innerHTML=`<div style="color:var(--danger);padding:20px">エラー: ${e.message}</div>`;
+  }
+}
+
+function renderOperatorDetail(operatorId,trend,rec,proj){
+  const jobs=trend.jobs||[];
+  const slope=trend.trend_slope;
+  const slopeStr=slope!=null?(slope>0?`▲改善中 (+${slope.toFixed(2)}/件)`:slope<0?`▼低下中 (${slope.toFixed(2)}/件)`:"→安定"):"";
+  const slopeCol=slope>0?"var(--pass)":slope<0?"var(--danger)":"var(--muted)";
+
+  let html=`<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
+    <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:22px;font-weight:900;color:var(--accent-b)">${trend.avg_score!=null?trend.avg_score.toFixed(1):"--"}</div>
+      <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px">平均スコア</div>
+    </div>
+    <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:22px;font-weight:900;color:var(--text)">${trend.job_count||0}</div>
+      <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px">評価件数</div>
+    </div>
+    <div style="background:var(--surface2);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:18px;font-weight:900;color:${slopeCol}">${slopeStr||"--"}</div>
+      <div style="font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-top:2px">トレンド</div>
+    </div>
+  </div>`;
+
+  // Score trend chart
+  if(jobs.length>=2){
+    html+=`<div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">スコア推移</div>
+      <canvas id="operatorTrendCanvas" style="width:100%;height:120px;display:block"></canvas>
+    </div>`;
+  }
+
+  // Recommendations
+  if(rec&&rec.recommendations&&rec.recommendations.length>0){
+    const overall=rec.overall_assessment||"";
+    const overallCol=overall==="要再研修"?"var(--danger)":overall==="改善中"?"var(--warn)":"var(--pass)";
+    html+=`<div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">研修推奨事項</div>
+        <span style="font-size:11px;font-weight:800;color:${overallCol};padding:2px 8px;border-radius:999px;
+          background:${overallCol.replace(')',',0.12)').replace('var(','rgba(').replace('--pass','16,185,129').replace('--warn','245,158,11').replace('--danger','239,68,68')}">${overall}</span>
+      </div>`;
+    rec.recommendations.forEach(r=>{
+      const prCol=r.priority==="critical"?"var(--danger)":r.priority==="quality"?"var(--warn)":"var(--review)";
+      html+=`<div style="padding:8px 10px;margin-bottom:6px;border-left:3px solid ${prCol};
+        background:rgba(255,255,255,.02);border-radius:0 8px 8px 0">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:3px">
+          <span style="font-size:9px;font-weight:800;color:${prCol};text-transform:uppercase">${r.priority}</span>
+          <span style="font-size:11px;font-weight:700">Step ${(r.step_index||0)+1}</span>
+          <span style="font-size:10px;color:var(--muted)">${Math.round((r.frequency||0)*100)}%の評価で発生</span>
+        </div>
+        <div style="font-size:12px;color:var(--ink)">${r.advice_ja||""}</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }else if(rec){
+    html+=`<div style="background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.15);border-radius:10px;padding:12px;
+      text-align:center;color:var(--pass);font-weight:700;margin-bottom:12px">良好 — 改善推奨事項はありません</div>`;
+  }
+
+  // Learning curve projection panel
+  if(proj&&proj.job_count>0){
+    const trajIcon=proj.trajectory==="improving"?"▲":proj.trajectory==="declining"?"▼":"→";
+    const trajCol=proj.trajectory==="improving"?"var(--pass)":proj.trajectory==="declining"?"var(--danger)":"var(--muted)";
+    const certStr=proj.is_certified?`<span style="color:var(--pass);font-weight:800">認定済み ✓</span>`
+      :proj.evaluations_to_certification!=null?`あと <strong>${proj.evaluations_to_certification}</strong> 回で認定見込み`
+      :`認定までの見込み不明 (評価継続が必要)`;
+    const confLabel={"high":"高","medium":"中","low":"低"}[proj.confidence]||proj.confidence;
+    let projRows="";
+    (proj.projected_scores||[]).forEach(p=>{
+      const bar=Math.round(Math.min(100,Math.max(0,p.projected_score)));
+      const pCol=bar>=90?"var(--pass)":bar>=80?"var(--warn)":"var(--danger)";
+      projRows+=`<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <div style="width:36px;font-size:10px;color:var(--muted);text-align:right">#${p.evaluation_number}</div>
+        <div style="flex:1;background:rgba(255,255,255,.06);border-radius:4px;height:10px">
+          <div style="width:${bar}%;height:100%;background:${pCol};border-radius:4px;transition:width .4s ease"></div>
+        </div>
+        <div style="width:36px;font-size:10px;font-weight:700;color:${pCol}">${p.projected_score.toFixed(0)}</div>
+      </div>`;
+    });
+    html+=`<div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:12px">
+      <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">認定予測 (信頼度: ${confLabel})</div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <span style="font-size:20px;color:${trajCol}">${trajIcon}</span>
+        <div>
+          <div style="font-size:12px">${certStr}</div>
+          <div style="font-size:10px;color:var(--muted);margin-top:2px">合格基準: ${proj.pass_threshold}点</div>
+        </div>
+      </div>
+      ${projRows?`<div style="font-size:10px;color:var(--muted);margin-bottom:6px">今後5回の予測スコア</div>${projRows}`:""}
+    </div>`;
+  }
+
+  $("operatorDetailBody").innerHTML=html;
+
+  // Draw trend chart after DOM update
+  if(jobs.length>=2){
+    requestAnimationFrame(()=>drawOperatorTrendChart(jobs));
+  }
+}
+
+function drawOperatorTrendChart(jobs){
+  const canvas=$("operatorTrendCanvas");
+  if(!canvas)return;
+  const W=canvas.clientWidth,H=canvas.clientHeight;
+  if(!W||!H)return;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  const ctx=canvas.getContext("2d");
+  ctx.scale(dpr,dpr);
+
+  const padL=36,padR=12,padT=10,padB=20;
+  const cW=W-padL-padR,cH=H-padT-padB;
+  const pts=jobs; // already oldest first from API
+
+  const scores=pts.map(p=>p.score||0);
+  const minS=Math.max(0,Math.min(...scores)-5);
+  const maxS=Math.min(100,Math.max(...scores)+5);
+  const range=Math.max(maxS-minS,1);
+
+  const getX=i=>padL+(i/(pts.length-1))*cW;
+  const getY=s=>padT+cH*(1-(s-minS)/range);
+
+  // Grid
+  ctx.strokeStyle="rgba(255,255,255,0.05)";ctx.lineWidth=1;
+  ctx.font="8px system-ui";ctx.fillStyle="rgba(148,163,184,0.5)";ctx.textAlign="right";
+  [50,70,80,90].forEach(v=>{
+    if(v<minS-2||v>maxS+2)return;
+    const y=getY(v);
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();
+    ctx.fillText(v,padL-3,y+3);
+  });
+
+  // Area
+  ctx.beginPath();
+  ctx.moveTo(getX(0),getY(pts[0].score||0));
+  for(let i=1;i<pts.length;i++){
+    const cx=(getX(i-1)+getX(i))/2;
+    ctx.bezierCurveTo(cx,getY(pts[i-1].score||0),cx,getY(pts[i].score||0),getX(i),getY(pts[i].score||0));
+  }
+  ctx.lineTo(getX(pts.length-1),H-padB);
+  ctx.lineTo(getX(0),H-padB);
+  ctx.closePath();
+  const grad=ctx.createLinearGradient(0,padT,0,H-padB);
+  grad.addColorStop(0,"rgba(13,148,136,0.2)");
+  grad.addColorStop(1,"rgba(13,148,136,0.02)");
+  ctx.fillStyle=grad;ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(getX(0),getY(pts[0].score||0));
+  for(let i=1;i<pts.length;i++){
+    const cx=(getX(i-1)+getX(i))/2;
+    ctx.bezierCurveTo(cx,getY(pts[i-1].score||0),cx,getY(pts[i].score||0),getX(i),getY(pts[i].score||0));
+  }
+  ctx.strokeStyle="#0d9488";ctx.lineWidth=2;ctx.stroke();
+
+  // Dots
+  pts.forEach((p,i)=>{
+    const x=getX(i),y=getY(p.score||0);
+    const col=p.decision==="pass"?"#10b981":p.decision==="fail"?"#ef4444":
+              p.decision==="retrain"?"#f59e0b":"#3b82f6";
+    ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);
+    ctx.fillStyle=col;ctx.fill();
+  });
+}
+
+function renderAnalytics(d){
+  const body=$("analyticsBody");
+  const passRate=d.completed_jobs>0?Math.round((d.pass_count/d.completed_jobs)*100):0;
+
+  let html="";
+
+  // KPI cards
+  html+=`
+    <div class="analytics-kpi">
+      <div class="analytics-kpi-val" style="color:var(--accent-b)">${d.completed_jobs||0}</div>
+      <div class="analytics-kpi-label">採点完了</div>
+    </div>
+    <div class="analytics-kpi">
+      <div style="position:relative;width:56px;height:56px;margin:0 auto 4px">
+        <svg viewBox="0 0 36 36" style="width:56px;height:56px;transform:rotate(-90deg)">
+          <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="3.5"/>
+          <circle cx="18" cy="18" r="14" fill="none" stroke="var(--pass)" stroke-width="3.5"
+            stroke-dasharray="${passRate*0.88} ${88-passRate*0.88}"
+            stroke-linecap="round" style="transition:stroke-dasharray 1.2s ease"/>
+        </svg>
+        <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+          font-size:14px;font-weight:900;color:var(--pass)">${passRate}%</div>
+      </div>
+      <div class="analytics-kpi-label">合格率</div>
+    </div>
+    <div class="analytics-kpi">
+      <div class="analytics-kpi-val" style="color:var(--text)">${d.avg_score!=null?d.avg_score.toFixed(1):"—"}</div>
+      <div class="analytics-kpi-label">平均スコア</div>
+    </div>
+    <div class="analytics-kpi">
+      <div class="analytics-kpi-val" style="color:var(--danger)">${d.fail_count||0}</div>
+      <div class="analytics-kpi-label">不合格</div>
+    </div>`;
+
+  // Score distribution
+  const dist=d.score_distribution||[];
+  const distTotal=dist.reduce((s,b)=>s+b.count,0)||1;
+  const distColors=["#10b981","#14b8a6","#f59e0b","#ef4444"];
+  const distLabels=["90-100","80-89","70-79","0-69"];
+  html+=`<div class="analytics-card analytics-wide">
+    <div class="analytics-card-title">スコア分布</div>
+    <div class="analytics-dist-bar">`;
+  dist.forEach((b,i)=>{
+    const pct=Math.max((b.count/distTotal)*100,b.count>0?8:0);
+    html+=`<div class="analytics-dist-seg" style="width:${pct}%;background:${distColors[i]}">${b.count>0?b.count:""}</div>`;
+  });
+  html+=`</div><div class="analytics-dist-legend">`;
+  dist.forEach((b,i)=>{
+    html+=`<div class="analytics-dist-dot"><span style="display:inline-block;width:10px;height:10px;border-radius:3px;background:${distColors[i]}"></span>${distLabels[i]}: ${b.count}件</div>`;
+  });
+  html+=`</div></div>`;
+
+  // Decision breakdown (donut-like cards)
+  html+=`<div class="analytics-card analytics-wide">
+    <div class="analytics-card-title">判定内訳</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px">
+      <div style="text-align:center;padding:10px;background:rgba(16,185,129,.06);border:1px solid rgba(16,185,129,.15);border-radius:10px">
+        <div style="font-size:22px;font-weight:900;color:var(--pass)">${d.pass_count||0}</div>
+        <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Pass</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:10px">
+        <div style="font-size:22px;font-weight:900;color:var(--review)">${d.needs_review_count||0}</div>
+        <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Review</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:10px">
+        <div style="font-size:22px;font-weight:900;color:var(--warn)">${d.retrain_count||0}</div>
+        <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Retrain</div>
+      </div>
+      <div style="text-align:center;padding:10px;background:rgba(239,68,68,.06);border:1px solid rgba(239,68,68,.15);border-radius:10px">
+        <div style="font-size:22px;font-weight:900;color:var(--danger)">${d.fail_count||0}</div>
+        <div style="font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em;margin-top:2px">Fail</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Operator leaderboard (ranked by avg_score)
+  const ops=d.by_operator||[];
+  if(ops.length){
+    html+=`<div class="analytics-card analytics-wide">
+      <div class="analytics-card-title">担当者ランキング (平均スコア順)</div>`;
+    ops.forEach((op,rank)=>{
+      const pct=Math.min((op.avg_score/100)*100,100);
+      const col=op.avg_score>=90?"var(--pass)":op.avg_score>=80?"var(--warn)":"var(--danger)";
+      const passR=op.job_count>0?Math.round((op.pass_count/op.job_count)*100):0;
+      const medal=rank===0?"#ffd700":rank===1?"#c0c0c0":rank===2?"#cd7f32":"";
+      const rankLabel=medal?`<span style="font-size:12px;color:${medal};font-weight:900">${rank+1}</span>`
+        :`<span style="font-size:10px;color:var(--muted);font-weight:600">${rank+1}</span>`;
+      html+=`<div class="analytics-bar-row" onclick="openOperatorDetail('${op.operator_id}')" style="cursor:pointer" title="クリックで詳細表示">
+        <div style="width:20px;text-align:center;flex-shrink:0">${rankLabel}</div>
+        <div class="analytics-bar-label" title="${op.operator_id}">${op.operator_id}</div>
+        <div class="analytics-bar-track">
+          <div class="analytics-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,${col},${col}88)">${op.job_count}件</div>
+        </div>
+        <div class="analytics-bar-score" style="color:${col}">${op.avg_score.toFixed(1)}</div>
+        <div style="font-size:10px;color:var(--muted);width:36px;text-align:right">${passR}%</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // By site
+  const sites=d.by_site||[];
+  if(sites.length){
+    html+=`<div class="analytics-card analytics-wide">
+      <div class="analytics-card-title">拠点別パフォーマンス</div>`;
+    sites.forEach(s=>{
+      const pct=Math.min((s.avg_score/100)*100,100);
+      const col=s.avg_score>=90?"var(--pass)":s.avg_score>=80?"var(--warn)":"var(--danger)";
+      const passR=s.job_count>0?Math.round((s.pass_count/s.job_count)*100):0;
+      html+=`<div class="analytics-bar-row">
+        <div class="analytics-bar-label" title="${s.site_id}">${s.site_id}</div>
+        <div class="analytics-bar-track">
+          <div class="analytics-bar-fill" style="width:${pct}%;background:linear-gradient(90deg,${col},${col}88)">${s.job_count}件</div>
+        </div>
+        <div class="analytics-bar-score" style="color:${col}">${s.avg_score.toFixed(1)}</div>
+        <div style="font-size:10px;color:var(--muted);width:36px;text-align:right">${passR}%</div>
+      </div>`;
+    });
+    html+=`</div>`;
+  }
+
+  // Reviewer agreement
+  const ra=d.reviewer_agreement||{};
+  if(ra.reviewed_count>0){
+    const agreeRate=ra.agreement_rate!=null?ra.agreement_rate:0;
+    const agreeCol=agreeRate>=80?"var(--pass)":agreeRate>=60?"var(--warn)":"var(--danger)";
+    const byV=ra.by_verdict||{};
+    html+=`<div class="analytics-card analytics-wide">
+      <div class="analytics-card-title">レビュー一致率</div>
+      <div style="display:flex;gap:20px;align-items:center">
+        <div style="position:relative;width:80px;height:80px;flex-shrink:0">
+          <svg viewBox="0 0 36 36" style="width:80px;height:80px;transform:rotate(-90deg)">
+            <circle cx="18" cy="18" r="14" fill="none" stroke="rgba(255,255,255,.06)" stroke-width="3"/>
+            <circle cx="18" cy="18" r="14" fill="none" stroke="${agreeCol}" stroke-width="3"
+              stroke-dasharray="${agreeRate*0.88} ${88-agreeRate*0.88}"
+              stroke-linecap="round" style="transition:stroke-dasharray 1s ease"/>
+          </svg>
+          <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+            font-size:16px;font-weight:900;color:${agreeCol}">${Math.round(agreeRate)}%</div>
+        </div>
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px">
+          <div style="font-size:11px;color:var(--muted)">
+            <strong style="color:var(--text)">${ra.agree_count||0}</strong> / ${ra.reviewed_count} 件一致
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap">
+            ${Object.entries(byV).map(([k,v])=>{
+              const vCol=k==="pass"?"var(--pass)":k==="fail"?"var(--danger)":k==="retrain"?"var(--warn)":"var(--review)";
+              return`<div style="font-size:10px;color:var(--muted);display:flex;align-items:center;gap:3px">
+                <span style="width:6px;height:6px;border-radius:50%;background:${vCol};flex-shrink:0"></span>
+                ${k}: ${v}
+              </div>`;
+            }).join("")}
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  // Score range
+  html+=`<div class="analytics-card analytics-full">
+    <div class="analytics-card-title">スコアレンジ</div>
+    <div style="display:flex;gap:20px;align-items:center;justify-content:center;padding:8px 0">
+      <div style="text-align:center">
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:4px">最低</div>
+        <div style="font-size:22px;font-weight:900;color:var(--danger)">${d.min_score!=null?d.min_score.toFixed(1):"—"}</div>
+      </div>
+      <div style="flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:3px;position:relative;max-width:300px">
+        <div style="position:absolute;height:100%;background:linear-gradient(90deg,#ef4444,#f59e0b,#10b981);border-radius:3px;left:${d.min_score!=null?d.min_score:0}%;right:${d.max_score!=null?(100-d.max_score):0}%"></div>
+        ${d.avg_score!=null?`<div style="position:absolute;left:${d.avg_score}%;top:-4px;width:3px;height:14px;background:#fff;border-radius:2px;transform:translateX(-50%)"></div>`:""}
+      </div>
+      <div style="text-align:center">
+        <div style="font-size:10px;color:var(--muted);font-weight:600;margin-bottom:4px">最高</div>
+        <div style="font-size:22px;font-weight:900;color:var(--pass)">${d.max_score!=null?d.max_score.toFixed(1):"—"}</div>
+      </div>
+    </div>
+  </div>`;
+
+  // Recent trend chart
+  const trend=d.recent_trend||[];
+  if(trend.length>=2){
+    html+=`<div class="analytics-card analytics-full">
+      <div class="analytics-card-title">スコア推移 (直近${trend.length}件)</div>
+      <canvas id="analyticsTrendCanvas" style="width:100%;height:160px;display:block"></canvas>
+    </div>`;
+  }
+
+  body.innerHTML=html;
+
+  // Draw analytics trend chart after DOM update
+  if(trend.length>=2){
+    requestAnimationFrame(()=>drawAnalyticsTrend(trend));
+  }
+}
+
+// =============================================
+// ANALYTICS PDF EXPORT
+// =============================================
+async function downloadAnalyticsPDF(){
+  try{
+    const filter=$("analyticsDaysFilter");
+    const days=filter?filter.value:"";
+    const qs=days?`?days=${days}`:"";
+    toast("PDFレポートを生成中...","info",5000);
+    const resp=await fetch(`/analytics/report/pdf${qs}`);
+    if(!resp.ok){const e=await resp.json().catch(()=>({}));throw new Error(e.detail||resp.statusText);}
+    const blob=await resp.blob();
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="sopilot_analytics_report.pdf";
+    a.click();URL.revokeObjectURL(a.href);
+    toast("PDFレポートをダウンロードしました","success");
+  }catch(e){toast(`PDF生成失敗: ${e.message}`,"error");}
+}
+
+// =============================================
+// ANALYTICS CSV EXPORT
+// =============================================
+async function exportAnalyticsCSV(){
+  try{
+    const d=await api("/analytics");
+    const ts=new Date().toISOString().replace(/[:-]/g,"").slice(0,15);
+    let csv="SOPilot 分析レポート\n";
+    csv+=`出力日時,${new Date().toLocaleString("ja-JP")}\n\n`;
+    csv+="[サマリー]\n";
+    csv+=`採点完了数,${d.completed_jobs||0}\n`;
+    csv+=`合格数,${d.pass_count||0}\n`;
+    csv+=`不合格数,${d.fail_count||0}\n`;
+    csv+=`要確認数,${d.needs_review_count||0}\n`;
+    csv+=`再研修数,${d.retrain_count||0}\n`;
+    csv+=`平均スコア,${d.avg_score!=null?d.avg_score.toFixed(2):""}\n`;
+    csv+=`最低スコア,${d.min_score!=null?d.min_score.toFixed(2):""}\n`;
+    csv+=`最高スコア,${d.max_score!=null?d.max_score.toFixed(2):""}\n\n`;
+
+    csv+="[スコア分布]\nレンジ,件数\n";
+    (d.score_distribution||[]).forEach(b=>{csv+=`${b.bucket},${b.count}\n`;});
+    csv+="\n";
+
+    const ops=d.by_operator||[];
+    if(ops.length){
+      csv+="[担当者別]\n担当者ID,件数,平均スコア,合格数,不合格数\n";
+      ops.forEach(o=>{csv+=`${o.operator_id},${o.job_count},${o.avg_score.toFixed(2)},${o.pass_count},${o.fail_count}\n`;});
+      csv+="\n";
+    }
+
+    const sites=d.by_site||[];
+    if(sites.length){
+      csv+="[拠点別]\n拠点ID,件数,平均スコア,合格数,不合格数\n";
+      sites.forEach(s=>{csv+=`${s.site_id},${s.job_count},${s.avg_score.toFixed(2)},${s.pass_count},${s.fail_count}\n`;});
+      csv+="\n";
+    }
+
+    const trend=d.recent_trend||[];
+    if(trend.length){
+      csv+="[スコア推移]\nJob ID,スコア,判定,日時\n";
+      trend.forEach(t=>{csv+=`${t.job_id},${t.score.toFixed(2)},${t.decision},${t.created_at}\n`;});
+    }
+
+    const bom="\uFEFF";
+    const blob=new Blob([bom+csv],{type:"text/csv;charset=utf-8;"});
+    const a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download=`sopilot_analytics_${ts}.csv`;
+    a.click();URL.revokeObjectURL(a.href);
+    toast("分析データをCSVエクスポートしました","success");
+  }catch(e){
+    toast(`CSV出力失敗: ${e.message}`,"error");
+  }
+}
+
+// =============================================
+// ANALYTICS TREND CHART
+// =============================================
+function drawAnalyticsTrend(trend){
+  const canvas=$("analyticsTrendCanvas");
+  if(!canvas)return;
+  const W=canvas.clientWidth,H=canvas.clientHeight;
+  if(!W||!H)return;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  const ctx=canvas.getContext("2d");
+  ctx.scale(dpr,dpr);
+
+  const padL=40,padR=16,padT=16,padB=28;
+  const cW=W-padL-padR,cH=H-padT-padB;
+  const pts=trend.slice().reverse(); // oldest first
+
+  const scores=pts.map(p=>p.score);
+  const minS=Math.min(...scores,0);
+  const maxS=Math.max(...scores,100);
+  const range=Math.max(maxS-minS,1);
+
+  // Grid lines
+  ctx.strokeStyle="rgba(255,255,255,0.06)";
+  ctx.lineWidth=1;
+  ctx.font="9px system-ui";
+  ctx.fillStyle="rgba(148,163,184,0.6)";
+  ctx.textAlign="right";
+  for(let v of[0,50,70,80,90,100]){
+    if(v<minS-5||v>maxS+5)continue;
+    const y=padT+cH*(1-(v-minS)/range);
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(W-padR,y);ctx.stroke();
+    ctx.fillText(v.toString(),padL-4,y+3);
+  }
+
+  // Pass threshold line
+  const passY=padT+cH*(1-(90-minS)/range);
+  if(passY>padT&&passY<H-padB){
+    ctx.strokeStyle="rgba(16,185,129,0.3)";
+    ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(padL,passY);ctx.lineTo(W-padR,passY);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle="rgba(16,185,129,0.5)";
+    ctx.textAlign="left";
+    ctx.fillText("Pass",W-padR+2,passY+3);
+  }
+
+  // Data points and line
+  const xStep=cW/Math.max(pts.length-1,1);
+  const getX=i=>padL+i*xStep;
+  const getY=s=>padT+cH*(1-(s-minS)/range);
+
+  // Area fill
+  ctx.beginPath();
+  ctx.moveTo(getX(0),getY(pts[0].score));
+  for(let i=1;i<pts.length;i++){
+    const cx=(getX(i-1)+getX(i))/2;
+    ctx.bezierCurveTo(cx,getY(pts[i-1].score),cx,getY(pts[i].score),getX(i),getY(pts[i].score));
+  }
+  ctx.lineTo(getX(pts.length-1),H-padB);
+  ctx.lineTo(getX(0),H-padB);
+  ctx.closePath();
+  const grad=ctx.createLinearGradient(0,padT,0,H-padB);
+  grad.addColorStop(0,"rgba(13,148,136,0.15)");
+  grad.addColorStop(1,"rgba(13,148,136,0.01)");
+  ctx.fillStyle=grad;
+  ctx.fill();
+
+  // Line
+  ctx.beginPath();
+  ctx.moveTo(getX(0),getY(pts[0].score));
+  for(let i=1;i<pts.length;i++){
+    const cx=(getX(i-1)+getX(i))/2;
+    ctx.bezierCurveTo(cx,getY(pts[i-1].score),cx,getY(pts[i].score),getX(i),getY(pts[i].score));
+  }
+  ctx.strokeStyle="#0d9488";
+  ctx.lineWidth=2;
+  ctx.stroke();
+
+  // Dots
+  pts.forEach((p,i)=>{
+    const x=getX(i),y=getY(p.score);
+    const col=p.decision==="pass"?"#10b981":p.decision==="fail"?"#ef4444":
+              p.decision==="retrain"?"#f59e0b":"#3b82f6";
+    ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);
+    ctx.fillStyle=col;ctx.fill();
+    ctx.strokeStyle="rgba(5,10,21,0.5)";ctx.lineWidth=1.5;ctx.stroke();
+  });
+
+  // X-axis labels (show every N)
+  ctx.fillStyle="rgba(148,163,184,0.5)";
+  ctx.textAlign="center";
+  ctx.font="8px system-ui";
+  const labelStep=Math.max(1,Math.floor(pts.length/8));
+  pts.forEach((p,i)=>{
+    if(i%labelStep!==0&&i!==pts.length-1)return;
+    ctx.fillText(`#${p.job_id}`,getX(i),H-padB+12);
+  });
+}
+
+// =============================================
+// SETTINGS MODAL
+// =============================================
+function openSettings(){
+  const p=S.profile;if(!p)return;
+  $("cfgPassScore").value=p.pass_score??"";
+  $("cfgRetrainScore").value=p.retrain_score??"";
+  const w=p.default_weights||{};
+  $("cfgWMiss").value=w.w_miss??"";
+  $("cfgWSwap").value=w.w_swap??"";
+  $("cfgWDev").value=w.w_dev??"";
+  $("cfgWTime").value=w.w_time??"";
+  const dp=p.deviation_policy||{};
+  const setPol=(id,key,dflt)=>{const el=$(id);if(el)el.value=dp[key]||dflt;};
+  setPol("cfgPolMiss","missing_step","critical");
+  setPol("cfgPolSwap","order_swap","quality");
+  setPol("cfgPolDev","step_deviation","quality");
+  setPol("cfgPolTime","over_time","efficiency");
+  $("settingsSaveMsg").textContent="";
+  $("settingsSaveMsg").style.color="var(--pass)";
+  $("settingsModal").style.display="flex";
+}
+
+function closeSettings(){$("settingsModal").style.display="none";}
+
+async function saveSettings(){
+  try{
+    const w={};
+    const wm=parseFloat($("cfgWMiss").value);
+    const ws=parseFloat($("cfgWSwap").value);
+    const wd=parseFloat($("cfgWDev").value);
+    const wt=parseFloat($("cfgWTime").value);
+    if(!isNaN(wm))w.w_miss=wm;
+    if(!isNaN(ws))w.w_swap=ws;
+    if(!isNaN(wd))w.w_dev=wd;
+    if(!isNaN(wt))w.w_time=wt;
+    const dp={
+      missing_step:$("cfgPolMiss").value,
+      order_swap:$("cfgPolSwap").value,
+      step_deviation:$("cfgPolDev").value,
+      over_time:$("cfgPolTime").value
+    };
+    const ps=parseFloat($("cfgPassScore").value);
+    const rs=parseFloat($("cfgRetrainScore").value);
+    const body={
+      pass_score:isNaN(ps)?null:ps,
+      retrain_score:isNaN(rs)?null:rs,
+      default_weights:Object.keys(w).length?w:null,
+      deviation_policy:dp
+    };
+    S.profile=await api("/task-profile",{
+      method:"PUT",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body)
+    });
+    renderProfile();
+    $("settingsSaveMsg").textContent="保存しました";
+    $("settingsSaveMsg").style.color="var(--pass)";
+    setStatus("プロファイルを更新しました");
+    setTimeout(closeSettings,900);
+  }catch(e){
+    $("settingsSaveMsg").textContent="Error: "+e.message;
+    $("settingsSaveMsg").style.color="var(--danger)";
+  }
+}
+
+async function runRescore(){
+  const btn=$("rescoreBtn");
+  const dryRun=$("rescoreDryRun").checked;
+  const resEl=$("rescoreResult");
+  btn.disabled=true;btn.textContent="実行中...";
+  resEl.style.display="none";
+  try{
+    const r=await api(`/admin/rescore?dry_run=${dryRun}`,{method:"POST"});
+    const changed=r.decisions_changed;
+    const breakdownStr=Object.entries(r.breakdown||{}).map(([k,v])=>`${k}: ${v}件`).join("、")||"なし";
+    const msg=dryRun
+      ?`[ドライラン] ${r.total_jobs_processed}件処理 — ${changed}件変更予定（${breakdownStr}）`
+      :`${r.total_jobs_processed}件処理 — ${changed}件更新完了（${breakdownStr}）`;
+    resEl.style.cssText=`font-size:11px;padding:8px;border-radius:6px;display:block;background:${changed>0?"rgba(16,185,129,.12)":"rgba(255,255,255,.05)"};color:${changed>0?"var(--pass)":"var(--muted)"}`;
+    resEl.textContent=msg;
+    if(!dryRun&&changed>0){loadScoreJobs();}
+  }catch(e){
+    resEl.style.cssText="font-size:11px;padding:8px;border-radius:6px;display:block;background:rgba(239,68,68,.12);color:var(--danger)";
+    resEl.textContent="エラー: "+e.message;
+  }finally{
+    btn.disabled=false;btn.textContent="DB再判定を実行";
+  }
+}
+
+// =============================================
+// BATCH
+// =============================================
+const B={trainees:[],rows:[],goldId:null};
+
+function openBatch(){
+  $("batchPanel").style.display="flex";
+  $("batchResultTable").style.display="none";
+  $("batchPlaceholder").style.display="flex";
+  $("batchProgressWrap").style.display="none";
+  $("batchTraineeArea").style.display="block";
+  $("batchCsvBtn").disabled=true;
+  B.rows=[];
+  const sel=$("batchGoldSel");
+  sel.innerHTML=`<option value="">-- Gold動画を選択 --</option>`;
+  S.videos.filter(v=>v.is_gold).forEach(v=>{
+    const o=document.createElement("option");
+    o.value=v.video_id;
+    o.textContent=`#${v.video_id} ${v.original_filename||"Video "+v.video_id}`;
+    sel.appendChild(o);
+  });
+  sel.value=B.goldId||"";
+  sel.onchange=()=>{
+    B.goldId=sel.value?Number(sel.value):null;
+    $("batchRunBtn").disabled=!B.goldId||!B.trainees.length;
+  };
+  renderBatchTrainees();
+}
+
+function closeBatch(){$("batchPanel").style.display="none";}
+
+function batchAddFiles(input){
+  Array.from(input.files||[]).forEach(f=>{
+    if(!B.trainees.find(t=>t.name===f.name&&t.size===f.size))B.trainees.push(f);
+  });
+  renderBatchTrainees();
+  $("batchRunBtn").disabled=!B.goldId||!B.trainees.length;
+  input.value="";
+}
+
+function renderBatchTrainees(){
+  const el=$("batchTraineeList");
+  el.innerHTML="";
+  if(!B.trainees.length){
+    el.innerHTML=`<div style="font-size:12px;color:var(--muted);padding:4px 0">まだ動画がありません</div>`;
+    return;
+  }
+  B.trainees.forEach((f,i)=>{
+    const div=document.createElement("div");
+    div.className="batch-trainee-row";
+    div.innerHTML=`
+      <span style="font-size:12px;flex:1;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${f.name}">${f.name}</span>
+      <span style="font-size:11px;color:var(--muted)">${(f.size/1e6).toFixed(1)}MB</span>
+      <button class="btn btn-ghost btn-sm" onclick="batchRemove(${i})" style="padding:2px 8px;font-size:11px">&times;</button>`;
+    el.appendChild(div);
+  });
+}
+
+function batchRemove(i){
+  B.trainees.splice(i,1);
+  renderBatchTrainees();
+  $("batchRunBtn").disabled=!B.goldId||!B.trainees.length;
+}
+
+async function batchRun(){
+  if(!B.goldId){setStatus("Gold動画を選択してください",true);return;}
+  if(!B.trainees.length){setStatus("研修生動画を追加してください",true);return;}
+  $("batchRunBtn").disabled=true;
+  $("batchResultTable").style.display="table";
+  $("batchPlaceholder").style.display="none";
+  $("batchTraineeArea").style.display="none";
+  $("batchProgressWrap").style.display="block";
+  B.rows=[];
+  const tbody=$("batchResultBody");
+  tbody.innerHTML="";
+  const total=B.trainees.length;
+  const batchStart=Date.now();
+
+  for(let i=0;i<total;i++){
+    const pct=Math.round((i/total)*100);
+    $("batchProgressBar").style.width=pct+"%";
+    $("batchProgressPct").textContent=`${i}/${total}`;
+    $("batchProgressLabel").textContent=`処理中...`;
+    if(i>0){
+      const elapsed=(Date.now()-batchStart)/1000;
+      const perItem=elapsed/i;
+      const remaining=Math.round(perItem*(total-i));
+      const m=Math.floor(remaining/60);const s=remaining%60;
+      $("batchProgressEta").textContent=`残り約 ${m>0?m+"分":""}${s}秒`;
+    }
+    const f=B.trainees[i];
+    const tr=document.createElement("tr");
+    tr.id=`batchRow_${i}`;
+    const fname=f.name.length>30?f.name.slice(0,27)+"...":f.name;
+    tr.innerHTML=`<td>${i+1}</td>
+      <td style="max-width:180px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${f.name}">${fname}</td>
+      <td colspan="5" style="text-align:center"><div style="width:14px;height:14px;border:2px solid rgba(13,148,136,.2);border-top-color:var(--accent-b);border-radius:50%;animation:spin .7s linear infinite;display:inline-block"></div></td>
+      <td></td>`;
+    tbody.appendChild(tr);
+
+    try{
+      const fd=new FormData();
+      fd.append("file",f);
+      fd.append("task_id",S.profile?.task_id||"pilot_task");
+      setStatus(`(${i+1}/${B.trainees.length}) アップロード中: ${f.name}`);
+      const upl=await api("/videos",{method:"POST",body:fd});
+
+      setStatus(`(${i+1}/${B.trainees.length}) 採点中: ${f.name}`);
+      let job=await api("/score",{
+        method:"POST",headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({gold_video_id:B.goldId,trainee_video_id:upl.video_id})
+      });
+
+      while(job.status==="queued"||job.status==="running"){
+        await new Promise(res=>setTimeout(res,1500));
+        job=await api(`/score/${job.job_id}`);
+      }
+
+      const r=job.result||{};
+      const sum=r.summary||{};
+      const sev=sum.severity_counts||{};
+      const dec=sum.decision||"--";
+      const decColor=dec==="pass"?"var(--pass)":dec==="fail"?"var(--danger)":dec==="retrain"?"var(--warn)":"var(--review)";
+      const sv=r.score!=null?Number(r.score).toFixed(1):"--";
+      tr.innerHTML=`
+        <td>${i+1}</td>
+        <td style="max-width:180px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis" title="${f.name}">${fname}</td>
+        <td style="font-weight:800;color:${scoreColor(r.score||0)}">${sv}</td>
+        <td><span style="font-weight:700;color:${decColor}">${dec}</span></td>
+        <td style="color:${sev.critical>0?"#ef4444":"var(--muted)"}">${sev.critical||0}</td>
+        <td style="color:${sev.quality>0?"#f59e0b":"var(--muted)"}">${sev.quality||0}</td>
+        <td style="color:${sev.efficiency>0?"#3b82f6":"var(--muted)"}">${sev.efficiency||0}</td>
+        <td style="white-space:nowrap">
+          <button class="btn btn-ghost btn-sm" onclick="batchViewJob(${job.job_id})" style="font-size:10px">詳細</button>
+          <button class="btn btn-ghost btn-sm" onclick="window.open('/score/${job.job_id}/report','_blank')" style="font-size:10px">報告書</button>
+        </td>`;
+      B.rows.push({filename:f.name,job,r,sum,sev});
+    }catch(e){
+      tr.innerHTML=`<td>${i+1}</td>
+        <td title="${f.name}">${fname}</td>
+        <td colspan="5" style="color:var(--danger)">${e.message}</td>
+        <td></td>`;
+      B.rows.push({filename:f.name,error:e.message});
+    }
+  }
+
+  $("batchProgressBar").style.width="100%";
+  $("batchProgressPct").textContent=`${total}/${total}`;
+  $("batchProgressLabel").textContent="完了";
+  $("batchProgressEta").textContent="";
+  $("batchRunBtn").disabled=false;
+  $("batchCsvBtn").disabled=false;
+  await loadVideos();
+  const passCount=B.rows.filter(r=>r.sum?.decision==="pass").length;
+  const failCount=B.rows.filter(r=>r.error||r.sum?.decision==="fail").length;
+  setStatus(`バッチ採点完了 (${total}件 / 合格${passCount} 不合格${failCount})`);
+  toast(`バッチ採点完了: ${total}件処理 (合格${passCount}件)`,"success");
+}
+
+function batchViewJob(jobId){
+  $("jobInput").value=jobId;
+  closeBatch();
+  loadJob();
+}
+
+function batchExportCSV(){
+  if(!B.rows.length)return;
+  const ts=new Date().toISOString().slice(0,19).replace("T","_").replace(/:/g,"-");
+  let csv="ファイル名,スコア,判定,Critical,Quality,Efficiency,JobID\n";
+  B.rows.forEach(row=>{
+    if(row.error){
+      csv+=`"${row.filename}",エラー,,,,,""\n`;
+    }else{
+      const r=row.r||{};const sum=row.sum||{};const sev=row.sev||{};const j=row.job||{};
+      csv+=`"${row.filename}",${r.score??""}, ${sum.decision||""}, ${sev.critical||0}, ${sev.quality||0}, ${sev.efficiency||0}, ${j.job_id||""}\n`;
+    }
+  });
+  const bom="\uFEFF";
+  const blob=new Blob([bom+csv],{type:"text/csv;charset=utf-8;"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download=`sopilot_batch_${ts}.csv`;
+  a.click();URL.revokeObjectURL(a.href);
+}
+
+// =============================================
+// SCORE TREND CHART
+// =============================================
+async function loadTrend(){
+  try{
+    const d=await api("/score?status=completed&limit=40");
+    const jobs=(d.items||[]).filter(j=>j.score!=null);
+    if(!jobs.length){$("trendWrap").style.display="none";return;}
+    $("trendWrap").style.display="block";
+    $("trendCount").textContent=`直近 ${jobs.length} 件`;
+    requestAnimationFrame(()=>drawTrend(jobs));
+  }catch(e){$("trendWrap").style.display="none";}
+}
+
+function drawTrend(jobs){
+  const canvas=$("trendCanvas");
+  if(!canvas)return;
+  const W=canvas.clientWidth,H=canvas.clientHeight;
+  if(!W||!H)return;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  const ctx=canvas.getContext("2d");
+  ctx.scale(dpr,dpr);
+
+  const padL=32,padR=52,padT=12,padB=24;
+  const cW=W-padL-padR,cH=H-padT-padB;
+
+  // Background
+  ctx.fillStyle="rgba(15,23,42,0.5)";
+  ctx.beginPath();
+  ctx.roundRect(0,0,W,H,8);
+  ctx.fill();
+
+  const profile=S.profile||{};
+  const passScore=profile.pass_score??90;
+  const retrainScore=profile.retrain_score??80;
+
+  const yOf=s=>padT+cH*(1-Math.max(0,Math.min(100,s))/100);
+  const n=jobs.length;
+  const xOf=i=>padL+(n<=1?cW/2:(cW*i)/(n-1));
+
+  // Grid lines
+  ctx.strokeStyle="rgba(255,255,255,0.04)";ctx.lineWidth=1;
+  [0,25,50,75,100].forEach(v=>{
+    const y=yOf(v);ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cW,y);ctx.stroke();
+  });
+
+  // Y labels
+  ctx.fillStyle="rgba(148,163,184,0.6)";ctx.font=`10px Inter,system-ui,sans-serif`;ctx.textAlign="right";
+  [0,50,100].forEach(v=>ctx.fillText(v,padL-6,yOf(v)+3));
+
+  // X labels
+  ctx.textAlign="center";ctx.fillStyle="rgba(148,163,184,0.5)";ctx.font="9px Inter,sans-serif";
+  if(n>0)ctx.fillText("#"+jobs[0].job_id,xOf(0),H-padB+15);
+  if(n>1)ctx.fillText("#"+jobs[n-1].job_id,xOf(n-1),H-padB+15);
+
+  // Threshold lines
+  const threshold=(score,color,label)=>{
+    const y=yOf(score);
+    ctx.strokeStyle=color;ctx.lineWidth=1;ctx.setLineDash([4,4]);
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cW,y);ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle=color;ctx.textAlign="left";ctx.font="bold 9px Inter,sans-serif";
+    ctx.fillText(label,padL+cW+6,y+3);
+  };
+  threshold(passScore,"rgba(16,185,129,0.6)","Pass "+passScore);
+  threshold(retrainScore,"rgba(245,158,11,0.5)","Re "+retrainScore);
+
+  // Area fill under trend line
+  if(n>=2){
+    ctx.beginPath();
+    ctx.moveTo(xOf(0),yOf(0));
+    jobs.forEach((j,i)=>ctx.lineTo(xOf(i),yOf(j.score)));
+    ctx.lineTo(xOf(n-1),yOf(0));
+    ctx.closePath();
+    const grad=ctx.createLinearGradient(0,padT,0,padT+cH);
+    grad.addColorStop(0,"rgba(13,148,136,0.15)");
+    grad.addColorStop(1,"rgba(13,148,136,0)");
+    ctx.fillStyle=grad;
+    ctx.fill();
+  }
+
+  // Trend line
+  if(n>=2){
+    ctx.strokeStyle="rgba(13,148,136,0.6)";ctx.lineWidth=2;
+    ctx.beginPath();
+    jobs.forEach((j,i)=>{const x=xOf(i),y=yOf(j.score);i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);});
+    ctx.stroke();
+  }
+
+  // Dots
+  const dotColor=dec=>dec==="pass"?"#10b981":dec==="fail"?"#ef4444":dec==="retrain"?"#f59e0b":"#3b82f6";
+  jobs.forEach((j,i)=>{
+    const x=xOf(i),y=yOf(j.score),col=dotColor(j.decision);
+    // Glow
+    ctx.fillStyle=col.replace(")",",0.2)").replace("rgb","rgba");
+    ctx.beginPath();ctx.arc(x,y,7,0,Math.PI*2);ctx.fill();
+    // Dot
+    ctx.fillStyle=col;ctx.beginPath();ctx.arc(x,y,3.5,0,Math.PI*2);ctx.fill();
+    // Current job highlight
+    if(S.currentJob&&S.currentJob.job_id===j.job_id){
+      ctx.strokeStyle="rgba(255,255,255,0.8)";ctx.lineWidth=1.5;
+      ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.stroke();
+    }
+  });
+}
+
+// =============================================
+// CLIP SIMILARITY SEARCH
+// =============================================
+async function searchClips(){
+  const videoId=Number($("searchVideoId").value);
+  const clipIndex=Number($("searchClipIndex").value);
+  const k=Number($("searchK").value)||5;
+  if(!videoId&&videoId!==0){setStatus("Video IDを入力してください",true);return;}
+  if(isNaN(clipIndex)){setStatus("Clip Indexを入力してください",true);return;}
+  const el=$("searchResults");
+  el.innerHTML=`<div class="empty-state" style="padding:20px"><div style="width:20px;height:20px;border:2px solid rgba(13,148,136,.2);border-top-color:var(--accent-b);border-radius:50%;animation:spin .7s linear infinite;margin:0 auto 8px"></div>検索中...</div>`;
+  setStatus("類似クリップを検索中...");
+  try{
+    const qs=new URLSearchParams({video_id:videoId,clip_index:clipIndex,k:k});
+    const data=await api(`/search?${qs}`);
+    renderSearchResults(data);
+    setStatus(`${(data.results||[]).length}件の類似クリップを検出`);
+  }catch(e){
+    el.innerHTML=`<div class="empty-state" style="color:var(--danger)">Error: ${e.message}</div>`;
+    setStatus("検索エラー: "+e.message,true);
+  }
+}
+
+function renderSearchResults(data){
+  const el=$("searchResults");
+  el.innerHTML="";
+  const q=data.query||{};
+  const results=data.results||[];
+
+  // Query info
+  const qInfo=document.createElement("div");
+  qInfo.className="search-query-info";
+  qInfo.innerHTML=`クエリ: <strong>Video #${q.video_id}</strong> Clip <strong>#${q.clip_index}</strong> (${fmtTime(q.start_sec)} - ${fmtTime(q.end_sec)})`;
+  el.appendChild(qInfo);
+
+  if(!results.length){
+    const empty=document.createElement("div");
+    empty.className="empty-state";
+    empty.textContent="類似クリップが見つかりませんでした";
+    el.appendChild(empty);
+    return;
+  }
+
+  const wrap=document.createElement("div");
+  wrap.className="search-results";
+  results.forEach((r,i)=>{
+    const card=document.createElement("div");
+    card.className="search-result-card";
+    card.style.animationDelay=`${i*0.05}s`;
+
+    const simPct=(r.similarity*100).toFixed(1);
+    const simClass=r.similarity>0.9?"search-result-sim-green":
+                   r.similarity>0.8?"search-result-sim-yellow":"search-result-sim-red";
+    const badgeClass=r.is_gold?"search-result-badge-gold":"search-result-badge-trainee";
+    const badgeLabel=r.is_gold?"Gold":"Trainee";
+
+    card.innerHTML=`
+      <div class="search-result-top">
+        <span class="search-result-vid">Video #${r.video_id} / Clip #${r.clip_index}</span>
+        <span class="search-result-badge ${badgeClass}">${badgeLabel}</span>
+        <span style="flex:1"></span>
+        <span class="search-result-sim ${simClass}">${simPct}%</span>
+      </div>
+      <div class="search-result-bottom">
+        <span class="search-result-time">${fmtTime(r.start_sec)} - ${fmtTime(r.end_sec)}</span>
+      </div>`;
+
+    card.addEventListener("click",()=>{
+      const v=S.videos.find(vid=>vid.video_id===r.video_id);
+      if(v){
+        if(r.is_gold)selectGold(v);
+        else selectTrainee(v);
+        switchTab(r.is_gold?"gold":"trainee",$(r.is_gold?"tabGold":"tabTrainee"));
+      }else{
+        setStatus(`Video #${r.video_id} がリストにありません。更新してください。`,true);
+      }
+    });
+
+    wrap.appendChild(card);
+  });
+  el.appendChild(wrap);
+}
+
+// =============================================
+// VIDEO LIST KEYBOARD NAVIGATION
+// =============================================
+S._navHighlight=null;
+
+function navigateVideoList(dir){
+  const tab=S.activeTab;
+  if(tab!=="gold"&&tab!=="trainee")return;
+  const listEl=$(tab==="gold"?"goldList":"traineeList");
+  const items=listEl?.querySelectorAll(".vid-item")||[];
+  if(!items.length)return;
+  const maxIdx=items.length-1;
+  if(S._navHighlight==null){
+    S._navHighlight=dir>0?0:maxIdx;
+  }else{
+    S._navHighlight=Math.max(0,Math.min(maxIdx,S._navHighlight+dir));
+  }
+  items.forEach((it,i)=>{
+    if(i===S._navHighlight){
+      it.style.outline="2px solid var(--accent-b)";
+      it.style.outlineOffset="-2px";
+      it.scrollIntoView({block:"nearest"});
+    }else{
+      it.style.outline="";
+      it.style.outlineOffset="";
+    }
+  });
+}
+
+function selectHighlightedVideo(){
+  const tab=S.activeTab;
+  if(tab!=="gold"&&tab!=="trainee")return;
+  const isGold=tab==="gold";
+  const list=S.videos.filter(v=>isGold?v.is_gold:!v.is_gold);
+  if(S._navHighlight!=null&&S._navHighlight<list.length){
+    const v=list[S._navHighlight];
+    if(isGold)selectGold(v);
+    else selectTrainee(v);
+    S._navHighlight=null;
+  }
+}
+
+// =============================================
+// INIT
+// =============================================
+async function init(){
+  try{
+    await loadProfile();
+    await loadVideos();
+    await loadTrend();
+    await loadComplianceKPI();
+    _origSetStatus("Ready");
+    // Start periodic health check
+    setInterval(healthPing,30000);
+  }catch(e){_origSetStatus(e.message,true);}
+}
+
+async function healthPing(){
+  try{
+    const d=await api("/health");
+    const dot=$("statusDot");
+    if(d.status==="healthy"){
+      dot.style.background="#10b981";
+      dot.style.boxShadow="0 0 8px rgba(16,185,129,.5)";
+    }else if(d.status==="degraded"){
+      dot.style.background="#f59e0b";
+      dot.style.boxShadow="0 0 8px rgba(245,158,11,.5)";
+    }else{
+      dot.style.background="#ef4444";
+      dot.style.boxShadow="0 0 8px rgba(239,68,68,.5)";
+    }
+  }catch(e){
+    $("statusDot").style.background="#ef4444";
+    $("statusDot").style.boxShadow="0 0 8px rgba(239,68,68,.5)";
+  }
+}
+
+init();
+
+// =============================================
+// TOAST NOTIFICATION SYSTEM
+// =============================================
+function toast(msg,type="info",duration=3500){
+  const container=$("toastContainer");
+  const el=document.createElement("div");
+  el.className=`toast toast-${type}`;
+  const icons={success:"&#10003;",error:"&#10007;",info:"&#9432;"};
+  el.innerHTML=`<span class="toast-icon">${icons[type]||icons.info}</span><span>${msg}</span>`;
+  container.appendChild(el);
+  setTimeout(()=>{
+    el.classList.add("hiding");
+    setTimeout(()=>el.remove(),300);
+  },duration);
+}
+
+// Enhance setStatus to also show toast for important events
+const _origSetStatus=setStatus;
+function setStatus(msg,isErr=false){
+  _origSetStatus(msg,isErr);
+  if(isErr)toast(msg,"error");
+  else if(msg.includes("完了")||msg.includes("保存"))toast(msg,"success");
+}
+
+// =============================================
+// KEYBOARD SHORTCUT HELP
+// =============================================
+function openHelp(){$("helpModal").classList.add("active");}
+function closeHelp(){$("helpModal").classList.remove("active");}
+
+// =============================================
+// KEYBOARD SHORTCUTS
+// =============================================
+document.addEventListener("keydown",(e)=>{
+  // Skip if user is typing in input/textarea/select
+  const tag=document.activeElement?.tagName?.toLowerCase();
+  if(tag==="input"||tag==="textarea"||tag==="select")return;
+
+  // Escape closes any open modal
+  if(e.key==="Escape"){
+    if($("helpModal").classList.contains("active")){closeHelp();return;}
+    if($("analyticsModal").classList.contains("active")){closeAnalytics();return;}
+    if($("operatorDetailModal").style.display==="flex"){closeOperatorDetail();return;}
+    if($("compareModal").style.display==="flex"){closeCompare();return;}
+    if($("settingsModal").style.display==="flex"){closeSettings();return;}
+    if($("batchPanel").style.display==="flex"){closeBatch();return;}
+    if($("stepDefsModal").style.display==="flex"){closeStepDefs();return;}
+    return;
+  }
+
+  const key=e.key.toLowerCase();
+
+  if(key==="?"||key==="/"&&e.shiftKey){e.preventDefault();openHelp();return;}
+  if(key==="s"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();if(S.selGold&&S.selTrainee)createScore();return;}
+  if(key==="a"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();openAnalytics();return;}
+  if(key==="b"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();openBatch();return;}
+  if(key==="c"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();if(S.compareIds&&S.compareIds.size===2)openCompare();return;}
+  if(key==="r"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();loadVideos();return;}
+  if(key==="e"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();exportJob();return;}
+  if(key==="p"&&!e.ctrlKey&&!e.metaKey){e.preventDefault();downloadPDF();return;}
+
+  // Tab switching: 1-4
+  if(key==="1"){switchTab("gold",$("tabGold"));return;}
+  if(key==="2"){switchTab("trainee",$("tabTrainee"));return;}
+  if(key==="3"){switchTab("hist",$("tabHist"));return;}
+  if(key==="4"){switchTab("search",$("tabSearch"));return;}
+
+  // Arrow key navigation in video lists (j/k vim-style or arrow keys)
+  if(key==="j"||key==="arrowdown"){e.preventDefault();navigateVideoList(1);return;}
+  if(key==="k"||key==="arrowup"){e.preventDefault();navigateVideoList(-1);return;}
+  if(key==="enter"&&S._navHighlight!=null){e.preventDefault();selectHighlightedVideo();return;}
+});
+
+// Handle window resize for canvas redraw
+let resizeTimer;
+window.addEventListener("resize",()=>{
+  clearTimeout(resizeTimer);
+  resizeTimer=setTimeout(()=>{
+    if(S.currentJob?.result)renderTimeline(S.currentJob.result);
+    loadTrend();
+  },200);
+});
+
+// =============================================
+// SOP STEP DEFINITION EDITOR
+// =============================================
+let _stepDefs = [];
+
+function openStepDefs(){
+  $("stepDefsModal").style.display="flex";
+  loadStepDefs();
+}
+
+function closeStepDefs(){
+  $("stepDefsModal").style.display="none";
+}
+
+async function loadStepDefs(){
+  try{
+    const r=await fetch("/tasks/steps");
+    if(!r.ok)return;
+    const data=await r.json();
+    _stepDefs=data.steps||[];
+    renderStepDefsTable();
+  }catch(e){console.warn("loadStepDefs error",e);}
+}
+
+function renderStepDefsTable(){
+  const tbody=$("stepDefsBody");
+  if(!tbody)return;
+  tbody.innerHTML="";
+  if(!_stepDefs.length){
+    tbody.innerHTML=`<tr><td colspan="8" style="padding:20px;text-align:center;color:var(--muted);font-size:12px">手順が定義されていません。「＋ 手順追加」で追加してください。</td></tr>`;
+    return;
+  }
+  _stepDefs.forEach((s,i)=>{
+    const tr=document.createElement("tr");
+    tr.id=`stepRow${i}`;
+    tr.style.borderBottom="1px solid rgba(255,255,255,0.04)";
+    tr.innerHTML=`
+      <td style="padding:7px 10px"><span style="font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:rgba(13,148,136,.12);color:var(--accent-b);border:1px solid rgba(13,148,136,.25)">${s.step_index}</span></td>
+      <td style="padding:7px 10px"><input type="text" style="background:rgba(30,41,59,.6);border:1px solid var(--glass-border);border-radius:6px;padding:5px 8px;color:var(--text);font:inherit;font-size:12px;width:100%;outline:none" value="${escHtml(s.name_ja||"")}" id="sname_ja_${i}" placeholder="例: 消毒"/></td>
+      <td style="padding:7px 10px"><input type="text" style="background:rgba(30,41,59,.6);border:1px solid var(--glass-border);border-radius:6px;padding:5px 8px;color:var(--text);font:inherit;font-size:12px;width:100%;outline:none" value="${escHtml(s.name_en||"")}" id="sname_en_${i}" placeholder="e.g. Sanitize"/></td>
+      <td style="padding:7px 10px"><input type="number" style="background:rgba(30,41,59,.6);border:1px solid var(--glass-border);border-radius:6px;padding:5px 8px;color:var(--text);font:inherit;font-size:12px;width:100%;outline:none" value="${s.expected_duration_sec||""}" id="sexp_${i}" min="0" step="0.5"/></td>
+      <td style="padding:7px 10px"><input type="number" style="background:rgba(30,41,59,.6);border:1px solid var(--glass-border);border-radius:6px;padding:5px 8px;color:var(--text);font:inherit;font-size:12px;width:100%;outline:none" value="${s.min_duration_sec||""}" id="smin_${i}" min="0" step="0.5"/></td>
+      <td style="padding:7px 10px"><input type="number" style="background:rgba(30,41,59,.6);border:1px solid var(--glass-border);border-radius:6px;padding:5px 8px;color:var(--text);font:inherit;font-size:12px;width:100%;outline:none" value="${s.max_duration_sec||""}" id="smax_${i}" min="0" step="0.5"/></td>
+      <td style="padding:7px 10px;text-align:center"><input type="checkbox" style="width:16px;height:16px;cursor:pointer;accent-color:var(--accent)" id="scrit_${i}" ${s.is_critical?"checked":""}></td>
+      <td style="padding:7px 6px"><button style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.25);color:#f87171;border-radius:6px;padding:4px 10px;cursor:pointer;font-size:12px;font-weight:700" onclick="removeStepDefRow(${i})">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+}
+
+function escHtml(str){
+  return String(str).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+
+function addStepDefRow(){
+  const nextIdx=_stepDefs.length>0?Math.max(..._stepDefs.map(s=>s.step_index))+1:0;
+  _stepDefs.push({step_index:nextIdx,name_ja:"",name_en:"",expected_duration_sec:null,min_duration_sec:null,max_duration_sec:null,is_critical:false});
+  renderStepDefsTable();
+}
+
+function removeStepDefRow(i){
+  _stepDefs.splice(i,1);
+  _stepDefs.forEach((s,idx)=>s.step_index=idx);
+  renderStepDefsTable();
+}
+
+function collectStepDefs(){
+  return _stepDefs.map((s,i)=>({
+    step_index:s.step_index,
+    name_ja:document.getElementById(`sname_ja_${i}`)?.value||"",
+    name_en:document.getElementById(`sname_en_${i}`)?.value||"",
+    expected_duration_sec:parseFloat(document.getElementById(`sexp_${i}`)?.value)||null,
+    min_duration_sec:parseFloat(document.getElementById(`smin_${i}`)?.value)||null,
+    max_duration_sec:parseFloat(document.getElementById(`smax_${i}`)?.value)||null,
+    is_critical:document.getElementById(`scrit_${i}`)?.checked||false,
+  }));
+}
+
+async function saveStepDefs(){
+  const steps=collectStepDefs();
+  const msgEl=$("stepDefsMsg");
+  try{
+    const r=await fetch("/tasks/steps",{
+      method:"PUT",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({steps})
+    });
+    if(r.ok){
+      const data=await r.json();
+      _stepDefs=data.steps||[];
+      renderStepDefsTable();
+      if(msgEl){msgEl.style.color="var(--pass)";msgEl.textContent=`✓ ${data.step_count}件の手順定義を保存しました`;}
+      toast(`${data.step_count}件の手順定義を保存しました`,"success");
+    }else{
+      const err=await r.json().catch(()=>({}));
+      if(msgEl){msgEl.style.color="var(--danger)";msgEl.textContent=`エラー: ${err.detail||"保存失敗"}`;}
+    }
+  }catch(e){
+    if(msgEl){msgEl.style.color="var(--danger)";msgEl.textContent="通信エラー";}
+  }
+}
+</script>
+</body>
+</html>

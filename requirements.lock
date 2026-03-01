@@ -1,0 +1,30 @@
+# Pinned production dependencies for SOPilot v0.2.0
+# Generated from pyproject.toml [project.dependencies] + [project.optional-dependencies.speed]
+# Regenerate: pip install pip-tools && pip-compile --output-file=requirements.lock pyproject.toml
+#
+# Core
+fastapi==0.116.1
+starlette==0.45.3
+uvicorn==0.35.0
+pydantic==2.11.7
+pydantic-core==2.33.2
+numpy==1.26.4
+opencv-python-headless==4.10.0.84
+python-multipart==0.0.20
+httpx==0.28.1
+httpcore==1.0.9
+
+# Speed (numba JIT for DTW)
+numba==0.63.1
+llvmlite==0.46.0
+
+# Transitive
+annotated-types==0.7.0
+anyio==4.12.0
+certifi==2025.7.14
+click==8.1.8
+colorama==0.4.6
+h11==0.16.0
+idna==3.7
+sniffio==1.3.1
+typing-extensions==4.14.1

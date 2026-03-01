@@ -1,0 +1,41 @@
+services:
+  prometheus:
+    image: prom/prometheus:v2.51.2
+    container_name: sopilot-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./monitoring/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.retention.time=30d"
+    networks:
+      - sopilot_net
+
+  grafana:
+    image: grafana/grafana:10.4.2
+    container_name: sopilot-grafana
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-sopilot}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./monitoring/grafana_provisioning:/etc/grafana/provisioning:ro
+    depends_on:
+      - prometheus
+    networks:
+      - sopilot_net
+
+volumes:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  sopilot_net:
+    external: true
+    name: 0208word_default

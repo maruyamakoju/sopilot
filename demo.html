@@ -1,0 +1,2117 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SOPilot — AI駆動 SOP遵守評価システム</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060c18;--surface:#0f172a;--surface2:#1e293b;--surface3:#263348;
+  --border:rgba(255,255,255,0.07);--border2:rgba(255,255,255,0.12);
+  --accent:#0d9488;--accent-b:#14b8a6;--accent-glow:rgba(13,148,136,0.25);
+  --pass:#10b981;--warn:#f59e0b;--danger:#ef4444;--review:#3b82f6;
+  --text:#f1f5f9;--muted:#94a3b8;--ink:#cbd5e1;
+  --r:14px;--r-sm:10px;
+}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);
+  font-family:"Segoe UI","Hiragino Sans","Yu Gothic UI","Noto Sans JP",sans-serif;
+  line-height:1.6;overflow-x:hidden}
+
+/* ── NAV ── */
+nav{position:fixed;top:0;left:0;right:0;z-index:200;
+  background:rgba(6,12,24,0.88);backdrop-filter:blur(24px);
+  border-bottom:1px solid var(--border);
+  padding:0 48px;height:62px;display:flex;align-items:center;justify-content:space-between}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none;color:var(--text)}
+.logo-icon{width:34px;height:34px;border-radius:9px;
+  background:linear-gradient(135deg,#0d9488,#14b8a6);
+  display:flex;align-items:center;justify-content:center;
+  font-weight:900;font-size:17px;color:#fff;letter-spacing:-1px}
+.logo-name{font-size:1.15rem;font-weight:800;letter-spacing:-0.02em}
+.logo-badge{font-size:11px;padding:2px 9px;border-radius:999px;
+  background:rgba(13,148,136,0.18);border:1px solid rgba(13,148,136,0.45);
+  color:var(--accent-b);font-weight:700}
+.nav-links{display:flex;gap:28px;list-style:none}
+.nav-links a{color:var(--muted);text-decoration:none;font-size:13px;font-weight:500;transition:color .18s}
+.nav-links a:hover{color:var(--text)}
+.nav-cta{display:flex;align-items:center;gap:8px}
+
+/* ── UTIL ── */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 22px;
+  border-radius:9px;font:inherit;font-weight:600;font-size:14px;
+  cursor:pointer;transition:all .18s;border:none}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{background:var(--accent-b);box-shadow:0 6px 20px rgba(13,148,136,0.4)}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text)}
+.btn-ghost:hover{border-color:var(--accent-b);color:var(--accent-b)}
+
+.pill{display:inline-flex;align-items:center;gap:3px;padding:3px 10px;
+  border-radius:999px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em}
+.pill-pass{background:rgba(16,185,129,.15);color:#10b981;border:1px solid rgba(16,185,129,.3)}
+.pill-review{background:rgba(59,130,246,.15);color:#3b82f6;border:1px solid rgba(59,130,246,.3)}
+.pill-fail{background:rgba(239,68,68,.15);color:#ef4444;border:1px solid rgba(239,68,68,.3)}
+.pill-efficiency{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
+.pill-critical{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)}
+.pill-quality{background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.25)}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:24px}
+.card-hover{transition:border-color .2s,transform .2s,box-shadow .2s}
+.card-hover:hover{border-color:rgba(13,148,136,.3);transform:translateY(-2px);box-shadow:0 12px 40px rgba(0,0,0,.35)}
+.divider{height:1px;background:var(--border);margin:18px 0}
+.text-accent{color:var(--accent-b)} .text-pass{color:#10b981}
+.text-warn{color:#f59e0b} .text-danger{color:#ef4444}
+.text-muted{color:var(--muted)}
+
+/* ── GRID ── */
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.g3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.g4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+
+/* ── SECTION ── */
+.section{padding:100px 48px 80px;max-width:1300px;margin:0 auto}
+.sec-label{display:inline-flex;align-items:center;gap:8px;
+  font-size:12px;font-weight:700;color:var(--accent-b);
+  letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px}
+.sec-label::before{content:'';display:block;width:18px;height:2px;background:var(--accent-b);border-radius:2px}
+.sec-title{font-size:clamp(1.6rem,3vw,2.4rem);font-weight:800;line-height:1.15;margin-bottom:14px}
+.sec-sub{color:var(--muted);font-size:1.05rem;max-width:580px;line-height:1.7;margin-bottom:44px}
+
+/* ── HERO ── */
+#hero{min-height:100vh;display:flex;flex-direction:column;justify-content:center;
+  position:relative;padding:80px 48px 80px;max-width:1300px;margin:0 auto}
+.hero-bg{position:fixed;inset:0;z-index:-1;
+  background:radial-gradient(ellipse 80% 60% at 50% -10%,rgba(13,148,136,.18) 0%,transparent 65%),
+             radial-gradient(ellipse 50% 40% at 80% 80%,rgba(6,182,212,.08) 0%,transparent 60%),
+             var(--bg)}
+.hero-grid-bg{position:fixed;inset:0;z-index:-1;
+  background-image:linear-gradient(rgba(13,148,136,.04) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(13,148,136,.04) 1px,transparent 1px);
+  background-size:48px 48px;
+  mask-image:radial-gradient(ellipse 100% 80% at 50% 0%,black 0%,transparent 80%)}
+.hero-eyebrow{display:inline-flex;align-items:center;gap:8px;
+  background:rgba(13,148,136,.12);border:1px solid rgba(13,148,136,.35);
+  border-radius:999px;padding:6px 16px;font-size:13px;font-weight:600;
+  color:var(--accent-b);margin-bottom:24px;width:fit-content}
+.live-dot{width:7px;height:7px;border-radius:50%;background:#10b981;
+  animation:pulse 2s infinite;flex-shrink:0}
+@keyframes pulse{0%,100%{opacity:1;box-shadow:0 0 0 0 rgba(16,185,129,.4)}
+  50%{opacity:.7;box-shadow:0 0 0 6px rgba(16,185,129,0)}}
+.hero-title{font-size:clamp(2.4rem,5.5vw,4rem);font-weight:900;line-height:1.08;
+  letter-spacing:-.02em;margin-bottom:22px;
+  background:linear-gradient(160deg,#f1f5f9 0%,#94a3b8 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-title em{font-style:normal;
+  background:linear-gradient(135deg,#14b8a6,#06b6d4);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero-sub{font-size:1.2rem;color:var(--muted);max-width:580px;line-height:1.75;margin-bottom:44px}
+.hero-cta{display:flex;gap:12px;margin-bottom:60px;flex-wrap:wrap}
+.hero-metrics{display:grid;grid-template-columns:repeat(3,1fr);
+  background:rgba(255,255,255,.025);
+  border:1px solid var(--border2);border-radius:var(--r);overflow:hidden;width:fit-content}
+.hm{padding:22px 36px;border-right:1px solid var(--border);text-align:center}
+.hm:last-child{border-right:none}
+.hm-val{font-size:2.2rem;font-weight:900;color:var(--accent-b);line-height:1;margin-bottom:3px}
+.hm-label{font-size:11px;color:var(--muted);font-weight:600;text-transform:uppercase;letter-spacing:.07em}
+.hero-scroll{position:absolute;bottom:36px;left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:6px;color:var(--muted);font-size:12px}
+.hero-scroll-arrow{width:24px;height:24px;border-right:2px solid var(--muted);
+  border-bottom:2px solid var(--muted);transform:rotate(45deg);
+  animation:bounce 1.5s infinite}
+@keyframes bounce{0%,100%{transform:rotate(45deg) translateY(0)}
+  50%{transform:rotate(45deg) translateY(4px)}}
+
+/* ── FLOW ── */
+.flow{display:flex;align-items:stretch;gap:0}
+.flow-step{flex:1;padding:28px 22px;background:var(--surface);
+  border:1px solid var(--border);border-radius:var(--r);text-align:center;
+  transition:border-color .2s}
+.flow-step:hover{border-color:rgba(13,148,136,.35)}
+.flow-arrow{display:flex;align-items:center;justify-content:center;
+  padding:0 10px;color:var(--accent-b);font-size:20px;flex-shrink:0}
+.flow-icon{width:52px;height:52px;border-radius:14px;
+  background:rgba(13,148,136,.12);border:1px solid rgba(13,148,136,.25);
+  display:flex;align-items:center;justify-content:center;
+  font-size:26px;margin:0 auto 14px}
+.flow-title{font-size:15px;font-weight:700;margin-bottom:6px}
+.flow-desc{font-size:13px;color:var(--muted);line-height:1.6}
+
+/* ── STAT ── */
+.stat{background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:20px 22px;transition:border-color .2s,transform .2s}
+.stat:hover{border-color:rgba(13,148,136,.3);transform:translateY(-2px)}
+.stat-label{font-size:11px;font-weight:700;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px}
+.stat-val{font-size:2rem;font-weight:900;line-height:1;margin-bottom:3px}
+.stat-sub{font-size:12px;color:var(--muted)}
+
+/* ── TABLE ── */
+table{width:100%;border-collapse:collapse;font-size:13px}
+thead th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;
+  color:var(--muted);text-transform:uppercase;letter-spacing:.07em;
+  border-bottom:1px solid var(--border)}
+tbody td{padding:12px 14px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+tbody tr:last-child td{border-bottom:none}
+tbody tr{cursor:pointer;transition:background .15s}
+tbody tr:hover td{background:rgba(13,148,136,.06)}
+tbody tr.row-active td{background:rgba(13,148,136,.1);border-bottom-color:rgba(13,148,136,.15)}
+
+/* ── PROGRESS ── */
+.prog-wrap{background:rgba(255,255,255,.06);border-radius:999px;height:7px;overflow:hidden}
+.prog-fill{height:100%;border-radius:999px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+
+/* ── SCORE RING ── */
+.ring-wrap{position:relative;width:130px;height:130px;margin:0 auto}
+.ring-svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring-bg{fill:none;stroke:rgba(255,255,255,.06);stroke-width:9}
+.ring-fill{fill:none;stroke-width:9;stroke-linecap:round;
+  transition:stroke-dashoffset 1.1s cubic-bezier(.4,0,.2,1)}
+.ring-center{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.ring-number{font-size:1.7rem;font-weight:900;line-height:1}
+.ring-lbl{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+
+/* ── SCENARIO BTN ── */
+.scen-btn{width:100%;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:12px 14px;cursor:pointer;
+  text-align:left;color:var(--text);font:inherit;transition:all .18s}
+.scen-btn:hover{border-color:rgba(13,148,136,.35);background:rgba(13,148,136,.05)}
+.scen-btn.active{border-color:var(--accent);background:rgba(13,148,136,.1)}
+.scen-name{font-size:13px;font-weight:700;margin-bottom:3px}
+.scen-score{font-size:1.4rem;font-weight:900}
+
+/* ── SCANNING OVERLAY ── */
+.scanning{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  min-height:320px;gap:16px}
+.scan-bar-wrap{width:280px;height:4px;background:rgba(255,255,255,.08);border-radius:999px;overflow:hidden}
+.scan-bar-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-b));
+  border-radius:999px;transition:width .05s linear}
+.scan-label{font-size:14px;color:var(--muted);font-weight:600}
+.scan-sublabel{font-size:12px;color:var(--surface3)}
+
+/* ── ARCH ── */
+.arch-item{background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--r-sm);padding:14px 16px;margin-bottom:8px}
+.arch-item-title{font-size:11px;font-weight:800;color:var(--accent-b);
+  text-transform:uppercase;letter-spacing:.09em;margin-bottom:4px}
+.arch-item-body{font-size:12px;color:var(--muted);line-height:1.5}
+
+/* ── TIMELINE ── */
+.tl-wrap{position:relative;height:36px;background:rgba(255,255,255,.04);
+  border-radius:8px;overflow:hidden}
+.tl-gold{position:absolute;top:0;left:0;height:100%;
+  background:linear-gradient(90deg,rgba(13,148,136,.7),rgba(20,184,166,.5));
+  border-radius:8px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+.tl-dev{position:absolute;top:0;height:100%;
+  background:rgba(59,130,246,.3);border-left:2px solid #3b82f6;border-right:2px solid #3b82f6}
+.tl-label{font-size:11px;color:var(--muted);margin-bottom:5px}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeInUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes slideRight{from{opacity:0;transform:translateX(-16px)}to{opacity:1;transform:translateX(0)}}
+.anim{opacity:0;animation:fadeInUp .55s cubic-bezier(.4,0,.2,1) both}
+.d1{animation-delay:.08s}.d2{animation-delay:.16s}.d3{animation-delay:.24s}
+.d4{animation-delay:.32s}.d5{animation-delay:.40s}.d6{animation-delay:.48s}
+
+/* ── CRITICAL ALERT PULSE ── */
+@keyframes criticalPulse{
+  0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,0)}
+  50%{box-shadow:0 0 0 4px rgba(239,68,68,0.18)}}
+.scen-btn[data-fail="1"]{animation:criticalPulse 2.5s ease-in-out infinite}
+
+/* ── FOOTER ── */
+footer{padding:40px 48px;border-top:1px solid var(--border);text-align:center;
+  color:var(--muted);font-size:13px}
+
+@media(max-width:900px){
+  .section,.section{padding:80px 20px 60px}
+  nav{padding:0 20px}.nav-links,.nav-cta{display:none}
+  .g2,.g3,.g4{grid-template-columns:1fr}
+  .flow{flex-direction:column}.hero-metrics{grid-template-columns:1fr}
+  #hero{padding:80px 20px 60px}
+}
+
+/* ══ LIVE SCORING WIDGET ══════════════════════════════════════════════ */
+.live-api-status{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:7px 16px;border-radius:99px;font-size:13px;font-weight:600;
+  border:1px solid var(--border2);background:var(--surface2);
+  transition:all .3s;
+}
+.api-dot{width:9px;height:9px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s}
+.api-dot.online{background:#10b981;box-shadow:0 0 6px rgba(16,185,129,.6);animation:apiBlink 2s ease-in-out infinite}
+.api-dot.offline{background:#ef4444}
+@keyframes apiBlink{0%,100%{opacity:1}50%{opacity:.5}}
+
+.live-steps{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px}
+@media(max-width:640px){.live-steps{grid-template-columns:1fr}}
+
+.live-step-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  padding:24px;display:flex;flex-direction:column;gap:14px;
+  transition:border-color .2s;
+}
+.live-step-card.active{border-color:rgba(13,148,136,.4)}
+.live-step-label{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--accent);margin-bottom:2px}
+.live-step-card h4{font-size:15px;font-weight:700}
+
+.gold-select{
+  width:100%;padding:11px 14px;
+  background:var(--surface2);border:1px solid var(--border2);border-radius:9px;
+  color:var(--text);font:inherit;font-size:14px;
+  outline:none;cursor:pointer;transition:border-color .2s;
+}
+.gold-select:focus{border-color:var(--accent)}
+.gold-select option{background:var(--surface2)}
+
+.drop-zone{
+  border:2px dashed var(--border2);border-radius:12px;
+  padding:32px 20px;text-align:center;cursor:pointer;
+  transition:all .2s;position:relative;
+}
+.drop-zone:hover,.drop-zone.over{border-color:var(--accent);background:rgba(13,148,136,.04)}
+.drop-zone.has-file{border-color:var(--accent);background:rgba(13,148,136,.06);border-style:solid}
+.drop-zone input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%}
+.drop-icon{font-size:32px;margin-bottom:10px}
+.drop-label{font-size:14px;font-weight:600;color:var(--text)}
+.drop-sub{font-size:12px;color:var(--muted);margin-top:4px}
+.drop-file-name{font-size:13px;font-weight:700;color:var(--accent-b);margin-top:6px;word-break:break-all}
+
+.live-score-btn{
+  width:100%;padding:14px;border:none;border-radius:10px;
+  background:linear-gradient(135deg,#0d9488,#14b8a6);
+  color:#fff;font:inherit;font-size:16px;font-weight:700;
+  cursor:pointer;transition:opacity .2s,transform .15s;
+  display:flex;align-items:center;justify-content:center;gap:8px;
+  margin-top:8px;
+}
+.live-score-btn:hover:not(:disabled){opacity:.9;transform:translateY(-1px)}
+.live-score-btn:disabled{opacity:.4;cursor:not-allowed;transform:none}
+
+.live-progress{
+  margin-top:20px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:24px;display:none;
+}
+.live-progress.visible{display:block}
+.prog-label{font-size:13px;color:var(--muted);margin-bottom:10px;display:flex;align-items:center;gap:8px}
+.prog-spinner{
+  width:16px;height:16px;border:2px solid var(--border2);border-top-color:var(--accent);
+  border-radius:50%;animation:spin .8s linear infinite;flex-shrink:0;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+.prog-bar-wrap{height:4px;background:var(--border2);border-radius:4px;overflow:hidden}
+.prog-bar{height:100%;background:linear-gradient(90deg,#0d9488,#14b8a6);border-radius:4px;transition:width .4s;width:0%}
+
+.live-result{
+  margin-top:20px;background:var(--surface);border:1px solid var(--border);
+  border-radius:var(--r);padding:28px;display:none;
+}
+.live-result.visible{display:block}
+.live-result-header{display:flex;align-items:center;gap:16px;margin-bottom:20px;flex-wrap:wrap}
+.live-score-big{font-size:52px;font-weight:900;line-height:1}
+.live-result-meta{flex:1}
+.live-result-meta h3{font-size:20px;font-weight:700;margin-bottom:6px}
+.live-dev-list{display:flex;flex-direction:column;gap:10px;margin-top:16px}
+.live-dev-item{
+  background:var(--surface2);border:1px solid var(--border);border-radius:10px;
+  padding:14px 16px;display:flex;gap:12px;align-items:flex-start;
+}
+.live-dev-step{font-size:11px;font-weight:700;color:var(--muted);min-width:48px}
+.live-dev-body{flex:1}
+.live-dev-type{font-size:13px;font-weight:600;color:var(--text)}
+.live-dev-detail{font-size:12px;color:var(--muted);margin-top:2px}
+.live-retry-btn{
+  margin-top:16px;padding:9px 20px;border-radius:8px;border:1px solid var(--border2);
+  background:transparent;color:var(--muted);font:inherit;font-size:13px;cursor:pointer;
+  transition:color .2s,border-color .2s;
+}
+.live-retry-btn:hover{color:var(--text);border-color:var(--accent-b)}
+
+.live-offline-msg{
+  text-align:center;padding:40px 24px;
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--r);
+  margin-top:20px;
+}
+.live-offline-code{
+  display:inline-block;margin-top:12px;padding:10px 20px;
+  background:var(--surface2);border:1px solid var(--border2);border-radius:8px;
+  font-family:monospace;font-size:13px;color:var(--accent-b);
+}
+.live-stats-bar{
+  display:none;gap:0;background:rgba(13,148,136,.06);
+  border:1px solid rgba(13,148,136,.18);border-radius:var(--r);
+  padding:14px 24px;margin-top:14px;
+}
+.live-stats-bar.visible{display:flex}
+.live-stat-item{flex:1;text-align:center;padding:4px 0;border-right:1px solid var(--border)}
+.live-stat-item:last-child{border-right:none}
+.live-stat-num{font-size:1.5rem;font-weight:900;color:var(--accent-b);line-height:1}
+.live-stat-lbl{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;
+  letter-spacing:.07em;margin-top:3px}
+.btn-csv{
+  display:inline-flex;align-items:center;gap:6px;padding:9px 20px;
+  border-radius:8px;border:1px solid rgba(13,148,136,.35);
+  background:rgba(13,148,136,.07);color:var(--accent-b);font:inherit;font-size:13px;
+  cursor:pointer;transition:all .2s;
+}
+.btn-csv:hover{background:rgba(13,148,136,.15);border-color:var(--accent-b)}
+</style>
+</head>
+<body>
+
+<div class="hero-bg"></div>
+<div class="hero-grid-bg"></div>
+
+<!-- NAV -->
+<nav>
+  <a href="#hero" class="logo">
+    <div class="logo-icon">SP</div>
+    <span class="logo-name">SOPilot</span>
+    <span class="logo-badge">PoC v0.2</span>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#how">仕組み</a></li>
+    <li><a href="#results">評価結果</a></li>
+    <li><a href="#validation" style="color:#10b981;font-weight:700">96時間検証</a></li>
+    <li><a href="#explorer">シナリオ詳細</a></li>
+    <li><a href="#arch">アーキテクチャ</a></li>
+    <li><a href="#live" style="color:var(--accent-b);font-weight:700">▶ ライブ採点</a></li>
+    <li><a href="#impact">導入効果</a></li>
+  </ul>
+  <div class="nav-cta">
+    <a href="proposal.html#contact" class="btn btn-primary" style="padding:8px 18px;font-size:13px;text-decoration:none">デモ申込</a>
+  </div>
+</nav>
+
+<!-- ═══ HERO ═══ -->
+<section id="hero">
+  <div class="hero-eyebrow anim">
+    <span class="live-dot"></span>
+    完全オンプレ稼働中 &nbsp;·&nbsp; 外部接続ゼロ &nbsp;·&nbsp; PoC検証済み
+  </div>
+  <h1 class="hero-title anim d1">
+    SOP遵守を<br><em>動画AIで</em><br>自動採点
+  </h1>
+  <p class="hero-sub anim d2">
+    研修生の作業動画をゴールド基準と即時比較。<br>
+    逸脱箇所をステップ単位・秒単位で特定し、<br>
+    評価工数を大幅に削減します。
+  </p>
+  <div class="hero-cta anim d3">
+    <a href="proposal.html" class="btn btn-primary">デモ環境をリクエスト</a>
+    <a href="proposal.html#spec" class="btn btn-ghost">技術仕様書を見る</a>
+  </div>
+  <div class="hero-metrics anim d4">
+    <div class="hm">
+      <div class="hm-val" id="hm-jobs">—</div>
+      <div class="hm-label">96時間 採点ジョブ数</div>
+    </div>
+    <div class="hm">
+      <div class="hm-val" id="hm-miss" style="color:#10b981">—</div>
+      <div class="hm-label">NG見逃し率（重大逸脱）</div>
+    </div>
+    <div class="hm">
+      <div class="hm-val" id="hm-jitter" style="color:#10b981">—</div>
+      <div class="hm-label">採点再現性ジッター</div>
+    </div>
+  </div>
+  <div class="hero-scroll">
+    <div class="hero-scroll-arrow"></div>
+    スクロールして詳細へ
+  </div>
+</section>
+
+<!-- ═══ HOW IT WORKS ═══ -->
+<section class="section" id="how">
+  <div class="sec-label">仕組み</div>
+  <h2 class="sec-title">3ステップで評価完了</h2>
+  <p class="sec-sub">動画をアップロードするだけ。AIが自動的にSOP遵守状況を数値化します。</p>
+
+  <div class="flow" style="gap:14px;margin-bottom:56px">
+    <div class="flow-step">
+      <div class="flow-icon">🎥</div>
+      <div class="flow-title">①  動画アップロード</div>
+      <div class="flow-desc">ゴールド動画（正解手順）と研修生動画をオンプレサーバへ送信。外部には一切出ません。</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-icon">🧠</div>
+      <div class="flow-title">②  AI解析・整列</div>
+      <div class="flow-desc">V-JEPA2映像エンコーダで特徴量を抽出。DTWアルゴリズムで手順を時系列整列します。</div>
+    </div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step">
+      <div class="flow-icon">📊</div>
+      <div class="flow-title">③  スコア・逸脱レポート</div>
+      <div class="flow-desc">合否判定・重大度分類・タイムコード付き逸脱リストを即時生成。監査ログにも対応。</div>
+    </div>
+  </div>
+
+  <div class="g3">
+    <div class="card card-hover">
+      <div style="font-size:28px;margin-bottom:12px">🔒</div>
+      <h3 style="margin-bottom:8px">完全オンプレ</h3>
+      <p style="color:var(--muted);font-size:13px;line-height:1.6">映像データは外部に出ません。インターネット非接続のエアギャップ環境でも完全稼働します。</p>
+    </div>
+    <div class="card card-hover">
+      <div style="font-size:28px;margin-bottom:12px">⚡</div>
+      <h3 style="margin-bottom:8px">非同期高速採点</h3>
+      <p style="color:var(--muted);font-size:13px;line-height:1.6">採点ジョブはキューで非同期処理。複数動画を並行採点。起動時に未完ジョブを自動再開します。</p>
+    </div>
+    <div class="card card-hover">
+      <div style="font-size:28px;margin-bottom:12px">📋</div>
+      <h3 style="margin-bottom:8px">監査対応レポート</h3>
+      <p style="color:var(--muted);font-size:13px;line-height:1.6">JSON自動出力で監査証跡を生成。評価者コメント・判定履歴もDBに永続保存されます。</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ RESULTS DASHBOARD ═══ -->
+<section class="section" id="results">
+  <div class="sec-label">PoC評価結果</div>
+  <h2 class="sec-title">実データによる検証済み結果</h2>
+  <p class="sec-sub">TESDAクリーニング作業動画を使用したPoC評価の実測値。全ジョブエラーゼロで完了。</p>
+
+  <!-- KPI (96時間検証データ) -->
+  <div class="g4" style="margin-bottom:20px">
+    <div class="stat">
+      <div class="stat-label">採点ジョブ数</div>
+      <div class="stat-val text-accent" id="kpi-jobs">—</div>
+      <div class="stat-sub">96時間連続 / エラー0</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">NG見逃し率</div>
+      <div class="stat-val text-pass">0.0%</div>
+      <div class="stat-sub">18件全件検知 (TP=18, FN=0)</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">採点再現性</div>
+      <div class="stat-val text-pass">±0pt</div>
+      <div class="stat-sub">再採点ジッターゼロ</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">中央値スコア</div>
+      <div class="stat-val text-accent" id="kpi-p50">—</div>
+      <div class="stat-sub">p90=100.0 / min=55.0</div>
+    </div>
+  </div>
+
+  <!-- Score chart + deviation breakdown -->
+  <div class="g2" style="margin-bottom:20px">
+    <div class="card">
+      <h3 style="margin-bottom:16px">スコア分布</h3>
+      <div id="scoreChart" style="position:relative;height:190px"></div>
+      <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--muted)">
+        <span style="display:flex;align-items:center;gap:4px">
+          <span style="display:inline-block;width:10px;height:2px;background:#10b981;border-radius:1px"></span>合格ライン (90pt)
+        </span>
+        <span style="display:flex;align-items:center;gap:4px">
+          <span style="display:inline-block;width:10px;height:2px;background:#f59e0b;border-radius:1px"></span>要再訓練 (80pt)
+        </span>
+      </div>
+    </div>
+    <div class="card">
+      <h3 style="margin-bottom:20px">逸脱分類内訳</h3>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+            <span>🔴 Critical（重大逸脱）</span>
+            <span id="crit-count" style="font-weight:700;color:#10b981">—</span>
+          </div>
+          <div class="prog-wrap"><div class="prog-fill" id="crit-bar" style="width:0%;background:#ef4444"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">手順の省略・誤実施 → 即NG</div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+            <span>🟡 Quality（品質逸脱）</span>
+            <span id="qual-count" style="font-weight:700;color:#10b981">—</span>
+          </div>
+          <div class="prog-wrap"><div class="prog-fill" id="qual-bar" style="width:0%;background:#f59e0b"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">方法の誤り → 修正指導</div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+            <span>🔵 Efficiency（効率逸脱）</span>
+            <span style="color:#60a5fa;font-weight:700" id="eff-count">—</span>
+          </div>
+          <div class="prog-wrap"><div class="prog-fill" id="eff-bar" style="width:0%;background:#3b82f6"></div></div>
+          <div style="font-size:11px;color:var(--muted);margin-top:3px">時間超過 → コーチング対象</div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:13px;color:var(--muted);line-height:1.6" id="dev-summary-text">
+        PoC実機動画 6件では効率逸脱のみ。Critical 2件は<strong style="color:#ef4444">NGデモで正しく検知</strong> → <strong style="color:var(--pass)">重大逸脱の検知能力を実証✓</strong>
+      </div>
+    </div>
+  </div>
+
+  <!-- NG callout -->
+  <div style="display:flex;align-items:center;gap:14px;padding:14px 20px;
+    background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.25);
+    border-radius:var(--r);margin-bottom:16px">
+    <div style="font-size:24px;flex-shrink:0">🚨</div>
+    <div>
+      <strong style="color:#f87171">NG検知デモ (最終行)</strong>
+      <span style="color:var(--muted);font-size:13px;margin-left:8px">
+        実際のGold埋め込みから合成した「手順省略シナリオ」。重大逸脱2件を正しくFAIL判定 → システムの検知能力を実証。
+      </span>
+    </div>
+  </div>
+
+  <!-- Results table -->
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3>採点結果一覧</h3>
+      <span style="font-size:12px;color:var(--muted)">行をクリック → シナリオ詳細へジャンプ</span>
+    </div>
+    <table id="resultsTable">
+      <thead>
+        <tr>
+          <th>Job</th><th>作業種別</th><th>スコア</th><th>判定</th>
+          <th>Miss</th><th>Swap</th><th>Dev</th>
+          <th>時間超過率</th><th>DTW Cost</th>
+        </tr>
+      </thead>
+      <tbody id="resultsBody"></tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══ 96時間検証 ═══ -->
+<section class="section" id="validation">
+  <div class="sec-label">96時間連続稼働検証</div>
+  <h2 class="sec-title">866件 × <em style="font-style:normal;color:#10b981">NG見逃し率 0.0%</em></h2>
+  <p class="sec-sub">実際の動画ファイルを用いた96時間・自動連続採点テスト。全品質ゲートをパス。</p>
+
+  <div class="g2" style="margin-bottom:20px">
+    <!-- 混同行列 -->
+    <div class="card">
+      <h3 style="margin-bottom:18px">重大逸脱 検知性能（混同行列）</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px">
+        <div style="padding:20px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;text-align:center">
+          <div style="font-size:2.4rem;font-weight:900;color:#10b981">18</div>
+          <div style="font-size:12px;font-weight:700;color:#10b981;margin-top:4px">TP — 正しくNG検知</div>
+        </div>
+        <div style="padding:20px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;text-align:center">
+          <div style="font-size:2.4rem;font-weight:900;color:#10b981">0</div>
+          <div style="font-size:12px;font-weight:700;color:#10b981;margin-top:4px">FN — 見逃し（ゼロ）</div>
+        </div>
+        <div style="padding:20px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.2);border-radius:10px;text-align:center">
+          <div style="font-size:2.4rem;font-weight:900;color:#f59e0b">78</div>
+          <div style="font-size:12px;font-weight:700;color:#f59e0b;margin-top:4px">FP — 誤検知（要改善）</div>
+        </div>
+        <div style="padding:20px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:10px;text-align:center">
+          <div style="font-size:2.4rem;font-weight:900;color:#10b981">266</div>
+          <div style="font-size:12px;font-weight:700;color:#10b981;margin-top:4px">TN — 正しくPASS</div>
+        </div>
+      </div>
+      <div style="background:rgba(16,185,129,0.08);border:1px solid rgba(16,185,129,0.25);border-radius:8px;padding:14px 16px">
+        <div style="font-size:13px;color:var(--muted);line-height:1.7">
+          <strong style="color:#10b981">安全側に倒した設計：</strong>
+          FN=0（見逃しゼロ）を最優先。FP=78（誤検知22.7%）は閾値チューニングで改善可能。
+          医療・食品・製造現場では「見逃し」より「誤報」の方が許容できる。
+        </div>
+      </div>
+    </div>
+
+    <!-- 品質ゲート -->
+    <div class="card">
+      <h3 style="margin-bottom:18px">品質ゲート判定（全項目PASS）</h3>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:8px">
+          <span style="font-size:18px">✅</span>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:13px">Critical Miss Rate ≤ 10%</div>
+            <div style="font-size:12px;color:var(--muted)">実測値: <strong style="color:#10b981">0.0%</strong> — 閾値を大幅に下回る</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:8px">
+          <span style="font-size:18px">✅</span>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:13px">Critical FPR ≤ 30%</div>
+            <div style="font-size:12px;color:var(--muted)">実測値: <strong style="color:#f59e0b">22.7%</strong> — 閾値内（改善余地あり）</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:8px">
+          <span style="font-size:18px">✅</span>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:13px">採点ジッター ≤ 5.0pt</div>
+            <div style="font-size:12px;color:var(--muted)">実測値: <strong style="color:#10b981">±0.0pt</strong> — 完全再現性</div>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:rgba(16,185,129,0.07);border:1px solid rgba(16,185,129,0.2);border-radius:8px">
+          <span style="font-size:18px">✅</span>
+          <div style="flex:1">
+            <div style="font-weight:700;font-size:13px">DTW Cost P90 ≤ 0.6</div>
+            <div style="font-size:12px;color:var(--muted)">実測値: <strong style="color:#10b981">0.073</strong> — 閾値の12%以内</div>
+          </div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:13px;color:var(--muted)">
+        スコア統計: 平均 85.6pt / 中央値 95.3pt / P90 100.0pt / 最小 55.0pt
+      </div>
+    </div>
+  </div>
+
+  <!-- NG動画パターン -->
+  <div class="card">
+    <h3 style="margin-bottom:14px">テスト済みNG動画パターン（18件 全件検知）</h3>
+    <div class="g3">
+      <div style="padding:16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:10px">
+        <div style="font-size:22px;margin-bottom:8px">✂️</div>
+        <div style="font-weight:700;font-size:13px;color:#f87171;margin-bottom:6px">末尾カット (cut_tail)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6">作業の後半ステップを省略した動画。後処理・確認作業の欠落を再現。</div>
+      </div>
+      <div style="padding:16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:10px">
+        <div style="font-size:22px;margin-bottom:8px">⏭️</div>
+        <div style="font-weight:700;font-size:13px;color:#f87171;margin-bottom:6px">冒頭スキップ (skip_start)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6">作業の前半ステップを省略した動画。準備・確認手順の欠落を再現。</div>
+      </div>
+      <div style="padding:16px;background:rgba(239,68,68,0.06);border:1px solid rgba(239,68,68,0.2);border-radius:10px">
+        <div style="font-size:22px;margin-bottom:8px">🧊</div>
+        <div style="font-weight:700;font-size:13px;color:#f87171;margin-bottom:6px">フリーズ (freeze)</div>
+        <div style="font-size:12px;color:var(--muted);line-height:1.6">作業途中で動きが止まった動画。中断・放置・機器トラブルを再現。</div>
+      </div>
+    </div>
+    <div style="margin-top:14px;padding:12px 16px;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.2);border-radius:8px;font-size:13px;color:var(--muted)">
+      6本のTESDA実技動画 × 3パターン = <strong style="color:var(--text)">18件のNG</strong>
+      を96時間にわたり定期投入 → <strong style="color:#10b981">全件Critical逸脱として正しく検知（見逃し0件）</strong>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ SCENARIO EXPLORER ═══ -->
+<section class="section" id="explorer">
+  <div class="sec-label">シナリオ詳細</div>
+  <h2 class="sec-title">採点シナリオを選択</h2>
+  <p class="sec-sub">研修生ごとのスコア詳細・逸脱タイムライン・DTW整列マトリクスを確認できます。</p>
+
+  <div style="display:grid;grid-template-columns:260px 1fr;gap:20px">
+    <!-- List -->
+    <div>
+      <div style="font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">研修生一覧</div>
+      <div id="scenList" style="display:flex;flex-direction:column;gap:8px"></div>
+    </div>
+    <!-- Detail -->
+    <div id="scenDetail"></div>
+  </div>
+</section>
+
+<!-- ═══ ARCHITECTURE ═══ -->
+<section class="section" id="arch">
+  <div class="sec-label">システム構成</div>
+  <h2 class="sec-title">本番展開可能なオンプレ設計</h2>
+  <p class="sec-sub">全データがオンプレ環境に閉じる、エアギャップ対応アーキテクチャ。</p>
+
+  <div class="g2">
+    <div>
+      <div class="card" style="margin-bottom:16px">
+        <h3 style="margin-bottom:16px">技術スタック</h3>
+        <div class="arch-item">
+          <div class="arch-item-title">AI エンジン</div>
+          <div class="arch-item-body">V-JEPA2 (Meta Research, ViT-Large) · DTW整列 · ColorMotion fallback</div>
+        </div>
+        <div class="arch-item">
+          <div class="arch-item-title">バックエンド</div>
+          <div class="arch-item-body">FastAPI · 非同期スコアキュー · SQLite · Python 3.11</div>
+        </div>
+        <div class="arch-item">
+          <div class="arch-item-title">フロントエンド</div>
+          <div class="arch-item-body">Pure HTML/JS · 外部CDN依存なし · オフライン稼働可</div>
+        </div>
+        <div class="arch-item">
+          <div class="arch-item-title">ストレージ</div>
+          <div class="arch-item-body">ローカルファイルシステム · SQLite DB · バックアップ/リストアスクリプト付属</div>
+        </div>
+        <div class="arch-item">
+          <div class="arch-item-title">スケールアップパス</div>
+          <div class="arch-item-body">FAISS/Qdrant検索 · ナイトリーモデル更新 · モデルレジストリ · ロールバック</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card">
+        <h3 style="margin-bottom:20px">展開ロードマップ</h3>
+        <div>
+          <div style="display:grid;grid-template-columns:72px 1fr;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)">
+            <div style="font-size:12px;font-weight:800;color:var(--accent-b);padding-top:2px">Day 0–14</div>
+            <div>
+              <div style="font-weight:700;font-size:14px;margin-bottom:4px">ベースライン確立</div>
+              <div style="font-size:12px;color:var(--muted)">Gold 20本 + Trainee 50本収集・採点レイテンシ検証・閾値合意</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:72px 1fr;gap:14px;padding:14px 0;border-bottom:1px solid var(--border)">
+            <div style="font-size:12px;font-weight:800;color:var(--accent-b);padding-top:2px">Day 15–45</div>
+            <div>
+              <div style="font-weight:700;font-size:14px;margin-bottom:4px">1拠点パイロット</div>
+              <div style="font-size:12px;color:var(--muted)">評価フローをQA業務に組み込み・重み/閾値チューニング・監査PDF対応</div>
+            </div>
+          </div>
+          <div style="display:grid;grid-template-columns:72px 1fr;gap:14px;padding:14px 0">
+            <div style="font-size:12px;font-weight:800;color:var(--accent-b);padding-top:2px">Day 46–90</div>
+            <div>
+              <div style="font-weight:700;font-size:14px;margin-bottom:4px">本番移行</div>
+              <div style="font-size:12px;color:var(--muted)">FAISS検索・ナイトリー学習・スコアドリフトアラート・オフライン配布パッケージ</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px;background:rgba(13,148,136,.06);border-color:rgba(13,148,136,.25)">
+        <h3 style="margin-bottom:14px;color:var(--accent-b)">セキュリティ設計</h3>
+        <div style="font-size:13px;color:var(--muted);display:flex;flex-direction:column;gap:8px">
+          <div>✓ &nbsp;映像データはサーバ外へ一切送信しない</div>
+          <div>✓ &nbsp;インターネット非接続（エアギャップ）環境対応</div>
+          <div>✓ &nbsp;バックアップ・リストアスクリプト付属</div>
+          <div>✓ &nbsp;評価履歴・審査メモをDB永続化（監査証跡）</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ LIVE SCORING ═══ -->
+<section class="section" id="live">
+  <div class="sec-label">ライブ採点</div>
+  <h2 class="sec-title">今すぐ採点してみる</h2>
+  <p class="sec-sub">
+    ローカルで API サーバーを起動すると、ここから実際に動画を採点できます。<br>
+    Gold 動画を選択し、研修生動画をアップロードするだけです。
+  </p>
+
+  <!-- API status bar -->
+  <div style="display:flex;align-items:center;gap:14px;margin-top:28px;flex-wrap:wrap">
+    <div class="live-api-status" id="liveStatusBadge">
+      <div class="api-dot" id="liveApiDot"></div>
+      <span id="liveApiLabel">APIサーバーを確認中…</span>
+    </div>
+    <span style="font-size:12px;color:var(--muted)" id="liveApiHint"></span>
+    <button onclick="liveCheckApi()" style="margin-left:auto;padding:7px 16px;border-radius:8px;border:1px solid var(--border2);background:transparent;color:var(--muted);font:inherit;font-size:12px;cursor:pointer">再確認</button>
+  </div>
+
+  <!-- Live stats bar (shown when API online) -->
+  <div class="live-stats-bar" id="liveStatsBar">
+    <div class="live-stat-item">
+      <div class="live-stat-num" id="lstGold">—</div>
+      <div class="live-stat-lbl">Gold 動画</div>
+    </div>
+    <div class="live-stat-item">
+      <div class="live-stat-num" id="lstTrainee">—</div>
+      <div class="live-stat-lbl">研修生動画</div>
+    </div>
+    <div class="live-stat-item">
+      <div class="live-stat-num" id="lstJobs">—</div>
+      <div class="live-stat-lbl">採点ジョブ</div>
+    </div>
+    <div class="live-stat-item">
+      <div class="live-stat-num" id="lstPass">—</div>
+      <div class="live-stat-lbl">合格率</div>
+    </div>
+  </div>
+
+  <!-- Offline message -->
+  <div class="live-offline-msg" id="liveOfflineMsg" style="display:none">
+    <div style="font-size:36px;margin-bottom:12px">🔌</div>
+    <h3 style="margin-bottom:8px">API サーバーが起動していません</h3>
+    <p style="font-size:14px;color:var(--muted);max-width:480px;margin:0 auto 16px">
+      以下のコマンドでサーバーを起動してください（Color-Motion モード: GPU不要）
+    </p>
+    <div class="live-offline-code">scripts\poc_bootstrap.cmd</div>
+    <p style="font-size:12px;color:var(--muted);margin-top:12px">
+      起動後、右上の「再確認」ボタンを押してください
+    </p>
+  </div>
+
+  <!-- Widget (shown when online) -->
+  <div id="liveWidget" style="display:none">
+    <div class="live-steps">
+      <!-- Step 1: Gold video -->
+      <div class="live-step-card active">
+        <div>
+          <div class="live-step-label">Step 1</div>
+          <h4>Gold 動画を選択</h4>
+          <p style="font-size:13px;color:var(--muted);margin-top:6px">
+            データベースに登録済みのゴールド動画を選びます
+          </p>
+        </div>
+        <select class="gold-select" id="liveGoldSelect">
+          <option value="">— Gold 動画を選択 —</option>
+        </select>
+        <div id="liveGoldInfo" style="font-size:12px;color:var(--muted)"></div>
+      </div>
+
+      <!-- Step 2: Trainee video -->
+      <div class="live-step-card">
+        <div>
+          <div class="live-step-label">Step 2</div>
+          <h4>研修生動画をアップロード</h4>
+          <p style="font-size:13px;color:var(--muted);margin-top:6px">
+            MP4 / AVI / MOV など対応形式をドロップ
+          </p>
+        </div>
+        <div class="drop-zone" id="liveDropZone">
+          <input type="file" id="liveFileInput" accept="video/*" onchange="liveOnFileSelect(this)">
+          <div class="drop-icon" id="liveDropIcon">🎥</div>
+          <div class="drop-label" id="liveDropLabel">クリックまたはドロップ</div>
+          <div class="drop-sub">MP4 · AVI · MOV · MKV</div>
+          <div class="drop-file-name" id="liveDropFileName"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Score button -->
+    <button class="live-score-btn" id="liveScoreBtn" onclick="liveRunScore()" disabled>
+      <span id="liveBtnIcon">▶</span>
+      <span id="liveBtnLabel">Gold 動画と研修生動画を選択してください</span>
+    </button>
+
+    <!-- Progress -->
+    <div class="live-progress" id="liveProgress">
+      <div class="prog-label">
+        <div class="prog-spinner"></div>
+        <span id="liveProgLabel">処理中…</span>
+      </div>
+      <div class="prog-bar-wrap"><div class="prog-bar" id="liveProgBar"></div></div>
+    </div>
+
+    <!-- Result -->
+    <div class="live-result" id="liveResult">
+      <div class="live-result-header">
+        <div class="live-score-big" id="liveResultScore" style="color:var(--accent)">—</div>
+        <div class="live-result-meta">
+          <h3 id="liveResultTitle">採点完了</h3>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px" id="liveResultBadges"></div>
+        </div>
+      </div>
+      <div id="liveResultMetrics" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
+      <div id="liveResultDeviations"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+        <button class="btn-csv" id="liveCsvBtn" style="display:none" onclick="liveExportCSV()">📥 CSV で保存</button>
+        <button class="live-retry-btn" onclick="liveReset()">← もう一度採点する</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══ BUSINESS IMPACT ═══ -->
+<section class="section" id="impact">
+  <div class="sec-label">導入効果</div>
+  <h2 class="sec-title">定量的な効果目標</h2>
+  <p class="sec-sub">従来の人手評価との比較。90日パイロット完了時の目標値。</p>
+
+  <div class="g2" style="margin-bottom:24px">
+    <div class="card">
+      <h3 style="margin-bottom:22px">Before / After</h3>
+      <div style="display:flex;flex-direction:column;gap:0">
+        <div style="display:grid;grid-template-columns:1fr 90px 1fr;gap:10px;align-items:center;padding:14px 0;border-bottom:1px solid var(--border)">
+          <div style="text-align:right;color:var(--muted);font-size:13px">30〜60分 / 件</div>
+          <div style="text-align:center;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">評価時間</div>
+          <div style="color:var(--accent-b);font-weight:700;font-size:13px">5〜10分 / 件<br><span style="font-size:11px;color:#10b981">▼ 50%削減目標</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 90px 1fr;gap:10px;align-items:center;padding:14px 0;border-bottom:1px solid var(--border)">
+          <div style="text-align:right;color:var(--muted);font-size:13px">評価者の主観依存</div>
+          <div style="text-align:center;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">評価基準</div>
+          <div style="color:var(--accent-b);font-weight:700;font-size:13px">スコア数値で客観化</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 90px 1fr;gap:10px;align-items:center;padding:14px 0;border-bottom:1px solid var(--border)">
+          <div style="text-align:right;color:var(--muted);font-size:13px">紙 / 表計算</div>
+          <div style="text-align:center;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">監査証跡</div>
+          <div style="color:var(--accent-b);font-weight:700;font-size:13px">JSON自動出力</div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 90px 1fr;gap:10px;align-items:center;padding:14px 0">
+          <div style="text-align:right;color:var(--muted);font-size:13px">発覚まで時間がかかる</div>
+          <div style="text-align:center;font-size:10px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">重大逸脱検知</div>
+          <div style="color:var(--accent-b);font-weight:700;font-size:13px">採点完了時に即時アラート</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin-bottom:22px">成功定義 (90日後)</h3>
+      <div style="display:flex;flex-direction:column;gap:18px">
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+            <span style="font-size:14px;font-weight:600">評価工数削減</span>
+            <span class="text-accent" style="font-weight:900;font-size:1.6rem">50%</span>
+          </div>
+          <div class="prog-wrap"><div class="prog-fill" id="imp1" style="width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-b))"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+            <span style="font-size:14px;font-weight:600">重大SOP逸脱削減</span>
+            <span class="text-accent" style="font-weight:900;font-size:1.6rem">30%</span>
+          </div>
+          <div class="prog-wrap"><div class="prog-fill" id="imp2" style="width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-b))"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+            <span style="font-size:14px;font-weight:600">再採点スコア安定性</span>
+            <span class="text-accent" style="font-weight:900;font-size:1.6rem">±1pt</span>
+          </div>
+          <div class="prog-wrap"><div class="prog-fill" id="imp3" style="width:0%;background:linear-gradient(90deg,var(--accent),var(--accent-b))"></div></div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="font-size:12px;color:var(--muted)">パイロット完了時に測定・報告します。</div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="card" style="text-align:center;padding:52px;
+    background:linear-gradient(135deg,rgba(13,148,136,.1),rgba(6,182,212,.05));
+    border-color:rgba(13,148,136,.3)">
+    <div style="font-size:52px;margin-bottom:18px">🚀</div>
+    <h2 style="margin-bottom:14px">今すぐパイロットを開始しませんか？</h2>
+    <p style="color:var(--muted);margin-bottom:36px;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.75">
+      Gold動画 <strong style="color:var(--text)">2本</strong> + 研修生動画 <strong style="color:var(--text)">数本</strong> から始められます。<br>
+      初期セットアップから最初の採点完了まで <strong style="color:var(--accent-b)">1日以内</strong> に完了します。
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <a href="proposal.html" class="btn btn-primary" style="font-size:15px;padding:13px 28px;text-decoration:none">デモ環境をリクエスト</a>
+      <a href="proposal.html#spec" class="btn btn-ghost" style="font-size:15px;padding:13px 28px;text-decoration:none">技術資料をダウンロード</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  SOPilot &nbsp;·&nbsp; On-Prem SOP Evaluation System &nbsp;·&nbsp; PoC v0.2 &nbsp;·&nbsp;
+  Powered by V-JEPA2 + DTW &nbsp;·&nbsp; 全データは御社サーバ内に保管されます
+</footer>
+
+<script>
+// ═══════════════════════════════════════════════
+// REAL PoC DATA  (from data_tesda eval run)
+// ═══════════════════════════════════════════════
+const SCENARIOS = [
+  {
+    jobId:1, traineeId:3, goldId:2,
+    name:"廊下清掃", nameEn:"Corridor Cleaning",
+    score:96.67, decision:"pass",
+    metrics:{miss_steps:0,swap_steps:0,deviation_steps:0,over_time_ratio:0.3333,dtw_normalized_cost:0.202067},
+    goldClips:15, traineeClips:20,
+    deviations:[{type:"over_time",severity:"efficiency",detail:"Over-time ratio 0.333 がしきい値 0.200 を超過",over_time_ratio:0.333}],
+    boundaries:{gold:[2],trainee:[2,7,18]},
+    path:[[0,0],[1,1],[1,2],[2,3],[3,4],[4,5],[5,6],[6,7],[7,8],[8,9],[8,10],[8,11],[8,12],[8,13],[9,14],[10,15],[11,16],[12,17],[13,18],[14,19]]
+  },
+  {
+    jobId:2, traineeId:4, goldId:2,
+    name:"エレベーター清掃", nameEn:"Elevator Cleaning",
+    score:90.67, decision:"pass",
+    metrics:{miss_steps:0,swap_steps:0,deviation_steps:0,over_time_ratio:0.9333,dtw_normalized_cost:0.136182},
+    goldClips:15, traineeClips:29,
+    deviations:[{type:"over_time",severity:"efficiency",detail:"Over-time ratio 0.933 がしきい値 0.200 を超過",over_time_ratio:0.933}],
+    boundaries:{gold:[2],trainee:[4,27]},
+    path:[[0,0],[1,1],[2,2],[3,3],[4,4],[5,5],[6,6],[6,7],[7,8],[8,9],[8,10],[9,11],[10,12],[11,13],[12,14],[13,15],[13,16],[13,17],[13,18],[13,19],[13,20],[13,21],[13,22],[13,23],[13,24],[13,25],[13,26],[14,27],[14,28]]
+  },
+  {
+    jobId:3, traineeId:5, goldId:2,
+    name:"ロビー清掃", nameEn:"Lobby Cleaning",
+    score:89.33, decision:"needs_review",
+    metrics:{miss_steps:0,swap_steps:0,deviation_steps:0,over_time_ratio:1.0667,dtw_normalized_cost:0.148979},
+    goldClips:15, traineeClips:31,
+    deviations:[{type:"over_time",severity:"efficiency",detail:"Over-time ratio 1.067 がしきい値 0.200 を超過 — 要コーチング",over_time_ratio:1.067}],
+    boundaries:{gold:[2],trainee:[2,20]},
+    path:[[0,0],[1,1],[2,2],[3,3],[4,4],[5,5],[6,6],[7,7],[8,8],[8,9],[8,10],[8,11],[8,12],[8,13],[8,14],[9,15],[9,16],[9,17],[9,18],[10,19],[11,20],[12,21],[13,22],[13,23],[13,24],[13,25],[13,26],[13,27],[13,28],[13,29],[14,30]]
+  },
+  {
+    jobId:4, traineeId:6, goldId:2,
+    name:"レストラン清掃", nameEn:"Restaurant Cleaning",
+    score:98.0, decision:"pass",
+    metrics:{miss_steps:0,swap_steps:0,deviation_steps:0,over_time_ratio:0.2,dtw_normalized_cost:0.16515},
+    goldClips:15, traineeClips:18,
+    deviations:[],
+    boundaries:{gold:[2],trainee:[2,17]},
+    path:[[0,0],[1,1],[2,2],[3,3],[4,4],[4,5],[5,6],[6,7],[7,8],[8,9],[9,10],[10,11],[11,12],[12,13],[13,14],[13,15],[13,16],[14,17]]
+  },
+  {
+    jobId:5, traineeId:7, goldId:2,
+    name:"トイレ清掃", nameEn:"Restroom Cleaning",
+    score:94.67, decision:"pass",
+    metrics:{miss_steps:0,swap_steps:0,deviation_steps:0,over_time_ratio:0.5333,dtw_normalized_cost:0.143915},
+    goldClips:15, traineeClips:23,
+    deviations:[{type:"over_time",severity:"efficiency",detail:"Over-time ratio 0.533 がしきい値 0.200 を超過",over_time_ratio:0.533}],
+    boundaries:{gold:[2],trainee:[21]},
+    path:[[0,0],[1,1],[2,2],[3,3],[4,4],[5,5],[6,6],[7,7],[8,8],[9,9],[10,10],[11,11],[12,12],[13,13],[13,14],[13,15],[13,16],[13,17],[13,18],[13,19],[13,20],[14,21],[14,22]]
+  },
+  {
+    jobId:6, traineeId:8, goldId:2,
+    name:"階段清掃", nameEn:"Stairs Cleaning",
+    score:100.0, decision:"pass",
+    metrics:{miss_steps:0,swap_steps:0,deviation_steps:0,over_time_ratio:0.0,dtw_normalized_cost:0.124496},
+    goldClips:15, traineeClips:15,
+    deviations:[],
+    boundaries:{gold:[2],trainee:[2,13]},
+    path:[[0,0],[1,1],[2,2],[3,3],[4,4],[5,4],[6,5],[7,6],[8,7],[9,8],[10,9],[11,10],[12,11],[13,12],[13,13],[14,14]]
+  },
+  // ── NG FAIL DEMO A: TESDA NG (synthesized from real gold embeddings) ──
+  {
+    jobId:"NG-A", traineeId:-1, goldId:2,
+    name:"⚠ 手順省略 NG①", nameEn:"Step-Skipping FAIL Demo A",
+    score:55.0, decision:"fail",
+    metrics:{miss_steps:2,swap_steps:0,deviation_steps:0,over_time_ratio:0.0,dtw_normalized_cost:0.3400},
+    goldClips:15, traineeClips:4,
+    deviations:[
+      {type:"missing_step",severity:"critical",
+       detail:"手順ステップ0 (Gold clip 0–3): DTW整列スパンが収縮。手順が省略または未完了。",
+       gold_clip_range:[0,3],trainee_clip_range:[0,0]},
+      {type:"missing_step",severity:"critical",
+       detail:"手順ステップ1 (Gold clip 4–14): DTW整列スパンが収縮。手順が省略または未完了。",
+       gold_clip_range:[4,14],trainee_clip_range:[0,3]}
+    ],
+    boundaries:{gold:[4],trainee:[3]},
+    path:[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0],[9,0],[10,0],[11,0],[12,1],[13,2],[14,3]],
+    isSynthesized:true
+  },
+  // ── NG FAIL DEMO B: OSHA Respirator Maintenance (real public-domain video) ──
+  {
+    jobId:"NG-B", traineeId:-1, goldId:10,
+    name:"⚠ 手順省略 NG②", nameEn:"Respirator Maintenance FAIL Demo",
+    score:68.33, decision:"fail",
+    metrics:{miss_steps:1,swap_steps:0,deviation_steps:2,over_time_ratio:0.0,dtw_normalized_cost:0.3298},
+    goldClips:41, traineeClips:6,
+    deviations:[
+      {type:"missing_step",severity:"critical",
+       detail:"手順ステップ0 (Gold clip 0–33): Gold 34クリップが研修生1クリップに収縮。手順の83%が未実施。",
+       gold_clip_range:[0,33],trainee_clip_range:[0,0]},
+      {type:"step_deviation",severity:"quality",
+       detail:"手順ステップ1 (Gold clip 34–39): 動作パターンが基準から逸脱 (cosine距離=0.677)",
+       gold_clip_range:[34,39],trainee_clip_range:[0,4]},
+      {type:"step_deviation",severity:"quality",
+       detail:"手順ステップ2 (Gold clip 40): 動作パターンが基準から大幅に逸脱 (cosine距離=1.330)",
+       gold_clip_range:[40,40],trainee_clip_range:[5,5]}
+    ],
+    boundaries:{gold:[34,40],trainee:[5]},
+    path:[[0,0],[1,0],[2,0],[3,0],[4,0],[5,0],[6,0],[7,0],[8,0],[9,0],[10,0],[11,0],[12,0],[13,0],[14,0],[15,0],[16,0],[17,0],[18,0],[19,0],[20,0],[21,0],[22,0],[23,0],[24,0],[25,0],[26,0],[27,0],[28,0],[29,0],[30,0],[31,0],[32,0],[33,0],[34,0],[35,0],[36,1],[37,2],[38,3],[39,4],[40,5]],
+    isSynthesized:true,
+    sourceLabel:"OSHA公式動画: Maintenance and Care of Respirators (パブリックドメイン)"
+  }
+];
+
+const AVG = 94.89, PASS_N = 5, TOTAL_N = 6;
+
+// ═══════════════════════════════════════════════
+// UTILS
+// ═══════════════════════════════════════════════
+function lerp(a,b,t){return a+(b-a)*t}
+function easeOut(t){return 1-Math.pow(1-t,3)}
+function animCount(el,from,to,dur,dec=0,suf=""){
+  const t0=performance.now();
+  (function frame(now){
+    const t=Math.min((now-t0)/dur,1);
+    el.textContent=lerp(from,to,easeOut(t)).toFixed(dec)+suf;
+    if(t<1)requestAnimationFrame(frame);
+  })(t0);
+}
+function scoreColor(s){
+  if(s>=95)return"#10b981";
+  if(s>=90)return"#14b8a6";
+  if(s>=80)return"#f59e0b";
+  return"#ef4444";
+}
+function decisionPill(d){
+  if(d==="pass")return'<span class="pill pill-pass">✓ PASS</span>';
+  if(d==="needs_review")return'<span class="pill pill-review">⚠ REVIEW</span>';
+  return'<span class="pill pill-fail">✗ FAIL</span>';
+}
+function mkEl(tag,attrs={},html=""){
+  const el=document.createElement(tag);
+  Object.assign(el,attrs);
+  if(html)el.innerHTML=html;
+  return el;
+}
+function svgEl(tag,attrs={}){
+  const el=document.createElementNS("http://www.w3.org/2000/svg",tag);
+  for(const[k,v]of Object.entries(attrs))el.setAttribute(k,v);
+  return el;
+}
+
+// ═══════════════════════════════════════════════
+// INTERSECTION OBSERVER
+// ═══════════════════════════════════════════════
+let kpiDone=false, impactDone=false;
+const io=new IntersectionObserver(entries=>{
+  for(const e of entries){
+    if(!e.isIntersecting)continue;
+    if(e.target.id==="results"&&!kpiDone){kpiDone=true;animKPIs();}
+    if(e.target.id==="impact"&&!impactDone){impactDone=true;animImpact();}
+  }
+},{threshold:0.15});
+
+// ═══════════════════════════════════════════════
+// HERO METRICS
+// ═══════════════════════════════════════════════
+// 96時間検証データ（実測値）
+const TRIP = {
+  jobs: 866, missRate: 0.0, jitter: 0.0,
+  tp: 18, fn: 0, fp: 78, tn: 266,
+  scoreMean: 85.6, scoreP50: 95.33, scoreP90: 100.0,
+  fpr: 22.7
+};
+
+function initHero(){
+  setTimeout(()=>{
+    animCount(document.getElementById("hm-jobs"),0,TRIP.jobs,1400,0,"件");
+    const missEl=document.getElementById("hm-miss");
+    if(missEl) setTimeout(()=>{missEl.textContent="0.0%"},600);
+    const jitterEl=document.getElementById("hm-jitter");
+    if(jitterEl) setTimeout(()=>{jitterEl.textContent="±0pt"},800);
+  },600);
+}
+
+// ═══════════════════════════════════════════════
+// KPI SECTION
+// ═══════════════════════════════════════════════
+function animKPIs(){
+  animCount(document.getElementById("kpi-jobs"),0,TRIP.jobs,1200,0,"件");
+  animCount(document.getElementById("kpi-p50"),0,TRIP.scoreP50,1000,1,"pt");
+  const effN=SCENARIOS.reduce((s,sc)=>s+sc.deviations.filter(d=>d.severity==="efficiency").length,0);
+  const critN=SCENARIOS.reduce((s,sc)=>s+sc.deviations.filter(d=>d.severity==="critical").length,0);
+  const qualN=SCENARIOS.reduce((s,sc)=>s+sc.deviations.filter(d=>d.severity==="quality").length,0);
+  document.getElementById("eff-count").textContent=effN+"件";
+  const critEl=document.getElementById("crit-count");
+  const qualEl=document.getElementById("qual-count");
+  if(critEl){
+    critEl.textContent=critN+"件";
+    critEl.style.color=critN>0?"#ef4444":"#10b981";
+  }
+  if(qualEl){
+    qualEl.textContent=qualN+"件";
+    qualEl.style.color=qualN>0?"#f59e0b":"#10b981";
+  }
+  setTimeout(()=>{
+    document.getElementById("eff-bar").style.width=Math.round(effN/(effN+critN+qualN||1)*100)+"%";
+    const cb=document.getElementById("crit-bar");
+    const qb=document.getElementById("qual-bar");
+    if(cb)cb.style.width=critN>0?"100%":"0%";
+    if(qb)qb.style.width=qualN>0?Math.round(qualN/(effN+critN+qualN||1)*100)+"%":"0%";
+  },300);
+}
+
+// ═══════════════════════════════════════════════
+// SCORE BAR CHART (SVG)
+// ═══════════════════════════════════════════════
+function buildScoreChart(){
+  const wrap=document.getElementById("scoreChart");
+  // Use offsetWidth (includes padding) or fallback; ensure positive
+  const W=Math.max(wrap.offsetWidth||wrap.clientWidth,300)||420, H=190;
+  const pad={t:18,r:16,b:36,l:38};
+  const cW=W-pad.l-pad.r, cH=H-pad.t-pad.b;
+  const MIN=50,MAX=100;
+  const svg=svgEl("svg",{width:W,height:H,viewBox:`0 0 ${W} ${H}`});
+
+  // Grid lines + Y labels
+  [50,60,70,80,90,95,100].forEach(v=>{
+    const y=pad.t+cH-((v-MIN)/(MAX-MIN))*cH;
+    svg.appendChild(svgEl("line",{x1:pad.l,x2:pad.l+cW,y1:y,y2:y,
+      stroke:"rgba(255,255,255,0.05)",strokeWidth:"1"}));
+    const lbl=svgEl("text",{x:pad.l-5,y:y+4,fill:"#475569","font-size":"10","text-anchor":"end"});
+    lbl.textContent=v; svg.appendChild(lbl);
+  });
+
+  // Pass line
+  const passY=pad.t+cH-((90-MIN)/(MAX-MIN))*cH;
+  svg.appendChild(svgEl("line",{x1:pad.l,x2:pad.l+cW,y1:passY,y2:passY,
+    stroke:"#10b981","stroke-width":"1.5","stroke-dasharray":"5 4"}));
+
+  // Retrain line
+  const retrainY=pad.t+cH-((80-MIN)/(MAX-MIN))*cH;
+  svg.appendChild(svgEl("line",{x1:pad.l,x2:pad.l+cW,y1:retrainY,y2:retrainY,
+    stroke:"#f59e0b","stroke-width":"1","stroke-dasharray":"3 4","opacity":".6"}));
+
+  const bW=(cW/SCENARIOS.length)*0.62;
+  const bGap=cW/SCENARIOS.length;
+
+  SCENARIOS.forEach((s,i)=>{
+    const x=pad.l+i*bGap+(bGap-bW)/2;
+    const bH=((s.score-MIN)/(MAX-MIN))*cH;
+    const y=pad.t+cH-bH;
+    const col=scoreColor(s.score);
+
+    // Background slot
+    const bg=svgEl("rect",{x,y:pad.t,width:bW,height:cH,
+      fill:"rgba(255,255,255,0.025)",rx:"4"});
+    svg.appendChild(bg);
+
+    // Bar (animated)
+    const bar=svgEl("rect",{x,y:pad.t+cH,width:bW,height:0,fill:col,rx:"4",opacity:".9"});
+    svg.appendChild(bar);
+    setTimeout(()=>{
+      bar.style.transition=`y .75s cubic-bezier(.4,0,.2,1) ${i*.08}s,height .75s cubic-bezier(.4,0,.2,1) ${i*.08}s`;
+      bar.setAttribute("y",y); bar.setAttribute("height",bH);
+    },200);
+
+    // Score label
+    const st=svgEl("text",{x:x+bW/2,y:y-5,fill:col,"font-size":"10","font-weight":"800","text-anchor":"middle"});
+    st.textContent=s.score; svg.appendChild(st);
+
+    // X label (job id)
+    const xl=svgEl("text",{x:x+bW/2,y:H-4,fill:"#475569","font-size":"9","text-anchor":"middle"});
+    xl.textContent=`#${s.jobId}`; svg.appendChild(xl);
+  });
+
+  wrap.appendChild(svg);
+}
+
+// ═══════════════════════════════════════════════
+// RESULTS TABLE
+// ═══════════════════════════════════════════════
+function buildTable(){
+  const tbody=document.getElementById("resultsBody");
+  SCENARIOS.forEach((s,i)=>{
+    const tr=mkEl("tr");
+    const otPct=Math.min(s.metrics.over_time_ratio*50,100);
+    const col=scoreColor(s.score);
+    const isFail=s.decision==="fail";
+    if(isFail){
+      tr.style.cssText="background:rgba(239,68,68,0.04)";
+    }
+    const traineeLabel=s.traineeId<0
+      ? `<span style="font-size:10px;color:#ef4444;background:rgba(239,68,68,.12);border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 5px;font-weight:700">合成NGデモ</span>`
+      : `Gold #${s.goldId} × Trainee #${s.traineeId}`;
+    tr.innerHTML=`
+      <td style="color:${isFail?"#ef4444":"var(--muted)"};font-weight:700">#${s.jobId}</td>
+      <td><div style="font-weight:700;display:flex;align-items:center;gap:6px">${s.name}${isFail?'<span style="font-size:9px;color:#ef4444;background:rgba(239,68,68,.15);border:1px solid rgba(239,68,68,.35);border-radius:4px;padding:1px 5px;font-weight:800;letter-spacing:.04em">CRITICAL</span>':''}</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:2px">${traineeLabel}</div></td>
+      <td><span style="font-size:1.25rem;font-weight:900;color:${col}">${s.score}</span></td>
+      <td>${decisionPill(s.decision)}</td>
+      <td style="color:${s.metrics.miss_steps>0?"#ef4444":"var(--muted)"};font-weight:${s.metrics.miss_steps>0?700:400}">
+          ${s.metrics.miss_steps}</td>
+      <td style="color:${s.metrics.swap_steps>0?"#f59e0b":"var(--muted)"}">
+          ${s.metrics.swap_steps}</td>
+      <td style="color:${s.metrics.deviation_steps>0?"#f59e0b":"var(--muted)"}">
+          ${s.metrics.deviation_steps}</td>
+      <td><div style="display:flex;align-items:center;gap:8px">
+            <div style="width:72px;background:rgba(255,255,255,.06);border-radius:999px;height:5px;overflow:hidden">
+              <div style="height:100%;width:${otPct}%;background:#3b82f6;border-radius:999px"></div></div>
+            <span style="font-size:12px;color:var(--muted)">${s.metrics.over_time_ratio.toFixed(2)}</span>
+          </div></td>
+      <td style="font-size:12px;color:var(--muted)">${s.metrics.dtw_normalized_cost.toFixed(4)}</td>`;
+    tr.addEventListener("click",()=>{
+      document.querySelectorAll("#scenList .scen-btn").forEach((b,j)=>
+        b.classList.toggle("active",j===i));
+      showScenario(s);
+      document.getElementById("explorer").scrollIntoView({behavior:"smooth"});
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// SCENARIO LIST
+// ═══════════════════════════════════════════════
+function buildScenList(){
+  const list=document.getElementById("scenList");
+  SCENARIOS.forEach((s,i)=>{
+    const isFail=s.decision==="fail";
+    const btn=mkEl("button",{className:"scen-btn"+(i===0?" active":"")});
+    if(isFail) btn.dataset.fail="1";
+    const col=scoreColor(s.score);
+    if(isFail){
+      btn.style.cssText="border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.04)";
+    }
+    const critCount=s.deviations.filter(d=>d.severity==="critical").length;
+    btn.innerHTML=`
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <div class="scen-name" style="${isFail?"color:#f87171":""}">
+          ${s.name}
+        </div>
+        <div class="scen-score" style="color:${col}">${s.score}</div>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:4px;align-items:center;flex-wrap:wrap">
+        ${decisionPill(s.decision)}
+        ${critCount>0
+          ? `<span style="font-size:11px;color:#f87171;font-weight:700">⚠ Critical×${critCount}</span>`
+          : s.deviations.length>0
+            ? `<span style="font-size:11px;color:#60a5fa">${s.deviations.length}件の逸脱</span>`
+            : `<span style="font-size:11px;color:#10b981">逸脱なし ✓</span>`}
+        ${s.isSynthesized?`<span style="font-size:9px;color:#94a3b8;border:1px solid rgba(148,163,184,.3);border-radius:3px;padding:0 4px">合成</span>`:""}
+      </div>`;
+    btn.addEventListener("click",()=>{
+      document.querySelectorAll(".scen-btn").forEach(b=>{
+        b.classList.remove("active");
+        // restore fail-specific border on non-active fail btn
+        const sc=SCENARIOS[Array.from(list.children).indexOf(b)];
+        if(sc&&sc.decision==="fail"){
+          b.style.cssText="border-color:rgba(239,68,68,0.4);background:rgba(239,68,68,0.04)";
+        }
+      });
+      btn.classList.add("active");
+      if(isFail) btn.style.cssText="border-color:#ef4444;background:rgba(239,68,68,0.1)";
+      showScenario(s);
+    });
+    list.appendChild(btn);
+  });
+}
+
+// ═══════════════════════════════════════════════
+// DTW MATRIX SVG
+// ═══════════════════════════════════════════════
+function buildDTW(s){
+  const gLen=s.goldClips, tLen=s.traineeClips;
+  // Non-square cells: let rows/cols scale independently within bounds
+  const cellH=Math.max(5,Math.min(16,Math.floor(260/gLen)));
+  const cellW=Math.max(8,Math.min(24,Math.floor(220/tLen)));
+  const cell=Math.min(cellH,cellW);  // fallback for square grid elements
+  const cH=cellH, cW=cellW;
+  const ox=44,oy=14;
+  const W=tLen*cW+ox+20, H=gLen*cH+oy+36;
+  const svg=svgEl("svg",{viewBox:`0 0 ${W} ${H}`,"width":"100%"});
+  svg.style.maxHeight="230px";
+
+  // Grid
+  for(let g=0;g<gLen;g++)for(let t=0;t<tLen;t++){
+    svg.appendChild(svgEl("rect",{
+      x:ox+t*cW,y:oy+(gLen-1-g)*cH,width:cW-1,height:cH-1,
+      fill:"rgba(255,255,255,0.03)",stroke:"rgba(255,255,255,0.04)","stroke-width":"0.5"}));
+  }
+
+  // Diagonal reference
+  svg.appendChild(svgEl("line",{
+    x1:ox,x2:ox+tLen*cW,y1:oy+gLen*cH,y2:oy,
+    stroke:"rgba(255,255,255,0.07)","stroke-width":"1"}));
+
+  // Gold boundaries (horizontal)
+  s.boundaries.gold.forEach(b=>{
+    const y=oy+(gLen-1-b)*cH;
+    svg.appendChild(svgEl("line",{x1:ox,x2:ox+tLen*cW,y1:y,y2:y,
+      stroke:"rgba(13,148,136,0.6)","stroke-width":"1.5","stroke-dasharray":"4 2"}));
+  });
+
+  // Trainee boundaries (vertical)
+  s.boundaries.trainee.forEach(b=>{
+    const x=ox+b*cW;
+    svg.appendChild(svgEl("line",{x1:x,x2:x,y1:oy,y2:oy+gLen*cH,
+      stroke:"rgba(96,165,250,0.55)","stroke-width":"1.5","stroke-dasharray":"4 2"}));
+  });
+
+  // DTW path (actual alignment) — staggered cell reveal
+  if(s.path&&s.path.length>0){
+    const pathCells=[];
+    s.path.forEach(([g,t])=>{
+      const x=ox+t*cW, y=oy+(gLen-1-g)*cH;
+      const r=svgEl("rect",{x,y,width:cW-1,height:cH-1,
+        fill:"rgba(13,148,136,0.72)",rx:"1",opacity:"0"});
+      svg.appendChild(r);
+      pathCells.push(r);
+    });
+    pathCells.forEach((r,i)=>{setTimeout(()=>r.setAttribute("opacity","1"),i*20);});
+
+    const pts=s.path.map(([g,t])=>
+      `${ox+t*cW+(cW-1)/2},${oy+(gLen-1-g)*cH+(cH-1)/2}`).join(" ");
+    const poly=svgEl("polyline",{points:pts,
+      fill:"none",stroke:"rgba(20,184,166,0.85)","stroke-width":"1.5",
+      "stroke-linecap":"round","stroke-linejoin":"round",opacity:"0"});
+    svg.appendChild(poly);
+    setTimeout(()=>{
+      poly.style.transition="opacity 0.5s ease";
+      poly.setAttribute("opacity","1");
+    },s.path.length*20+80);
+  }
+
+  // Axis labels
+  const xl=svgEl("text",{x:ox+tLen*cW/2,y:H-4,fill:"#475569",
+    "font-size":"10","text-anchor":"middle"});
+  xl.textContent=`研修生クリップ (${tLen}本)`;
+  svg.appendChild(xl);
+
+  const yl=svgEl("text",{x:10,y:oy+gLen*cH/2,fill:"#475569",
+    "font-size":"10","text-anchor":"middle",
+    transform:`rotate(-90,10,${oy+gLen*cH/2})`});
+  yl.textContent=`Gold (${gLen}本)`;
+  svg.appendChild(yl);
+
+  return svg;
+}
+
+// ═══════════════════════════════════════════════
+// SCENARIO DETAIL
+// ═══════════════════════════════════════════════
+let scanTimer=null;
+function showScenario(s){
+  const detail=document.getElementById("scenDetail");
+
+  // Show scanning animation first
+  detail.innerHTML=`
+    <div class="scanning">
+      <div style="font-size:40px">🧠</div>
+      <div class="scan-label">AI解析中...</div>
+      <div class="scan-bar-wrap"><div class="scan-bar-fill" id="scanFill"></div></div>
+      <div class="scan-sublabel" id="scanSub">動画クリップを抽出しています</div>
+    </div>`;
+
+  const fill=document.getElementById("scanFill");
+  const sub=document.getElementById("scanSub");
+  const steps=["動画クリップを抽出しています","V-JEPA2 エンベディング生成中","DTWアルゴリズムで手順整列中","逸脱スコアを計算しています","レポートを生成しています"];
+  let pct=0, step=0;
+  if(scanTimer)clearInterval(scanTimer);
+  scanTimer=setInterval(()=>{
+    pct=Math.min(pct+1.8,100);
+    fill.style.width=pct+"%";
+    const si=Math.floor(pct/100*steps.length);
+    if(si<steps.length&&si!==step){step=si;sub.textContent=steps[si];}
+    if(pct>=100){
+      clearInterval(scanTimer);
+      setTimeout(()=>renderScenDetail(s,detail),180);
+    }
+  },18);
+}
+
+function renderScenDetail(s,detail){
+  const R=52, C=66, circ=2*Math.PI*R;
+  const col=scoreColor(s.score);
+  const otPct=Math.min(s.metrics.over_time_ratio/2*100,100);
+  const critCount=s.deviations.filter(d=>d.severity==="critical").length;
+
+  const critBanner=critCount>0?`
+  <div style="display:flex;align-items:flex-start;gap:14px;padding:16px 20px;
+    background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.4);
+    border-radius:var(--r);margin-bottom:14px;animation:fadeInUp .4s ease both">
+    <div style="font-size:28px;flex-shrink:0;line-height:1">🚨</div>
+    <div>
+      <div style="font-weight:800;font-size:14px;color:#f87171;margin-bottom:5px">
+        CRITICAL ALERT — 重大SOP逸脱を検知しました
+      </div>
+      <div style="font-size:13px;color:#fca5a5;line-height:1.6">
+        <strong>${critCount}件の重大逸脱（手順省略）</strong>を検出。スコア ${s.score}点。
+        このシナリオは<strong>即時NG</strong>判定 — 再教育が必要です。
+      </div>
+      ${s.isSynthesized?`<div style="margin-top:8px;font-size:11px;color:#f87171;opacity:.7">
+        ※ このシナリオは実際のGold埋め込みから合成した検知デモです
+      </div>`:""}
+    </div>
+  </div>`:s.isSynthesized?`
+  <div style="padding:10px 16px;background:rgba(148,163,184,0.06);border:1px solid rgba(148,163,184,0.15);border-radius:var(--r-sm);margin-bottom:12px;font-size:12px;color:var(--muted)">
+    ※ このシナリオは実際のGold埋め込みから合成した検知デモです
+  </div>`:"";
+
+  detail.innerHTML=`
+  ${critBanner}
+  <div style="display:grid;grid-template-columns:148px 1fr;gap:16px;margin-bottom:16px">
+    <!-- Score ring card -->
+    <div class="card" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:20px">
+      <div class="ring-wrap">
+        <svg class="ring-svg" viewBox="0 0 132 132">
+          <circle class="ring-bg" cx="66" cy="66" r="${R}"/>
+          <circle class="ring-fill" id="ringArc" cx="66" cy="66" r="${R}"
+            stroke="${col}"
+            stroke-dasharray="${circ}" stroke-dashoffset="${circ}"/>
+        </svg>
+        <div class="ring-center">
+          <div class="ring-number" id="ringNum" style="color:${col}">0</div>
+          <div class="ring-lbl">Score</div>
+        </div>
+      </div>
+      ${decisionPill(s.decision)}
+      <div style="font-size:12px;font-weight:700;color:var(--muted);text-align:center">${s.name}</div>
+    </div>
+
+    <!-- Metrics -->
+    <div class="card">
+      <h3 style="margin-bottom:14px">スコア内訳</h3>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+            <span>手順遺漏 (Miss Steps)</span>
+            <span style="font-weight:800;color:${s.metrics.miss_steps>0?"#ef4444":"#10b981"}">${s.metrics.miss_steps}件</span>
+          </div>
+          <div class="prog-wrap"><div class="prog-fill" style="width:${s.metrics.miss_steps*25}%;background:#ef4444"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+            <span>手順入替 (Order Swap)</span>
+            <span style="font-weight:800;color:${s.metrics.swap_steps>0?"#f59e0b":"#10b981"}">${s.metrics.swap_steps}件</span>
+          </div>
+          <div class="prog-wrap"><div class="prog-fill" style="width:${s.metrics.swap_steps*25}%;background:#f59e0b"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+            <span>実施逸脱 (Deviation)</span>
+            <span style="font-weight:800;color:${s.metrics.deviation_steps>0?"#f59e0b":"#10b981"}">${s.metrics.deviation_steps}件</span>
+          </div>
+          <div class="prog-wrap"><div class="prog-fill" style="width:${s.metrics.deviation_steps*25}%;background:#f59e0b"></div></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px">
+            <span>時間超過率 (Over-time)</span>
+            <span style="font-weight:800;color:${s.metrics.over_time_ratio>0.2?"#3b82f6":"#10b981"}">${(s.metrics.over_time_ratio*100).toFixed(0)}%</span>
+          </div>
+          <div class="prog-wrap"><div class="prog-fill" style="width:${otPct}%;background:#3b82f6"></div></div>
+        </div>
+      </div>
+      <div class="divider"></div>
+      <div style="display:flex;gap:20px;font-size:12px;color:var(--muted)">
+        <span>Goldクリップ: <strong style="color:var(--text)">${s.goldClips}</strong></span>
+        <span>研修生クリップ: <strong style="color:var(--text)">${s.traineeClips}</strong></span>
+        <span>DTW cost: <strong style="color:var(--text)">${s.metrics.dtw_normalized_cost.toFixed(4)}</strong></span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <div class="card" style="margin-bottom:16px">
+    <h3 style="margin-bottom:14px">実行タイムライン</h3>
+    <div class="tl-label">Gold 基準 (${s.goldClips}クリップ)</div>
+    <div class="tl-wrap" style="margin-bottom:12px">
+      <div class="tl-gold" id="tlGold" style="width:0%"></div>
+      ${s.boundaries.gold.map(b=>{
+        const pct=b/s.goldClips*100;
+        return `<div class="tl-dev" style="left:${pct}%;width:2px;background:#14b8a6;border:none"></div>`;
+      }).join("")}
+    </div>
+    <div class="tl-label">研修生 (${s.traineeClips}クリップ)</div>
+    <div class="tl-wrap" style="margin-bottom:12px">
+      <div class="tl-gold" id="tlTrainee" style="width:0%;background:linear-gradient(90deg,${col}99,${col}66)"></div>
+      ${s.boundaries.trainee.map(b=>{
+        const pct=b/s.traineeClips*100;
+        return `<div class="tl-dev" style="left:${pct-1}%;width:2px;background:#3b82f6;border:none"></div>`;
+      }).join("")}
+      ${s.metrics.over_time_ratio>0.2?`
+      <div class="tl-dev" style="left:${Math.round(100/(1+s.metrics.over_time_ratio))}%;
+        width:${Math.round(100-100/(1+s.metrics.over_time_ratio))}%;
+        background:rgba(59,130,246,0.25);border-color:#3b82f6">
+      </div>`:``}
+    </div>
+    <div style="font-size:12px;color:var(--muted)">
+      縦線: ステップ境界 &nbsp;|&nbsp;
+      ${s.metrics.over_time_ratio>0.2?`<span style="color:#3b82f6">青い領域: 時間超過部分 (Gold比 +${(s.metrics.over_time_ratio*100).toFixed(0)}%)</span>`
+       :`<span style="color:#10b981">時間超過なし</span>`}
+    </div>
+  </div>
+
+  <!-- Deviations -->
+  <div class="card" style="margin-bottom:16px">
+    <h3 style="margin-bottom:12px">逸脱詳細</h3>
+    ${s.deviations.length===0
+      ? `<div style="color:#10b981;font-weight:700;padding:20px 0;text-align:center;font-size:15px">
+           ✓ &nbsp;逸脱なし — 完璧な手順遵守
+         </div>`
+      : s.deviations.map(d=>{
+          const isCrit=d.severity==="critical";
+          const bgCol=isCrit?"rgba(239,68,68,0.08)":"rgba(59,130,246,0.06)";
+          const bdCol=isCrit?"rgba(239,68,68,0.3)":"rgba(59,130,246,0.2)";
+          const typeLabel=d.type==="over_time"?"時間超過 (Over Time)"
+            :d.type==="missing_step"?"手順省略 (Missing Step)"
+            :d.type==="order_swap"?"手順入替 (Order Swap)"
+            :d.type==="step_deviation"?"実施逸脱 (Step Deviation)":d.type;
+          const rangeInfo=d.gold_clip_range
+            ?`<div style="font-size:11px;color:${isCrit?"#fca5a5":"#60a5fa"};margin-top:4px">
+                Gold clips ${d.gold_clip_range[0]}–${d.gold_clip_range[1]}
+                → 研修生 clips ${d.trainee_clip_range[0]}–${d.trainee_clip_range[1]}
+              </div>`:"";
+          return `
+          <div style="display:flex;gap:12px;align-items:flex-start;padding:14px;
+            background:${bgCol};border:1px solid ${bdCol};
+            border-radius:10px;margin-bottom:8px;
+            ${isCrit?"box-shadow:0 0 0 1px rgba(239,68,68,0.15)":""}">
+            <span class="pill pill-${d.severity}" style="flex-shrink:0">${d.severity}</span>
+            <div style="flex:1">
+              <div style="font-weight:700;font-size:13px;margin-bottom:5px;color:${isCrit?"#f87171":"var(--text)"}">
+                ${typeLabel}
+              </div>
+              <div style="font-size:12px;color:var(--muted)">${d.detail}</div>
+              ${rangeInfo}
+            </div>
+          </div>`;
+        }).join("")}
+  </div>
+
+  <!-- DTW Matrix -->
+  <div class="card">
+    <h3 style="margin-bottom:5px">DTW 整列マトリクス (実測データ)</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:14px">
+      縦軸: Goldクリップ / 横軸: 研修生クリップ /
+      <span style="color:rgba(13,148,136,.9)">━ Gold境界</span> /
+      <span style="color:rgba(96,165,250,.9)">━ 研修生境界</span> /
+      <span style="color:rgba(13,148,136,.8)">■ 整列パス（実測）</span>
+    </p>
+    <div id="dtwWrap"></div>
+    <div style="margin-top:10px;font-size:12px;color:var(--muted)" id="dtwNote">
+      整列パスが対角線に近いほど、Gold手順との一致度が高いことを示します。
+      スコア100の「階段清掃」は対角線ほぼ一致。
+    </div>
+    ${s.sourceLabel?`<div style="margin-top:6px;font-size:11px;color:#475569">
+      出典: ${s.sourceLabel}
+    </div>`:""}
+  </div>`;
+  // NG scenario: show collapse explanation
+  if(s.isSynthesized){
+    const noteEl=document.getElementById("dtwNote");
+    if(noteEl) noteEl.innerHTML=`
+      <span style="color:#f87171;font-weight:700">⚠ 重大な収縮を検出：</span>
+      Gold 15クリップのうち 12クリップ (clip 0–11) が研修生クリップ 0 に集中整列。
+      これは大部分の手順が省略・未実施であることを示します。パスの左端への集中が証拠です。`;
+  }
+
+  // Animate ring
+  setTimeout(()=>{
+    animCount(document.getElementById("ringNum"),0,s.score,1000,1);
+    document.getElementById("ringArc").style.transition="stroke-dashoffset 1.1s cubic-bezier(.4,0,.2,1)";
+    document.getElementById("ringArc").setAttribute("stroke-dashoffset",circ*(1-s.score/100));
+  },50);
+
+  // Animate timelines
+  setTimeout(()=>{
+    document.getElementById("tlGold").style.width="100%";
+    document.getElementById("tlTrainee").style.width="100%";
+  },200);
+
+  // DTW
+  document.getElementById("dtwWrap").appendChild(buildDTW(s));
+}
+
+// ═══════════════════════════════════════════════
+// IMPACT BARS
+// ═══════════════════════════════════════════════
+function animImpact(){
+  setTimeout(()=>{document.getElementById("imp1").style.width="50%";},100);
+  setTimeout(()=>{document.getElementById("imp2").style.width="30%";},300);
+  setTimeout(()=>{document.getElementById("imp3").style.width="90%";},500);
+}
+
+// ═══════════════════════════════════════════════
+// INIT
+// ═══════════════════════════════════════════════
+function init(){
+  initHero();
+  buildTable();
+  buildScenList();
+  // showScenario needs DOM ready; start with score=100 (最高スコア)
+  showScenario(SCENARIOS[5]);
+  // Chart after one rAF to ensure layout is complete
+  requestAnimationFrame(()=>requestAnimationFrame(buildScoreChart));
+
+  document.querySelectorAll("section[id]").forEach(s=>io.observe(s));
+}
+
+document.addEventListener("DOMContentLoaded",init);
+
+// ══════════════════════════════════════════════════════════════════════
+// LIVE SCORING WIDGET
+// ══════════════════════════════════════════════════════════════════════
+const LIVE_API = "http://localhost:8000";
+let liveGoldVideos = [];
+let liveSelectedFile = null;
+let liveApiOnline = false;
+let liveStoredResult = null;
+
+// ── Timeout-aware fetch (Safari/Edge compatible) ───────────────────
+function liveFetch(url, opts = {}, timeoutMs = 4000) {
+  const ctrl = new AbortController();
+  const tid  = setTimeout(() => ctrl.abort(), timeoutMs);
+  return fetch(url, { ...opts, signal: ctrl.signal }).finally(() => clearTimeout(tid));
+}
+
+// ── API status check ───────────────────────────────────────────────
+async function liveCheckApi() {
+  const dot   = document.getElementById("liveApiDot");
+  const label = document.getElementById("liveApiLabel");
+  const hint  = document.getElementById("liveApiHint");
+  dot.className = "api-dot";
+  label.textContent = "確認中…";
+  try {
+    const r = await liveFetch(LIVE_API + "/health", { cache: "no-cache" }, 3000);
+    if (!r.ok) throw new Error("non-200");
+    liveApiOnline = true;
+    dot.className = "api-dot online";
+    label.textContent = "API オンライン (localhost:8000)";
+    hint.textContent = "";
+    document.getElementById("liveOfflineMsg").style.display = "none";
+    document.getElementById("liveWidget").style.display = "block";
+    await liveFetchGolds();
+    liveFetchStats();
+  } catch {
+    liveApiOnline = false;
+    dot.className = "api-dot offline";
+    label.textContent = "API オフライン";
+    hint.textContent = "サーバーを起動してから「再確認」を押してください";
+    document.getElementById("liveOfflineMsg").style.display = "block";
+    document.getElementById("liveWidget").style.display = "none";
+    const stBar = document.getElementById("liveStatsBar");
+    if (stBar) stBar.classList.remove("visible");
+  }
+}
+
+// ── Load gold videos into dropdown ────────────────────────────────
+async function liveFetchGolds() {
+  try {
+    const r = await fetch(LIVE_API + "/videos?is_gold=true&limit=50");
+    const data = await r.json();
+    liveGoldVideos = data.items || [];
+    const sel = document.getElementById("liveGoldSelect");
+    sel.innerHTML = '<option value="">— Gold 動画を選択 —</option>';
+    liveGoldVideos.forEach(v => {
+      const opt = document.createElement("option");
+      opt.value = v.video_id;
+      opt.textContent = `Gold #${v.video_id}  (${v.clip_count} clips · ${v.task_id})`;
+      sel.appendChild(opt);
+    });
+    sel.onchange = () => {
+      const v = liveGoldVideos.find(x => x.video_id == sel.value);
+      document.getElementById("liveGoldInfo").textContent =
+        v ? `${v.clip_count} clips · タスク: ${v.task_id} · 登録: ${(v.created_at||"").slice(0,10)}` : "";
+      liveUpdateBtn();
+    };
+    // Auto-select first gold if only one task type
+    if (liveGoldVideos.length === 1) {
+      sel.value = liveGoldVideos[0].video_id;
+      sel.dispatchEvent(new Event("change"));
+    }
+  } catch(e) {
+    console.warn("liveFetchGolds error:", e);
+  }
+}
+
+// ── File drop / select ────────────────────────────────────────────
+function liveSetFile(file) {
+  if (!file) return;
+  liveSelectedFile = file;
+  const sizeMB = (file.size / 1024 / 1024).toFixed(0);
+  const sizeStr = sizeMB > 0 ? ` (${sizeMB} MB)` : "";
+  const warnStr = file.size > 500 * 1024 * 1024
+    ? " — ⚠️ 大きなファイルは処理に数分かかります" : "";
+  document.getElementById("liveDropIcon").textContent = "✅";
+  document.getElementById("liveDropLabel").textContent = "動画が選択されました";
+  document.getElementById("liveDropFileName").textContent = file.name + sizeStr + warnStr;
+  document.getElementById("liveDropZone").classList.add("has-file");
+  liveUpdateBtn();
+}
+function liveOnFileSelect(input) { liveSetFile(input.files[0]); }
+
+// drag-and-drop support
+document.addEventListener("DOMContentLoaded", () => {
+  const dz = document.getElementById("liveDropZone");
+  if (!dz) return;
+  dz.addEventListener("dragover", e => { e.preventDefault(); dz.classList.add("over"); });
+  dz.addEventListener("dragleave", () => dz.classList.remove("over"));
+  dz.addEventListener("drop", e => {
+    e.preventDefault();
+    dz.classList.remove("over");
+    const file = e.dataTransfer.files[0];
+    if (file) liveSetFile(file);
+  });
+});
+
+// ── Update score button state ──────────────────────────────────────
+function liveUpdateBtn() {
+  const goldId = document.getElementById("liveGoldSelect").value;
+  const btn    = document.getElementById("liveScoreBtn");
+  const lbl    = document.getElementById("liveBtnLabel");
+  if (!goldId && !liveSelectedFile) {
+    btn.disabled = true; lbl.textContent = "Gold 動画と研修生動画を選択してください";
+  } else if (!goldId) {
+    btn.disabled = true; lbl.textContent = "Gold 動画を選択してください";
+  } else if (!liveSelectedFile) {
+    btn.disabled = true; lbl.textContent = "研修生動画をアップロードしてください";
+  } else {
+    btn.disabled = false; lbl.textContent = "採点を開始する";
+  }
+}
+
+// ── Run full scoring flow ──────────────────────────────────────────
+async function liveRunScore() {
+  const goldId = parseInt(document.getElementById("liveGoldSelect").value);
+  if (!goldId || !liveSelectedFile) return;
+
+  // disable UI
+  document.getElementById("liveScoreBtn").disabled = true;
+  document.getElementById("liveResult").classList.remove("visible");
+
+  const prog      = document.getElementById("liveProgress");
+  const progLabel = document.getElementById("liveProgLabel");
+  const progBar   = document.getElementById("liveProgBar");
+  prog.classList.add("visible");
+
+  function setProgress(pct, text) {
+    progBar.style.width = pct + "%";
+    progLabel.textContent = text;
+  }
+
+  // Get task_id from the selected gold video
+  const goldMeta = liveGoldVideos.find(x => x.video_id == goldId);
+  const taskId   = goldMeta?.task_id || "filter_change";
+
+  try {
+    // Step 1: Upload trainee video (no timeout — large files can take time)
+    const sizeMB = (liveSelectedFile.size / 1024 / 1024).toFixed(1);
+    setProgress(10, `動画をアップロード中… (${sizeMB} MB)`);
+    const fd = new FormData();
+    fd.append("file", liveSelectedFile);
+    fd.append("task_id", taskId);
+    const uploadResp = await fetch(LIVE_API + "/videos", { method: "POST", body: fd });
+    if (!uploadResp.ok) {
+      let errMsg = `HTTP ${uploadResp.status}`;
+      try { const j = await uploadResp.json(); errMsg = j.detail || JSON.stringify(j); } catch {}
+      throw new Error("アップロードエラー: " + errMsg.slice(0, 300));
+    }
+    const uploaded = await uploadResp.json();
+    const traineeId = uploaded.video_id;
+    setProgress(40, `動画登録完了 (video_id=${traineeId}, ${uploaded.clip_count} clips)`);
+
+    // Wait for video to finish processing if still in-progress
+    let videoStatus = uploaded.status;
+    let clipCount   = uploaded.clip_count;
+    for (let i = 0; i < 90 && videoStatus === "processing"; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      const vr = await liveFetch(LIVE_API + `/videos/${traineeId}`, {}, 5000);
+      const vd = await vr.json();
+      videoStatus = vd.status;
+      clipCount   = vd.clip_count || clipCount;
+      setProgress(40 + Math.min(i * 0.3, 15), `特徴量抽出中… (${clipCount} clips 完了)`);
+    }
+    if (videoStatus === "error") throw new Error("動画処理でエラーが発生しました。対応フォーマット: MP4 / AVI / MOV / MKV");
+    setProgress(60, "DTW 整合・採点を開始…");
+
+    // Step 2: Queue score job
+    const scoreResp = await liveFetch(LIVE_API + "/score", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ gold_video_id: goldId, trainee_video_id: traineeId }),
+    }, 8000);
+    if (!scoreResp.ok) {
+      let errMsg = `HTTP ${scoreResp.status}`;
+      try { const j = await scoreResp.json(); errMsg = j.detail || JSON.stringify(j); } catch {}
+      throw new Error("採点キュー登録エラー: " + errMsg.slice(0, 200));
+    }
+    const job = await scoreResp.json();
+    setProgress(70, `採点ジョブ #${job.job_id} を実行中…`);
+
+    // Step 3: Poll for result (up to 3 minutes)
+    let result = null;
+    for (let i = 0; i < 180; i++) {
+      await new Promise(r => setTimeout(r, 1000));
+      const statusResp = await liveFetch(LIVE_API + `/score/${job.job_id}`, {}, 5000);
+      const jobData = await statusResp.json();
+      const pct = 70 + Math.min(i * 0.16, 27);
+      const elapsedSec = i + 1;
+      setProgress(pct, `採点中… ${elapsedSec}秒経過 (状態: ${jobData.status})`);
+      if (jobData.status === "completed" || jobData.status === "done") {
+        result = jobData.result; break;
+      }
+      if (jobData.status === "error" || jobData.status === "failed") {
+        throw new Error("採点エラー: " + (jobData.error || jobData.status));
+      }
+    }
+    if (!result) throw new Error("タイムアウト (3分) — サーバーの状態を確認してください");
+
+    setProgress(100, "採点完了！");
+    await new Promise(r => setTimeout(r, 400));
+    prog.classList.remove("visible");
+    liveShowResult(result);
+
+  } catch(e) {
+    prog.classList.remove("visible");
+    liveShowError(e.message || String(e));
+  }
+}
+
+// ── Display result ─────────────────────────────────────────────────
+function liveShowResult(res) {
+  liveStoredResult = res;
+  const summary = res.summary || {};
+  const decision = summary.decision || "—";
+  const score = res.score ?? 0;
+  const metrics = res.metrics || {};
+  const deviations = res.deviations || [];
+
+  // Score color
+  const col = decision === "pass" ? "var(--pass)"
+            : decision === "fail" ? "var(--danger)"
+            : "var(--warn)";
+  document.getElementById("liveResultScore").textContent = score.toFixed(1);
+  document.getElementById("liveResultScore").style.color = col;
+
+  // Title + badges
+  const decisionLabel = { pass:"合格 PASS", fail:"不合格 FAIL", needs_review:"要確認", retrain:"再研修" };
+  const pillClass = { pass:"pill-pass", fail:"pill-fail", needs_review:"pill-review", retrain:"pill-fail" };
+  document.getElementById("liveResultTitle").textContent =
+    `採点完了 — ${(res._meta?.source_video||liveSelectedFile?.name||"").split(/[/\\]/).pop()}`;
+
+  const badges = document.getElementById("liveResultBadges");
+  badges.innerHTML = `
+    <span class="pill ${pillClass[decision]||"pill-quality"}">${decisionLabel[decision]||decision}</span>
+    <span class="pill pill-quality" style="background:rgba(148,163,184,.1);color:var(--muted);border-color:var(--border)">
+      Gold #${res.gold_video_id}
+    </span>
+  `;
+  if (summary.severity_counts?.critical > 0) {
+    badges.innerHTML += `<span class="pill pill-critical">重大逸脱 ${summary.severity_counts.critical}件</span>`;
+  }
+
+  // Metrics strip
+  const mDiv = document.getElementById("liveResultMetrics");
+  const mItems = [
+    ["見逃し", metrics.miss_steps ?? 0, metrics.miss_steps > 0 ? "var(--danger)" : "var(--pass)"],
+    ["順序違反", metrics.swap_steps ?? 0, metrics.swap_steps > 0 ? "var(--warn)" : "var(--pass)"],
+    ["品質逸脱", metrics.deviation_steps ?? 0, metrics.deviation_steps > 0 ? "var(--warn)" : "var(--pass)"],
+    ["DTW コスト", (metrics.dtw_normalized_cost ?? 0).toFixed(3), "var(--muted)"],
+  ];
+  mDiv.innerHTML = mItems.map(([label, val, color]) => `
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;text-align:center">
+      <div style="font-size:22px;font-weight:800;color:${color}">${val}</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px">${label}</div>
+    </div>
+  `).join("");
+
+  // Deviations
+  const devMap = { missing_step:"手順省略", step_deviation:"品質逸脱", order_swap:"順序違反", over_time:"超過時間" };
+  const devSev = { critical:"pill-critical", quality:"pill-quality", efficiency:"pill-efficiency" };
+  const devDiv = document.getElementById("liveResultDeviations");
+  if (deviations.length === 0) {
+    devDiv.innerHTML = `<div style="color:var(--pass);font-weight:600;padding:12px 0">✓ 逸脱なし — 完璧な遵守です！</div>`;
+  } else {
+    devDiv.innerHTML = `<div style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">逸脱詳細</div>`;
+    devDiv.innerHTML += `<div class="live-dev-list">` + deviations.map((d, i) => `
+      <div class="live-dev-item">
+        <div class="live-dev-step">Step ${d.step_index ?? i}</div>
+        <div class="live-dev-body">
+          <div class="live-dev-type">
+            ${devMap[d.type] || d.type}
+            <span class="pill ${devSev[d.severity]||"pill-quality"}" style="margin-left:6px;font-size:10px">${d.severity||"quality"}</span>
+          </div>
+          ${d.detail ? `<div class="live-dev-detail">${d.detail}</div>` : ""}
+          ${d.distance != null ? `<div class="live-dev-detail">距離スコア: ${d.distance.toFixed(3)}</div>` : ""}
+        </div>
+      </div>
+    `).join("") + `</div>`;
+  }
+
+  const csvBtn = document.getElementById("liveCsvBtn");
+  if (csvBtn) csvBtn.style.display = "inline-flex";
+  document.getElementById("liveResult").classList.add("visible");
+  document.getElementById("liveResult").scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// ── Display error ──────────────────────────────────────────────────
+function liveShowError(msg) {
+  const div = document.getElementById("liveResult");
+  div.classList.add("visible");
+  div.innerHTML = `
+    <div style="text-align:center;padding:24px 0">
+      <div style="font-size:36px;margin-bottom:12px">❌</div>
+      <h3 style="color:var(--danger);margin-bottom:8px">エラーが発生しました</h3>
+      <p style="font-size:13px;color:var(--muted);max-width:480px;margin:0 auto">${msg}</p>
+      <button class="live-retry-btn" onclick="liveReset()" style="margin-top:16px">← 再試行する</button>
+    </div>
+  `;
+  div.scrollIntoView({ behavior: "smooth", block: "nearest" });
+}
+
+// ── Reset widget ───────────────────────────────────────────────────
+function liveReset() {
+  liveSelectedFile = null;
+  document.getElementById("liveGoldSelect").value = "";
+  document.getElementById("liveGoldInfo").textContent = "";
+  document.getElementById("liveDropIcon").textContent = "🎥";
+  document.getElementById("liveDropLabel").textContent = "クリックまたはドロップ";
+  document.getElementById("liveDropFileName").textContent = "";
+  document.getElementById("liveDropZone").className = "drop-zone";
+  document.getElementById("liveFileInput").value = "";
+  document.getElementById("liveProgress").classList.remove("visible");
+  document.getElementById("liveResult").classList.remove("visible");
+  liveStoredResult = null;
+  document.getElementById("liveResult").innerHTML = "";  // clear error html if set
+  // restore result inner structure
+  document.getElementById("liveResult").innerHTML = `
+    <div class="live-result-header">
+      <div class="live-score-big" id="liveResultScore" style="color:var(--accent)">—</div>
+      <div class="live-result-meta">
+        <h3 id="liveResultTitle">採点完了</h3>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px" id="liveResultBadges"></div>
+      </div>
+    </div>
+    <div id="liveResultMetrics" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
+    <div id="liveResultDeviations"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+      <button class="btn-csv" id="liveCsvBtn" style="display:none" onclick="liveExportCSV()">📥 CSV で保存</button>
+      <button class="live-retry-btn" onclick="liveReset()">← もう一度採点する</button>
+    </div>
+  `;
+  document.getElementById("liveScoreBtn").disabled = true;
+  document.getElementById("liveBtnLabel").textContent = "Gold 動画と研修生動画を選択してください";
+  document.getElementById("liveBtnIcon").textContent = "▶";
+}
+
+// ── Live stats fetch (updates stats bar when API is online) ────────
+async function liveFetchStats() {
+  try {
+    const [sumResp, jobsResp] = await Promise.all([
+      liveFetch(LIVE_API + "/dataset/summary", {}, 5000),
+      liveFetch(LIVE_API + "/score?limit=500", {}, 5000),
+    ]);
+    const sum   = await sumResp.json().catch(() => ({}));
+    const jobs  = await jobsResp.json().catch(() => ({}));
+    const bar   = document.getElementById("liveStatsBar");
+    if (!bar) return;
+    bar.classList.add("visible");
+    const el = id => document.getElementById(id);
+    if (el("lstGold"))    el("lstGold").textContent    = sum.gold_videos    ?? "—";
+    if (el("lstTrainee")) el("lstTrainee").textContent  = sum.trainee_videos ?? "—";
+    const total    = jobs.total ?? 0;
+    if (el("lstJobs"))    el("lstJobs").textContent     = total;
+    const items    = jobs.items || [];
+    const completed = items.filter(j => j.status === "completed");
+    const passed    = completed.filter(j => j.decision === "pass");
+    if (el("lstPass")) {
+      el("lstPass").textContent = completed.length > 0
+        ? Math.round(passed.length / completed.length * 100) + "%"
+        : "—";
+    }
+  } catch(e) {
+    console.warn("liveFetchStats:", e);
+  }
+}
+
+// ── CSV export of latest live score result ─────────────────────────
+function liveExportCSV() {
+  if (!liveStoredResult) return;
+  const r   = liveStoredResult;
+  const sum = r.summary  || {};
+  const m   = r.metrics  || {};
+  const devs = r.deviations || [];
+  const ts  = new Date().toISOString().slice(0,19).replace("T","_").replace(/:/g,"-");
+
+  let csv = "フィールド,値\n";
+  csv += `採点日時,${ts}\n`;
+  csv += `スコア,${r.score}\n`;
+  csv += `判定,${sum.decision || ""}\n`;
+  csv += `判定理由,"${(sum.decision_reason || "").replace(/"/g,"'")}"\n`;
+  csv += `Gold動画ID,${r.gold_video_id ?? ""}\n`;
+  csv += `研修生動画ID,${r.trainee_video_id ?? ""}\n`;
+  csv += `タスクID,${r.task_id ?? ""}\n`;
+  csv += `手順遺漏数,${m.miss_steps ?? 0}\n`;
+  csv += `手順入替数,${m.swap_steps ?? 0}\n`;
+  csv += `品質逸脱数,${m.deviation_steps ?? 0}\n`;
+  csv += `時間超過率,${m.over_time_ratio ?? 0}\n`;
+  csv += `DTW正規化コスト,${m.dtw_normalized_cost ?? ""}\n`;
+  csv += `Critical件数,${sum.severity_counts?.critical ?? 0}\n`;
+  csv += `Quality件数,${sum.severity_counts?.quality ?? 0}\n`;
+  csv += `Efficiency件数,${sum.severity_counts?.efficiency ?? 0}\n`;
+  if (devs.length > 0) {
+    csv += "\n逸脱番号,タイプ,重大度,詳細,Gold開始秒,Gold終了秒,研修生開始秒,研修生終了秒\n";
+    devs.forEach((d, i) => {
+      const gt = d.gold_timecode    || [];
+      const tt = d.trainee_timecode || [];
+      const detail = (d.detail || "").replace(/"/g, "'");
+      csv += `${i+1},${d.type||""},${d.severity||""},"${detail}",${gt[0]??""},${gt[1]??""},${tt[0]??""},${tt[1]??""}\n`;
+    });
+  }
+  const bom  = "\uFEFF";
+  const blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+  const a    = document.createElement("a");
+  a.href     = URL.createObjectURL(blob);
+  a.download = `sopilot_score_${ts}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ── Auto-check on page load ────────────────────────────────────────
+document.addEventListener("DOMContentLoaded", () => {
+  // Initial check (silent)
+  liveCheckApi();
+  // Re-check every 10s if offline
+  setInterval(() => { if (!liveApiOnline) liveCheckApi(); }, 10000);
+});
+</script>
+</body>
+</html>

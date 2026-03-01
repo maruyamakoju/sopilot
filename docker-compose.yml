@@ -1,0 +1,102 @@
+# =============================================================================
+# SOPilot -- Docker Compose deployment
+# =============================================================================
+# Quick start:
+#   cp .env.example .env          # fill in SOPILOT_API_KEY at minimum
+#   docker compose up -d
+#
+# Data persists in ./data on the host (bind-mount, not a named volume) so
+# that SQLite backups and raw videos are directly accessible on the host FS.
+# =============================================================================
+
+services:
+  sopilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sopilot
+    ports:
+      - "${SOPILOT_PORT:-8000}:8000"
+
+    # Bind-mount ./data so the SQLite WAL file and raw videos are accessible
+    # on the host without needing `docker cp`.
+    volumes:
+      - ./data:/app/data
+
+    environment:
+      # ------------------------------------------------------------------
+      # Core paths / logging
+      # ------------------------------------------------------------------
+      SOPILOT_DATA_DIR: /app/data
+      SOPILOT_LOG_LEVEL: "${SOPILOT_LOG_LEVEL:-INFO}"
+      SOPILOT_LOG_JSON: "${SOPILOT_LOG_JSON:-true}"
+
+      # ------------------------------------------------------------------
+      # Embedder backend
+      # color-motion = CPU-only, no model download, suitable for production
+      # without a GPU.  Switch to "vjepa2" and add [vjepa2] extras for
+      # research-grade embeddings (requires GPU).
+      # ------------------------------------------------------------------
+      SOPILOT_EMBEDDER_BACKEND: "${SOPILOT_EMBEDDER_BACKEND:-color-motion}"
+      SOPILOT_ALLOW_EMBEDDER_FALLBACK: "${SOPILOT_ALLOW_EMBEDDER_FALLBACK:-true}"
+
+      # ------------------------------------------------------------------
+      # Task / SOP settings
+      # ------------------------------------------------------------------
+      SOPILOT_PRIMARY_TASK_ID: "${SOPILOT_PRIMARY_TASK_ID:-pilot_task}"
+      SOPILOT_PRIMARY_TASK_NAME: "${SOPILOT_PRIMARY_TASK_NAME:-PoC Primary Task}"
+      SOPILOT_ENFORCE_PRIMARY_TASK: "${SOPILOT_ENFORCE_PRIMARY_TASK:-true}"
+
+      # ------------------------------------------------------------------
+      # Scoring pipeline
+      # ------------------------------------------------------------------
+      SOPILOT_SCORE_WORKERS: "${SOPILOT_SCORE_WORKERS:-1}"
+      SOPILOT_SCORE_JOB_MAX_RETRIES: "${SOPILOT_SCORE_JOB_MAX_RETRIES:-2}"
+      SOPILOT_DEFAULT_PASS_SCORE: "${SOPILOT_DEFAULT_PASS_SCORE:-60.0}"
+      SOPILOT_DEFAULT_RETRAIN_SCORE: "${SOPILOT_DEFAULT_RETRAIN_SCORE:-50.0}"
+
+      # ------------------------------------------------------------------
+      # Database
+      # ------------------------------------------------------------------
+      SOPILOT_DB_POOL_SIZE: "${SOPILOT_DB_POOL_SIZE:-5}"
+
+      # ------------------------------------------------------------------
+      # Video processing
+      # ------------------------------------------------------------------
+      SOPILOT_SAMPLE_FPS: "${SOPILOT_SAMPLE_FPS:-4}"
+      SOPILOT_CLIP_SECONDS: "${SOPILOT_CLIP_SECONDS:-4}"
+      SOPILOT_MAX_UPLOAD_MB: "${SOPILOT_MAX_UPLOAD_MB:-500}"
+
+      # ------------------------------------------------------------------
+      # Security -- set SOPILOT_API_KEY in .env or the environment.
+      # Leaving it empty disables API-key authentication (not recommended
+      # for internet-facing deployments).
+      # ------------------------------------------------------------------
+      SOPILOT_API_KEY: "${SOPILOT_API_KEY:-}"
+      SOPILOT_CORS_ORIGINS: "${SOPILOT_CORS_ORIGINS:-http://localhost:8000,http://127.0.0.1:8000}"
+      SOPILOT_RATE_LIMIT_RPM: "${SOPILOT_RATE_LIMIT_RPM:-120}"
+      SOPILOT_RATE_LIMIT_BURST: "${SOPILOT_RATE_LIMIT_BURST:-20}"
+
+      # ------------------------------------------------------------------
+      # Optional webhook for score completion notifications
+      # ------------------------------------------------------------------
+      SOPILOT_WEBHOOK_URL: "${SOPILOT_WEBHOOK_URL:-}"
+
+    restart: unless-stopped
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 15s
+      retries: 3
+
+    # Resource limits -- adjust for your host.
+    # 2 GB RAM is sufficient for color-motion backend + concurrent scoring.
+    # Increase memory limit if switching to the vjepa2 backend.
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+        reservations:
+          memory: 512M

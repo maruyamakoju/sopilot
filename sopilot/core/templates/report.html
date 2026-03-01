@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>SOPilot - Job #{{ job_id }}</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI','Hiragino Sans','Yu Gothic UI','Noto Sans JP',sans-serif;font-size:14px;line-height:1.6;color:#1e293b;background:#fff;padding:40px}
+h2{font-size:16px;font-weight:700;color:#475569;margin-bottom:12px;border-bottom:2px solid #e2e8f0;padding-bottom:6px;margin-top:28px}
+.print-btn{position:fixed;top:20px;right:20px;padding:10px 20px;background:#0d9488;color:#fff;border:none;border-radius:8px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.print-btn:hover{background:#14b8a6}
+@media print{body{padding:20px}@page{margin:20mm;size:A4}.no-print{display:none !important}}
+.card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px 16px}
+.card-label{font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th,.tbl td{border:1px solid #e2e8f0;padding:8px}
+.tbl th{background:#f8fafc;font-size:11px;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:.05em}
+.pill{padding:5px 18px;border-radius:999px;display:inline-block;font-weight:800;font-size:14px}
+.badge{font-size:11px;border-radius:999px;padding:2px 8px;font-weight:700}
+.sev-box{flex:1;padding:10px 14px;border-radius:8px;text-align:center}
+.sev-num{font-size:24px;font-weight:900}
+.sev-label{font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-top:2px}
+.sig-block{font-size:12px;color:#64748b;font-weight:600;margin-bottom:52px}
+.sig-line{border-top:1px solid #1e293b;padding-top:6px;font-size:12px;color:#64748b}
+</style>
+</head>
+<body>
+
+<button class="print-btn no-print" onclick="window.print()">PDF</button>
+
+{# ── Header ── #}
+<div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:28px;padding-bottom:20px;border-bottom:2px solid #0d9488">
+  <div>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
+      <div style="width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,#0d9488,#14b8a6);display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#fff">SP</div>
+      <span style="font-size:18px;font-weight:800;color:#0d9488">SOPilot</span>
+      <span class="badge" style="background:rgba(13,148,136,.1);border:1px solid rgba(13,148,136,.3);color:#0d9488">v{{ version }}</span>
+    </div>
+    <h1 style="font-size:22px;font-weight:800;letter-spacing:-.01em">SOP 遵守評価報告書</h1>
+    <div style="font-size:12px;color:#64748b;margin-top:4px">Job #{{ job_id }}&nbsp;&middot;&nbsp;出力日時: {{ now }}</div>
+  </div>
+  <div style="text-align:right">
+    <div style="font-size:52px;font-weight:900;line-height:1;color:{{ dec_color }}">{{ score }}</div>
+    <div style="font-size:11px;color:#64748b;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-top:2px">総合スコア</div>
+    <div class="pill" style="margin-top:8px;background:{{ dec_bg }};color:{{ dec_color }};border:1px solid {{ dec_border }}">{{ decision_jp }}</div>
+  </div>
+</div>
+
+{# ── Job info ── #}
+<h2>評価基本情報</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+  <div class="card"><div class="card-label">タスク</div><div style="font-weight:700">{{ task_id }}</div></div>
+  <div class="card"><div class="card-label">判定理由</div><div style="font-size:13px">{{ dec_reason }}</div></div>
+  <div class="card"><div class="card-label">Gold 動画 ID</div><div style="font-weight:700">#{{ gold_id }}</div></div>
+  <div class="card"><div class="card-label">研修生動画 ID</div><div style="font-weight:700">#{{ trainee_id }}</div></div>
+</div>
+
+{# ── Metrics ── #}
+<h2>評価メトリクス</h2>
+<table class="tbl">
+<thead><tr><th>指標</th><th>値</th><th>基準</th><th>判定</th></tr></thead>
+<tbody>
+  <tr>
+    <td>総合スコア</td>
+    <td style="font-weight:800;color:{{ dec_color }}">{{ score }}</td>
+    <td style="font-size:12px;color:#64748b">合格 &ge; {{ pass_score }} pt</td>
+    <td style="font-weight:700;color:{{ dec_color }}">{{ decision_jp }}</td>
+  </tr>
+  {% for m in metric_rows %}
+  <tr>
+    <td>{{ m.label }}</td>
+    <td style="font-weight:700;color:{{ m.color }}">{{ m.value }}</td>
+    <td style="font-size:12px;color:#64748b">{{ m.standard }}</td>
+    <td>{{ m.verdict }}</td>
+  </tr>
+  {% endfor %}
+</tbody>
+</table>
+
+{# ── Severity summary ── #}
+<div style="display:flex;gap:12px;margin-top:12px">
+  {% for s in severity_boxes %}
+  <div class="sev-box" style="background:{{ s.bg }};border:1px solid {{ s.border }}">
+    <div class="sev-num" style="color:{{ s.color }}">{{ s.count }}</div>
+    <div class="sev-label">{{ s.label }}</div>
+  </div>
+  {% endfor %}
+</div>
+
+{# ── Deviations ── #}
+<h2>逸脱詳細 ({{ deviations|length }} 件)</h2>
+{% if deviations %}
+<table class="tbl">
+<thead><tr><th style="width:32px">#</th><th style="width:60px">重大度</th><th style="width:120px">タイプ</th><th>詳細</th><th style="width:190px">タイムコード</th></tr></thead>
+<tbody>
+  {% for d in deviations %}
+  <tr>
+    <td style="text-align:center;color:#64748b">{{ loop.index }}</td>
+    <td style="font-weight:700;color:{{ d.sev_color }}">{{ d.sev_jp }}</td>
+    <td style="font-weight:600">{{ d.type_jp }}</td>
+    <td style="font-size:12px">{{ d.detail }}</td>
+    <td style="font-size:12px;white-space:nowrap">{{ d.timecode }}</td>
+  </tr>
+  {% endfor %}
+</tbody>
+</table>
+{% else %}
+<div style="color:#10b981;font-weight:700;padding:16px;text-align:center;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px">逸脱なし</div>
+{% endif %}
+
+{# ── Review ── #}
+{% if review %}
+<div style="margin-top:24px;padding:16px;border:1px solid #e2e8f0;border-radius:8px">
+  <h2 style="margin-top:0">評価者記録</h2>
+  <div style="display:grid;grid-template-columns:130px 1fr;gap:8px;font-size:13px">
+    <span style="color:#64748b;font-weight:600">評価者判定:</span><span style="font-weight:700">{{ review.verdict_jp }}</span>
+    <span style="color:#64748b;font-weight:600">コメント:</span><span>{{ review.note }}</span>
+    <span style="color:#64748b;font-weight:600">記録日時:</span><span>{{ review.updated_at }}</span>
+  </div>
+</div>
+{% endif %}
+
+{# ── Signature ── #}
+<h2>確認・承認</h2>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:28px;margin-top:16px">
+  <div><div class="sig-block">評価担当者 氏名</div><div class="sig-line">署名・日付</div></div>
+  <div><div class="sig-block">承認者 氏名</div><div class="sig-line">署名・日付</div></div>
+</div>
+
+{# ── Footer ── #}
+<div style="margin-top:32px;padding-top:14px;border-top:1px solid #e2e8f0;font-size:11px;color:#94a3b8;display:flex;justify-content:space-between">
+  <span>SOPilot v{{ version }}&nbsp;&middot;&nbsp;On-Prem SOP Evaluation System&nbsp;&middot;&nbsp;全データはサーバ内に保管</span>
+  <span>出力: {{ now }}</span>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,927 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SOPilot — 鉄道 仕業点検モニタリング</title>
+  <style>
+    :root {
+      --navy:   #0f2744;
+      --navy2:  #1a3a5c;
+      --orange: #e85d04;
+      --orange2:#f97316;
+      --green:  #16a34a;
+      --amber:  #d97706;
+      --red:    #dc2626;
+      --bg:     #f0f4f8;
+      --card:   #ffffff;
+      --ink:    #0f172a;
+      --muted:  #64748b;
+      --line:   #e2e8f0;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", sans-serif;
+      background: var(--bg);
+      color: var(--ink);
+      min-height: 100vh;
+    }
+
+    /* ── NAV ── */
+    .nav {
+      background: var(--navy);
+      height: 56px;
+      padding: 0 28px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-brand {
+      color: #fff;
+      font-weight: 800;
+      font-size: 18px;
+      letter-spacing: 0.04em;
+      margin-right: 28px;
+      flex-shrink: 0;
+    }
+    .nav-brand span { color: var(--orange); }
+    .nav-tab {
+      color: rgba(255,255,255,.55);
+      padding: 0 18px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      cursor: pointer;
+      font-size: 13.5px;
+      border-bottom: 3px solid transparent;
+      transition: color .15s;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .nav-tab:hover { color: #fff; }
+    .nav-tab.active { color: #fff; border-bottom-color: var(--orange); }
+
+    /* ── SCREENS ── */
+    .screen { display: none; padding: 32px; max-width: 1200px; margin: 0 auto; }
+    .screen.active { display: block; }
+
+    /* ══════════════════════════════════════
+       SCREEN 1 — Before / After
+    ══════════════════════════════════════ */
+    .hero { text-align: center; padding: 36px 0 28px; }
+    .hero-badge {
+      display: inline-block;
+      background: rgba(232,93,4,.1);
+      color: var(--orange);
+      border: 1px solid rgba(232,93,4,.3);
+      border-radius: 99px;
+      padding: 4px 18px;
+      font-size: 13px;
+      font-weight: 700;
+      margin-bottom: 18px;
+    }
+    .hero h1 {
+      font-size: 30px;
+      font-weight: 800;
+      color: var(--navy);
+      line-height: 1.35;
+      margin-bottom: 14px;
+    }
+    .hero p { color: var(--muted); font-size: 15px; max-width: 580px; margin: 0 auto; }
+
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 64px 1fr;
+      align-items: start;
+      margin: 28px 0;
+      gap: 0;
+    }
+    .compare-col {
+      background: var(--card);
+      border-radius: 16px;
+      padding: 28px 28px 20px;
+      border: 1px solid var(--line);
+    }
+    .compare-col.before { border-top: 5px solid #94a3b8; }
+    .compare-col.after  {
+      border-top: 5px solid var(--green);
+      box-shadow: 0 8px 32px rgba(22,163,74,.13);
+    }
+    .compare-tag {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      margin-bottom: 8px;
+    }
+    .compare-col.before .compare-tag { color: #94a3b8; }
+    .compare-col.after  .compare-tag { color: var(--green); }
+    .compare-col h3 { font-size: 17px; font-weight: 700; margin-bottom: 18px; }
+    .compare-col.before h3 { color: #64748b; }
+    .compare-col.after  h3 { color: var(--navy); }
+
+    .ci { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid var(--line); align-items: flex-start; }
+    .ci:last-child { border-bottom: none; }
+    .ci-icon { font-size: 17px; flex-shrink: 0; margin-top: 2px; }
+    .ci-lbl  { font-size: 11px; color: var(--muted); margin-bottom: 2px; }
+    .ci-val  { font-size: 13.5px; font-weight: 500; }
+
+    .arrow-col { display: flex; align-items: center; justify-content: center; padding-top: 130px; }
+    .arrow-circle {
+      width: 44px; height: 44px;
+      background: var(--navy);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 18px; flex-shrink: 0;
+    }
+
+    .stat-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin: 0 0 28px; }
+    .stat-card {
+      background: var(--navy);
+      border-radius: 16px;
+      padding: 26px 20px;
+      color: #fff;
+      text-align: center;
+    }
+    .stat-num { font-size: 42px; font-weight: 800; color: var(--orange); line-height: 1; margin-bottom: 8px; }
+    .stat-lbl { font-size: 14px; opacity: .88; }
+    .stat-sub { font-size: 11.5px; opacity: .5; margin-top: 5px; }
+
+    .poc-box {
+      background: linear-gradient(135deg, var(--navy) 0%, #1e3a5f 100%);
+      border-radius: 16px;
+      padding: 30px 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      color: #fff;
+    }
+    .poc-box h3 { font-size: 19px; font-weight: 700; margin-bottom: 8px; }
+    .poc-box p  { font-size: 13px; opacity: .72; margin-bottom: 14px; }
+    .poc-items  { display: flex; gap: 20px; flex-wrap: wrap; }
+    .poc-item   { display: flex; align-items: center; gap: 7px; font-size: 13px; opacity: .9; }
+    .poc-item::before { content: "✓"; color: var(--orange); font-weight: 800; }
+    .btn-primary {
+      background: var(--orange);
+      color: #fff;
+      border: none;
+      padding: 14px 26px;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .2s;
+      flex-shrink: 0;
+    }
+    .btn-primary:hover { background: var(--orange2); }
+
+    /* ══════════════════════════════════════
+       SCREEN 2 — Dashboard
+    ══════════════════════════════════════ */
+    .ph { display: flex; align-items: center; justify-content: space-between; margin-bottom: 22px; }
+    .ph-title { font-size: 21px; font-weight: 800; color: var(--navy); }
+    .ph-sub   { font-size: 13px; color: var(--muted); margin-top: 3px; }
+    .date-badge {
+      background: var(--navy);
+      color: #fff;
+      padding: 6px 14px;
+      border-radius: 8px;
+      font-size: 13px;
+    }
+
+    .kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 22px; }
+    .kpi-card {
+      background: var(--card);
+      border-radius: 14px;
+      padding: 20px 18px;
+      border: 1px solid var(--line);
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before { content:''; position:absolute; top:0;left:0;right:0; height:4px; }
+    .kpi-card.total::before  { background: var(--navy); }
+    .kpi-card.pass::before   { background: var(--green); }
+    .kpi-card.warn::before   { background: var(--amber); }
+    .kpi-card.crit::before   { background: var(--red); }
+    .kpi-num  { font-size: 38px; font-weight: 800; line-height: 1; margin-bottom: 5px; }
+    .kpi-card.total .kpi-num { color: var(--navy); }
+    .kpi-card.pass  .kpi-num { color: var(--green); }
+    .kpi-card.warn  .kpi-num { color: var(--amber); }
+    .kpi-card.crit  .kpi-num { color: var(--red); }
+    .kpi-lbl { font-size: 13px; color: var(--muted); }
+    .kpi-sub { font-size: 11px; color: var(--muted); margin-top: 4px; }
+
+    .two-col { display: grid; grid-template-columns: 1.5fr 1fr; gap: 16px; }
+    .card {
+      background: var(--card);
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      padding: 20px;
+    }
+    .card-title {
+      font-size: 13.5px;
+      font-weight: 700;
+      color: var(--navy);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .crew-table { width: 100%; border-collapse: collapse; }
+    .crew-table th {
+      text-align: left;
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      padding: 0 0 10px;
+      border-bottom: 1px solid var(--line);
+    }
+    .crew-table td {
+      padding: 11px 6px 11px 0;
+      font-size: 13.5px;
+      border-bottom: 1px solid var(--line);
+      vertical-align: middle;
+    }
+    .crew-table tr:last-child td { border-bottom: none; }
+    .crew-table tbody tr { cursor: pointer; }
+    .crew-table tbody tr:hover td { background: #f8fafc; }
+
+    .score-wrap { display: flex; align-items: center; gap: 8px; }
+    .score-bar-bg { background: var(--line); border-radius: 99px; height: 6px; width: 72px; overflow: hidden; }
+    .score-bar { height: 100%; border-radius: 99px; }
+    .score-num { font-size: 13px; font-weight: 700; min-width: 34px; }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 3px 9px;
+      border-radius: 99px;
+      font-size: 11.5px;
+      font-weight: 700;
+    }
+    .badge.pass { background: rgba(22,163,74,.1);  color: var(--green); }
+    .badge.warn { background: rgba(217,119,6,.1);  color: var(--amber); }
+    .badge.fail { background: rgba(220,38,38,.1);  color: var(--red); }
+
+    /* Heatmap */
+    .hm-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .hm-row:last-child { margin-bottom: 0; }
+    .hm-lbl { font-size: 12px; width: 112px; flex-shrink: 0; }
+    .hm-bg  { flex: 1; background: var(--line); border-radius: 99px; height: 18px; overflow: hidden; }
+    .hm-fill { height: 100%; border-radius: 99px; }
+    .hm-pct { font-size: 12px; font-weight: 700; min-width: 34px; text-align: right; }
+
+    /* Alerts */
+    .alert-item {
+      display: flex;
+      gap: 11px;
+      padding: 11px;
+      border-radius: 10px;
+      border-left: 3px solid;
+      margin-bottom: 10px;
+      align-items: flex-start;
+    }
+    .alert-item:last-child { margin-bottom: 0; }
+    .alert-item.crit { border-color: var(--red);   background: rgba(220,38,38,.04); }
+    .alert-item.warn { border-color: var(--amber); background: rgba(217,119,6,.04); }
+    .ai-icon   { font-size: 15px; flex-shrink: 0; }
+    .ai-name   { font-size: 12.5px; font-weight: 700; }
+    .ai-detail { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+    .ai-time   { font-size: 11px; color: var(--muted); margin-left: auto; flex-shrink: 0; }
+
+    /* ══════════════════════════════════════
+       SCREEN 3 — Inspection Detail
+    ══════════════════════════════════════ */
+    .detail-header {
+      background: var(--card);
+      border-radius: 14px;
+      border: 1px solid var(--line);
+      padding: 22px 24px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      margin-bottom: 18px;
+    }
+    .avatar {
+      width: 62px; height: 62px;
+      background: var(--navy);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: #fff; font-size: 22px; font-weight: 800; flex-shrink: 0;
+    }
+    .dh-info h2 { font-size: 19px; font-weight: 800; color: var(--navy); }
+    .dh-info p  { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .dh-score { margin-left: auto; text-align: center; }
+    .dh-score-num { font-size: 50px; font-weight: 800; line-height: 1; color: var(--red); }
+    .dh-score-lbl { font-size: 12px; color: var(--muted); margin-top: 3px; }
+
+    .detail-two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+
+    /* Steps */
+    .step-item {
+      display: flex;
+      align-items: center;
+      gap: 13px;
+      padding: 13px 14px;
+      border-radius: 11px;
+      border: 1px solid var(--line);
+      margin-bottom: 9px;
+      cursor: pointer;
+      transition: box-shadow .15s;
+    }
+    .step-item:last-child { margin-bottom: 0; }
+    .step-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,.08); }
+    .step-item.ok   { background: rgba(22,163,74,.04); }
+    .step-item.skip { background: rgba(220,38,38,.04); border-color: rgba(220,38,38,.22); }
+    .step-item.ng   { background: rgba(217,119,6,.04);  border-color: rgba(217,119,6,.22); }
+    .step-num {
+      width: 27px; height: 27px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11.5px; font-weight: 800; flex-shrink: 0;
+    }
+    .step-item.ok   .step-num { background: var(--green); color: #fff; }
+    .step-item.skip .step-num { background: var(--red);   color: #fff; }
+    .step-item.ng   .step-num { background: var(--amber); color: #fff; }
+    .step-body { flex: 1; }
+    .step-name   { font-size: 13.5px; font-weight: 700; }
+    .step-detail { font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+    .step-result { font-size: 13px; font-weight: 800; flex-shrink: 0; }
+    .step-item.ok   .step-result { color: var(--green); }
+    .step-item.skip .step-result { color: var(--red); }
+    .step-item.ng   .step-result { color: var(--amber); }
+
+    /* Camera grid */
+    .cam-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: auto auto;
+      gap: 6px;
+      background: #0f172a;
+      border-radius: 12px;
+      padding: 7px;
+      margin-bottom: 12px;
+    }
+    .cam-cell {
+      background: #1e293b;
+      border-radius: 7px;
+      padding: 14px 10px 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      color: rgba(255,255,255,.5);
+      font-size: 11.5px;
+      position: relative;
+      aspect-ratio: 4/3;
+      justify-content: center;
+    }
+    .cam-cell.err { border: 1px solid rgba(220,38,38,.45); }
+    .cam-label {
+      position: absolute;
+      top: 5px; left: 7px;
+      background: rgba(0,0,0,.6);
+      color: #fff;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+    .cam-icon { font-size: 22px; }
+
+    /* Timeline */
+    .tl-wrap { margin-bottom: 5px; }
+    .tl-label { font-size: 11px; color: var(--muted); margin-bottom: 5px; }
+    .tl-bar { display: flex; gap: 3px; height: 8px; }
+    .tl-seg { height: 100%; border-radius: 99px; }
+    .tl-seg.ok   { background: var(--green); }
+    .tl-seg.skip { background: var(--red); }
+    .tl-seg.ng   { background: var(--amber); }
+    .tl-times { display: flex; justify-content: space-between; font-size: 10.5px; color: #94a3b8; margin-top: 3px; }
+
+    /* Action card */
+    .action-card { background: var(--card); border-radius: 14px; border: 1px solid var(--line); padding: 18px; margin-top: 16px; }
+    .warn-box {
+      background: rgba(220,38,38,.06);
+      border: 1px solid rgba(220,38,38,.2);
+      border-radius: 9px;
+      padding: 11px 13px;
+      font-size: 12.5px;
+      margin-bottom: 13px;
+    }
+    .action-btns { display: flex; gap: 8px; }
+    .btn-sec {
+      flex: 1;
+      background: var(--card);
+      color: var(--navy);
+      border: 1px solid var(--line);
+      padding: 10px 6px;
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+    }
+    .btn-danger {
+      flex: 1;
+      background: rgba(220,38,38,.09);
+      color: var(--red);
+      border: 1px solid rgba(220,38,38,.22);
+      padding: 10px 6px;
+      border-radius: 9px;
+      font-size: 12px;
+      font-weight: 700;
+      cursor: pointer;
+      text-align: center;
+    }
+
+    /* history mini-chart */
+    .hist-bars { display: flex; align-items: flex-end; gap: 5px; height: 56px; margin-top: 10px; }
+    .h-wrap { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .h-bar { width: 100%; border-radius: 4px 4px 0 0; }
+    .h-lbl { font-size: 10px; color: var(--muted); }
+  </style>
+</head>
+<body>
+
+<!-- ── NAVIGATION ── -->
+<nav class="nav">
+  <div class="nav-brand">SOP<span>pilot</span></div>
+  <div class="nav-tab active" onclick="go('ba',this)">① 課題とソリューション</div>
+  <div class="nav-tab" onclick="go('db',this)">② 管理者ダッシュボード</div>
+  <div class="nav-tab" onclick="go('dt',this)">③ 点検スコア詳細</div>
+</nav>
+
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN 1 — Before / After
+══════════════════════════════════════════════════ -->
+<div class="screen active" id="s-ba">
+  <div class="hero">
+    <div class="hero-badge">🚃 鉄道 仕業点検 × AI自動採点システム</div>
+    <h1>「点検した」という紙のハンコだけでは、<br>本当に安全は守れない。</h1>
+    <p>SOPilotは車体定点カメラの映像をAIが自動解析し、仕業点検の実施内容をステップごとに採点・記録します。</p>
+  </div>
+
+  <div class="compare-grid">
+
+    <!-- BEFORE -->
+    <div class="compare-col before">
+      <div class="compare-tag">Before — 現状</div>
+      <h3>紙の点検票 ＋ ハンコ管理</h3>
+      <div class="ci">
+        <div class="ci-icon">📋</div>
+        <div><div class="ci-lbl">点検記録</div>
+          <div class="ci-val" style="color:#64748b">紙への手書き・ハンコ押印</div></div>
+      </div>
+      <div class="ci">
+        <div class="ci-icon">👁️</div>
+        <div><div class="ci-lbl">実態把握</div>
+          <div class="ci-val" style="color:#ef4444">不明 — 本当にやったか確認できない</div></div>
+      </div>
+      <div class="ci">
+        <div class="ci-icon">⚠️</div>
+        <div><div class="ci-lbl">逸脱の発見タイミング</div>
+          <div class="ci-val" style="color:#ef4444">事故・インシデント発生後</div></div>
+      </div>
+      <div class="ci">
+        <div class="ci-icon">🎓</div>
+        <div><div class="ci-lbl">教育・指導</div>
+          <div class="ci-val" style="color:#64748b">全員一律の定期研修</div></div>
+      </div>
+      <div class="ci">
+        <div class="ci-icon">🗄️</div>
+        <div><div class="ci-lbl">証跡保管</div>
+          <div class="ci-val" style="color:#64748b">紙ファイル保管（3年）・検索困難</div></div>
+      </div>
+      <div class="ci">
+        <div class="ci-icon">🔍</div>
+        <div><div class="ci-lbl">原因分析</div>
+          <div class="ci-val" style="color:#ef4444">インシデント後に手動で記録を遡る</div></div>
+      </div>
+    </div>
+
+    <!-- Arrow -->
+    <div class="arrow-col">
+      <div class="arrow-circle">→</div>
+    </div>
+
+    <!-- AFTER -->
+    <div class="compare-col after">
+      <div class="compare-tag">After — SOPilot 導入後</div>
+      <h3>動画 × AI自動採点 × リアルタイム監視</h3>
+      <div class="ci">
+        <div class="ci-icon">🎥</div>
+        <div><div class="ci-lbl">点検記録</div>
+          <div class="ci-val" style="color:#16a34a">定点カメラ映像＋AIスコアを自動保存</div></div>
+      </div>
+      <div class="ci">
+        <div class="ci-icon">📊</div>
+        <div><div class="ci-lbl">実態把握</div>
+          <div class="ci-val" style="color:#16a34a">全乗務員・全点検を100%可視化</div></div>
+      </div>
+      <div class="ci">
+        <div class="ci-icon">🚨</div>
+        <div><div class="ci-lbl">逸脱の発見タイミング</div>
+          <div class="ci-val" style="color:#16a34a">点検直後にリアルタイム検知・即時通知</div></div>
+      </div>
+      <div class="ci">
+        <div class="ci-icon">🎯</div>
+        <div><div class="ci-lbl">教育・指導</div>
+          <div class="ci-val" style="color:#16a34a">逸脱したステップ・乗務員に個別指導</div></div>
+      </div>
+      <div class="ci">
+        <div class="ci-icon">☁️</div>
+        <div><div class="ci-lbl">証跡保管</div>
+          <div class="ci-val" style="color:#16a34a">自動保存・即時検索・監査対応</div></div>
+      </div>
+      <div class="ci">
+        <div class="ci-icon">📈</div>
+        <div><div class="ci-lbl">原因分析</div>
+          <div class="ci-val" style="color:#16a34a">「どのステップを何%がスキップ」を即表示</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats -->
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="stat-num">94%</div>
+      <div class="stat-lbl">逸脱ステップ検出率</div>
+      <div class="stat-sub">PoC実績（1週間・乗務員10名）</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">18件</div>
+      <div class="stat-lbl">今まで見えなかった逸脱</div>
+      <div class="stat-sub">1路線・1週間で新規発見</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-num">0件</div>
+      <div class="stat-lbl">クリティカル逸脱の見逃し</div>
+      <div class="stat-sub">ブレーキ・タイヤ未確認を全件検知</div>
+    </div>
+  </div>
+
+  <!-- PoC CTA -->
+  <div class="poc-box">
+    <div>
+      <h3>PoC（概念実証）をご提案します</h3>
+      <p>1車両基地・1週間・乗務員10名から開始。既存カメラへの接続も可能です。</p>
+      <div class="poc-items">
+        <span class="poc-item">カメラ設置（前後左右4台）</span>
+        <span class="poc-item">ゴールド動画の定義・録画サポート</span>
+        <span class="poc-item">週次レポート自動出力</span>
+        <span class="poc-item">データはすべてオンプレミス保管</span>
+      </div>
+    </div>
+    <button class="btn-primary" onclick="go('db', document.querySelectorAll('.nav-tab')[1])">
+      管理画面のデモを見る →
+    </button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN 2 — Dashboard
+══════════════════════════════════════════════════ -->
+<div class="screen" id="s-db">
+  <div class="ph">
+    <div>
+      <div class="ph-title">仕業点検 モニタリング</div>
+      <div class="ph-sub">○○鉄道株式会社 ・ △△車両基地</div>
+    </div>
+    <div class="date-badge">2026年2月19日（木）</div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid">
+    <div class="kpi-card total">
+      <div class="kpi-num">84</div>
+      <div class="kpi-lbl">本日の点検件数</div>
+      <div class="kpi-sub">計画 86件中</div>
+    </div>
+    <div class="kpi-card pass">
+      <div class="kpi-num">76</div>
+      <div class="kpi-lbl">合格</div>
+      <div class="kpi-sub">合格率 90.5%</div>
+    </div>
+    <div class="kpi-card warn">
+      <div class="kpi-num">6</div>
+      <div class="kpi-lbl">要確認</div>
+      <div class="kpi-sub">スコア 80〜90点</div>
+    </div>
+    <div class="kpi-card crit">
+      <div class="kpi-num">2</div>
+      <div class="kpi-lbl">クリティカル逸脱</div>
+      <div class="kpi-sub">即時対応が必要</div>
+    </div>
+  </div>
+
+  <div class="two-col">
+
+    <!-- Left: Crew table -->
+    <div class="card">
+      <div class="card-title">👷 乗務員別 点検スコア（クリックで詳細）</div>
+      <table class="crew-table">
+        <thead>
+          <tr>
+            <th>乗務員</th>
+            <th>スコア</th>
+            <th>判定</th>
+            <th>時刻</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr onclick="go('dt', document.querySelectorAll('.nav-tab')[2])">
+            <td><strong>田中 一郎</strong></td>
+            <td><div class="score-wrap">
+              <div class="score-bar-bg"><div class="score-bar" style="width:98%;background:#16a34a"></div></div>
+              <span class="score-num" style="color:#16a34a">98.0</span></div></td>
+            <td><span class="badge pass">✅ 合格</span></td>
+            <td style="color:#64748b;font-size:12px">08:12</td>
+          </tr>
+          <tr onclick="go('dt', document.querySelectorAll('.nav-tab')[2])">
+            <td><strong>山田 花子</strong></td>
+            <td><div class="score-wrap">
+              <div class="score-bar-bg"><div class="score-bar" style="width:89%;background:#d97706"></div></div>
+              <span class="score-num" style="color:#d97706">89.3</span></div></td>
+            <td><span class="badge warn">⚠️ 要確認</span></td>
+            <td style="color:#64748b;font-size:12px">08:24</td>
+          </tr>
+          <tr onclick="go('dt', document.querySelectorAll('.nav-tab')[2])">
+            <td><strong>鈴木 次郎</strong></td>
+            <td><div class="score-wrap">
+              <div class="score-bar-bg"><div class="score-bar" style="width:55%;background:#dc2626"></div></div>
+              <span class="score-num" style="color:#dc2626">55.0</span></div></td>
+            <td><span class="badge fail">🔴 再教育</span></td>
+            <td style="color:#64748b;font-size:12px">07:58</td>
+          </tr>
+          <tr onclick="go('dt', document.querySelectorAll('.nav-tab')[2])">
+            <td><strong>佐藤 三郎</strong></td>
+            <td><div class="score-wrap">
+              <div class="score-bar-bg"><div class="score-bar" style="width:97%;background:#16a34a"></div></div>
+              <span class="score-num" style="color:#16a34a">96.7</span></div></td>
+            <td><span class="badge pass">✅ 合格</span></td>
+            <td style="color:#64748b;font-size:12px">09:05</td>
+          </tr>
+          <tr onclick="go('dt', document.querySelectorAll('.nav-tab')[2])">
+            <td><strong>伊藤 四郎</strong></td>
+            <td><div class="score-wrap">
+              <div class="score-bar-bg"><div class="score-bar" style="width:84%;background:#d97706"></div></div>
+              <span class="score-num" style="color:#d97706">83.5</span></div></td>
+            <td><span class="badge warn">⚠️ 要確認</span></td>
+            <td style="color:#64748b;font-size:12px">09:18</td>
+          </tr>
+          <tr onclick="go('dt', document.querySelectorAll('.nav-tab')[2])">
+            <td><strong>渡辺 五郎</strong></td>
+            <td><div class="score-wrap">
+              <div class="score-bar-bg"><div class="score-bar" style="width:100%;background:#16a34a"></div></div>
+              <span class="score-num" style="color:#16a34a">100</span></div></td>
+            <td><span class="badge pass">✅ 合格</span></td>
+            <td style="color:#64748b;font-size:12px">09:31</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Right -->
+    <div style="display:flex;flex-direction:column;gap:15px">
+
+      <!-- Heatmap -->
+      <div class="card">
+        <div class="card-title">🔥 ステップ別 逸脱率（本日・全乗務員）</div>
+        <div class="hm-row">
+          <div class="hm-lbl">①前面灯火確認</div>
+          <div class="hm-bg"><div class="hm-fill" style="width:8%;background:#16a34a;height:100%"></div></div>
+          <div class="hm-pct" style="color:#16a34a">8%</div>
+        </div>
+        <div class="hm-row">
+          <div class="hm-lbl">②PPE装着確認</div>
+          <div class="hm-bg"><div class="hm-fill" style="width:12%;background:#16a34a;height:100%"></div></div>
+          <div class="hm-pct" style="color:#16a34a">12%</div>
+        </div>
+        <div class="hm-row">
+          <div class="hm-lbl">③ブレーキ試験</div>
+          <div class="hm-bg"><div class="hm-fill" style="width:38%;background:#d97706;height:100%"></div></div>
+          <div class="hm-pct" style="color:#d97706">38%</div>
+        </div>
+        <div class="hm-row">
+          <div class="hm-lbl">④タイヤ打検</div>
+          <div class="hm-bg"><div class="hm-fill" style="width:62%;background:#dc2626;height:100%"></div></div>
+          <div class="hm-pct" style="color:#dc2626">62%</div>
+        </div>
+        <div class="hm-row">
+          <div class="hm-lbl">⑤後部灯火確認</div>
+          <div class="hm-bg"><div class="hm-fill" style="width:10%;background:#16a34a;height:100%"></div></div>
+          <div class="hm-pct" style="color:#16a34a">10%</div>
+        </div>
+        <div class="hm-row">
+          <div class="hm-lbl">⑥指差呼称</div>
+          <div class="hm-bg"><div class="hm-fill" style="width:29%;background:#d97706;height:100%"></div></div>
+          <div class="hm-pct" style="color:#d97706">29%</div>
+        </div>
+      </div>
+
+      <!-- Alerts -->
+      <div class="card">
+        <div class="card-title">🚨 本日のアラート</div>
+        <div class="alert-item crit">
+          <div class="ai-icon">🔴</div>
+          <div style="flex:1">
+            <div class="ai-name">鈴木 次郎 — ブレーキ試験・タイヤ打検 未実施</div>
+            <div class="ai-detail">スコア 55.0 ／ クリティカル逸脱 2件 ― 出庫保留を推奨</div>
+          </div>
+          <div class="ai-time">07:58</div>
+        </div>
+        <div class="alert-item warn">
+          <div class="ai-icon">⚠️</div>
+          <div style="flex:1">
+            <div class="ai-name">山田 花子 — 指差呼称 不完全</div>
+            <div class="ai-detail">腕の角度・発声が基準未満 ― 要再確認</div>
+          </div>
+          <div class="ai-time">08:24</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN 3 — Inspection Detail
+══════════════════════════════════════════════════ -->
+<div class="screen" id="s-dt">
+
+  <!-- Header -->
+  <div class="detail-header">
+    <div class="avatar">鈴</div>
+    <div class="dh-info">
+      <h2>鈴木 次郎</h2>
+      <p>乗務員ID: EMP-0842　・　△△車両基地　・　2026年2月19日 07:58</p>
+      <p style="margin-top:4px">担当車両: 第3編成　・　仕業番号: #0214</p>
+    </div>
+    <div class="dh-score">
+      <div class="dh-score-num">55.0</div>
+      <div class="dh-score-lbl">総合スコア</div>
+      <span class="badge fail" style="margin-top:8px;display:inline-flex">🔴 再教育推奨</span>
+    </div>
+  </div>
+
+  <div class="detail-two-col">
+
+    <!-- Steps -->
+    <div class="card">
+      <div class="card-title">📋 ステップ別 採点結果</div>
+
+      <div class="step-item ok">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <div class="step-name">前面灯火確認</div>
+          <div class="step-detail">ヘッドライト・方向幕の点灯確認</div>
+        </div>
+        <div class="step-result">✅ OK</div>
+      </div>
+
+      <div class="step-item ok">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <div class="step-name">PPE装着確認</div>
+          <div class="step-detail">ヘルメット・安全靴・反射ベスト</div>
+        </div>
+        <div class="step-result">✅ OK</div>
+      </div>
+
+      <div class="step-item skip">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <div class="step-name">ブレーキ試験</div>
+          <div class="step-detail">制動距離・ブレーキ圧の確認</div>
+        </div>
+        <div class="step-result">❌ SKIP</div>
+      </div>
+
+      <div class="step-item skip">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <div class="step-name">タイヤ打検</div>
+          <div class="step-detail">全輪のタイヤ圧・損傷の目視確認</div>
+        </div>
+        <div class="step-result">❌ SKIP</div>
+      </div>
+
+      <div class="step-item ok">
+        <div class="step-num">5</div>
+        <div class="step-body">
+          <div class="step-name">後部灯火確認</div>
+          <div class="step-detail">テールライト・標識灯の点灯確認</div>
+        </div>
+        <div class="step-result">✅ OK</div>
+      </div>
+
+      <div class="step-item ng">
+        <div class="step-num">6</div>
+        <div class="step-body">
+          <div class="step-name">指差呼称</div>
+          <div class="step-detail">出発前の安全確認・声出し確認</div>
+        </div>
+        <div class="step-result">⚠️ NG</div>
+      </div>
+
+      <!-- 30-day history -->
+      <div style="margin-top:18px;border-top:1px solid var(--line);padding-top:14px">
+        <div class="card-title" style="margin-bottom:4px">📅 過去30日 スコア推移</div>
+        <div class="hist-bars">
+          <div class="h-wrap"><div class="h-bar" style="height:82%;background:#16a34a"></div><div class="h-lbl">1/20</div></div>
+          <div class="h-wrap"><div class="h-bar" style="height:91%;background:#16a34a"></div><div class="h-lbl">1/27</div></div>
+          <div class="h-wrap"><div class="h-bar" style="height:75%;background:#d97706"></div><div class="h-lbl">2/3</div></div>
+          <div class="h-wrap"><div class="h-bar" style="height:68%;background:#d97706"></div><div class="h-lbl">2/10</div></div>
+          <div class="h-wrap"><div class="h-bar" style="height:55%;background:#dc2626"></div><div class="h-lbl">今日</div></div>
+        </div>
+        <div style="font-size:11.5px;color:#ef4444;margin-top:6px">⚠️ スコアが直近1ヶ月で低下傾向 — 早期指導を推奨</div>
+      </div>
+    </div>
+
+    <!-- Right: Camera + Actions -->
+    <div style="display:flex;flex-direction:column;gap:0">
+
+      <div class="card">
+        <div class="card-title">📷 4視点カメラ映像</div>
+        <div class="cam-grid">
+          <div class="cam-cell">
+            <div class="cam-label">前カメラ</div>
+            <div class="cam-icon">🚃</div>
+            <div>灯火 ✅</div>
+          </div>
+          <div class="cam-cell err">
+            <div class="cam-label">右カメラ</div>
+            <div class="cam-icon">⚠️</div>
+            <div style="color:#ef4444">タイヤ打検 ❌</div>
+          </div>
+          <div class="cam-cell err">
+            <div class="cam-label">左カメラ</div>
+            <div class="cam-icon">⚠️</div>
+            <div style="color:#ef4444">ブレーキ未確認 ❌</div>
+          </div>
+          <div class="cam-cell">
+            <div class="cam-label">後カメラ</div>
+            <div class="cam-icon">🚦</div>
+            <div>後部灯火 ✅</div>
+          </div>
+        </div>
+
+        <div class="tl-wrap">
+          <div class="tl-label">点検タイムライン ― 各色＝各ステップ（赤＝スキップ・黄＝NG）</div>
+          <div class="tl-bar">
+            <div class="tl-seg ok"   style="flex:1.3"></div>
+            <div class="tl-seg ok"   style="flex:0.9"></div>
+            <div class="tl-seg skip" style="flex:0.3"></div>
+            <div class="tl-seg skip" style="flex:0.3"></div>
+            <div class="tl-seg ok"   style="flex:1.0"></div>
+            <div class="tl-seg ng"   style="flex:0.9"></div>
+          </div>
+          <div class="tl-times"><span>07:58:00</span><span>07:58:52</span></div>
+        </div>
+      </div>
+
+      <div class="action-card">
+        <div class="card-title">🎯 推奨アクション</div>
+        <div class="warn-box">
+          ブレーキ試験・タイヤ打検の<strong style="color:#dc2626">クリティカル逸脱 2件</strong>が検出されました。<br>
+          出庫前に当該ステップの再実施を指示してください。
+        </div>
+        <div style="background:#f8fafc;border-radius:9px;padding:10px 12px;font-size:12px;margin-bottom:12px">
+          📌 <strong>過去30日の傾向：</strong>ブレーキ試験スキップ率
+          <strong style="color:#dc2626">58%</strong>（要集中指導）
+        </div>
+        <div class="action-btns">
+          <button class="btn-sec">📋 レポート出力</button>
+          <button class="btn-sec">💬 上長に通知</button>
+          <button class="btn-danger">🔄 再教育を記録</button>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+  function go(id, tabEl) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    document.getElementById('s-' + id).classList.add('active');
+    if (tabEl) tabEl.classList.add('active');
+    window.scrollTo(0, 0);
+  }
+</script>
+</body>
+</html>

@@ -18,6 +18,7 @@ from sopilot.vigil.schemas import (
     SessionListItem,
     SessionReport,
     SessionResponse,
+    StreamRequest,
     ViolationDetail,
     ViolationEvent,
 )
@@ -225,6 +226,82 @@ def build_vigil_router() -> APIRouter:
             status="processing",
             message=f"解析を開始しました。GET /vigil/sessions/{session_id} でステータスを確認してください。",
         )
+
+    # ── RTSP live-stream ──────────────────────────────────────────────────
+
+    @router.post(
+        "/sessions/{session_id}/stream",
+        summary="RTSPライブストリーム解析開始",
+        response_model=AnalyzeResponse,
+    )
+    async def start_stream(
+        session_id: int,
+        body: StreamRequest,
+        request: Request,
+    ) -> AnalyzeResponse:
+        """Start analysing an RTSP live stream for an existing session.
+
+        The session must be in ``idle`` or ``completed`` state.  The endpoint
+        returns immediately; analysis runs in a background daemon thread.
+        Poll ``GET /vigil/sessions/{session_id}`` to track progress.
+        """
+        repo = _get_repo(request)
+        pipeline = _get_pipeline(request)
+
+        row = await run_in_threadpool(repo.get_session, session_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        if row["status"] == "processing":
+            raise HTTPException(status_code=409, detail="Session is already processing")
+
+        pipeline.stream_async(
+            session_id=session_id,
+            rtsp_url=body.rtsp_url,
+            rules=row["rules"],
+            sample_fps=row["sample_fps"],
+            severity_threshold=row["severity_threshold"],
+        )
+
+        return AnalyzeResponse(
+            session_id=session_id,
+            status="processing",
+            message=(
+                f"RTSPストリーム解析を開始しました。"
+                f"GET /vigil/sessions/{session_id} でステータスを確認してください。"
+                f"停止するには DELETE /vigil/sessions/{session_id}/stream を呼び出してください。"
+            ),
+        )
+
+    @router.delete(
+        "/sessions/{session_id}/stream",
+        summary="RTSPライブストリーム停止",
+    )
+    async def stop_stream(session_id: int, request: Request) -> dict:
+        """Stop an active RTSP live-stream analysis session.
+
+        Sends a stop signal to the background thread.  The session status will
+        transition to ``"completed"`` once the current frame finishes processing.
+        Returns 404 if the session does not exist, 409 if no stream is active.
+        """
+        repo = _get_repo(request)
+        pipeline = _get_pipeline(request)
+
+        row = await run_in_threadpool(repo.get_session, session_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        stopped = pipeline.stop_stream(session_id)
+        if not stopped:
+            raise HTTPException(
+                status_code=409,
+                detail="No active RTSP stream found for this session",
+            )
+
+        return {
+            "session_id": session_id,
+            "stopped": True,
+            "message": "ストリーム停止シグナルを送信しました。",
+        }
 
     # ── Events ────────────────────────────────────────────────────────────
 

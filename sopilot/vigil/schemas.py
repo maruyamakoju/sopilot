@@ -10,6 +10,10 @@ from pydantic import BaseModel, Field
 # ── Request models ─────────────────────────────────────────────────────────
 
 
+class StreamRequest(BaseModel):
+    rtsp_url: str = Field(..., description="RTSP stream URL (rtsp://host:port/path)")
+
+
 class SessionCreateRequest(BaseModel):
     name: str = Field(..., description="監視セッション名")
     rules: list[str] = Field(

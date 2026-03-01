@@ -11,7 +11,7 @@ import shutil
 import threading
 from pathlib import Path
 
-from sopilot.vigil.extractor import iter_frames
+from sopilot.vigil.extractor import iter_frames, iter_frames_rtsp
 from sopilot.vigil.repository import VigilRepository
 from sopilot.vigil.vlm import VLMClient
 
@@ -26,6 +26,7 @@ class VigilPipeline:
         self._vlm = vlm
         self._frames_root = frames_root
         self._frames_root.mkdir(parents=True, exist_ok=True)
+        self._stream_stop_events: dict[int, threading.Event] = {}
 
     def analyze_async(
         self,
@@ -45,6 +46,145 @@ class VigilPipeline:
         )
         t.start()
         logger.info("vigil session=%d analysis started (thread=%s)", session_id, t.name)
+
+    def stream_async(
+        self,
+        session_id: int,
+        rtsp_url: str,
+        rules: list[str],
+        sample_fps: float,
+        severity_threshold: str,
+    ) -> None:
+        """Launch RTSP live-stream analysis in a daemon thread and return immediately.
+
+        The session status will be set to ``"processing"`` while streaming is
+        active and changed to ``"completed"`` once the stream stops (either
+        because ``stop_stream()`` was called, ``max_frames`` was reached, or the
+        stream ended on its own).
+
+        Parameters
+        ----------
+        session_id:
+            ID of an existing vigil session (must be in ``"idle"`` state).
+        rtsp_url:
+            RTSP URL passed directly to :func:`iter_frames_rtsp`.
+        rules:
+            Monitoring rules forwarded to the VLM.
+        sample_fps:
+            Frames per second to sample from the live stream.
+        severity_threshold:
+            Minimum severity level (``"info"``, ``"warning"``, ``"critical"``).
+        """
+        stop_event = threading.Event()
+        self._stream_stop_events[session_id] = stop_event
+
+        t = threading.Thread(
+            target=self._stream_worker,
+            args=(session_id, rtsp_url, rules, sample_fps, severity_threshold, stop_event),
+            daemon=True,
+            name=f"vigil-rtsp-{session_id}",
+        )
+        t.start()
+        logger.info(
+            "vigil session=%d RTSP stream started (url=%s thread=%s)",
+            session_id, rtsp_url, t.name,
+        )
+
+    def stop_stream(self, session_id: int) -> bool:
+        """Signal the running RTSP stream for *session_id* to stop.
+
+        Returns ``True`` if a stop event was found and set, ``False`` if no
+        active stream exists for this session.
+        """
+        event = self._stream_stop_events.get(session_id)
+        if event is None:
+            logger.warning("stop_stream called but no active stream for session=%d", session_id)
+            return False
+        event.set()
+        logger.info("vigil session=%d RTSP stop requested", session_id)
+        return True
+
+    def _stream_worker(
+        self,
+        session_id: int,
+        rtsp_url: str,
+        rules: list[str],
+        sample_fps: float,
+        severity_threshold: str,
+        stop_event: threading.Event,
+    ) -> None:
+        """Background thread body for RTSP stream analysis."""
+        frame_dir = self._frames_root / f"session_{session_id}_rtsp"
+        frames_analyzed = 0
+        violation_count = 0
+        _SEVERITY_ORDER = {"info": 0, "warning": 1, "critical": 2}
+        threshold_level = _SEVERITY_ORDER.get(severity_threshold, 1)
+
+        try:
+            self._repo.update_session_status(
+                session_id,
+                status="processing",
+                video_filename=rtsp_url,
+            )
+
+            for frame_num, ts_sec, frame_path in iter_frames_rtsp(
+                rtsp_url,
+                sample_fps=sample_fps,
+                output_dir=frame_dir,
+                stop_event=stop_event,
+            ):
+                try:
+                    result = self._vlm.analyze_frame(frame_path, rules)
+                except Exception as e:
+                    logger.warning(
+                        "VLM error at rtsp frame %d (%.1fs): %s", frame_num, ts_sec, e
+                    )
+                    frames_analyzed += 1
+                    continue
+
+                frames_analyzed += 1
+
+                if result.has_violation and result.violations:
+                    filtered = [
+                        v for v in result.violations
+                        if _SEVERITY_ORDER.get(v.get("severity", "warning"), 1) >= threshold_level
+                    ]
+                    if filtered:
+                        self._repo.create_event(
+                            session_id=session_id,
+                            timestamp_sec=ts_sec,
+                            frame_number=frame_num,
+                            violations=filtered,
+                            frame_path=str(frame_path),
+                        )
+                        violation_count += len(filtered)
+                        logger.info(
+                            "vigil rtsp session=%d  frame=%d  ts=%.1fs  violations=%d",
+                            session_id, frame_num, ts_sec, len(filtered),
+                        )
+
+            self._repo.update_session_status(
+                session_id,
+                status="completed",
+                total_frames_analyzed=frames_analyzed,
+                violation_count=violation_count,
+            )
+            logger.info(
+                "vigil rtsp session=%d completed  frames=%d  violations=%d",
+                session_id, frames_analyzed, violation_count,
+            )
+
+        except Exception as e:
+            logger.exception("vigil rtsp session=%d failed: %s", session_id, e)
+            self._repo.update_session_status(
+                session_id,
+                status="failed",
+                total_frames_analyzed=frames_analyzed,
+                violation_count=violation_count,
+            )
+        finally:
+            # Clean up the stop event entry so memory doesn't grow unboundedly
+            self._stream_stop_events.pop(session_id, None)
 
     def _run(
         self,

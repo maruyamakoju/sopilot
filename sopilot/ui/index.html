@@ -616,6 +616,15 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
 .vigil-frame-placeholder{width:160px;min-width:160px;height:90px;border-radius:8px;
   border:1px solid rgba(255,255,255,.06);background:rgba(30,41,59,.4);
   display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:10px}
+.vigil-thumb{max-width:100%;max-height:200px;object-fit:contain;border-radius:8px;
+  border:1px solid rgba(255,255,255,.08);cursor:pointer;display:block;margin-bottom:10px;
+  transition:opacity .15s}
+.vigil-thumb:hover{opacity:.85}
+#vigilLightbox{position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,.88);
+  display:none;align-items:center;justify-content:center;cursor:pointer}
+#vigilLightbox.active{display:flex}
+#vigilLightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;
+  box-shadow:0 8px 48px rgba(0,0,0,.7)}
 </style>
 </head>
 <body>
@@ -3837,6 +3846,7 @@ document.addEventListener("keydown",(e)=>{
     if($("settingsModal").style.display==="flex"){closeSettings();return;}
     if($("batchPanel").style.display==="flex"){closeBatch();return;}
     if($("stepDefsModal").style.display==="flex"){closeStepDefs();return;}
+    if($("vigilLightbox").classList.contains("active")){closeVigilLightbox();return;}
     if($("vigilModal").classList.contains("active")){closeVigil();return;}
     return;
   }
@@ -4129,10 +4139,10 @@ async function renderVigilDetail(session){
         html+=`<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">違反イベント (${events.length}件)</div>`;
         events.forEach(ev=>{
           const maxSev=ev.violations.reduce((m,v)=>(sevOrder[v.severity]||0)>(sevOrder[m]||0)?v.severity:m,"info");
-          html+=`<div class="vigil-event-card">
+          html+=`<div class="vigil-event-card" style="flex-direction:column">
             ${ev.frame_url
-              ?`<img src="${ev.frame_url}" class="vigil-frame-thumb" loading="lazy" alt="frame" onclick="window.open('${ev.frame_url}','_blank')" title="クリックで拡大"/>`
-              :`<div class="vigil-frame-placeholder">No Frame</div>`}
+              ?`<img src="${ev.frame_url}" class="vigil-thumb" loading="lazy" alt="frame" onclick="openVigilLightbox('${ev.frame_url}')" onerror="this.style.display='none'" title="クリックで拡大"/>`
+              :""}
             <div style="flex:1;min-width:0">
               <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap">
                 <span style="font-size:12px;font-weight:700;color:var(--accent-b)">${vigilFormatTs(ev.timestamp_sec)}</span>
@@ -4184,6 +4194,24 @@ async function uploadVigilVideo(input,sessionId){
     await loadVigilSessions();
   }catch(e){toast(`エラー: ${e.message}`,"error");}
 }
+
+function openVigilLightbox(url){
+  const lb=$("vigilLightbox");
+  lb.querySelector("img").src=url;
+  lb.classList.add("active");
+}
+
+function closeVigilLightbox(){
+  const lb=$("vigilLightbox");
+  lb.classList.remove("active");
+  lb.querySelector("img").src="";
+}
 </script>
+
+<!-- Vigil frame lightbox overlay -->
+<div id="vigilLightbox" onclick="closeVigilLightbox()">
+  <img src="" alt="frame" onclick="event.stopPropagation()"/>
+</div>
+
 </body>
 </html>

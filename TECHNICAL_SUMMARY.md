@@ -18,22 +18,27 @@ events, and a `pass / needs_review / retrain / fail` verdict within seconds.
 
 ---
 
-## v1.2 New Feature: VigilPilot
+## v1.2 New Features: VigilPilot
 
 VigilPilot is a surveillance camera AI module that detects rule violations in any video footage
-using Claude Vision, without requiring gold reference videos. The operator defines detection rules
+or RTSP live stream, without requiring gold reference videos. Operators define detection rules
 as plain natural-language text; the system samples frames at configurable fps and reports
-violations with severity levels, confidence scores, and frame thumbnails.
+violations with severity levels, confidence scores, and annotated frame thumbnails.
 
 **Key capabilities:**
 - **Text-defined rules** — no ML training, no reference video; rules change in seconds
-- **Claude Vision backend** — Claude Sonnet via Anthropic API; pluggable architecture
+- **Pluggable VLM backends** — three options, switchable via `VIGIL_VLM_BACKEND` env var:
+  - `claude` *(default)* — Claude Sonnet 4.6 via Anthropic API; no GPU required
+  - `qwen3` — Qwen3-VL-4B local inference via `transformers`; returns **bounding boxes**
+  - `qwen3-api` — Any OpenAI-compatible endpoint (Together.ai, Hyperbolic, vLLM); `<think>` tags stripped
+- **Bounding-box evidence** — Qwen3-VL backend annotates violation frames with colored bbox overlays (PIL rendering); returned by `GET /vigil/events/{id}/frame?annotate=true`
+- **RTSP live camera** — `POST /vigil/sessions/{id}/stream` accepts `rtsp://` URL for real-time streaming; `DELETE` stops the stream
 - **Severity filtering** — `info / warning / critical` threshold per session
-- **Frame evidence** — each violation event stores the JPEG frame (`GET /vigil/events/{id}/frame`)
+- **Frame evidence** — each violation event stores the JPEG frame + bbox metadata
 - **Background processing** — non-blocking; poll `GET /vigil/sessions/{id}` for progress
 - **Full reporting** — `GET /vigil/sessions/{id}/report` with severity and rule breakdowns
 
-**Deployment note:** Set `ANTHROPIC_API_KEY` in `.env`. No additional dependencies or GPU required.
+**Deployment note:** Set `ANTHROPIC_API_KEY` in `.env` for Claude backend (default). GPU + transformers required for `qwen3` backend only.
 
 See §VigilPilot API Surface below and `QUICKSTART.md §8` for usage examples.
 
@@ -177,9 +182,10 @@ Thresholds are configurable per task profile and evidence-based (LOSO-validated 
 | Category | Endpoints |
 |---|---|
 | Session management | `POST /vigil/sessions`, `GET /vigil/sessions`, `GET /vigil/sessions/{id}`, `DELETE /vigil/sessions/{id}` |
-| Analysis | `POST /vigil/sessions/{id}/analyze` — upload video, start background analysis |
-| Events | `GET /vigil/sessions/{id}/events` — violation events with timestamps |
-| Frame evidence | `GET /vigil/events/{event_id}/frame` — JPEG frame at violation timestamp |
+| Video analysis | `POST /vigil/sessions/{id}/analyze` — upload video file, start background analysis |
+| RTSP streaming | `POST /vigil/sessions/{id}/stream` — start live RTSP stream analysis; `DELETE /vigil/sessions/{id}/stream` — stop |
+| Events | `GET /vigil/sessions/{id}/events` — violation events with timestamps and bbox data |
+| Frame evidence | `GET /vigil/events/{event_id}/frame?annotate=true` — JPEG frame; bbox overlays drawn when Qwen3-VL used |
 | Reports | `GET /vigil/sessions/{id}/report` — severity + rule breakdown aggregation |
 
 Full OpenAPI spec at `http://localhost:8000/docs` (Swagger UI) or `/redoc`.
@@ -194,7 +200,7 @@ Full OpenAPI spec at `http://localhost:8000/docs` (Swagger UI) or `/redoc`.
 - **Reliability:** Score job retry (2 attempts), webhook notification with exponential backoff
 - **Security:** CORS allowlist, `X-Request-ID` correlation, non-root container user (uid 1000)
 - **Audit log:** Structured JSON events for video deletion, job creation, completion, reviews
-- **Test coverage:** 951 automated tests (unit + integration + property-based + concurrency)
+- **Test coverage:** 972 automated tests (unit + integration + property-based + concurrency)
 
 ---
 

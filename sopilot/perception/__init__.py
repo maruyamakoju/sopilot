@@ -3,7 +3,7 @@
 Replaces stateless VLM-per-frame analysis with:
     Frame → Detect → Track → Scene Graph → World Model → Reason → Events
 
-Modules:
+Phase 1 — Core Pipeline:
     types       — Shared data structures (BBox, Detection, Track, SceneGraph, etc.)
     detector    — Open-vocabulary object detection (Grounding-DINO, YOLO-World, mock)
     tracker     — Multi-object tracking with persistent identity (ByteTrack)
@@ -11,4 +11,9 @@ Modules:
     world_model — Continuous world state, temporal memory, anomaly baseline
     reasoning   — Hybrid local + VLM reasoning for rule evaluation
     engine      — Main orchestrator tying all components together
+
+Phase 2 — Intelligence:
+    prediction  — Trajectory forecasting, proactive zone/collision alerts
+    activity    — Activity recognition from trajectory patterns (rule-based)
+    attention   — Dynamic VLM frame sampling based on scene attention scoring
 """

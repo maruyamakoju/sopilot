@@ -134,6 +134,10 @@ class PerceptionEngine:
         world_model: Any | None = None,
         reasoner: HybridReasoner | None = None,
         vlm_client: Any | None = None,
+        trajectory_predictor: Any | None = None,
+        activity_classifier: Any | None = None,
+        activity_monitor: Any | None = None,
+        attention_scorer: Any | None = None,
     ) -> None:
         """Initialize the perception engine.
 
@@ -145,6 +149,10 @@ class PerceptionEngine:
             world_model: WorldModel for temporal state and event generation.
             reasoner: HybridReasoner for rule evaluation.
             vlm_client: VLM client for escalation (passed to reasoner if needed).
+            trajectory_predictor: TrajectoryPredictor for proactive zone/collision alerts.
+            activity_classifier: ActivityClassifier for trajectory-based activity recognition.
+            activity_monitor: ActivityMonitor for activity change events.
+            attention_scorer: SceneAttentionScorer for dynamic frame sampling.
         """
         self._config = config or PerceptionConfig()
         self._detector = detector
@@ -157,6 +165,22 @@ class PerceptionEngine:
         self._reasoner = reasoner or HybridReasoner(
             config=self._config, vlm_client=vlm_client
         )
+
+        # Phase 2: prediction, activity, attention
+        self._trajectory_predictor = trajectory_predictor
+        self._proactive_alerter = None
+        if trajectory_predictor is not None:
+            try:
+                from sopilot.perception.prediction import ProactiveAlertGenerator
+                self._proactive_alerter = ProactiveAlertGenerator(
+                    predictor=trajectory_predictor
+                )
+            except ImportError:
+                pass
+        self._activity_classifier = activity_classifier
+        self._activity_monitor = activity_monitor
+        self._attention_scorer = attention_scorer
+        self._previous_world_state: WorldState | None = None
 
         # Zones for scene graph and world model
         self._zones: list[Zone] = list(self._config.zone_definitions)
@@ -171,12 +195,16 @@ class PerceptionEngine:
 
         logger.info(
             "PerceptionEngine initialized: detector=%s, tracker=%s, "
-            "scene_builder=%s, world_model=%s, vlm=%s",
+            "scene_builder=%s, world_model=%s, vlm=%s, "
+            "predictor=%s, activity=%s, attention=%s",
             type(self._detector).__name__ if self._detector else "None",
             type(self._tracker).__name__ if self._tracker else "None",
             type(self._scene_builder).__name__ if self._scene_builder else "None",
             type(self._world_model).__name__ if self._world_model else "None",
             type(self._vlm_client).__name__ if self._vlm_client else "None",
+            type(self._trajectory_predictor).__name__ if self._trajectory_predictor else "None",
+            type(self._activity_classifier).__name__ if self._activity_classifier else "None",
+            type(self._attention_scorer).__name__ if self._attention_scorer else "None",
         )
 
     # ── Public API ────────────────────────────────────────────────────
@@ -234,6 +262,29 @@ class PerceptionEngine:
             t_stage = time.perf_counter()
             world_state = self._run_world_model(scene_graph)
             timings["world_model_ms"] = (time.perf_counter() - t_stage) * 1000
+
+            # ── Stage 4b: Trajectory prediction (proactive alerts) ─
+            t_stage = time.perf_counter()
+            prediction_events = self._run_prediction(
+                world_state, frame_number, timestamp
+            )
+            if prediction_events:
+                world_state.events.extend(prediction_events)
+            timings["prediction_ms"] = (time.perf_counter() - t_stage) * 1000
+
+            # ── Stage 4c: Activity recognition ─────────────────────
+            t_stage = time.perf_counter()
+            activity_events = self._run_activity_recognition(
+                world_state, timestamp, frame_number
+            )
+            if activity_events:
+                world_state.events.extend(activity_events)
+            timings["activity_ms"] = (time.perf_counter() - t_stage) * 1000
+
+            # ── Stage 4d: Attention scoring ────────────────────────
+            t_stage = time.perf_counter()
+            self._run_attention_scoring(world_state)
+            timings["attention_ms"] = (time.perf_counter() - t_stage) * 1000
 
             # ── Stage 5: Evaluate rules (hybrid reasoning) ────────
             t_stage = time.perf_counter()
@@ -413,6 +464,14 @@ class PerceptionEngine:
             except (AttributeError, Exception):
                 pass
 
+        # Reset Phase 2 components
+        if self._activity_monitor is not None:
+            try:
+                self._activity_monitor._previous_activities.clear()
+            except (AttributeError, Exception):
+                pass
+        self._previous_world_state = None
+
         self._cached_rules_key = None
         self._cached_prompts = []
         self._frames_processed = 0
@@ -548,6 +607,61 @@ class PerceptionEngine:
             person_count=scene_graph.person_count,
         )
 
+    def _run_prediction(
+        self,
+        world_state: WorldState,
+        frame_number: int,
+        timestamp: float,
+    ) -> list[EntityEvent]:
+        """Run trajectory prediction and generate proactive alerts."""
+        if self._proactive_alerter is None:
+            return []
+        try:
+            return self._proactive_alerter.generate_alerts(
+                tracks=world_state.active_tracks,
+                zones=self._zones,
+                current_frame=frame_number,
+                current_timestamp=timestamp,
+            )
+        except Exception:
+            logger.exception("Trajectory prediction failed at frame %d", frame_number)
+            return []
+
+    def _run_activity_recognition(
+        self,
+        world_state: WorldState,
+        timestamp: float,
+        frame_number: int,
+    ) -> list[EntityEvent]:
+        """Run activity classification and generate activity change events."""
+        if self._activity_monitor is None:
+            return []
+        try:
+            return self._activity_monitor.update(
+                tracks=world_state.active_tracks,
+                timestamp=timestamp,
+                frame_number=frame_number,
+            )
+        except Exception:
+            logger.exception("Activity recognition failed at frame %d", frame_number)
+            return []
+
+    def _run_attention_scoring(self, world_state: WorldState) -> None:
+        """Score current scene attention and store for adaptive sampling."""
+        if self._attention_scorer is None:
+            return
+        try:
+            score = self._attention_scorer.score(
+                world_state, self._previous_world_state
+            )
+            self._previous_world_state = world_state
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "Attention score: %.3f (%s)", score.total, score.reason
+                )
+        except Exception:
+            logger.exception("Attention scoring failed")
+
     def _events_to_violations(self, world_state: WorldState) -> list[Violation]:
         """Convert world model events (zone entry, prolonged presence) to violations."""
         violations: list[Violation] = []
@@ -587,6 +701,55 @@ class PerceptionEngine:
                     "timestamp": event.timestamp,
                 },
                 source="world_model",
+            )
+
+        if event.event_type == EntityEventType.ZONE_ENTRY_PREDICTED:
+            zone_id = event.details.get("zone_id", "unknown")
+            seconds = event.details.get("estimated_seconds", 0)
+            entity = world_state.scene_graph.get_entity(event.entity_id)
+            return Violation(
+                rule=f"zone_entry_predicted:{zone_id}",
+                rule_index=-1,
+                description_ja=(
+                    f"エンティティ {event.entity_id} が約{seconds:.1f}秒後に"
+                    f"{zone_id}に侵入予測"
+                ),
+                severity=ViolationSeverity.WARNING,
+                confidence=event.confidence,
+                entity_ids=[event.entity_id],
+                bbox=entity.bbox if entity else None,
+                evidence={
+                    "event_type": event.event_type.value,
+                    "zone_id": zone_id,
+                    "estimated_seconds": seconds,
+                    "source": "trajectory_prediction",
+                },
+                source="prediction",
+            )
+
+        if event.event_type == EntityEventType.COLLISION_PREDICTED:
+            entity_a = event.details.get("entity_a_id", event.entity_id)
+            entity_b = event.details.get("entity_b_id", -1)
+            seconds = event.details.get("estimated_seconds", 0)
+            return Violation(
+                rule="collision_predicted",
+                rule_index=-1,
+                description_ja=(
+                    f"エンティティ {entity_a} と {entity_b} が約{seconds:.1f}秒後に"
+                    f"衝突予測"
+                ),
+                severity=ViolationSeverity.WARNING,
+                confidence=event.confidence,
+                entity_ids=[entity_a, entity_b],
+                bbox=None,
+                evidence={
+                    "event_type": event.event_type.value,
+                    "entity_a_id": entity_a,
+                    "entity_b_id": entity_b,
+                    "estimated_seconds": seconds,
+                    "source": "trajectory_prediction",
+                },
+                source="prediction",
             )
 
         if event.event_type == EntityEventType.PROLONGED_PRESENCE:
@@ -743,6 +906,39 @@ def build_perception_engine(
         "enabled" if vlm_client is not None else "disabled",
     )
 
+    # ── Build Phase 2 components ───────────────────────────────────────
+    trajectory_predictor = None
+    try:
+        from sopilot.perception.prediction import TrajectoryPredictor
+        trajectory_predictor = TrajectoryPredictor()
+        logger.info("TrajectoryPredictor initialized")
+    except ImportError:
+        logger.debug("Prediction module not available")
+    except Exception:
+        logger.exception("Failed to initialize trajectory predictor")
+
+    activity_classifier = None
+    activity_monitor = None
+    try:
+        from sopilot.perception.activity import ActivityClassifier, ActivityMonitor
+        activity_classifier = ActivityClassifier()
+        activity_monitor = ActivityMonitor(classifier=activity_classifier)
+        logger.info("ActivityClassifier + ActivityMonitor initialized")
+    except ImportError:
+        logger.debug("Activity module not available")
+    except Exception:
+        logger.exception("Failed to initialize activity classifier")
+
+    attention_scorer = None
+    try:
+        from sopilot.perception.attention import SceneAttentionScorer
+        attention_scorer = SceneAttentionScorer()
+        logger.info("SceneAttentionScorer initialized")
+    except ImportError:
+        logger.debug("Attention module not available")
+    except Exception:
+        logger.exception("Failed to initialize attention scorer")
+
     # ── Assemble engine ───────────────────────────────────────────────
     engine = PerceptionEngine(
         config=config,
@@ -752,6 +948,10 @@ def build_perception_engine(
         world_model=world_model,
         reasoner=reasoner,
         vlm_client=vlm_client,
+        trajectory_predictor=trajectory_predictor,
+        activity_classifier=activity_classifier,
+        activity_monitor=activity_monitor,
+        attention_scorer=attention_scorer,
     )
 
     return engine

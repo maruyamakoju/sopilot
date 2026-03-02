@@ -341,6 +341,8 @@ class EntityEventType(enum.Enum):
     ANOMALY = "anomaly"  # unusual pattern detected
     RULE_VIOLATION = "rule_violation"  # explicit rule violated
     PROLONGED_PRESENCE = "prolonged_presence"  # entity stayed too long
+    ZONE_ENTRY_PREDICTED = "zone_entry_predicted"  # predicted zone entry
+    COLLISION_PREDICTED = "collision_predicted"  # predicted collision
 
 
 @dataclass

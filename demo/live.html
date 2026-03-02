@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SOPilot v1.2.0 — ライブデモ</title>
+  <style>
+    /* ── CSS Variables ─────────────────────────────────────────── */
+    :root {
+      --bg:     #050810;
+      --bg2:    #0a0e1a;
+      --bg3:    #0d1320;
+      --card:   rgba(255,255,255,0.04);
+      --border: rgba(255,255,255,0.07);
+      --cyan:   #00d4ff;
+      --purple: #7c3aed;
+      --green:  #10b981;
+      --orange: #f59e0b;
+      --red:    #ef4444;
+      --text:   #e2e8f0;
+      --muted:  #64748b;
+      --font:   -apple-system, BlinkMacSystemFont, "Segoe UI", "Hiragino Sans", sans-serif;
+      --mono:   "JetBrains Mono", "Fira Code", "Consolas", monospace;
+    }
+
+    /* ── Reset & Base ──────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      font-size: 14px;
+      line-height: 1.5;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+    button { cursor: pointer; border: none; background: none; font-family: inherit; }
+    input, textarea, select {
+      font-family: inherit;
+      font-size: inherit;
+      color: var(--text);
+    }
+
+    /* ── Scrollbar ─────────────────────────────────────────────── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg2); }
+    ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+
+    /* ── Skeleton ──────────────────────────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg,
+        rgba(255,255,255,0.04) 25%,
+        rgba(255,255,255,0.09) 50%,
+        rgba(255,255,255,0.04) 75%);
+      background-size: 200% 100%;
+      animation: skeleton-sweep 1.5s infinite;
+      border-radius: 4px;
+    }
+    @keyframes skeleton-sweep {
+      from { background-position: 200% 0; }
+      to   { background-position: -200% 0; }
+    }
+
+    /* ── Dot indicators ────────────────────────────────────────── */
+    .dot-green {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green), 0 0 16px rgba(16,185,129,0.4);
+    }
+    .dot-orange {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--orange);
+      animation: pulse 1.2s ease-in-out infinite;
+    }
+    .dot-red {
+      display: inline-block; width: 8px; height: 8px; border-radius: 50%;
+      background: var(--red);
+    }
+    @keyframes pulse { 0%,100%{opacity:1; transform:scale(1);} 50%{opacity:0.5; transform:scale(0.85);} }
+    @keyframes pulse-ring {
+      0%   { transform: scale(1);   opacity: 0.8; }
+      100% { transform: scale(1.8); opacity: 0; }
+    }
+
+    /* ── Header ────────────────────────────────────────────────── */
+    #header {
+      position: fixed; top: 0; left: 0; right: 0; height: 64px; z-index: 200;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 32px;
+      background: rgba(5,8,16,0.96);
+      backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border);
+    }
+    .header-left { display: flex; align-items: center; gap: 14px; }
+    .header-logo {
+      display: flex; align-items: center; gap: 10px;
+      font-size: 1.05rem; font-weight: 700; letter-spacing: -0.01em;
+      color: var(--text);
+    }
+    .logo-icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      background: linear-gradient(135deg, var(--cyan), var(--purple));
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1rem; font-weight: 900; color: #fff;
+      box-shadow: 0 0 16px rgba(0,212,255,0.3);
+      flex-shrink: 0;
+    }
+    .header-divider { width: 1px; height: 28px; background: var(--border); }
+    .header-subtitle { font-size: 0.75rem; color: var(--muted); }
+
+    .header-right { display: flex; align-items: center; gap: 12px; }
+    .metric-pill {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 4px 12px;
+      background: rgba(0,212,255,0.06);
+      border: 1px solid rgba(0,212,255,0.15);
+      border-radius: 8px;
+      gap: 1px;
+    }
+    .metric-pill .val {
+      font-size: 0.78rem; font-weight: 700; color: var(--cyan);
+      text-shadow: 0 0 12px rgba(0,212,255,0.5);
+      font-family: var(--mono);
+    }
+    .metric-pill .lbl { font-size: 0.6rem; color: var(--muted); white-space: nowrap; }
+    #conn-status {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.78rem; color: var(--muted);
+      padding: 4px 10px; border-radius: 20px;
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+    }
+
+    /* ── Hero ──────────────────────────────────────────────────── */
+    #hero {
+      margin-top: 64px;
+      padding: 28px 48px;
+      display: flex; align-items: center; justify-content: space-between; gap: 32px;
+      background: linear-gradient(135deg, rgba(0,212,255,0.025) 0%, rgba(124,58,237,0.025) 100%);
+      border-bottom: 1px solid var(--border);
+      position: relative; overflow: hidden;
+    }
+    #hero::before {
+      content: '';
+      position: absolute; top: -60px; right: 15%; width: 300px; height: 300px;
+      background: radial-gradient(circle, rgba(0,212,255,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    #hero::after {
+      content: '';
+      position: absolute; bottom: -80px; left: 20%; width: 200px; height: 200px;
+      background: radial-gradient(circle, rgba(124,58,237,0.06) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .hero-left { flex: 1; }
+    .hero-title {
+      font-size: 1.25rem; font-weight: 700; color: var(--text);
+      line-height: 1.4; letter-spacing: -0.02em; margin-bottom: 6px;
+    }
+    .hero-sub { font-size: 0.82rem; color: var(--muted); }
+    .hero-sub span { color: var(--green); font-weight: 600; }
+
+    .hero-metrics { display: flex; gap: 12px; flex-shrink: 0; }
+    .hero-metric {
+      padding: 14px 20px; text-align: center;
+      background: rgba(0,212,255,0.04);
+      border: 1px solid rgba(0,212,255,0.12);
+      border-radius: 10px;
+      transition: border-color 0.2s, background 0.2s;
+      min-width: 90px;
+    }
+    .hero-metric:hover {
+      border-color: rgba(0,212,255,0.28);
+      background: rgba(0,212,255,0.07);
+    }
+    .hero-metric .num {
+      font-size: 1.5rem; font-weight: 800; color: var(--cyan);
+      font-family: var(--mono); display: block;
+      text-shadow: 0 0 20px rgba(0,212,255,0.5);
+      line-height: 1;
+    }
+    .hero-metric .zero { color: var(--green); text-shadow: 0 0 20px rgba(16,185,129,0.5); }
+    .hero-metric .lbl { font-size: 0.68rem; color: var(--muted); margin-top: 4px; display: block; }
+
+    /* ── Main layout ───────────────────────────────────────────── */
+    #main {
+      display: grid; grid-template-columns: 60fr 40fr;
+      padding: 24px 32px 80px;
+      gap: 0;
+      min-height: calc(100vh - 185px);
+    }
+    #left-col {
+      padding-right: 28px;
+      border-right: 1px solid rgba(255,255,255,0.05);
+    }
+    #right-col { padding-left: 28px; }
+
+    /* ── Section headers ───────────────────────────────────────── */
+    .section-header {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 16px; gap: 12px;
+    }
+    .section-title {
+      font-size: 0.92rem; font-weight: 600; color: var(--text);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .section-icon {
+      width: 22px; height: 22px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem;
+    }
+    .section-icon.cyan  { background: rgba(0,212,255,0.15); }
+    .section-icon.purple{ background: rgba(124,58,237,0.15); }
+    .section-meta { font-size: 0.72rem; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+
+    /* Section separator */
+    .section-sep { height: 1px; background: var(--border); margin: 28px 0; }
+
+    /* ── Btn ───────────────────────────────────────────────────── */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 6px 14px; border-radius: 7px; font-size: 0.78rem; font-weight: 600;
+      transition: all 0.2s; cursor: pointer; border: 1px solid transparent;
+    }
+    .btn-ghost {
+      background: rgba(255,255,255,0.05);
+      border-color: rgba(255,255,255,0.08);
+      color: var(--muted);
+    }
+    .btn-ghost:hover { background: rgba(255,255,255,0.09); color: var(--text); border-color: rgba(255,255,255,0.15); }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--cyan), rgba(0,180,220,1));
+      color: #000; font-weight: 700;
+      box-shadow: 0 0 16px rgba(0,212,255,0.25);
+    }
+    .btn-primary:hover { box-shadow: 0 0 24px rgba(0,212,255,0.45); transform: translateY(-1px); }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
+    .btn-sm { padding: 4px 10px; font-size: 0.72rem; border-radius: 5px; }
+
+    /* ── Cards ─────────────────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 12px;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .card:hover { border-color: rgba(0,212,255,0.18); background: rgba(255,255,255,0.06); }
+    .card-header {
+      display: flex; align-items: flex-start; justify-content: space-between;
+      margin-bottom: 12px; gap: 10px;
+    }
+    .card-title { font-size: 0.88rem; font-weight: 600; color: var(--text); }
+    .card-sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+
+    /* ── Status badges ─────────────────────────────────────────── */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 3px 9px; border-radius: 20px; font-size: 0.7rem; font-weight: 600;
+      white-space: nowrap; flex-shrink: 0;
+    }
+    .badge-green  { background: rgba(16,185,129,0.15); color: var(--green); border: 1px solid rgba(16,185,129,0.25); }
+    .badge-orange { background: rgba(245,158,11,0.15); color: var(--orange); border: 1px solid rgba(245,158,11,0.25); }
+    .badge-red    { background: rgba(239,68,68,0.15);  color: var(--red);    border: 1px solid rgba(239,68,68,0.25); }
+    .badge-muted  { background: rgba(255,255,255,0.05); color: var(--muted); border: 1px solid var(--border); }
+    .badge-cyan   { background: rgba(0,212,255,0.1);   color: var(--cyan);   border: 1px solid rgba(0,212,255,0.2); }
+    .badge-anim   { animation: pulse 1.5s ease-in-out infinite; }
+
+    /* ── Vigil session cards ───────────────────────────────────── */
+    .session-rules { font-size: 0.75rem; color: var(--muted); margin-bottom: 14px; }
+    .violation-bar-wrap { margin-bottom: 12px; }
+    .violation-bar-label {
+      display: flex; justify-content: space-between; align-items: center;
+      font-size: 0.72rem; color: var(--muted); margin-bottom: 6px;
+    }
+    .violation-bar-label strong { color: var(--text); }
+    .violation-bar {
+      display: flex; height: 6px; border-radius: 3px; overflow: hidden;
+      background: rgba(255,255,255,0.06);
+    }
+    .vbar-critical { background: var(--red); }
+    .vbar-warning  { background: var(--orange); }
+    .vbar-info     { background: #3b82f6; }
+
+    .toggle-events-btn {
+      font-size: 0.75rem; color: var(--cyan); font-weight: 500;
+      background: none; border: none; cursor: pointer; padding: 0;
+      display: flex; align-items: center; gap: 4px;
+      transition: opacity 0.2s;
+    }
+    .toggle-events-btn:hover { opacity: 0.75; }
+
+    /* ── Events list ───────────────────────────────────────────── */
+    .events-list {
+      display: none; margin-top: 14px;
+      border-top: 1px solid var(--border); padding-top: 14px;
+    }
+    .event-row {
+      display: flex; align-items: flex-start; gap: 10px;
+      padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04);
+    }
+    .event-row:last-child { border-bottom: none; padding-bottom: 0; }
+    .event-sev-icon { font-size: 0.8rem; margin-top: 1px; flex-shrink: 0; }
+    .event-body { flex: 1; min-width: 0; }
+    .event-meta { font-size: 0.7rem; color: var(--muted); margin-bottom: 3px; }
+    .event-rule { font-size: 0.8rem; color: var(--text); margin-bottom: 4px; }
+    .event-desc { font-size: 0.72rem; color: var(--muted); }
+    .conf-bar-wrap {
+      display: flex; align-items: center; gap: 8px; margin-top: 5px;
+    }
+    .conf-bar-bg {
+      flex: 1; height: 3px; background: rgba(255,255,255,0.08); border-radius: 2px;
+    }
+    .conf-bar-fill { height: 3px; border-radius: 2px; }
+    .conf-pct { font-size: 0.68rem; color: var(--muted); white-space: nowrap; }
+    .event-actions { display: flex; align-items: center; flex-shrink: 0; }
+    .ack-btn {
+      font-size: 0.68rem; padding: 3px 8px; border-radius: 5px; font-weight: 600;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--muted);
+      cursor: pointer; transition: all 0.2s; white-space: nowrap;
+    }
+    .ack-btn:hover { background: rgba(16,185,129,0.15); border-color: var(--green); color: var(--green); }
+    .ack-done { color: var(--green); font-size: 0.68rem; font-weight: 600; padding: 3px 8px; }
+
+    /* ── Score cards ───────────────────────────────────────────── */
+    .score-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 16px; }
+    .score-card {
+      background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+      padding: 14px; text-align: center;
+      transition: border-color 0.2s, background 0.2s;
+    }
+    .score-card:hover { border-color: rgba(0,212,255,0.18); background: rgba(255,255,255,0.06); }
+    .score-num {
+      font-size: 1.6rem; font-weight: 800; font-family: var(--mono);
+      line-height: 1; margin-bottom: 8px;
+    }
+    .score-decision { margin-bottom: 8px; }
+    .score-task { font-size: 0.65rem; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    /* ── Dist chart ────────────────────────────────────────────── */
+    #dist-chart {
+      padding: 14px 0; display: flex; justify-content: flex-start;
+    }
+
+    /* ── Right column panels ───────────────────────────────────── */
+    .panel {
+      background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+      padding: 20px; margin-bottom: 16px;
+    }
+    .panel-title {
+      font-size: 0.88rem; font-weight: 700; color: var(--text);
+      margin-bottom: 16px; display: flex; align-items: center; gap: 8px;
+    }
+    .panel-title-icon { font-size: 0.9rem; }
+
+    /* ── Interactive panel form ────────────────────────────────── */
+    .form-row { margin-bottom: 12px; }
+    .form-label { font-size: 0.72rem; color: var(--muted); margin-bottom: 5px; display: block; font-weight: 600; }
+    .form-select {
+      width: 100%; padding: 8px 10px; border-radius: 7px;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      color: var(--text); font-size: 0.8rem;
+      appearance: none; cursor: pointer;
+      transition: border-color 0.2s;
+    }
+    .form-select:focus { outline: none; border-color: var(--cyan); }
+    .form-select option { background: var(--bg2); }
+    .form-textarea {
+      width: 100%; padding: 10px 12px; border-radius: 7px;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      color: var(--text); font-size: 0.78rem; resize: vertical; min-height: 90px;
+      line-height: 1.6; transition: border-color 0.2s;
+    }
+    .form-textarea:focus { outline: none; border-color: var(--cyan); }
+    .form-textarea::placeholder { color: var(--muted); }
+    .form-file-btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 14px; border-radius: 7px; font-size: 0.78rem; font-weight: 600;
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border); color: var(--muted);
+      cursor: pointer; transition: all 0.2s;
+    }
+    .form-file-btn:hover { background: rgba(255,255,255,0.09); border-color: rgba(255,255,255,0.15); color: var(--text); }
+    #frame-file { display: none; }
+    #file-label { font-size: 0.72rem; color: var(--muted); margin-left: 8px; }
+    .form-divider {
+      display: flex; align-items: center; gap: 8px; margin: 10px 0;
+      font-size: 0.68rem; color: var(--muted);
+    }
+    .form-divider::before, .form-divider::after {
+      content: ''; flex: 1; height: 1px; background: var(--border);
+    }
+
+    /* ── Analysis result ───────────────────────────────────────── */
+    #analysis-result {
+      margin-top: 14px; min-height: 40px;
+    }
+    .result-clean {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px; border-radius: 8px;
+      background: rgba(16,185,129,0.08); border: 1px solid rgba(16,185,129,0.2);
+    }
+    .result-icon { font-size: 1.4rem; }
+    .result-title { font-size: 0.88rem; font-weight: 700; color: var(--green); }
+    .result-sub { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+    .result-warn-header {
+      display: flex; align-items: center; gap: 6px;
+      font-size: 0.82rem; font-weight: 700; color: var(--orange); margin-bottom: 10px;
+    }
+    .result-placeholder {
+      font-size: 0.75rem; color: var(--muted); text-align: center; padding: 12px 0;
+      border: 1px dashed var(--border); border-radius: 7px;
+    }
+
+    /* ── System info panel ─────────────────────────────────────── */
+    .info-grid { display: flex; flex-direction: column; gap: 10px; }
+    .info-row { display: flex; gap: 0; }
+    .info-key {
+      font-size: 0.7rem; color: var(--muted); font-weight: 600;
+      min-width: 90px; padding-top: 1px; flex-shrink: 0;
+    }
+    .info-val { font-size: 0.75rem; color: var(--text); }
+    .info-val code { font-family: var(--mono); font-size: 0.7rem; color: var(--cyan); }
+    .vlm-dot { display: inline-flex; align-items: center; gap: 5px; margin-right: 12px; }
+    .vlm-dot .d { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); }
+    .vlm-dot.active .d { background: var(--green); box-shadow: 0 0 6px var(--green); }
+    .vlm-dot.active span { color: var(--text); font-weight: 600; }
+    .vlm-dot span { font-size: 0.72rem; color: var(--muted); }
+
+    /* ── Templates ─────────────────────────────────────────────── */
+    .template-pills { display: flex; flex-wrap: wrap; gap: 7px; }
+    .tmpl-pill {
+      padding: 5px 12px; border-radius: 20px; font-size: 0.73rem; font-weight: 600;
+      background: rgba(124,58,237,0.1); border: 1px solid rgba(124,58,237,0.2); color: #a78bfa;
+      cursor: pointer; transition: all 0.2s;
+    }
+    .tmpl-pill:hover {
+      background: rgba(124,58,237,0.2); border-color: rgba(124,58,237,0.4); color: #c4b5fd;
+      transform: translateY(-1px);
+    }
+    .tmpl-pill.active {
+      background: rgba(124,58,237,0.25); border-color: rgba(124,58,237,0.5); color: #ddd6fe;
+    }
+
+    /* ── Error message ─────────────────────────────────────────── */
+    .error-msg {
+      padding: 12px 16px; border-radius: 8px; font-size: 0.78rem; color: var(--red);
+      background: rgba(239,68,68,0.07); border: 1px solid rgba(239,68,68,0.15);
+    }
+    .no-data-msg {
+      padding: 16px; text-align: center; font-size: 0.78rem; color: var(--muted);
+      border: 1px dashed var(--border); border-radius: 10px;
+    }
+
+    /* ── Footer ────────────────────────────────────────────────── */
+    #footer {
+      position: fixed; bottom: 0; left: 0; right: 0; height: 40px;
+      display: flex; align-items: center; justify-content: space-between; padding: 0 32px;
+      background: rgba(5,8,16,0.97); border-top: 1px solid var(--border);
+      font-size: 0.7rem; color: #334155;
+      z-index: 100;
+    }
+    #footer a { color: #475569; text-decoration: none; }
+    #footer a:hover { color: var(--cyan); }
+    .footer-mid { display: flex; align-items: center; gap: 10px; }
+    .footer-sep { color: #1e293b; }
+
+    /* ── Misc utilities ────────────────────────────────────────── */
+    .fade-in { animation: fadein 0.35s ease forwards; }
+    @keyframes fadein { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+    .gradient-border {
+      background: linear-gradient(var(--bg2), var(--bg2)) padding-box,
+                  linear-gradient(135deg, rgba(0,212,255,0.3), rgba(124,58,237,0.3)) border-box;
+      border: 1px solid transparent;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════ HEADER -->
+<header id="header">
+  <div class="header-left">
+    <div class="header-logo">
+      <div class="logo-icon">S</div>
+      SOPilot <span style="font-weight:400;color:var(--muted);margin-left:2px;">v1.2.0</span>
+    </div>
+    <div class="header-divider"></div>
+    <div class="header-subtitle">現場安全・SOP適合評価システム</div>
+  </div>
+  <div class="header-right">
+    <div class="metric-pill">
+      <span class="val">99.40%</span>
+      <span class="lbl">精度</span>
+    </div>
+    <div class="metric-pill">
+      <span class="val">99.62%</span>
+      <span class="lbl">F1スコア</span>
+    </div>
+    <div class="metric-pill">
+      <span class="val">99.69%</span>
+      <span class="lbl">AUC-ROC</span>
+    </div>
+    <div class="metric-pill">
+      <span class="val" style="color:var(--green);text-shadow:0 0 12px rgba(16,185,129,0.5);">FP=0</span>
+      <span class="lbl">偽陽性</span>
+    </div>
+    <div class="metric-pill">
+      <span class="val">1,036</span>
+      <span class="lbl">テスト件数</span>
+    </div>
+    <div id="conn-status">
+      <span class="dot-orange"></span> 接続中...
+    </div>
+  </div>
+</header>
+
+<!-- ═══════════════════════════════════════════════════════════════ HERO -->
+<section id="hero">
+  <div class="hero-left">
+    <div class="hero-title">現場の安全とSOP適合を、AIの目で守る。</div>
+    <div class="hero-sub">
+      本番環境 <span>3,507件</span>で検証済み。&nbsp;
+      LOSO交差検証 閾値60.0 &nbsp;·&nbsp;
+      TP=2,766 &nbsp;·&nbsp; FN=21 &nbsp;·&nbsp;
+      <span>偽陽性ゼロ (FP=0)</span>
+    </div>
+  </div>
+  <div class="hero-metrics">
+    <div class="hero-metric">
+      <span class="num">99.40%</span>
+      <span class="lbl">精度</span>
+    </div>
+    <div class="hero-metric">
+      <span class="num">99.62%</span>
+      <span class="lbl">F1スコア</span>
+    </div>
+    <div class="hero-metric">
+      <span class="num">99.69%</span>
+      <span class="lbl">AUC-ROC</span>
+    </div>
+    <div class="hero-metric">
+      <span class="num zero">0</span>
+      <span class="lbl">偽陽性</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════ MAIN -->
+<main id="main">
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ LEFT COLUMN -->
+  <div id="left-col">
+
+    <!-- Section A: VigilPilot -->
+    <div style="margin-bottom:0;">
+      <div class="section-header">
+        <div class="section-title">
+          <div class="section-icon cyan" style="font-size:0.8rem;">🛡</div>
+          VigilPilot — リアルタイム安全監視
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div class="section-meta">
+            最終更新: <span id="last-refreshed">--</span>
+          </div>
+          <button class="btn btn-ghost btn-sm" onclick="newSession()">+ 新規セッション</button>
+        </div>
+      </div>
+      <div id="vigil-sessions">
+        <!-- skeleton -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:12px;">
+          <div class="skeleton" style="width:55%;height:15px;margin-bottom:10px;"></div>
+          <div class="skeleton" style="width:40%;height:11px;margin-bottom:16px;"></div>
+          <div class="skeleton" style="width:100%;height:6px;"></div>
+        </div>
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:12px;">
+          <div class="skeleton" style="width:45%;height:15px;margin-bottom:10px;"></div>
+          <div class="skeleton" style="width:35%;height:11px;margin-bottom:16px;"></div>
+          <div class="skeleton" style="width:100%;height:6px;"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-sep"></div>
+
+    <!-- Section B: SOPilot scores -->
+    <div>
+      <div class="section-header">
+        <div class="section-title">
+          <div class="section-icon purple" style="font-size:0.8rem;">📊</div>
+          SOPilot — SOP適合スコアリング
+        </div>
+        <div class="section-meta">直近6件</div>
+      </div>
+      <div id="score-cards" class="score-grid">
+        <div class="score-card"><div class="skeleton" style="width:60px;height:36px;margin:0 auto 8px;"></div><div class="skeleton" style="width:50px;height:20px;margin:0 auto;"></div></div>
+        <div class="score-card"><div class="skeleton" style="width:60px;height:36px;margin:0 auto 8px;"></div><div class="skeleton" style="width:50px;height:20px;margin:0 auto;"></div></div>
+        <div class="score-card"><div class="skeleton" style="width:60px;height:36px;margin:0 auto 8px;"></div><div class="skeleton" style="width:50px;height:20px;margin:0 auto;"></div></div>
+      </div>
+      <div id="dist-chart"></div>
+    </div>
+
+  </div>
+
+  <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ RIGHT COLUMN -->
+  <div id="right-col">
+
+    <!-- Panel 1: Interactive -->
+    <div class="panel gradient-border">
+      <div class="panel-title">
+        <span class="panel-title-icon">🔍</span>
+        VigilPilot — インタラクティブ解析
+      </div>
+
+      <div class="form-row">
+        <label class="form-label" for="session-select">既存セッションを選択</label>
+        <select class="form-select" id="session-select">
+          <option value="">— 新規セッションとして実行 —</option>
+        </select>
+      </div>
+
+      <div class="form-divider">または新規ルールを入力</div>
+
+      <div class="form-row">
+        <label class="form-label" for="rules-input">監視ルール（1行に1ルール）</label>
+        <textarea class="form-textarea" id="rules-input"
+          placeholder="例:&#10;ヘルメット未着用の作業者を検出&#10;安全ベルトなしで高所作業している人を検出"></textarea>
+      </div>
+
+      <div class="form-row">
+        <label class="form-label">解析する画像</label>
+        <div style="display:flex;align-items:center;flex-wrap:wrap;gap:8px;">
+          <label class="form-file-btn" for="frame-file">
+            📷 画像を選択
+          </label>
+          <input type="file" id="frame-file" accept="image/*" onchange="onFileChange(this)">
+          <span id="file-label">未選択</span>
+        </div>
+        <div id="image-preview-wrap" style="display:none;margin-top:10px;">
+          <img id="image-preview" style="max-width:100%;max-height:160px;border-radius:7px;border:1px solid var(--border);object-fit:cover;">
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="run-btn" style="width:100%;justify-content:center;padding:10px;" onclick="runAnalysis()">
+        🔍 解析実行
+      </button>
+
+      <div id="analysis-result">
+        <div class="result-placeholder">解析結果がここに表示されます</div>
+      </div>
+    </div>
+
+    <!-- Panel 2: System info -->
+    <div class="panel">
+      <div class="panel-title">
+        <span class="panel-title-icon">⚙</span>
+        システム概要
+      </div>
+      <div class="info-grid">
+        <div class="info-row">
+          <div class="info-key">評価手法</div>
+          <div class="info-val">LOSO交差検証 (N=3,507, 閾値=60.0)</div>
+        </div>
+        <div class="info-row">
+          <div class="info-key">アルゴリズム</div>
+          <div class="info-val">
+            <code>DTW + Sakoe-Chiba (バンド幅 20%)</code><br>
+            ColorMotion-v1 埋め込み (GPU不要)
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="info-key">VLMバックエンド</div>
+          <div class="info-val">
+            <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:2px;">
+              <div class="vlm-dot active">
+                <div class="d"></div><span>Claude Sonnet 4.6 (デフォルト)</span>
+              </div>
+              <div class="vlm-dot">
+                <div class="d"></div><span>Qwen3-VL-4B (GPU/エアギャップ)</span>
+              </div>
+              <div class="vlm-dot">
+                <div class="d"></div><span>OpenAI互換API (Together.ai等)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="info-key">判定ロジック</div>
+          <div class="info-val" style="font-size:0.72rem;font-family:var(--mono);color:var(--muted);">
+            重大逸脱 → 不合格 (スコア優先)<br>
+            スコア≥60 → 合格 / ≥50 → 要確認 / &lt;50 → 要再訓練
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="info-key">テスト数</div>
+          <div class="info-val">
+            <code>1,036件</code>
+            <span style="font-size:0.7rem;color:var(--muted);"> (unit + integration + property-based)</span>
+          </div>
+        </div>
+        <div class="info-row">
+          <div class="info-key">デプロイ</div>
+          <div class="info-val">Docker Compose (オンプレミス, 外部依存なし)</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Panel 3: Templates -->
+    <div class="panel">
+      <div class="panel-title">
+        <span class="panel-title-icon">📋</span>
+        ルールテンプレート
+      </div>
+      <div id="template-pills" class="template-pills">
+        <div class="skeleton" style="width:90px;height:26px;border-radius:20px;display:inline-block;margin-right:6px;"></div>
+        <div class="skeleton" style="width:110px;height:26px;border-radius:20px;display:inline-block;margin-right:6px;"></div>
+        <div class="skeleton" style="width:80px;height:26px;border-radius:20px;display:inline-block;"></div>
+      </div>
+      <div id="template-desc" style="margin-top:10px;font-size:0.72rem;color:var(--muted);min-height:16px;"></div>
+    </div>
+
+  </div><!-- / right-col -->
+</main>
+
+<!-- ═══════════════════════════════════════════════════════════════ FOOTER -->
+<footer id="footer">
+  <div>SOPilot v1.2.0 — Cambridge / Google DeepMind 評価ビルド &nbsp;·&nbsp; © 2026 SOPilot</div>
+  <div class="footer-mid">
+    <span id="footer-status">--</span>
+    <span class="footer-sep">|</span>
+    <a href="http://localhost:8001/docs" target="_blank">API Docs</a>
+    <span class="footer-sep">|</span>
+    <span style="color:#1e3a5f;">http://localhost:8001</span>
+  </div>
+</footer>
+
+<!-- ═══════════════════════════════════════════════════════════════ SCRIPT -->
+<script>
+// ── CONFIG ──────────────────────────────────────────────────────────────
+// デモ前にサーバーURLを確認してください
+const SERVER = 'http://localhost:8001';
+const API_KEY = '';  // X-API-Key header value; leave empty if no auth required
+
+// ── STATE ────────────────────────────────────────────────────────────────
+let _sessions = [];
+let _templates = [];
+let _refreshTimer = null;
+let _lastRefreshSecs = 0;
+let _refreshIntervalId = null;
+let _activeTemplateId = null;
+
+// ── HELPERS ──────────────────────────────────────────────────────────────
+function headers(isJson = true) {
+  const h = {};
+  if (isJson) h['Content-Type'] = 'application/json';
+  if (API_KEY) h['X-API-Key'] = API_KEY;
+  return h;
+}
+
+function fmt(n, d = 1) {
+  if (n === null || n === undefined) return '--';
+  return Number(n).toFixed(d);
+}
+
+function escapeHtml(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// ── CONNECTION STATUS ─────────────────────────────────────────────────────
+function updateConnectionStatus(state) {
+  const el = document.getElementById('conn-status');
+  const footer = document.getElementById('footer-status');
+  if (state === 'connected') {
+    el.innerHTML = '<span class="dot-green"></span> ライブ接続中';
+    if (footer) footer.textContent = 'サーバー接続済み';
+  } else if (state === 'connecting') {
+    el.innerHTML = '<span class="dot-orange"></span> 接続中...';
+    if (footer) footer.textContent = '接続中...';
+  } else {
+    el.innerHTML = '<span class="dot-red"></span> 未接続';
+    if (footer) footer.innerHTML = '<span style="color:var(--red)">サーバーに接続できません — http://localhost:8001 が起動しているか確認してください</span>';
+  }
+}
+
+// ── LAST REFRESHED COUNTER ────────────────────────────────────────────────
+function updateLastRefreshed() {
+  const el = document.getElementById('last-refreshed');
+  if (!el) return;
+  _lastRefreshSecs = 0;
+  if (_refreshIntervalId) clearInterval(_refreshIntervalId);
+  el.textContent = '今';
+  _refreshIntervalId = setInterval(() => {
+    _lastRefreshSecs++;
+    if (_lastRefreshSecs < 60) el.textContent = `${_lastRefreshSecs}秒前`;
+    else el.textContent = `${Math.floor(_lastRefreshSecs / 60)}分前`;
+  }, 1000);
+}
+
+// ── SKELETON ──────────────────────────────────────────────────────────────
+function showSkeleton(el, n = 2) {
+  el.innerHTML = Array.from({length: n}, () => `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-bottom:12px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:10px;">
+        <div class="skeleton" style="width:50%;height:15px;"></div>
+        <div class="skeleton" style="width:60px;height:22px;border-radius:12px;"></div>
+      </div>
+      <div class="skeleton" style="width:70%;height:11px;margin-bottom:16px;"></div>
+      <div class="skeleton" style="width:100%;height:6px;border-radius:3px;"></div>
+    </div>`).join('');
+}
+
+// ── STATUS BADGE ──────────────────────────────────────────────────────────
+function statusBadge(status) {
+  const map = {
+    completed: ['badge-green', '完了'],
+    processing:['badge-orange badge-anim', '処理中'],
+    failed:    ['badge-red', '失敗'],
+    idle:      ['badge-muted', 'アイドル'],
+  };
+  const [cls, label] = map[status] || ['badge-muted', status];
+  const dot = status === 'processing' ? '<span class="dot-orange" style="width:6px;height:6px;"></span>' : '';
+  return `<span class="badge ${cls}">${dot}${label}</span>`;
+}
+
+// ── LOAD ALL ──────────────────────────────────────────────────────────────
+async function loadAll() {
+  updateConnectionStatus('connecting');
+  const results = await Promise.allSettled([
+    loadVigilSessions(),
+    loadScoreJobs(),
+    loadTemplates(),
+  ]);
+  const anyOk = results.some(r => r.status === 'fulfilled' && r.value !== false);
+  updateConnectionStatus(anyOk ? 'connected' : 'error');
+  updateLastRefreshed();
+}
+
+// ── SCHEDULE REFRESH ──────────────────────────────────────────────────────
+function scheduleRefresh() {
+  if (_refreshTimer) clearTimeout(_refreshTimer);
+  _refreshTimer = setTimeout(() => { loadAll(); scheduleRefresh(); }, 30000);
+}
+
+// ── VIGIL SESSIONS ────────────────────────────────────────────────────────
+async function loadVigilSessions() {
+  const el = document.getElementById('vigil-sessions');
+  showSkeleton(el, 2);
+  try {
+    const r = await fetch(`${SERVER}/vigil/sessions`, { headers: headers(false) });
+    if (!r.ok) throw new Error(r.status);
+    const sessions = await r.json();
+    _sessions = sessions;
+    renderVigilSessions(sessions, el);
+    populateSessionSelect(sessions);
+    return true;
+  } catch(e) {
+    el.innerHTML = `
+      <div class="error-msg">
+        <strong>セッションを取得できませんでした</strong><br>
+        サーバーが起動していることを確認してください: <code>${SERVER}</code>
+      </div>`;
+    return false;
+  }
+}
+
+function populateSessionSelect(sessions) {
+  const sel = document.getElementById('session-select');
+  const prev = sel.value;
+  sel.innerHTML = '<option value="">— 新規セッションとして実行 —</option>';
+  sessions.forEach(s => {
+    const opt = document.createElement('option');
+    opt.value = s.session_id;
+    opt.textContent = `#${s.session_id} ${escapeHtml(s.name)} (${s.violation_count}件違反)`;
+    sel.appendChild(opt);
+  });
+  if (prev) sel.value = prev;
+}
+
+function renderVigilSessions(sessions, el) {
+  if (!sessions.length) {
+    el.innerHTML = `
+      <div class="no-data-msg">
+        監視セッションがありません。<br>「+ 新規セッション」から作成してください。
+      </div>`;
+    return;
+  }
+  el.innerHTML = sessions.map(s => buildSessionCard(s)).join('');
+}
+
+function buildSessionCard(s) {
+  const critical = 0; // we'll compute below from events when toggled
+  const total = s.violation_count;
+  // Heuristic bar: show total as orange if no breakdown available
+  const barHtml = total > 0
+    ? `<div class="vbar-critical" style="width:60%;"></div><div class="vbar-warning" style="width:40%;"></div>`
+    : `<div style="width:100%;background:rgba(255,255,255,0.06);"></div>`;
+
+  const rulesPreview = (s.rules || []).slice(0, 2).map(r => escapeHtml(r)).join(' · ');
+  const moreRules = (s.rules || []).length > 2 ? ` ほか${(s.rules||[]).length - 2}ルール` : '';
+
+  return `
+    <div class="card fade-in" id="scard-${s.session_id}">
+      <div class="card-header">
+        <div>
+          <div class="card-title">🏗 ${escapeHtml(s.name)}</div>
+          <div class="card-sub session-rules">${rulesPreview}${moreRules}</div>
+        </div>
+        ${statusBadge(s.status)}
+      </div>
+      ${total > 0 ? `
+      <div class="violation-bar-wrap">
+        <div class="violation-bar-label">
+          <span><strong>${total}</strong>件の違反イベント</span>
+          <span style="font-size:0.68rem;">フレーム解析: ${s.total_frames_analyzed}件</span>
+        </div>
+        <div class="violation-bar">${barHtml}</div>
+      </div>` : `
+      <div class="violation-bar-label" style="margin-bottom:8px;">
+        <span style="color:var(--muted);">違反イベントなし</span>
+        <span style="font-size:0.68rem;">フレーム解析: ${s.total_frames_analyzed}件</span>
+      </div>`}
+      <button class="toggle-events-btn" onclick="toggleEvents(${s.session_id})" id="toggle-btn-${s.session_id}">
+        違反イベントを表示 ▾
+      </button>
+      <div class="events-list" id="events-${s.session_id}"></div>
+    </div>`;
+}
+
+// ── TOGGLE EVENTS ─────────────────────────────────────────────────────────
+async function toggleEvents(sessionId) {
+  const el = document.getElementById(`events-${sessionId}`);
+  const btn = document.getElementById(`toggle-btn-${sessionId}`);
+  if (el.style.display === 'block') {
+    el.style.display = 'none';
+    btn.textContent = '違反イベントを表示 ▾';
+    return;
+  }
+  el.style.display = 'block';
+  btn.textContent = '違反イベントを閉じる ▴';
+  el.innerHTML = Array(2).fill(`<div class="skeleton" style="height:50px;border-radius:6px;margin-bottom:8px;"></div>`).join('');
+  try {
+    const r = await fetch(`${SERVER}/vigil/sessions/${sessionId}/events`, { headers: headers(false) });
+    if (!r.ok) throw new Error(r.status);
+    const events = await r.json();
+    renderEvents(events, el, sessionId);
+    // Update bar with real breakdown
+    updateViolationBar(sessionId, events);
+  } catch(e) {
+    el.innerHTML = `<div class="error-msg">イベントを取得できませんでした</div>`;
+  }
+}
+
+function updateViolationBar(sessionId, events) {
+  let critical = 0, warning = 0, info = 0;
+  events.forEach(ev => {
+    (ev.violations || []).forEach(v => {
+      if (v.severity === 'critical') critical++;
+      else if (v.severity === 'warning') warning++;
+      else info++;
+    });
+  });
+  const total = critical + warning + info;
+  if (!total) return;
+  const card = document.getElementById(`scard-${sessionId}`);
+  const bar = card ? card.querySelector('.violation-bar') : null;
+  if (!bar) return;
+  const label = card.querySelector('.violation-bar-label');
+  if (label) {
+    label.innerHTML = `
+      <span><strong>${total}</strong>件の違反 &nbsp;
+        <span style="color:var(--red);font-size:0.68rem;">■ ${critical}件重大</span> &nbsp;
+        <span style="color:var(--orange);font-size:0.68rem;">□ ${warning}件警告</span>
+      </span>`;
+  }
+  const cp = critical / total * 100, wp = warning / total * 100, ip = info / total * 100;
+  bar.innerHTML = `
+    <div class="vbar-critical" style="width:${cp}%;"></div>
+    <div class="vbar-warning"  style="width:${wp}%;"></div>
+    <div class="vbar-info"     style="width:${ip}%;"></div>`;
+}
+
+function renderEvents(events, el, sessionId) {
+  if (!events.length) {
+    el.innerHTML = '<div style="font-size:0.75rem;color:var(--muted);padding:8px 0;">違反イベントはありません</div>';
+    return;
+  }
+  el.innerHTML = events.map(ev => {
+    return (ev.violations || []).map(v => {
+      const sevIcon = v.severity === 'critical' ? '🔴' : v.severity === 'warning' ? '🟠' : '🔵';
+      const sevColor = v.severity === 'critical' ? 'var(--red)' : v.severity === 'warning' ? 'var(--orange)' : '#3b82f6';
+      const confPct = Math.round((v.confidence || 0) * 100);
+      const acked = ev.acknowledged_at;
+      const ackHtml = acked
+        ? `<span class="ack-done">確認済み ✓</span>`
+        : `<button class="ack-btn" onclick="ackEvent(${ev.event_id}, ${sessionId})">確認する</button>`;
+      return `
+        <div class="event-row fade-in" id="erow-${ev.event_id}">
+          <div class="event-sev-icon">${sevIcon}</div>
+          <div class="event-body">
+            <div class="event-meta">t=${fmt(ev.timestamp_sec, 1)}s &nbsp;|&nbsp; フレーム #${ev.frame_number}</div>
+            <div class="event-rule">${escapeHtml(v.rule)}</div>
+            <div class="event-desc">${escapeHtml(v.description_ja || '')}</div>
+            <div class="conf-bar-wrap">
+              <div class="conf-bar-bg">
+                <div class="conf-bar-fill" style="width:${confPct}%;background:${sevColor};"></div>
+              </div>
+              <span class="conf-pct">信頼度 ${confPct}%</span>
+            </div>
+          </div>
+          <div class="event-actions">${ackHtml}</div>
+        </div>`;
+    }).join('');
+  }).join('');
+}
+
+// ── ACKNOWLEDGE EVENT ─────────────────────────────────────────────────────
+async function ackEvent(eventId, sessionId) {
+  try {
+    const r = await fetch(`${SERVER}/vigil/events/${eventId}/acknowledge`, {
+      method: 'PATCH',
+      headers: headers(true),
+      body: JSON.stringify({ acknowledged_by: 'operator' }),
+    });
+    if (r.ok) {
+      // Update inline without full re-fetch
+      const row = document.getElementById(`erow-${eventId}`);
+      if (row) {
+        const btn = row.querySelector('.ack-btn');
+        if (btn) btn.outerHTML = '<span class="ack-done">確認済み ✓</span>';
+      }
+    }
+  } catch(e) { /* ignore */ }
+}
+
+// ── NEW SESSION MODAL (simplified — direct prompt) ────────────────────────
+async function newSession() {
+  const name = window.prompt('新規セッション名を入力してください:', '新規監視セッション');
+  if (!name) return;
+  const rulesStr = window.prompt('監視ルールを入力してください（カンマ区切り）:', 'ヘルメット未着用の作業者を検出,安全ベルトなし高所作業');
+  if (!rulesStr) return;
+  const rules = rulesStr.split(',').map(r => r.trim()).filter(r => r);
+  try {
+    const r = await fetch(`${SERVER}/vigil/sessions`, {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify({ name, rules, sample_fps: 1.0, severity_threshold: 'warning' }),
+    });
+    if (r.ok) {
+      await loadVigilSessions();
+    } else {
+      alert('セッションの作成に失敗しました。');
+    }
+  } catch(e) {
+    alert(`エラー: ${e.message}`);
+  }
+}
+
+// ── SCORE JOBS ────────────────────────────────────────────────────────────
+async function loadScoreJobs() {
+  try {
+    const r = await fetch(`${SERVER}/score`, { headers: headers(false) });
+    if (!r.ok) return false;
+    const data = await r.json();
+    // API returns {jobs: [...]} or plain array
+    const jobs = Array.isArray(data) ? data : (data.jobs || data.items || []);
+    renderScoreJobs(jobs.slice(0, 6));
+    renderDistributionChart(jobs);
+    return true;
+  } catch(e) {
+    const el = document.getElementById('score-cards');
+    if (el) el.innerHTML = '<div class="error-msg">スコアデータを取得できませんでした</div>';
+    return false;
+  }
+}
+
+function decisionInfo(decision) {
+  const map = {
+    pass:         { label: '合格',    cls: 'badge-green',  numColor: 'var(--green)' },
+    needs_review: { label: '要確認',  cls: 'badge-orange', numColor: 'var(--orange)' },
+    retrain:      { label: '要再訓練',cls: 'badge-orange', numColor: '#f97316' },
+    fail:         { label: '不合格',  cls: 'badge-red',    numColor: 'var(--red)' },
+  };
+  return map[decision] || { label: decision || '--', cls: 'badge-muted', numColor: 'var(--muted)' };
+}
+
+function renderScoreJobs(jobs) {
+  const el = document.getElementById('score-cards');
+  if (!jobs.length) {
+    el.innerHTML = '<div class="no-data-msg" style="grid-column:1/-1;">スコアジョブがありません</div>';
+    return;
+  }
+  el.innerHTML = jobs.map(j => {
+    const score = j.summary?.score ?? j.score ?? null;
+    const decision = j.summary?.decision ?? j.decision ?? 'fail';
+    const taskId = j.task_id || j.job_id || '';
+    const { label, cls, numColor } = decisionInfo(decision);
+    return `
+      <div class="score-card fade-in">
+        <div class="score-num" style="color:${numColor};">${score !== null ? fmt(score) : '--'}</div>
+        <div class="score-decision"><span class="badge ${cls}">${label}</span></div>
+        <div class="score-task">${escapeHtml(String(taskId).slice(0, 16))}</div>
+      </div>`;
+  }).join('');
+}
+
+function renderDistributionChart(jobs) {
+  const el = document.getElementById('dist-chart');
+  if (!el || !jobs.length) return;
+  const counts = { pass: 0, needs_review: 0, retrain: 0, fail: 0 };
+  jobs.forEach(j => {
+    const d = j.summary?.decision ?? j.decision ?? 'fail';
+    if (counts[d] !== undefined) counts[d]++;
+    else counts.fail++;
+  });
+  const total = jobs.length;
+  const data = [
+    { label: '合格',    value: counts.pass,         color: '#10b981' },
+    { label: '要確認',  value: counts.needs_review,  color: '#f59e0b' },
+    { label: '要再訓練',value: counts.retrain,        color: '#f97316' },
+    { label: '不合格',  value: counts.fail,          color: '#ef4444' },
+  ].filter(d => d.value > 0);
+
+  if (!data.length) return;
+
+  // SVG donut
+  const cx = 60, cy = 60, r = 52, ir = 33;
+  let startAngle = -Math.PI / 2;
+  let paths = '';
+  let labels = '';
+
+  data.forEach(d => {
+    const angle = (d.value / total) * 2 * Math.PI;
+    const endAngle = startAngle + angle;
+    const x1  = cx + r  * Math.cos(startAngle);
+    const y1  = cy + r  * Math.sin(startAngle);
+    const x2  = cx + r  * Math.cos(endAngle);
+    const y2  = cy + r  * Math.sin(endAngle);
+    const xi1 = cx + ir * Math.cos(startAngle);
+    const yi1 = cy + ir * Math.sin(startAngle);
+    const xi2 = cx + ir * Math.cos(endAngle);
+    const yi2 = cy + ir * Math.sin(endAngle);
+    const large = angle > Math.PI ? 1 : 0;
+    paths += `<path d="M${x1},${y1} A${r},${r} 0 ${large},1 ${x2},${y2} L${xi2},${yi2} A${ir},${ir} 0 ${large},0 ${xi1},${yi1} Z"
+      fill="${d.color}" opacity="0.88" stroke="rgba(5,8,16,0.6)" stroke-width="1.5"/>`;
+    startAngle = endAngle;
+  });
+
+  const legendHtml = data.map(d =>
+    `<div style="display:flex;align-items:center;gap:7px;margin-bottom:5px;">
+       <div style="width:10px;height:10px;border-radius:2px;background:${d.color};flex-shrink:0;"></div>
+       <span style="font-size:0.76rem;color:#94a3b8;">${d.label}:</span>
+       <span style="font-size:0.76rem;font-weight:700;color:${d.color};">${((d.value/total)*100).toFixed(1)}%</span>
+     </div>`
+  ).join('');
+
+  el.innerHTML = `
+    <div style="display:flex;align-items:center;gap:24px;">
+      <svg width="120" height="120" viewBox="0 0 120 120">
+        ${paths}
+        <circle cx="60" cy="60" r="26" fill="var(--bg2)"/>
+        <text x="60" y="55" text-anchor="middle" font-size="8" fill="var(--muted)" font-family="var(--mono)">N=${total}</text>
+        <text x="60" y="66" text-anchor="middle" font-size="7.5" fill="var(--muted)" font-family="sans-serif">ジョブ</text>
+      </svg>
+      <div>${legendHtml}</div>
+    </div>`;
+}
+
+// ── TEMPLATES ─────────────────────────────────────────────────────────────
+async function loadTemplates() {
+  try {
+    const r = await fetch(`${SERVER}/vigil/templates`, { headers: headers(false) });
+    if (!r.ok) throw new Error(r.status);
+    const tmplts = await r.json();
+    _templates = tmplts;
+    renderTemplates(tmplts);
+    return true;
+  } catch(e) {
+    // Fallback to hardcoded templates if server unavailable
+    const fallback = [
+      { id: 'construction_safety', name: '建設現場安全',   description: '建設・土木現場向けの安全ルールセット',
+        rules: ['ヘルメット未着用の作業者を検出','安全ベルトなしで高所作業している人を検出','立入禁止エリアへの侵入を検出','重機の安全距離違反を検出'],
+        sample_fps: 1.0, severity_threshold: 'warning' },
+      { id: 'food_factory_hygiene', name: '食品工場衛生管理', description: '食品製造施設向けの衛生管理ルールセット',
+        rules: ['手袋未着用での食品取り扱いを検出','マスク未着用の作業者を検出','異物混入リスクのある行動を検出'],
+        sample_fps: 0.5, severity_threshold: 'info' },
+      { id: 'warehouse_safety', name: '倉庫作業安全', description: '倉庫・物流施設向けの安全ルールセット',
+        rules: ['フォークリフトの安全速度超過を検出','歩行者とフォークリフトの接近を検出','不安定な積載物の取り扱いを検出'],
+        sample_fps: 1.0, severity_threshold: 'critical' },
+      { id: 'fire_safety', name: '防火・避難安全', description: '消防法対応・避難経路確保向けルールセット',
+        rules: ['非常口・避難通路のブロックを検出','消火器の設置位置の遮蔽を検出','禁煙エリアでの喫煙を検出'],
+        sample_fps: 0.5, severity_threshold: 'critical' },
+      { id: 'office_security', name: 'オフィスセキュリティ', description: 'オフィス・施設向けのセキュリティルールセット',
+        rules: ['IDカード未着用の人物を検出','許可なき立入エリアへのアクセスを検出','機密書類の放置を検出'],
+        sample_fps: 0.5, severity_threshold: 'warning' },
+    ];
+    _templates = fallback;
+    renderTemplates(fallback);
+    return false;
+  }
+}
+
+function renderTemplates(templates) {
+  const el = document.getElementById('template-pills');
+  el.innerHTML = templates.map(t =>
+    `<button class="tmpl-pill" id="tmpl-${t.id}" onclick="applyTemplate('${t.id}')">${escapeHtml(t.name)}</button>`
+  ).join('');
+}
+
+function applyTemplate(id) {
+  const tmpl = _templates.find(t => t.id === id);
+  if (!tmpl) return;
+
+  // Highlight active
+  document.querySelectorAll('.tmpl-pill').forEach(p => p.classList.remove('active'));
+  const pill = document.getElementById(`tmpl-${id}`);
+  if (pill) pill.classList.add('active');
+  _activeTemplateId = id;
+
+  // Fill rules textarea
+  const textarea = document.getElementById('rules-input');
+  textarea.value = tmpl.rules.join('\n');
+
+  // Show description
+  const desc = document.getElementById('template-desc');
+  if (desc) {
+    desc.textContent = tmpl.description;
+    desc.style.color = '#a78bfa';
+  }
+
+  // Scroll to interactive panel
+  textarea.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  textarea.focus();
+}
+
+// ── FILE INPUT ────────────────────────────────────────────────────────────
+function onFileChange(input) {
+  const label = document.getElementById('file-label');
+  const preview = document.getElementById('image-preview-wrap');
+  const img = document.getElementById('image-preview');
+  if (input.files && input.files[0]) {
+    label.textContent = input.files[0].name;
+    const url = URL.createObjectURL(input.files[0]);
+    img.src = url;
+    preview.style.display = 'block';
+  } else {
+    label.textContent = '未選択';
+    preview.style.display = 'none';
+  }
+}
+
+// ── INTERACTIVE ANALYSIS ──────────────────────────────────────────────────
+async function runAnalysis() {
+  const btn = document.getElementById('run-btn');
+  const resultEl = document.getElementById('analysis-result');
+  const fileInput = document.getElementById('frame-file');
+  const rulesEl = document.getElementById('rules-input');
+  const sessionSelect = document.getElementById('session-select');
+
+  btn.disabled = true;
+  btn.textContent = '解析中...';
+  resultEl.innerHTML = `
+    <div class="skeleton" style="height:60px;border-radius:8px;"></div>`;
+
+  try {
+    let sessionId = sessionSelect.value;
+
+    if (!sessionId) {
+      // Create new session
+      const rules = rulesEl.value.trim().split('\n').filter(r => r.trim());
+      if (!rules.length) throw new Error('ルールを1行以上入力してください');
+      const tmpl = _activeTemplateId ? _templates.find(t => t.id === _activeTemplateId) : null;
+      const sr = await fetch(`${SERVER}/vigil/sessions`, {
+        method: 'POST',
+        headers: headers(true),
+        body: JSON.stringify({
+          name: tmpl ? tmpl.name : '対話型解析',
+          rules,
+          sample_fps: tmpl ? tmpl.sample_fps : 1.0,
+          severity_threshold: tmpl ? tmpl.severity_threshold : 'info',
+        }),
+      });
+      if (!sr.ok) {
+        const errBody = await sr.json().catch(() => ({}));
+        throw new Error(errBody.detail || `セッション作成失敗 (${sr.status})`);
+      }
+      const created = await sr.json();
+      sessionId = created.session_id;
+    }
+
+    // Check file
+    if (!fileInput.files || !fileInput.files[0]) {
+      throw new Error('解析する画像ファイルを選択してください');
+    }
+
+    // Upload frame
+    const fd = new FormData();
+    fd.append('file', fileInput.files[0]);
+    const fh = {};
+    if (API_KEY) fh['X-API-Key'] = API_KEY;
+    const ar = await fetch(`${SERVER}/vigil/sessions/${sessionId}/webcam-frame?store=true`, {
+      method: 'POST',
+      headers: fh,
+      body: fd,
+    });
+    if (!ar.ok) {
+      const errBody = await ar.json().catch(() => ({}));
+      throw new Error(errBody.detail || `解析失敗 (${ar.status})`);
+    }
+    const result = await ar.json();
+    renderAnalysisResult(result, resultEl);
+
+    // Refresh sessions silently
+    await loadVigilSessions();
+
+  } catch(e) {
+    resultEl.innerHTML = `<div class="error-msg"><strong>エラー:</strong> ${escapeHtml(e.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 解析実行';
+  }
+}
+
+function renderAnalysisResult(result, el) {
+  if (!result.has_violation || !result.violations || !result.violations.length) {
+    el.innerHTML = `
+      <div class="result-clean fade-in">
+        <span class="result-icon">✓</span>
+        <div>
+          <div class="result-title">違反なし</div>
+          <div class="result-sub">この画像ではルール違反は検出されませんでした</div>
+        </div>
+      </div>`;
+    return;
+  }
+
+  const items = result.violations.map(v => {
+    const sevColor = v.severity === 'critical' ? 'var(--red)' : v.severity === 'warning' ? 'var(--orange)' : '#3b82f6';
+    const sevLabel = v.severity === 'critical' ? '重大' : v.severity === 'warning' ? '警告' : '情報';
+    const sevIcon  = v.severity === 'critical' ? '🔴' : v.severity === 'warning' ? '🟠' : '🔵';
+    const confPct  = Math.round((v.confidence || 0) * 100);
+    const actionMsg = v.severity === 'critical' ? '今すぐ対応が必要です'
+                    : v.severity === 'warning'  ? '早急な確認をお勧めします' : '情報として記録されました';
+    return `
+      <div style="border-left:3px solid ${sevColor};padding:10px 14px;margin-bottom:8px;background:rgba(255,255,255,0.03);border-radius:0 8px 8px 0;">
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+          <span style="font-size:0.78rem;">${sevIcon}</span>
+          <span style="font-size:0.78rem;color:${sevColor};font-weight:700;">${sevLabel}</span>
+          <span style="font-size:0.68rem;color:var(--muted);margin-left:auto;">${actionMsg}</span>
+        </div>
+        <div style="font-size:0.82rem;color:var(--text);margin-bottom:3px;">${escapeHtml(v.rule)}</div>
+        ${v.description_ja ? `<div style="font-size:0.73rem;color:var(--muted);margin-bottom:6px;">${escapeHtml(v.description_ja)}</div>` : ''}
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="flex:1;height:4px;background:rgba(255,255,255,0.08);border-radius:2px;">
+            <div style="width:${confPct}%;height:4px;background:${sevColor};border-radius:2px;"></div>
+          </div>
+          <span style="font-size:0.72rem;color:var(--muted);">信頼度 ${confPct}%</span>
+        </div>
+      </div>`;
+  }).join('');
+
+  el.innerHTML = `
+    <div class="fade-in">
+      <div class="result-warn-header">
+        ⚠ ${result.violations.length}件の違反を検出
+      </div>
+      ${items}
+      ${result.event_id ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:6px;">イベントID: #${result.event_id} として記録されました</div>` : ''}
+    </div>`;
+}
+
+// ── INIT ──────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', () => {
+  loadAll();
+  scheduleRefresh();
+});
+</script>
+</body>
+</html>

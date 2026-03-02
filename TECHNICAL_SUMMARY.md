@@ -1,6 +1,6 @@
 # SOPilot — Technical Summary
 
-**Version:** v1.2.0
+**Version:** v1.2.0 (1,036 tests)
 **Date:** 2026-03-02
 **Evaluation dataset:** 3,507 scored video pairs (96-hour production run)
 
@@ -224,6 +224,28 @@ See `QUICKSTART.md` for full instructions.
 | RAM | 1 GB | 2 GB |
 | Disk | 10 GB | 100 GB (for video storage) |
 | GPU | Not required | — |
+
+---
+
+## VigilPilot Performance Benchmarks (実測値)
+
+Measured on Windows 11 / Python 3.11 / Claude Sonnet 4.6 API backend:
+
+| Metric | Value | Notes |
+|---|---|---|
+| VLM frame analysis — mean | **3,710 ms** | 320×240 synthetic JPEG, Anthropic API |
+| VLM frame analysis — median | **3,648 ms** | — |
+| VLM frame analysis — min | **3,156 ms** | — |
+| VLM frame analysis — max | **4,560 ms** | first-frame cold start |
+| Effective throughput | **0.27 fps** | suitable for `sample_fps=0.2–0.5` |
+| Session creation | **3.6 ms** | SQLite INSERT |
+| Event list query | **< 5 ms** | indexed by session_id |
+
+**Performance tier: Good** (2–5 s/frame, suitable for 0.2–0.5 fps sampling).
+
+Latency is dominated by the VLM API round-trip. For lower latency:
+- Switch to `VIGIL_VLM_BACKEND=qwen3` with local GPU → **< 500 ms/frame**
+- Switch to `VIGIL_VLM_BACKEND=qwen3-api` with vLLM/Together.ai → **< 1,000 ms/frame**
 
 ---
 

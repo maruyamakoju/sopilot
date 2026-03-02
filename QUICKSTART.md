@@ -1,8 +1,9 @@
-# SOPilot Quickstart — v1.1.0
+# SOPilot / VigilPilot Quickstart — v1.2.0
 
-On-prem SOP video scoring service. Evaluates trainee videos against gold-standard references
-using DTW-based alignment of video embeddings. Produces a 0–100 score and a
-`pass / needs_review / retrain / fail` decision. Target: backend / MLOps engineers.
+On-prem SOP video scoring service with surveillance camera AI. SOPilot evaluates trainee videos
+against gold-standard references using DTW-based alignment of video embeddings. VigilPilot
+detects rule violations in any video footage or RTSP live stream via pluggable VLM backends.
+Target: backend / MLOps engineers.
 
 ---
 
@@ -51,7 +52,7 @@ Expected health response:
     "disk":     {"status": "up", "free_gb": 120.0, "total_gb": 500.0, "writable": true},
     "embedder": {"status": "up", "name": "color-motion-v1", "failed_over": false}
   },
-  "version": "1.1.0"
+  "version": "1.2.0"
 }
 ```
 
@@ -864,3 +865,139 @@ VIGIL_QWEN3_MODEL=Qwen/Qwen3-VL-7B-Instruct
 curl "$BASE/vigil/events/1/frame?annotate=true" \
   -H "X-API-Key: $API_KEY" -o annotated_frame.jpg
 ```
+
+### 8.10 Webcam フレーム即時解析
+
+単一のJPEGフレームを送信し、即座にVLM分析結果を取得できます。
+
+```bash
+curl -X POST "$BASE/vigil/sessions/1/webcam-frame?store=true" \
+  -H "X-API-Key: $KEY" \
+  -F "file=@frame.jpg"
+```
+
+Response:
+
+```json
+{
+  "session_id": 1,
+  "has_violation": true,
+  "violations": [
+    {
+      "rule_index": 0,
+      "rule": "ヘルメット未着用の作業者を検出",
+      "description_ja": "作業者がヘルメットを着用しておらず、頭部が無防備な状態です。",
+      "severity": "warning",
+      "confidence": 0.85
+    }
+  ],
+  "event_id": 42,
+  "frame_url": "/vigil/events/42/frame"
+}
+```
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `store` | bool | `true` | 違反検出時にイベントとして保存する |
+
+`store=false` の場合、分析結果のみを返却しDBには保存しません。
+
+### 8.11 Webhook 通知
+
+セッションに Webhook URL を設定すると、違反検出時に自動で HTTP POST が送信されます。
+
+```bash
+# Webhook 設定
+curl -X PUT "$BASE/vigil/sessions/1/webhook" \
+  -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"url": "https://hooks.slack.com/services/XXX/YYY/ZZZ", "min_severity": "warning"}'
+
+# Webhook 解除
+curl -X DELETE "$BASE/vigil/sessions/1/webhook" -H "X-API-Key: $KEY"
+```
+
+Webhook ペイロード例:
+
+```json
+{
+  "event": "vigil_violation",
+  "session_id": 1,
+  "session_name": "工場入口カメラ",
+  "event_id": 42,
+  "violations": [...],
+  "timestamp": "2026-03-02T09:07:28Z"
+}
+```
+
+### 8.12 SSE リアルタイムイベントストリーム
+
+Server-Sent Events (SSE) でリアルタイムに違反イベントを受信できます。
+
+```bash
+curl -N "$BASE/vigil/sessions/1/events/stream" -H "X-API-Key: $KEY"
+```
+
+イベント種別:
+
+| Event | Data | Description |
+|---|---|---|
+| `heartbeat` | `{}` | 2秒間隔の接続維持 |
+| `violation` | ViolationEvent JSON | 新規違反イベント |
+| `status_change` | `{"status": "completed"}` | セッション完了通知 |
+
+### 8.13 CSV レポートダウンロード
+
+```bash
+curl "$BASE/vigil/sessions/1/report/csv" -H "X-API-Key: $KEY" -o violations.csv
+```
+
+CSV列: `event_id, timestamp_sec, frame_number, severity, rule, description_ja, confidence, acknowledged_at, acknowledged_by`
+
+### 8.14 違反イベント確認 (Acknowledge)
+
+```bash
+curl -X PATCH "$BASE/vigil/events/42/acknowledge" \
+  -H "X-API-Key: $KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"acknowledged_by": "田中太郎"}'
+```
+
+Response:
+
+```json
+{"event_id": 42, "acknowledged": true, "acknowledged_by": "田中太郎"}
+```
+
+### 8.15 セッションテンプレート
+
+プリセットのルールセットから素早くセッションを作成できます。
+
+```bash
+# テンプレート一覧を取得
+curl "$BASE/vigil/templates" -H "X-API-Key: $KEY"
+```
+
+利用可能なテンプレート:
+
+| ID | 名称 | ルール数 |
+|---|---|---|
+| `construction_safety` | 建設現場安全 | 4 |
+| `food_factory_hygiene` | 食品工場衛生管理 | 3 |
+| `warehouse_safety` | 倉庫作業安全 | 3 |
+| `fire_safety` | 火災安全管理 | 3 |
+| `office_security` | オフィスセキュリティ | 3 |
+
+### 8.16 VigilPilot 設定リファレンス
+
+| Variable | Default | Description |
+|---|---|---|
+| `ANTHROPIC_API_KEY` | _(empty)_ | Claude Vision API キー（`claude` バックエンド用） |
+| `VIGIL_VLM_BACKEND` | `claude` | VLM バックエンド: `claude` / `qwen3` / `qwen3-api` |
+| `VIGIL_VLM_API_KEY` | _(empty)_ | `ANTHROPIC_API_KEY` の代替（専用キーを使う場合） |
+| `VIGIL_VLM_MODEL` | `claude-sonnet-4-6` | Claude モデル ID |
+| `VIGIL_QWEN3_API_BASE` | _(empty)_ | `qwen3-api` 用: OpenAI 互換エンドポイント URL |
+| `VIGIL_QWEN3_API_KEY` | _(empty)_ | `qwen3-api` 用: Bearer トークン |
+| `VIGIL_QWEN3_MODEL` | `Qwen/Qwen3-VL-7B-Instruct` | `qwen3-api` 用: モデル ID |
+| `VIGIL_QWEN3_MODEL_ID` | `prithivMLmods/...` | `qwen3` 用: HuggingFace モデル ID |
+| `VIGIL_QWEN3_DEVICE` | `auto` | `qwen3` 用: `auto` / `cuda` / `cpu` |

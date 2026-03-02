@@ -208,6 +208,8 @@ def bench_event_list(client: httpx.Client, session_id: int) -> dict:
 # ── Main ────────────────────────────────────────────────────────────────────
 
 def main() -> None:
+    global BASE_URL, API_KEY
+
     parser = argparse.ArgumentParser(description="VigilPilot performance benchmark")
     parser.add_argument("--host", default=BASE_URL, help="Server base URL")
     parser.add_argument("--frames", type=int, default=10,
@@ -215,7 +217,6 @@ def main() -> None:
     parser.add_argument("--api-key", default=API_KEY, help="API key")
     args = parser.parse_args()
 
-    global BASE_URL, API_KEY
     BASE_URL = args.host.rstrip("/")
     API_KEY = args.api_key
 

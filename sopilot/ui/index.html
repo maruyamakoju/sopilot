@@ -634,6 +634,69 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
 .vigil-source-tabs button:hover{background:rgba(13,148,136,.12);border-color:rgba(13,148,136,.3);color:var(--accent-b)}
 .vigil-source-tabs button.active{background:rgba(13,148,136,.18);border-color:rgba(13,148,136,.45);
   color:var(--accent-b);box-shadow:0 0 0 1px rgba(13,148,136,.2)}
+
+/* ── PERCEPTION ENGINE UI ── */
+#perceptionStatusBar{display:none;align-items:center;gap:10px;padding:6px 20px;
+  background:rgba(88,28,135,.15);border-bottom:1px solid rgba(139,92,246,.15);
+  font-size:11px;flex-shrink:0;flex-wrap:wrap}
+#perceptionStatusBar.active{display:flex}
+.perception-badge{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;
+  border-radius:999px;background:rgba(139,92,246,.18);border:1px solid rgba(139,92,246,.35);
+  color:#c4b5fd;font-weight:700;font-size:10px;letter-spacing:.04em;flex-shrink:0}
+.perception-comp{display:inline-flex;align-items:center;gap:4px;font-size:10px;
+  color:var(--muted);padding:2px 7px;border-radius:6px;
+  background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.05)}
+.perception-comp .ok{color:#10b981}
+.perception-comp .ng{color:#ef4444}
+.perception-stat{font-size:10px;color:var(--muted)}
+.perception-stat strong{color:#c4b5fd;font-variant-numeric:tabular-nums}
+.perception-inactive{display:none;padding:16px;text-align:center;
+  font-size:12px;color:var(--muted);border:1px dashed rgba(255,255,255,.08);
+  border-radius:10px;margin-bottom:12px}
+.perception-inactive.show{display:block}
+#perceptionPanels{display:none;margin-top:16px}
+#perceptionPanels.show{display:block}
+.perc-card{background:rgba(15,23,42,.7);border:1px solid rgba(139,92,246,.12);
+  border-radius:12px;padding:14px;margin-bottom:10px}
+.perc-card-title{font-size:10px;font-weight:700;color:#a78bfa;
+  text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px;
+  display:flex;align-items:center;gap:6px}
+.perc-narration-ja{font-size:14px;font-weight:600;color:var(--text);
+  line-height:1.6;margin-bottom:6px}
+.perc-narration-en{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:6px}
+.perc-ts{font-size:10px;color:rgba(148,163,184,.5);font-variant-numeric:tabular-nums}
+.perc-style-btns{display:flex;gap:4px;margin-bottom:10px}
+.perc-style-btn{padding:3px 10px;font-size:10px;font-weight:600;border-radius:6px;
+  border:1px solid rgba(255,255,255,.1);background:rgba(30,41,59,.5);color:var(--muted);
+  cursor:pointer;transition:all .15s;outline:none}
+.perc-style-btn:hover{border-color:rgba(139,92,246,.4);color:#c4b5fd}
+.perc-style-btn.active{background:rgba(139,92,246,.18);border-color:rgba(139,92,246,.45);color:#c4b5fd}
+.act-entity-cards{display:flex;flex-wrap:wrap;gap:6px}
+.act-entity-card{padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,.08);
+  background:rgba(30,41,59,.5);font-size:11px;min-width:120px}
+.act-entity-id{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.05em;margin-bottom:2px}
+.act-entity-label{font-size:12px;font-weight:600;color:var(--text);margin-bottom:3px}
+.act-badge{display:inline-block;padding:1px 7px;border-radius:999px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.act-stationary{background:rgba(148,163,184,.12);color:#94a3b8;border:1px solid rgba(148,163,184,.2)}
+.act-walking{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.25)}
+.act-running{background:rgba(249,115,22,.12);color:#fb923c;border:1px solid rgba(249,115,22,.25)}
+.act-loitering{background:rgba(245,158,11,.12);color:#f59e0b;border:1px solid rgba(245,158,11,.25)}
+.act-erratic{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.25)}
+.pred-alert{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;
+  border-radius:8px;margin-bottom:6px;font-size:11px}
+.pred-alert-urgent{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2)}
+.pred-alert-warn{background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2)}
+.pred-icon{font-size:14px;flex-shrink:0;margin-top:1px}
+.pred-text{color:var(--text);line-height:1.4}
+.pred-time{font-size:10px;color:var(--muted);margin-top:2px;font-variant-numeric:tabular-nums}
+.perc-query-row{display:flex;gap:6px;margin-bottom:8px}
+.perc-query-row input{flex:1;font-size:12px}
+.perc-query-answer{min-height:36px;padding:8px 10px;background:rgba(139,92,246,.06);
+  border:1px solid rgba(139,92,246,.15);border-radius:8px;font-size:12px;
+  color:var(--text);line-height:1.5;display:none}
+.perc-query-answer.show{display:block}
+.perc-query-loading{display:none;align-items:center;gap:6px;font-size:11px;color:var(--muted);padding:4px 0}
+.perc-query-loading.show{display:flex}
 </style>
 </head>
 <body>
@@ -1037,6 +1100,17 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
     <span id="vigilStatus" style="font-size:11px;color:var(--muted)"></span>
     <button class="btn btn-secondary btn-sm" onclick="Notification.requestPermission().then(p=>toast(p==='granted'?'通知が有効になりました':'通知が許可されませんでした',p==='granted'?'success':'info'))" title="違反検出時にブラウザ通知を受け取る">🔔 通知を有効にする</button>
   </div>
+  <!-- Perception Engine Status Bar -->
+  <div id="perceptionStatusBar">
+    <span class="perception-badge">&#129504; Perception Engine</span>
+    <span class="perception-comp" id="percComp_detector"></span>
+    <span class="perception-comp" id="percComp_tracker"></span>
+    <span class="perception-comp" id="percComp_narrator"></span>
+    <span class="perception-comp" id="percComp_predictor"></span>
+    <span class="perception-stat">フレーム: <strong id="percFramesProcessed">--</strong></span>
+    <span class="perception-stat">処理時間: <strong id="percAvgMs">--</strong> ms</span>
+    <span class="perception-stat" id="percTrackCount" style="color:#c4b5fd"></span>
+  </div>
   <div style="flex:1;display:grid;grid-template-columns:310px 1fr;overflow:hidden">
     <!-- Left: session list + create form -->
     <div style="border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:rgba(5,10,21,.5)">
@@ -1076,9 +1150,56 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
     </div>
     <!-- Right: session detail -->
     <div id="vigilDetail" style="flex:1;overflow-y:auto;padding:20px">
-      <div style="height:200px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px">
-        <div style="font-size:40px;opacity:.2">&#127909;</div>
-        <div style="color:var(--muted);font-size:13px">セッションを選択してください</div>
+      <div id="vigilDetailInner">
+        <div style="height:200px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px">
+          <div style="font-size:40px;opacity:.2">&#127909;</div>
+          <div style="color:var(--muted);font-size:13px">セッションを選択してください</div>
+        </div>
+      </div>
+      <!-- Perception Engine Panels — not rebuilt by renderVigilDetail -->
+      <div id="perceptionPanels">
+        <div class="perception-inactive" id="percInactive">Perception Engine はアクティブではありません</div>
+        <!-- Narration Panel -->
+        <div class="perc-card" id="percNarrationCard" style="display:none">
+          <div class="perc-card-title">&#127916; シーンナレーション
+            <div class="perc-style-btns" style="margin-left:auto;margin-bottom:0">
+              <button class="perc-style-btn active" data-style="brief" onclick="setNarrationStyle('brief')">簡潔</button>
+              <button class="perc-style-btn" data-style="standard" onclick="setNarrationStyle('standard')">標準</button>
+              <button class="perc-style-btn" data-style="detailed" onclick="setNarrationStyle('detailed')">詳細</button>
+            </div>
+          </div>
+          <div class="perc-narration-ja" id="percNarrationJa">--</div>
+          <div class="perc-narration-en" id="percNarrationEn"></div>
+          <div class="perc-ts" id="percNarrationTs"></div>
+        </div>
+        <!-- Activity Panel -->
+        <div class="perc-card" id="percActivityCard" style="display:none">
+          <div class="perc-card-title">&#128694; アクティビティ分類</div>
+          <div class="act-entity-cards" id="percActivityList">
+            <div style="color:var(--muted);font-size:11px">データなし</div>
+          </div>
+        </div>
+        <!-- Prediction Alerts Panel -->
+        <div class="perc-card" id="percPredCard" style="display:none">
+          <div class="perc-card-title">&#9889; 予測アラート</div>
+          <div id="percPredList">
+            <div style="color:var(--muted);font-size:11px">予測なし</div>
+          </div>
+        </div>
+        <!-- NL Query Widget -->
+        <div class="perc-card" id="percQueryCard" style="display:none">
+          <div class="perc-card-title">&#128172; コンテキストクエリ</div>
+          <div class="perc-query-row">
+            <input id="percQueryInput" type="text" placeholder="例: 何人いる？ / 不審な動きはある？ / 全員ヘルメットをしているか？"
+              onkeydown="if(event.key==='Enter')runPerceptionQuery()"/>
+            <button class="btn btn-sm btn-secondary" onclick="runPerceptionQuery()">質問</button>
+          </div>
+          <div class="perc-query-loading" id="percQueryLoading">
+            <div style="width:10px;height:10px;border:2px solid rgba(139,92,246,.2);border-top-color:#a78bfa;border-radius:50%;animation:spin .7s linear infinite"></div>
+            思考中...
+          </div>
+          <div class="perc-query-answer" id="percQueryAnswer"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -4089,7 +4210,8 @@ async function deleteVigilSession(sessionId){
     await api(`/vigil/sessions/${sessionId}`,{method:"DELETE"});
     if(_vigilActiveSession?.session_id===sessionId){
       _vigilActiveSession=null;
-      $("vigilDetail").innerHTML=`<div style="height:200px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px"><div style="font-size:40px;opacity:.2">&#127909;</div><div style="color:var(--muted);font-size:13px">セッションを選択してください</div></div>`;
+      $("vigilDetailInner").innerHTML=`<div style="height:200px;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px"><div style="font-size:40px;opacity:.2">&#127909;</div><div style="color:var(--muted);font-size:13px">セッションを選択してください</div></div>`;
+      resetPerceptionPanels();
     }
     toast("削除しました","success");
     await loadVigilSessions();
@@ -4304,7 +4426,7 @@ async function pollVigilSession(sessionId){
 }
 
 async function renderVigilDetail(session){
-  const el=$("vigilDetail");
+  const el=$("vigilDetailInner");
   let html=`<div style="max-width:900px;margin:0 auto">
     <div style="display:flex;align-items:center;gap:12px;margin-bottom:20px;flex-wrap:wrap">
       <h2 style="font-size:16px;font-weight:700">${escHtml(session.name)}</h2>
@@ -4423,6 +4545,8 @@ async function renderVigilDetail(session){
   el.innerHTML=html;
   // Load webhook config after DOM is updated
   loadVigilWebhook(session.session_id);
+  // Load Perception Engine data after DOM is updated
+  loadPerceptionData(session.session_id);
 }
 
 function vigilFormatTs(sec){
@@ -4678,6 +4802,252 @@ function applyVigilTemplate(template){
   const modal=document.getElementById("vigilTemplateModal");
   if(modal)modal.remove();
 }
+
+// =============================================
+// PERCEPTION ENGINE UI
+// =============================================
+let _percRefreshTimer=null;
+let _percNarrationStyle="brief";
+let _percActiveSession=null;
+
+// Called by renderVigilDetail after a session is selected
+async function loadPerceptionData(sessionId){
+  _percActiveSession=sessionId;
+  // Clear any previous refresh timer
+  if(_percRefreshTimer){clearInterval(_percRefreshTimer);_percRefreshTimer=null;}
+  // Do an initial load
+  await _percFetchAll(sessionId);
+  // Schedule auto-refresh every 5 seconds
+  _percRefreshTimer=setInterval(()=>_percFetchAll(sessionId),5000);
+}
+
+// Reset all perception panels (called when session is deselected/deleted)
+function resetPerceptionPanels(){
+  _percActiveSession=null;
+  if(_percRefreshTimer){clearInterval(_percRefreshTimer);_percRefreshTimer=null;}
+  $("perceptionStatusBar").classList.remove("active");
+  $("perceptionPanels").classList.remove("show");
+  $("percInactive").classList.remove("show");
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.style.display="none";
+  });
+}
+
+async function _percFetchAll(sessionId){
+  // Fetch engine state first to determine if perception backend is active
+  let stateData=null;
+  try{
+    const r=await fetch(`/vigil/perception/state`);
+    if(r.ok) stateData=await r.json();
+  }catch(e){/* backend not available */}
+
+  if(!stateData){
+    // Perception backend not active
+    $("perceptionStatusBar").classList.remove("active");
+    $("percInactive").classList.add("show");
+    $("perceptionPanels").classList.remove("show");
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard"].forEach(id=>{
+      const el=document.getElementById(id);
+      if(el)el.style.display="none";
+    });
+    return;
+  }
+
+  // Backend is active — show status bar and panels
+  $("perceptionStatusBar").classList.add("active");
+  $("percInactive").classList.remove("show");
+  $("perceptionPanels").classList.add("show");
+
+  // Update status bar components
+  _percUpdateStatusBar(stateData);
+
+  // Fetch all perception data in parallel
+  const [narData, actData, predData] = await Promise.allSettled([
+    fetch(`/vigil/perception/narration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:_percNarrationStyle})}).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/activities`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/predictions`).then(r=>r.ok?r.json():null).catch(()=>null),
+  ]);
+
+  _percRenderNarration(narData.status==="fulfilled"?narData.value:null);
+  _percRenderActivities(actData.status==="fulfilled"?actData.value:null);
+  _percRenderPredictions(predData.status==="fulfilled"?predData.value:null);
+
+  // Show query card (always visible when perception is active)
+  const qcard=document.getElementById("percQueryCard");
+  if(qcard)qcard.style.display="block";
+}
+
+function _percUpdateStatusBar(state){
+  // Component status chips
+  const components=state.components||{};
+  const compDefs=[
+    {key:"detector",id:"percComp_detector",label:"検出"},
+    {key:"tracker",id:"percComp_tracker",label:"追跡"},
+    {key:"narrator",id:"percComp_narrator",label:"ナレーション"},
+    {key:"predictor",id:"percComp_predictor",label:"予測"},
+  ];
+  compDefs.forEach(({key,id,label})=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    const active=components[key]!==false; // default true if key absent
+    el.innerHTML=`${label} <span class="${active?"ok":"ng"}">${active?"✓":"✗"}</span>`;
+    el.style.display="inline-flex";
+  });
+
+  // Frame stats
+  const frames=state.frames_processed??state.frame_count??null;
+  const avgMs=state.average_processing_ms??state.avg_processing_ms??null;
+  const tracks=state.active_tracks??null;
+
+  const frEl=$("percFramesProcessed");
+  if(frEl)frEl.textContent=frames!=null?frames.toLocaleString():"--";
+
+  const msEl=$("percAvgMs");
+  if(msEl)msEl.textContent=avgMs!=null?avgMs.toFixed(1):"--";
+
+  const tcEl=$("percTrackCount");
+  if(tcEl)tcEl.textContent=tracks!=null?`追跡中: ${tracks}エンティティ`:"";
+}
+
+function _percRenderNarration(data){
+  const card=document.getElementById("percNarrationCard");
+  if(!card)return;
+  if(!data){card.style.display="none";return;}
+  card.style.display="block";
+
+  const ja=data.narration_ja||data.narration||data.text||"";
+  const en=data.narration_en||data.translation||"";
+  const ts=data.timestamp||data.generated_at||"";
+
+  const jaEl=$("percNarrationJa");
+  const enEl=$("percNarrationEn");
+  const tsEl=$("percNarrationTs");
+  if(jaEl)jaEl.textContent=ja||"--";
+  if(enEl){enEl.textContent=en;enEl.style.display=en?"block":"none";}
+  if(tsEl)tsEl.textContent=ts?`更新: ${new Date(ts).toLocaleTimeString("ja-JP")}`:"";
+}
+
+function _percRenderActivities(data){
+  const card=document.getElementById("percActivityCard");
+  const list=$("percActivityList");
+  if(!card||!list)return;
+
+  const items=Array.isArray(data)?data:(data?.activities||data?.entities||[]);
+  if(!items||!items.length){card.style.display="none";return;}
+  card.style.display="block";
+
+  const actClass={stationary:"act-stationary",walking:"act-walking",running:"act-running",
+                  loitering:"act-loitering",erratic:"act-erratic"};
+  const actLabel={stationary:"静止",walking:"歩行",running:"走行",loitering:"徘徊",erratic:"不審動作"};
+
+  list.innerHTML=items.map(e=>{
+    const act=(e.activity||e.activity_type||"unknown").toLowerCase();
+    const cls=actClass[act]||"act-stationary";
+    const lbl=actLabel[act]||act;
+    const entityId=e.entity_id||e.track_id||e.id||"?";
+    const label=e.label||e.class||e.entity_label||"";
+    return `<div class="act-entity-card">
+      <div class="act-entity-id">ID ${escHtml(String(entityId))}</div>
+      ${label?`<div class="act-entity-label">${escHtml(label)}</div>`:""}
+      <span class="act-badge ${cls}">${lbl}</span>
+    </div>`;
+  }).join("");
+}
+
+function _percRenderPredictions(data){
+  const card=document.getElementById("percPredCard");
+  const list=$("percPredList");
+  if(!card||!list)return;
+
+  const items=Array.isArray(data)?data:(data?.predictions||data?.alerts||[]);
+  if(!items||!items.length){card.style.display="none";return;}
+  card.style.display="block";
+
+  list.innerHTML=items.map(p=>{
+    const eta=p.eta_sec??p.seconds??p.time_to_event??null;
+    const isUrgent=eta!=null&&eta<3;
+    const cls=isUrgent?"pred-alert-urgent":"pred-alert-warn";
+    const icon=isUrgent?"&#128308;":"&#128992;"; // red/orange circle
+    const type=p.type||p.alert_type||"";
+    let msg=p.description||p.message||"";
+    if(!msg){
+      if(type==="zone_entry"){
+        const eid=p.entity_id||p.track_id||"?";
+        const zone=p.zone||p.zone_name||"制限エリア";
+        msg=`エンティティ ${eid} が${eta!=null?Math.round(eta)+"秒後に":""}${escHtml(zone)}に到達`;
+      }else if(type==="collision"){
+        const a=p.entity_a??p.track_a??"A";
+        const b=p.entity_b??p.track_b??"B";
+        msg=`エンティティ ${a} と ${b} が衝突予測`;
+      }
+    }
+    const etaText=eta!=null?`残り ${Math.round(eta)} 秒`:"";
+    return `<div class="pred-alert ${cls}">
+      <span class="pred-icon">${icon}</span>
+      <div>
+        <div class="pred-text">${escHtml(msg)}</div>
+        ${etaText?`<div class="pred-time">${etaText}</div>`:""}
+      </div>
+    </div>`;
+  }).join("");
+}
+
+function setNarrationStyle(style){
+  _percNarrationStyle=style;
+  // Update button active states
+  document.querySelectorAll(".perc-style-btn").forEach(btn=>{
+    btn.classList.toggle("active",btn.dataset.style===style);
+  });
+  // Immediately refresh narration with new style
+  if(_percActiveSession){
+    fetch(`/vigil/perception/narration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style})})
+      .then(r=>r.ok?r.json():null).then(data=>_percRenderNarration(data)).catch(()=>{});
+  }
+}
+
+async function runPerceptionQuery(){
+  const input=$("percQueryInput");
+  const ansEl=$("percQueryAnswer");
+  const loadEl=$("percQueryLoading");
+  if(!input||!ansEl||!loadEl)return;
+  const q=input.value.trim();
+  if(!q)return;
+
+  ansEl.classList.remove("show");
+  loadEl.classList.add("show");
+
+  try{
+    const r=await fetch(`/vigil/perception/query`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({question:q})
+    });
+    if(!r.ok)throw new Error(`HTTP ${r.status}`);
+    const data=await r.json();
+    const answer=data.answer||data.response||data.result||JSON.stringify(data);
+    ansEl.textContent=answer;
+    ansEl.classList.add("show");
+  }catch(e){
+    ansEl.textContent=`エラー: ${e.message}`;
+    ansEl.classList.add("show");
+  }finally{
+    loadEl.classList.remove("show");
+  }
+}
+
+// Stop perception refresh when the vigil modal is closed
+// We patch the existing closeVigil function
+(function(){
+  const _orig=window.closeVigil;
+  if(typeof _orig==="function"){
+    window.closeVigil=function(){
+      if(_percRefreshTimer){clearInterval(_percRefreshTimer);_percRefreshTimer=null;}
+      _percActiveSession=null;
+      _orig.call(this);
+    };
+  }
+})();
 </script>
 
 <!-- Vigil frame lightbox overlay -->

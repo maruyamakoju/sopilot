@@ -1,7 +1,7 @@
 # SOPilot — Technical Summary
 
-**Version:** v1.3.0 (1,147 tests)
-**Date:** 2026-03-02
+**Version:** v1.3.0 (1,501 tests)
+**Date:** 2026-03-03
 **Evaluation dataset:** 3,507 scored video pairs (96-hour production run)
 
 ---
@@ -111,7 +111,13 @@ precision). The 21 FNs represent genuine near-threshold borderline cases.
 │  │   (5 checks)   │    │  ├── VLM client (Claude Vision API)    │
 │  ├── ColorMotion  │    │  ├── Severity filter + event store     │
 │  │   embedder     │    │  └── Background thread (daemon)        │
-│  └── Clip store   │    └────────────────┬───────────────────────┘
+│  └── Clip store   │    ├─────────────────────────────────────── │
+│                   │    │  Perception Engine (sopilot/perception/)│
+│                   │    │  ├── Detect → Track → Scene Graph      │
+│                   │    │  ├── World Model + Predict + Activity  │
+│                   │    │  ├── Causality + Memory + Narrator     │
+│                   │    │  └── 9 /vigil/perception/* endpoints   │
+│                   │    └────────────────┬───────────────────────┘
 └────────┬──────────┘                     │
          │              ┌─────────────────▼─────────────────────┐
          │              │  Scoring Pipeline                      │
@@ -144,40 +150,79 @@ precision). The 21 FNs represent genuine near-threshold borderline cases.
 
 ---
 
-## Perception Engine (v1.3)
+## Perception Engine (v1.3) — カメラOS R&D
 
-The Perception Engine adds spatial-temporal scene understanding to VigilPilot. Instead of
-sending raw frames to a VLM for every check, it builds a structured world model from video
-and reasons over it — enabling multi-object tracking, inter-object rule evaluation, and
-hybrid local+VLM analysis.
+Full continuous perception pipeline replacing stateless VLM-per-frame analysis:
 
-**Pipeline:** Frame --> Detect --> Track --> Scene Graph --> World Model --> Reason --> Events
+```
+Frame → Detect → Track → Scene Graph → World Model
+                                             ↓
+                    ┌── Predict (zone entry, collision)
+                    ├── Classify (activity: walk/run/loiter/erratic)
+                    ├── Attend (dynamic VLM sampling)
+                    ├── Cause (why? event chains)
+                    ├── Remember (2h context, NL query)
+                    └── Reason (local + VLM hybrid)
+                                             ↓
+                                   Violations + Narration
+```
 
-### Modules
+### Modules (14 modules, ~9,240 lines)
 
-| Module | Role |
+**Phase 1 — Core Pipeline:**
+| Module | Description |
 |---|---|
-| **Frame Sampler** (`frame_sampler.py`) | Extracts frames from video/RTSP at configurable fps; feeds downstream pipeline |
-| **Detector** (`detector.py`) | Runs object detection on each frame; returns bounding boxes with class labels and confidence scores in normalized `[0,1]` coordinates |
-| **Tracker** (`tracker.py`) | ByteTrack-based multi-object tracker; assigns persistent IDs across frames, handles occlusion and re-identification |
-| **Scene Graph** (`scene_graph.py`) | Builds per-frame spatial relationship graph from detections (containment, proximity, relative position); uses normalized coordinates for resolution independence |
-| **World Model** (`world_model.py`) | Maintains temporal state across frames: object histories, zone occupancy, activity timelines; provides query interface for the reasoner |
-| **Reasoner** (`reasoner.py`) | Hybrid rule engine: evaluates spatial/temporal rules locally (no API call), escalates ambiguous or complex rules to VLM; parses rules in both Japanese and English |
-| **Mock Detector** (`mock_detector.py`) | Deterministic detection stub for testing without GPU; produces repeatable bounding boxes and class labels for the full pipeline |
+| types.py | Shared data structures (BBox, Detection, Track, SceneGraph, WorldState) |
+| detector.py | Grounding-DINO open-vocabulary detection + MockDetector |
+| tracker.py | ByteTrack-style MOT with Kalman filter, Hungarian assignment |
+| scene_graph.py | Spatial + semantic relation inference (WEARING, HOLDING, OPERATING) |
+| world_model.py | EntityRegistry, ZoneMonitor, AnomalyBaseline, TemporalMemory |
+| reasoning.py | Japanese/English rule parser + LocalReasoner + VLM escalation |
+| engine.py | Main orchestrator: process_frame() / process_video() |
 
-### Key Design Decisions
+**Phase 2 — Intelligence:**
+| Module | Description |
+|---|---|
+| prediction.py | EWMA trajectory forecasting, proactive zone/collision alerts |
+| activity.py | 8 activity types (stationary/walking/running/loitering/erratic) |
+| attention.py | Dynamic VLM sampling rate based on scene attention scoring |
 
-- **Normalized coordinates** — all bounding boxes use `[0,1]` ranges, making rules resolution-independent and simplifying spatial reasoning
-- **ByteTrack tracking** — chosen for its balance of speed and accuracy; handles low-confidence detections gracefully via two-stage association
-- **Hybrid local+VLM reasoning** — simple spatial/temporal rules (e.g., "no person in zone A") are evaluated locally with zero API cost; only ambiguous or semantic rules are escalated to the VLM backend
-- **Japanese/English rule parsing** — the reasoner accepts natural-language rules in both languages, matching the existing bilingual UI pattern
-- **Mock detector for testing** — enables full pipeline integration tests (111 tests) without any GPU or model dependency
+**Phase 3 — Deliberative Reasoning:**
+| Module | Description |
+|---|---|
+| causality.py | Causal reasoning: "why" from event sequences (5 built-in patterns) |
+| context_memory.py | Long-horizon session memory with Japanese NL query interface |
+| narrator.py | Template-based scene narration in Japanese + English |
 
-### Metrics
+### Performance (実測値)
 
-- ~5,200 lines of perception code across 7 modules
-- 111 dedicated tests (bringing project total from 1,036 to 1,147)
-- Enable via `VIGIL_VLM_BACKEND=perception`
+Tested on `jr23_720p.mp4` (23s, 1280×720, 30fps):
+
+| Metric | Value |
+|---|---|
+| Processing speed (MockDetector) | **18.9 ms/frame (52.9 FPS)** |
+| vs Claude VLM API (3,710 ms/frame) | **196x faster** |
+| VLM calls | 0 (fully local reasoning) |
+| Track persistence | 2 tracks × 22 frames each |
+| Violations detected | 40 (local only, no GPU) |
+
+### Perception API (`/vigil/perception/*`)
+
+9 new endpoints for accessing perception intelligence:
+
+| Endpoint | Description |
+|---|---|
+| `POST /vigil/perception/narration` | Japanese/English scene narration |
+| `POST /vigil/perception/query` | NL question answering ("何人いる？") |
+| `GET /vigil/perception/summary` | Session summary (entities, violations) |
+| `GET /vigil/perception/entities/{id}` | Entity history and activity |
+| `GET /vigil/perception/activities` | Real-time activity classification |
+| `GET /vigil/perception/predictions` | Zone entry + collision predictions |
+| `GET /vigil/perception/causality` | Causal reasoning links |
+| `POST /vigil/perception/timeline` | Filtered event timeline |
+| `GET /vigil/perception/state` | Engine state snapshot |
+
+Enable via: `VIGIL_VLM_BACKEND=perception`
 
 ---
 
@@ -237,7 +282,7 @@ Full OpenAPI spec at `http://localhost:8000/docs` (Swagger UI) or `/redoc`.
 - **Reliability:** Score job retry (2 attempts), webhook notification with exponential backoff
 - **Security:** CORS allowlist, `X-Request-ID` correlation, non-root container user (uid 1000)
 - **Audit log:** Structured JSON events for video deletion, job creation, completion, reviews
-- **Test coverage:** 1,147 automated tests (unit + integration + property-based + concurrency)
+- **Test coverage:** 1,501 automated tests (unit + integration + property-based + concurrency)
 
 ---
 
@@ -295,6 +340,7 @@ Latency is dominated by the VLM API round-trip. For lower latency:
 | SQLite concurrency | Write throughput limited under high load | Use `SOPILOT_SCORE_WORKERS=1` (default); scale via multiple deployments |
 | No video authentication | Uploaded videos are not tamper-verified | Enforce upstream access control |
 | Annotation dependency | Accuracy metrics depend on human label quality | Re-annotation of edge cases recommended (see FP analysis) |
+| Perception detector | MockDetector for testing; Grounding-DINO requires GPU + model download | Use VIGIL_VLM_BACKEND=perception with GPU for production |
 
 ---
 

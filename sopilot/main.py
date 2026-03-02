@@ -22,6 +22,7 @@ from sopilot.services.sopilot_service import SOPilotService
 from sopilot.services.storage import FileStorage
 from sopilot.services.video_processor import VideoProcessor
 from sopilot.vigil import build_vigil_router
+from sopilot.vigil.perception_router import build_perception_router
 from sopilot.vigil.pipeline import VigilPipeline
 from sopilot.vigil.repository import VigilRepository
 from sopilot.vigil.vlm import build_vlm_client
@@ -130,6 +131,7 @@ def create_app() -> FastAPI:
     app.state.vigil_repo = vigil_repo
     app.state.vigil_pipeline = vigil_pipeline
     app.include_router(build_vigil_router())
+    app.include_router(build_perception_router())
     app.include_router(build_router(), prefix="/api/v1")
     # Backward-compatible: mount same routes at root for existing clients
     app.include_router(build_router())

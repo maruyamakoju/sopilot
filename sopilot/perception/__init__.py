@@ -16,4 +16,9 @@ Phase 2 — Intelligence:
     prediction  — Trajectory forecasting, proactive zone/collision alerts
     activity    — Activity recognition from trajectory patterns (rule-based)
     attention   — Dynamic VLM frame sampling based on scene attention scoring
+
+Phase 3 — Deliberative Reasoning:
+    causality      — Causal reasoning: "why" understanding from event sequences
+    context_memory — Long-horizon session memory with NL query interface
+    narrator       — Natural language scene narration (Japanese/English)
 """

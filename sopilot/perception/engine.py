@@ -138,6 +138,9 @@ class PerceptionEngine:
         activity_classifier: Any | None = None,
         activity_monitor: Any | None = None,
         attention_scorer: Any | None = None,
+        causal_reasoner: Any | None = None,
+        context_memory: Any | None = None,
+        narrator: Any | None = None,
     ) -> None:
         """Initialize the perception engine.
 
@@ -153,6 +156,9 @@ class PerceptionEngine:
             activity_classifier: ActivityClassifier for trajectory-based activity recognition.
             activity_monitor: ActivityMonitor for activity change events.
             attention_scorer: SceneAttentionScorer for dynamic frame sampling.
+            causal_reasoner: CausalReasoner for "why" understanding from event sequences.
+            context_memory: ContextMemory for long-horizon session understanding.
+            narrator: SceneNarrator for natural language scene descriptions.
         """
         self._config = config or PerceptionConfig()
         self._detector = detector
@@ -181,6 +187,11 @@ class PerceptionEngine:
         self._activity_monitor = activity_monitor
         self._attention_scorer = attention_scorer
         self._previous_world_state: WorldState | None = None
+
+        # Phase 3: causal reasoning, context memory, narration
+        self._causal_reasoner = causal_reasoner
+        self._context_memory = context_memory
+        self._narrator = narrator
 
         # Zones for scene graph and world model
         self._zones: list[Zone] = list(self._config.zone_definitions)
@@ -285,6 +296,16 @@ class PerceptionEngine:
             t_stage = time.perf_counter()
             self._run_attention_scoring(world_state)
             timings["attention_ms"] = (time.perf_counter() - t_stage) * 1000
+
+            # ── Stage 4e: Causal reasoning ─────────────────────────
+            t_stage = time.perf_counter()
+            causal_links = self._run_causal_reasoning(world_state)
+            timings["causality_ms"] = (time.perf_counter() - t_stage) * 1000
+
+            # ── Stage 4f: Context memory update ────────────────────
+            t_stage = time.perf_counter()
+            self._run_context_memory(world_state)
+            timings["context_memory_ms"] = (time.perf_counter() - t_stage) * 1000
 
             # ── Stage 5: Evaluate rules (hybrid reasoning) ────────
             t_stage = time.perf_counter()
@@ -471,6 +492,18 @@ class PerceptionEngine:
             except (AttributeError, Exception):
                 pass
         self._previous_world_state = None
+
+        # Reset Phase 3 components
+        if self._causal_reasoner is not None:
+            try:
+                self._causal_reasoner.reset()
+            except (AttributeError, Exception):
+                pass
+        if self._context_memory is not None:
+            try:
+                self._context_memory.reset()
+            except (AttributeError, Exception):
+                pass
 
         self._cached_rules_key = None
         self._cached_prompts = []
@@ -661,6 +694,25 @@ class PerceptionEngine:
                 )
         except Exception:
             logger.exception("Attention scoring failed")
+
+    def _run_causal_reasoning(self, world_state: WorldState) -> list:
+        """Analyze world state events for causal relationships."""
+        if self._causal_reasoner is None:
+            return []
+        try:
+            return self._causal_reasoner.analyze(world_state)
+        except Exception:
+            logger.exception("Causal reasoning failed")
+            return []
+
+    def _run_context_memory(self, world_state: WorldState) -> None:
+        """Update long-horizon context memory with current world state."""
+        if self._context_memory is None:
+            return
+        try:
+            self._context_memory.update(world_state)
+        except Exception:
+            logger.exception("Context memory update failed")
 
     def _events_to_violations(self, world_state: WorldState) -> list[Violation]:
         """Convert world model events (zone entry, prolonged presence) to violations."""
@@ -939,6 +991,37 @@ def build_perception_engine(
     except Exception:
         logger.exception("Failed to initialize attention scorer")
 
+    # ── Build Phase 3 components ───────────────────────────────────────
+    causal_reasoner = None
+    try:
+        from sopilot.perception.causality import CausalReasoner
+        causal_reasoner = CausalReasoner()
+        logger.info("CausalReasoner initialized")
+    except ImportError:
+        logger.debug("Causality module not available")
+    except Exception:
+        logger.exception("Failed to initialize causal reasoner")
+
+    context_memory = None
+    try:
+        from sopilot.perception.context_memory import ContextMemory
+        context_memory = ContextMemory()
+        logger.info("ContextMemory initialized")
+    except ImportError:
+        logger.debug("Context memory module not available")
+    except Exception:
+        logger.exception("Failed to initialize context memory")
+
+    narrator = None
+    try:
+        from sopilot.perception.narrator import SceneNarrator
+        narrator = SceneNarrator()
+        logger.info("SceneNarrator initialized")
+    except ImportError:
+        logger.debug("Narrator module not available")
+    except Exception:
+        logger.exception("Failed to initialize scene narrator")
+
     # ── Assemble engine ───────────────────────────────────────────────
     engine = PerceptionEngine(
         config=config,
@@ -952,6 +1035,9 @@ def build_perception_engine(
         activity_classifier=activity_classifier,
         activity_monitor=activity_monitor,
         attention_scorer=attention_scorer,
+        causal_reasoner=causal_reasoner,
+        context_memory=context_memory,
+        narrator=narrator,
     )
 
     return engine

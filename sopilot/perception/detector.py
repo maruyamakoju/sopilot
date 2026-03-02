@@ -601,3 +601,169 @@ class MockDetector(ObjectDetector):
     def close(self) -> None:
         """No-op for mock detector."""
         logger.debug("MockDetector.close() — nothing to release")
+
+
+# ── YOLO-World backend ────────────────────────────────────────────────────
+
+
+class YOLOWorldDetector(ObjectDetector):
+    """Open-vocabulary object detector using YOLO-World (ultralytics).
+
+    Runs on CPU without a GPU. The model file (~88 MB) is downloaded
+    automatically on the first call to :meth:`detect`.
+
+    Supports dynamic vocabulary updates via ``set_classes()`` — each unique
+    set of prompts triggers a single ``set_classes()`` call so repeated
+    inference with the same prompts avoids redundant updates.
+
+    Parameters
+    ----------
+    config:
+        :class:`PerceptionConfig` controlling confidence threshold, NMS
+        threshold, max detections, and device.  If *None* sensible defaults
+        are used.
+    model_name:
+        YOLO-World model variant to load.  Defaults to
+        ``"yolov8s-worldv2.pt"`` (small, ~88 MB, CPU-friendly).
+    """
+
+    DEFAULT_MODEL: str = "yolov8s-worldv2.pt"
+    DEFAULT_CLASSES: list[str] = [
+        "person",
+        "hard hat",
+        "helmet",
+        "safety vest",
+        "vest",
+        "gloves",
+        "forklift",
+        "machine",
+        "vehicle",
+        "pallet",
+    ]
+
+    def __init__(
+        self,
+        config: PerceptionConfig | None = None,
+        model_name: str | None = None,
+    ) -> None:
+        self._config = config or PerceptionConfig()
+        self._model_name = model_name or self.DEFAULT_MODEL
+        self._model: Any = None
+        self._current_classes: list[str] = []
+        self._loaded = False
+        logger.info(
+            "YOLOWorldDetector created (model=%s, lazy load)",
+            self._model_name,
+        )
+
+    # ── Lazy loading ──────────────────────────────────────────────────
+
+    def _load_model(self) -> None:
+        """Load YOLO-World model on first use."""
+        if self._loaded:
+            return
+        try:
+            from ultralytics import YOLO
+        except ImportError as exc:
+            raise ImportError(
+                "YOLOWorldDetector requires the `ultralytics` package. "
+                "Install with:  pip install ultralytics"
+            ) from exc
+
+        logger.info("Loading YOLO-World model '%s' ...", self._model_name)
+        self._model = YOLO(self._model_name)
+        self._model.set_classes(self.DEFAULT_CLASSES)
+        self._current_classes = list(self.DEFAULT_CLASSES)
+        self._loaded = True
+        logger.info("YOLO-World model loaded (classes=%s)", self._current_classes)
+
+    def _maybe_update_classes(self, prompts: list[str]) -> None:
+        """Update classes only if prompts differ from current set."""
+        if not prompts or set(prompts) == set(self._current_classes):
+            return
+        self._model.set_classes(prompts)
+        self._current_classes = list(prompts)
+        logger.debug("YOLO-World classes updated: %s", prompts)
+
+    # ── Detection ─────────────────────────────────────────────────────
+
+    def detect(self, frame: np.ndarray, prompts: list[str]) -> list[Detection]:
+        """Run YOLO-World detection on *frame*.
+
+        Parameters
+        ----------
+        frame:
+            BGR image as numpy array ``(H, W, 3)``.
+        prompts:
+            Natural-language class names.  If empty, :attr:`DEFAULT_CLASSES`
+            are used.
+        """
+        if frame.size == 0:
+            return []
+
+        effective_prompts = prompts if prompts else self.DEFAULT_CLASSES
+        self._load_model()
+        self._maybe_update_classes(effective_prompts)
+
+        h, w = frame.shape[:2]
+
+        try:
+            results = self._model.predict(
+                frame,
+                conf=self._config.detection_confidence_threshold,
+                iou=self._config.detection_nms_threshold,
+                verbose=False,
+                device="cpu",
+            )
+        except Exception as exc:
+            logger.warning("YOLO-World inference failed: %s", exc)
+            return []
+
+        detections: list[Detection] = []
+        max_dets = self._config.max_detections_per_frame
+
+        for r in results:
+            boxes = r.boxes
+            if boxes is None:
+                continue
+            names = r.names  # dict[int, str]
+            for box in boxes:
+                if len(detections) >= max_dets:
+                    break
+                conf = float(box.conf[0])
+                if conf < self._config.detection_confidence_threshold:
+                    continue
+                cls_id = int(box.cls[0])
+                label = names.get(cls_id, effective_prompts[0] if effective_prompts else "object")
+
+                xyxy = box.xyxy[0]
+                if hasattr(xyxy, "cpu"):
+                    xyxy = xyxy.cpu().numpy()
+                x1_px, y1_px, x2_px, y2_px = xyxy
+
+                bbox = BBox(
+                    x1=float(np.clip(x1_px / w, 0.0, 1.0)),
+                    y1=float(np.clip(y1_px / h, 0.0, 1.0)),
+                    x2=float(np.clip(x2_px / w, 0.0, 1.0)),
+                    y2=float(np.clip(y2_px / h, 0.0, 1.0)),
+                )
+                if bbox.area < 1e-6:
+                    continue
+                detections.append(Detection(bbox=bbox, label=label, confidence=conf))
+
+        detections = non_max_suppression(
+            detections, iou_threshold=self._config.detection_nms_threshold
+        )
+        logger.debug(
+            "YOLO-World detected %d objects (prompts=%s)", len(detections), effective_prompts
+        )
+        return detections
+
+    # ── Cleanup ───────────────────────────────────────────────────────
+
+    def close(self) -> None:
+        """Release model resources."""
+        self._model = None
+        self._current_classes = []
+        self._loaded = False
+        logger.info("YOLOWorldDetector resources released")

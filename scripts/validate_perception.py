@@ -30,10 +30,38 @@ from sopilot.perception.types import (
 )
 
 
+def _parse_detector_arg() -> str:
+    """Parse --detector argument from sys.argv. Returns detector backend name."""
+    detector = "mock"
+    for i, arg in enumerate(sys.argv[1:], 1):
+        if arg.startswith("--detector="):
+            detector = arg.split("=", 1)[1]
+        elif arg == "--detector" and i + 1 < len(sys.argv):
+            detector = sys.argv[i + 1]
+    return detector
+
+
 def main():
+    # ── Detector selection ────────────────────────────────────────
+    detector_backend = _parse_detector_arg()
+
     # ── Video selection ────────────────────────────────────────────
-    if len(sys.argv) > 1:
-        video_path = Path(sys.argv[1])
+    # Filter out --detector flags to find the video path argument
+    positional_args = []
+    skip_next = False
+    for i, arg in enumerate(sys.argv[1:], 1):
+        if skip_next:
+            skip_next = False
+            continue
+        if arg.startswith("--detector="):
+            continue
+        if arg == "--detector":
+            skip_next = True
+            continue
+        positional_args.append(arg)
+
+    if positional_args:
+        video_path = Path(positional_args[0])
     else:
         video_path = Path("jr23_720p.mp4")
 
@@ -61,11 +89,11 @@ def main():
     print("=" * 70)
 
     # ── Configure engine ───────────────────────────────────────────
-    # Use mock detector (no GPU), but process real video frames
-    # The mock detector uses heuristic mode on real frames: brightness,
-    # color analysis to infer objects
+    print(f"  Detector:   {detector_backend}")
+    print("=" * 70)
+
     config = PerceptionConfig(
-        detector_backend="mock",
+        detector_backend=detector_backend,
         track_min_hits=2,
         track_max_age=15,
         scene_near_threshold=0.15,
@@ -100,47 +128,52 @@ def main():
     print("\n[1] Building perception engine...")
     t0 = time.perf_counter()
 
-    # Build engine manually to enable heuristic detection on real frames
-    from sopilot.perception.detector import MockDetector
-    from sopilot.perception.tracker import MultiObjectTracker
-    from sopilot.perception.scene_graph import SceneGraphBuilder
-    from sopilot.perception.world_model import WorldModel
-    from sopilot.perception.reasoning import HybridReasoner
-    from sopilot.perception.prediction import TrajectoryPredictor
-    from sopilot.perception.activity import ActivityClassifier, ActivityMonitor
-    from sopilot.perception.attention import SceneAttentionScorer
-    from sopilot.perception.causality import CausalReasoner
-    from sopilot.perception.context_memory import ContextMemory
-    from sopilot.perception.narrator import SceneNarrator
+    if detector_backend == "yolo_world":
+        # Use factory which builds YOLOWorldDetector + all components
+        engine = build_perception_engine(config=config)
+    else:
+        # Build engine manually to enable heuristic detection on real frames
+        from sopilot.perception.detector import MockDetector
+        from sopilot.perception.tracker import MultiObjectTracker
+        from sopilot.perception.scene_graph import SceneGraphBuilder
+        from sopilot.perception.world_model import WorldModel
+        from sopilot.perception.reasoning import HybridReasoner
+        from sopilot.perception.prediction import TrajectoryPredictor
+        from sopilot.perception.activity import ActivityClassifier, ActivityMonitor
+        from sopilot.perception.attention import SceneAttentionScorer
+        from sopilot.perception.causality import CausalReasoner
+        from sopilot.perception.context_memory import ContextMemory
+        from sopilot.perception.narrator import SceneNarrator
 
-    detector = MockDetector(use_heuristics=True, config=config)
-    tracker = MultiObjectTracker(config)
-    scene_builder = SceneGraphBuilder(config)
-    world_model = WorldModel(config)
-    reasoner = HybridReasoner(config=config)
-    predictor = TrajectoryPredictor()
-    activity_cls = ActivityClassifier()
-    activity_mon = ActivityMonitor(classifier=activity_cls)
-    attention = SceneAttentionScorer()
-    causal = CausalReasoner()
-    context_mem = ContextMemory()
-    narrator = SceneNarrator()
+        detector = MockDetector(use_heuristics=True, config=config)
+        tracker = MultiObjectTracker(config)
+        scene_builder = SceneGraphBuilder(config)
+        world_model = WorldModel(config)
+        reasoner = HybridReasoner(config=config)
+        predictor = TrajectoryPredictor()
+        activity_cls = ActivityClassifier()
+        activity_mon = ActivityMonitor(classifier=activity_cls)
+        attention = SceneAttentionScorer()
+        causal = CausalReasoner()
+        context_mem = ContextMemory()
+        narrator = SceneNarrator()
 
-    engine = PerceptionEngine(
-        config=config,
-        detector=detector,
-        tracker=tracker,
-        scene_builder=scene_builder,
-        world_model=world_model,
-        reasoner=reasoner,
-        trajectory_predictor=predictor,
-        activity_classifier=activity_cls,
-        activity_monitor=activity_mon,
-        attention_scorer=attention,
-        causal_reasoner=causal,
-        context_memory=context_mem,
-        narrator=narrator,
-    )
+        engine = PerceptionEngine(
+            config=config,
+            detector=detector,
+            tracker=tracker,
+            scene_builder=scene_builder,
+            world_model=world_model,
+            reasoner=reasoner,
+            trajectory_predictor=predictor,
+            activity_classifier=activity_cls,
+            activity_monitor=activity_mon,
+            attention_scorer=attention,
+            causal_reasoner=causal,
+            context_memory=context_mem,
+            narrator=narrator,
+        )
+
     engine.set_zones(zones)
     build_time = (time.perf_counter() - t0) * 1000
     print(f"    Engine built in {build_time:.0f}ms")

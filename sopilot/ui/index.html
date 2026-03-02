@@ -4644,6 +4644,9 @@ async function startVigilWebcam(sessionId){
   const fps=(_vigilActiveSession&&_vigilActiveSession.sample_fps)||1.0;
   const intervalMs=Math.max(500,Math.round(1000/fps));
 
+  // Reset perception engine state so tracking starts fresh for this session
+  await fetch(`/vigil/sessions/${sessionId}/perception-reset`, {method:"POST"}).catch(()=>null);
+
   toast("カメラ解析を開始しました","success");
 
   _webcamInterval=setInterval(async()=>{

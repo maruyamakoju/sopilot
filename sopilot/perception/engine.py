@@ -893,6 +893,9 @@ def build_perception_engine(
                 nms_threshold=config.detection_nms_threshold,
                 device=config.device,
             )
+        elif config.detector_backend == "yolo_world":
+            from sopilot.perception.detector import YOLOWorldDetector
+            detector = YOLOWorldDetector(config=config)
         else:
             logger.warning("Unknown detector backend: %s", config.detector_backend)
         if detector:

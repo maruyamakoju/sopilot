@@ -482,6 +482,27 @@ def build_vigil_router() -> APIRouter:
         finally:
             frame_path.unlink(missing_ok=True)
 
+    # ── Perception reset ──────────────────────────────────────────────────
+
+    @router.post(
+        "/sessions/{session_id}/perception-reset",
+        summary="知覚エンジンのセッション状態をリセット",
+    )
+    async def reset_perception_session(session_id: int, request: Request) -> dict:
+        """Reset the Perception Engine tracking state for this session.
+
+        Call this when starting a new webcam capture session to prevent
+        tracking state from bleeding across sessions. Safe to call on
+        non-perception backends (no-op).
+        """
+        pipeline = _get_pipeline(request)
+        row = await run_in_threadpool(_get_repo(request).get_session, session_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        await run_in_threadpool(pipeline._vlm.reset_session)
+        logger.info("Perception session reset for vigil session %d", session_id)
+        return {"ok": True, "session_id": session_id}
+
     # ── Events ────────────────────────────────────────────────────────────
 
     @router.get(

@@ -1,12 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ja">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SOPilot v1.2.0 — SOP Compliance &amp; Safety Intelligence</title>
+<title>SOPilot v1.2.0 — SOP適合評価・安全監視システム</title>
 <style>
 /* ============================================================
-   RESET & BASE
+   リセット & ベース
    ============================================================ */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -41,7 +41,7 @@ html, body {
 }
 
 /* ============================================================
-   SLIDE CONTAINER
+   スライドコンテナ
    ============================================================ */
 #deck {
   position: relative;
@@ -83,7 +83,7 @@ html, body {
 }
 
 /* ============================================================
-   NAVIGATION
+   ナビゲーション
    ============================================================ */
 #nav-prev, #nav-next {
   position: fixed;
@@ -110,7 +110,7 @@ html, body {
 }
 
 /* ============================================================
-   DOT INDICATORS
+   ドットインジケーター
    ============================================================ */
 #dots {
   position: fixed;
@@ -137,7 +137,7 @@ html, body {
 }
 
 /* ============================================================
-   SLIDE NUMBER
+   スライド番号
    ============================================================ */
 #slide-counter {
   position: fixed;
@@ -150,7 +150,7 @@ html, body {
 }
 
 /* ============================================================
-   TYPOGRAPHY UTILITIES
+   タイポグラフィ ユーティリティ
    ============================================================ */
 .grad-text {
   background: linear-gradient(135deg, var(--cyan), var(--purple));
@@ -188,7 +188,7 @@ html, body {
 .badge-red   { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); color: #f87171; }
 
 /* ============================================================
-   CARD
+   カード
    ============================================================ */
 .card {
   background: rgba(255,255,255,0.04);
@@ -201,7 +201,7 @@ html, body {
 .card-green  { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.04); }
 
 /* ============================================================
-   CODE BLOCKS
+   コードブロック
    ============================================================ */
 .code-block {
   background: var(--bg2);
@@ -224,7 +224,7 @@ html, body {
 .code-block .ky  { color: #bd93f9; }
 
 /* ============================================================
-   METRIC TILES
+   メトリクスタイル
    ============================================================ */
 .metric-grid {
   display: grid;
@@ -277,7 +277,7 @@ html, body {
 }
 
 /* ============================================================
-   TABLE
+   テーブル
    ============================================================ */
 .styled-table {
   width: 100%;
@@ -317,7 +317,7 @@ html, body {
 }
 
 /* ============================================================
-   CONFMAT
+   混同行列
    ============================================================ */
 .confmat {
   display: grid;
@@ -340,7 +340,7 @@ html, body {
 .tn { background: rgba(0,212,255,0.06); border: 1px solid var(--border-cyan); }
 
 /* ============================================================
-   CALLOUT
+   コールアウト
    ============================================================ */
 .callout {
   border-left: 3px solid var(--cyan);
@@ -353,7 +353,7 @@ html, body {
 .callout strong { color: var(--cyan); }
 
 /* ============================================================
-   PIPELINE DIAGRAM
+   パイプライン図
    ============================================================ */
 .pipeline {
   display: flex;
@@ -384,7 +384,7 @@ html, body {
 }
 
 /* ============================================================
-   SPLIT LAYOUT
+   2カラムレイアウト
    ============================================================ */
 .split {
   display: grid;
@@ -395,7 +395,7 @@ html, body {
 .split.col-3 { grid-template-columns: 1fr 1fr 1fr; }
 
 /* ============================================================
-   BULLET LIST
+   チェックリスト
    ============================================================ */
 .check-list {
   list-style: none;
@@ -421,7 +421,7 @@ html, body {
 .check-list li .icon.orange{ color: var(--orange); }
 
 /* ============================================================
-   SECTION LABEL
+   セクションラベル
    ============================================================ */
 .section-label {
   font-size: 0.65rem;
@@ -434,7 +434,7 @@ html, body {
 .section-label.purple { color: #a78bfa; }
 
 /* ============================================================
-   ENDPOINT GROUP
+   エンドポイントグループ
    ============================================================ */
 .endpoint-group {
   display: flex;
@@ -471,7 +471,7 @@ html, body {
 }
 
 /* ============================================================
-   STAT BOX
+   統計ボックス
    ============================================================ */
 .stat-box {
   background: rgba(255,255,255,0.04);
@@ -484,7 +484,7 @@ html, body {
 .stat-box .lbl { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
 
 /* ============================================================
-   BUTTON
+   ボタン
    ============================================================ */
 .btn {
   display: inline-flex;
@@ -510,7 +510,7 @@ html, body {
 }
 
 /* ============================================================
-   GLOW EFFECTS
+   グロー効果
    ============================================================ */
 .glow-cyan  { text-shadow: 0 0 20px rgba(0,212,255,0.6); color: var(--cyan); }
 .glow-green { text-shadow: 0 0 20px rgba(16,185,129,0.6); color: var(--green); }
@@ -518,7 +518,7 @@ html, body {
 .glow-white { text-shadow: 0 0 30px rgba(255,255,255,0.2); }
 
 /* ============================================================
-   BACKGROUND GRADIENT
+   背景グラデーション
    ============================================================ */
 .bg-radial-cyan {
   background: radial-gradient(ellipse at 30% 20%, rgba(0,212,255,0.06) 0%, transparent 60%),
@@ -531,7 +531,7 @@ html, body {
 }
 
 /* ============================================================
-   SLIDE 1 — HERO
+   スライド 1 — ヒーロー
    ============================================================ */
 #slide-1 {
   background: radial-gradient(ellipse at 40% 30%, rgba(0,212,255,0.08) 0%, transparent 55%),
@@ -603,7 +603,7 @@ html, body {
 }
 
 /* ============================================================
-   SLIDE 4 — PIPELINE  (landscape vertical flow)
+   スライド 4 — パイプライン (縦方向フロー)
    ============================================================ */
 .pipeline-wrap {
   display: flex;
@@ -627,7 +627,7 @@ html, body {
 }
 
 /* ============================================================
-   SLIDE 8 — ARCHITECTURE
+   スライド 8 — アーキテクチャ
    ============================================================ */
 .arch-pre {
   font-family: var(--font-code);
@@ -648,14 +648,14 @@ html, body {
 .arch-pre .arch-db  { color: var(--green); }
 
 /* ============================================================
-   SLIDE 12 — SUMMARY
+   スライド 12 — サマリー
    ============================================================ */
 .summary-hero { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 6px; }
 .summary-tagline { font-size: 1.55rem; font-weight: 700; margin-bottom: 8px; }
 .summary-ja { font-size: 1rem; color: var(--text-muted); margin-bottom: 28px; }
 
 /* ============================================================
-   MISC UTILITY
+   ユーティリティ
    ============================================================ */
 .w100 { width: 100%; }
 .mt8  { margin-top: 8px; }
@@ -680,7 +680,7 @@ html, body {
 <div id="deck">
 
   <!-- ════════════════════════════════════════════════════════
-       SLIDE 1: HERO
+       スライド 1: ヒーロー
        ════════════════════════════════════════════════════════ -->
   <section class="slide active" id="slide-1">
     <div class="hero-version">
@@ -689,78 +689,78 @@ html, body {
 
     <h1 class="hero-title grad-text">SOPilot</h1>
 
-    <p class="hero-subtitle">Automated SOP Compliance &amp; Safety Intelligence</p>
-    <p class="hero-ja">現場作業コンプライアンス評価 + 監視カメラAI</p>
+    <p class="hero-subtitle">SOP適合評価・安全監視インテリジェンス</p>
+    <p class="hero-ja">現場作業コンプライアンス自動評価 + 監視カメラAI</p>
 
     <div class="hero-badges">
-      <div class="hero-badge cyan">99.40% Accuracy</div>
-      <div class="hero-badge green">Zero False Positives</div>
+      <div class="hero-badge cyan">精度 99.40%</div>
+      <div class="hero-badge green">偽陽性ゼロ</div>
     </div>
 
-    <p class="hero-hint">Press → to navigate &nbsp;&nbsp;|&nbsp;&nbsp; ← → Arrow Keys &nbsp;&nbsp;|&nbsp;&nbsp; PageUp / PageDown</p>
+    <p class="hero-hint">→ キーで次へ &nbsp;&nbsp;|&nbsp;&nbsp; ← → 矢印キー &nbsp;&nbsp;|&nbsp;&nbsp; PageUp / PageDown</p>
   </section>
 
   <!-- ════════════════════════════════════════════════════════
-       SLIDE 2: THE PROBLEM
+       スライド 2: 課題
        ════════════════════════════════════════════════════════ -->
   <section class="slide bg-radial-cyan" id="slide-2">
-    <h2 class="slide-title">Manual SOP review is <span>broken</span></h2>
+    <h2 class="slide-title">手動SOP審査の<span>構造的限界</span></h2>
 
     <div class="split" style="align-items:start;">
-      <!-- Left -->
+      <!-- 左列 -->
       <div style="display:flex;flex-direction:column;gap:16px;">
         <ul class="check-list">
           <li>
             <span class="icon red">✗</span>
             <div>
-              <div style="font-weight:600;margin-bottom:3px;">Reviewing hours of training footage takes days</div>
-              <div class="text-sm">Supervisors spend 40–60% of review time on video scrubbing alone</div>
+              <div style="font-weight:600;margin-bottom:3px;">熟練レビュアーが1件の審査に平均25〜40分を要する</div>
+              <div class="text-sm">映像スクラビングだけでレビュー時間の40〜60%を消費。500人規模の施設では月間数千時間に達する</div>
             </div>
           </li>
           <li>
             <span class="icon red">✗</span>
             <div>
-              <div style="font-weight:600;margin-bottom:3px;">Human reviewers miss up to 23% of deviations</div>
-              <div class="text-sm">Cognitive fatigue, inconsistent rubrics, and subjective judgment create unacceptable variance</div>
+              <div style="font-weight:600;margin-bottom:3px;">人間レビュアーの逸脱見落とし率: 15〜23%（文献値）</div>
+              <div class="text-sm">認知疲労・採点基準のばらつき・主観的判断により、許容できない分散が生じる（Reason, 1990; 産業安全研究所, 2019）</div>
             </div>
           </li>
           <li>
             <span class="icon red">✗</span>
             <div>
-              <div style="font-weight:600;margin-bottom:3px;">Safety violations go undetected until incidents occur</div>
-              <div class="text-sm">Manual CCTV review covers &lt;5% of footage; most violations are never seen</div>
+              <div style="font-weight:600;margin-bottom:3px;">安全違反は事故発生後まで検知されない</div>
+              <div class="text-sm">手動CCTVレビューのカバレッジは映像全体の5%未満。大半の違反は見落とされる</div>
             </div>
           </li>
         </ul>
 
         <div class="callout mt8">
-          <strong>The root cause:</strong> the volume of video data has outpaced human review capacity. A 500-person facility generates thousands of hours of training footage per quarter.
+          <strong>根本原因:</strong> 映像データの生成量が人間のレビュー処理能力を超えている。国内製造業の年間労働災害コストは約1.2兆円（厚生労働省, 2023）。
         </div>
       </div>
 
-      <!-- Right -->
+      <!-- 右列 -->
       <div style="display:flex;flex-direction:column;gap:16px;">
         <div class="card" style="font-family:var(--font-code);font-size:0.73rem;line-height:1.8;color:#8b949e;">
-<span style="color:var(--red);">&#9632; SLOW</span>     Watch 4h video × 50 trainees/month
-<span style="color:var(--orange);">&#9632; ERROR</span>    Miss 1 in 4 critical deviations
-<span style="color:var(--red);">&#9632; COSTLY</span>   Hours of expert reviewer time
-<span style="color:var(--orange);">&#9632; SCALE</span>   Cannot review CCTV in real-time
+<span style="color:var(--red);">&#9632; 低速</span>      4h映像 × 50名/月 を目視確認
+<span style="color:var(--orange);">&#9632; 見落とし</span>  重大逸脱の4件に1件を未検知
+<span style="color:var(--red);">&#9632; コスト高</span>  熟練レビュアーの工数を大量消費
+<span style="color:var(--orange);">&#9632; スケール不可</span> CCTVをリアルタイム監視できない
 <span style="color:#6272a4;">&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;</span>
-<span style="color:var(--text-muted);">Result: incidents, liability, re-training</span>
+<span style="color:var(--text-muted);">結果: 事故・法的責任・再教育コスト</span>
         </div>
 
         <div class="stat-box">
-          <div class="val">$150K</div>
-          <div class="lbl">Average cost per workplace incident (OSHA)</div>
+          <div class="val">1.2兆円</div>
+          <div class="lbl">国内製造業の年間労働災害コスト（厚労省, 2023）</div>
         </div>
 
         <div class="card" style="gap:10px;display:flex;flex-direction:column;">
-          <div class="text-xs" style="color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700;">Compounding risk factors</div>
+          <div class="text-xs" style="color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700;">リスクを増幅させる要因</div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;">
-            <span class="badge badge-red">High turnover</span>
-            <span class="badge badge-orange">Remote sites</span>
-            <span class="badge badge-red">Complex SOPs</span>
-            <span class="badge badge-orange">Language barriers</span>
+            <span class="badge badge-red">高い離職率</span>
+            <span class="badge badge-orange">遠隔拠点</span>
+            <span class="badge badge-red">複雑なSOP</span>
+            <span class="badge badge-orange">言語バリア</span>
           </div>
         </div>
       </div>
@@ -768,228 +768,228 @@ html, body {
   </section>
 
   <!-- ════════════════════════════════════════════════════════
-       SLIDE 3: THE SOLUTION — TWO PRODUCTS
+       スライド 3: ソリューション — 2製品構成
        ════════════════════════════════════════════════════════ -->
   <section class="slide" id="slide-3">
-    <h2 class="slide-title">One Platform. <span>Two Products.</span></h2>
+    <h2 class="slide-title">単一プラットフォーム、<span>2つの製品。</span></h2>
 
     <div class="split gap-24" style="align-items:stretch;">
-      <!-- SOPilot card -->
+      <!-- SOPilot カード -->
       <div class="card card-cyan" style="display:flex;flex-direction:column;gap:16px;">
         <div style="display:flex;align-items:center;gap:14px;">
           <div style="font-size:2.4rem;">&#128203;</div>
           <div>
             <div style="font-size:1.15rem;font-weight:800;color:var(--cyan);">SOPilot</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);">SOP Compliance Scoring</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);">SOP適合スコアリング</div>
           </div>
         </div>
 
         <div class="callout" style="font-size:0.8rem;">
-          Upload gold + trainee video &rarr; <strong>0–100 compliance score</strong> + pass/fail verdict in seconds
+          ゴールド動画 + 受講者動画をアップロード &rarr; <strong>0〜100点の適合スコア</strong> + 合否判定を数秒で出力
         </div>
 
         <ul class="check-list">
-          <li><span class="icon cyan">&#9670;</span><span>DTW temporal alignment (Sakoe-Chiba band)</span></li>
-          <li><span class="icon cyan">&#9670;</span><span>Automatic step detection &amp; deviation classification</span></li>
-          <li><span class="icon cyan">&#9670;</span><span>Evidence clips with exact gold/trainee timecodes</span></li>
-          <li><span class="icon cyan">&#9670;</span><span>PDF report + Japanese deviation comments</span></li>
-          <li><span class="icon cyan">&#9670;</span><span>Batch scoring + Ensemble scoring with Bootstrap CI</span></li>
-          <li><span class="icon cyan">&#9670;</span><span>Analytics: operator trends, step performance</span></li>
+          <li><span class="icon cyan">&#9670;</span><span>DTW時系列アライメント（Sakoe-Chibaバンド制約）</span></li>
+          <li><span class="icon cyan">&#9670;</span><span>自動ステップ検出 & 逸脱分類</span></li>
+          <li><span class="icon cyan">&#9670;</span><span>証拠クリップ（ゴールド/受講者の正確なタイムコード付き）</span></li>
+          <li><span class="icon cyan">&#9670;</span><span>PDFレポート + 日本語逸脱コメント</span></li>
+          <li><span class="icon cyan">&#9670;</span><span>バッチスコアリング + Bootstrap CIによるアンサンブルスコアリング</span></li>
+          <li><span class="icon cyan">&#9670;</span><span>アナリティクス: オペレーター推移・ステップ別パフォーマンス</span></li>
         </ul>
 
         <div style="margin-top:auto;">
-          <span class="badge badge-green">No GPU required</span>
+          <span class="badge badge-green">GPU不要</span>
           &nbsp;
-          <span class="badge badge-cyan">On-premises</span>
+          <span class="badge badge-cyan">完全オンプレミス</span>
         </div>
       </div>
 
-      <!-- VigilPilot card -->
+      <!-- VigilPilot カード -->
       <div class="card card-purple" style="display:flex;flex-direction:column;gap:16px;">
         <div style="display:flex;align-items:center;gap:14px;">
           <div style="font-size:2.4rem;">&#127909;</div>
           <div>
             <div style="font-size:1.15rem;font-weight:800;color:#a78bfa;">VigilPilot</div>
-            <div style="font-size:0.78rem;color:var(--text-muted);">Real-Time Safety Surveillance</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);">リアルタイム安全監視</div>
           </div>
         </div>
 
         <div class="callout" style="border-left-color:#a78bfa;background:rgba(124,58,237,0.06);font-size:0.8rem;">
-          Define rules in <strong>plain natural language</strong> &rarr; detect violations automatically — no reference video needed
+          <strong>自然言語でルールを定義</strong> &rarr; 参照動画なしで違反を自動検知
         </div>
 
         <ul class="check-list">
-          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>Text-defined rules — no ML training required</span></li>
-          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>Pluggable VLM: Claude Sonnet 4.6 / Qwen3-VL-4B</span></li>
-          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>RTSP live camera stream support</span></li>
-          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>Bounding-box evidence overlays (Qwen3 backend)</span></li>
-          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>Severity filtering: info / warning / critical</span></li>
-          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>Frame evidence stored + report aggregation</span></li>
+          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>テキスト定義ルール — MLトレーニング不要</span></li>
+          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>プラガブルVLM: Claude Sonnet 4.6 / Qwen3-VL-4B</span></li>
+          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>RTSPライブカメラストリーム対応</span></li>
+          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>バウンディングボックス証拠オーバーレイ（Qwen3バックエンド）</span></li>
+          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>重大度フィルタリング: info / warning / critical</span></li>
+          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>フレーム証拠保存 + レポート集計</span></li>
         </ul>
 
         <div style="margin-top:auto;">
-          <span class="badge badge-purple">New in v1.2</span>
+          <span class="badge badge-purple">v1.2 新機能</span>
           &nbsp;
-          <span class="badge badge-cyan">On-premises</span>
+          <span class="badge badge-cyan">完全オンプレミス</span>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ════════════════════════════════════════════════════════
-       SLIDE 4: SOPILOT — HOW IT WORKS
+       スライド 4: SOPilot — 動作原理
        ════════════════════════════════════════════════════════ -->
   <section class="slide bg-radial-cyan" id="slide-4">
-    <h2 class="slide-title"><span>SOPilot</span> — How It Works</h2>
+    <h2 class="slide-title"><span>SOPilot</span> — 動作原理</h2>
 
-    <!-- Pipeline forward pass -->
+    <!-- パイプライン 前段 -->
     <div class="pipeline-row w100 mb16">
       <div class="pipe-box" style="flex:1.2;">
         <div class="icon">&#128190;</div>
-        <div class="title">Gold Video Upload</div>
-        <div class="sub">Reference procedure</div>
+        <div class="title">ゴールド動画</div>
+        <div class="sub">参照手順のアップロード</div>
       </div>
       <div class="pipe-arrow">&#8594;</div>
       <div class="pipe-box" style="flex:1.4;">
         <div class="icon">&#127775;</div>
-        <div class="title">ColorMotion Embedding</div>
-        <div class="sub">CPU — no GPU required</div>
+        <div class="title">ColorMotion埋め込み</div>
+        <div class="sub">CPU専用 — GPU不要</div>
       </div>
       <div class="pipe-arrow">&#8594;</div>
       <div class="pipe-box">
         <div class="icon">&#128200;</div>
-        <div class="title">DTW Alignment</div>
-        <div class="sub">Sakoe-Chiba band</div>
+        <div class="title">DTWアライメント</div>
+        <div class="sub">Sakoe-Chibaバンド</div>
       </div>
       <div class="pipe-arrow">&#8595;</div>
       <div class="pipe-box purple" style="flex:1.2;">
         <div class="icon">&#128214;</div>
-        <div class="title">Step Detection</div>
-        <div class="sub">Cosine CP</div>
+        <div class="title">ステップ検出</div>
+        <div class="sub">コサイン変化点</div>
       </div>
     </div>
 
-    <!-- Pipeline return pass -->
+    <!-- パイプライン 後段 -->
     <div class="pipeline-row w100 mb16">
       <div class="pipe-box" style="flex:1.1;background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.35);">
         <div class="icon">&#10003;</div>
-        <div class="title" style="color:var(--green);">Score 0–100</div>
-        <div class="sub">pass / fail verdict</div>
+        <div class="title" style="color:var(--green);">スコア 0〜100</div>
+        <div class="sub">合否判定</div>
       </div>
       <div class="pipe-arrow" style="transform:scaleX(-1);">&#8594;</div>
       <div class="pipe-box" style="flex:1.3;">
         <div class="icon">&#128270;</div>
-        <div class="title">Deviation Analysis</div>
-        <div class="sub">miss / swap / over-time</div>
+        <div class="title">逸脱分析</div>
+        <div class="sub">ミス / 順序逆転 / 超過時間</div>
       </div>
       <div class="pipe-arrow" style="transform:scaleX(-1);">&#8594;</div>
       <div class="pipe-box purple">
         <div class="icon">&#128221;</div>
-        <div class="title">Penalty Scoring</div>
-        <div class="sub">Weighted + clamped [0,1]</div>
+        <div class="title">ペナルティスコアリング</div>
+        <div class="sub">重み付き + [0,1]クランプ</div>
       </div>
       <div class="pipe-arrow" style="transform:scaleX(-1);">&#8594;</div>
       <div class="pipe-box purple">
         <div class="icon">&#128202;</div>
         <div class="title">Bootstrap CI</div>
-        <div class="sub">Ensemble scoring</div>
+        <div class="sub">アンサンブルスコアリング</div>
       </div>
     </div>
 
-    <!-- Decision logic -->
+    <!-- 判定ロジック -->
     <div class="split gap-24">
       <div>
-        <div class="section-label mb8">Decision Logic</div>
-        <div class="code-block" style="font-size:0.77rem;"><span class="kw">if</span> critical_deviation:      <span class="cm">→ fail  # overrides score</span>
+        <div class="section-label mb8">判定ロジック</div>
+        <div class="code-block" style="font-size:0.77rem;"><span class="kw">if</span> critical_deviation:      <span class="cm">→ fail  # 閾値に関係なく強制失敗</span>
 <span class="kw">elif</span> score <span class="ky">&gt;=</span> <span class="nu">60</span>:            <span class="cm">→ pass</span>
 <span class="kw">elif</span> score <span class="ky">&gt;=</span> <span class="nu">50</span>:            <span class="cm">→ needs_review</span>
 <span class="kw">else</span>:                        <span class="cm">→ retrain</span></div>
       </div>
       <div>
-        <div class="section-label mb8">Algorithmic Backbone</div>
+        <div class="section-label mb8">アルゴリズム構成</div>
         <div class="card" style="display:flex;flex-direction:column;gap:6px;font-size:0.75rem;">
-          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Embedding</span><span class="font-code" style="color:var(--cyan);">ColorMotion-v1 / V-JEPA2</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">埋め込み</span><span class="font-code" style="color:var(--cyan);">ColorMotion-v1 （色ヒストグラム + オプティカルフロー）</span></div>
           <div style="height:1px;background:var(--border);"></div>
-          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Alignment</span><span class="font-code" style="color:var(--cyan);">Vectorized DTW</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">アライメント</span><span class="font-code" style="color:var(--cyan);">ベクトル化DTW（バンド幅 = 系列長の20%）</span></div>
           <div style="height:1px;background:var(--border);"></div>
-          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">CI</span><span class="font-code" style="color:var(--cyan);">Bootstrap 1000 resamples</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">信頼区間</span><span class="font-code" style="color:var(--cyan);">Bootstrap 1000リサンプル</span></div>
           <div style="height:1px;background:var(--border);"></div>
-          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Ensemble</span><span class="font-code" style="color:var(--cyan);">ICC(2,1) + Grubbs outlier</span></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">アンサンブル</span><span class="font-code" style="color:var(--cyan);">ICC(2,1) + Grubbs外れ値除去</span></div>
         </div>
       </div>
     </div>
   </section>
 
   <!-- ════════════════════════════════════════════════════════
-       SLIDE 5: ACCURACY — PRODUCTION VALIDATION
+       スライド 5: 精度 — 本番環境での検証
        ════════════════════════════════════════════════════════ -->
   <section class="slide" id="slide-5" style="background:radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.07) 0%, transparent 55%), var(--bg);">
     <div style="text-align:center;margin-bottom:24px;">
-      <h2 style="font-size:1.7rem;font-weight:800;margin-bottom:6px;">Validated on <span class="glow-cyan">3,507</span> Production Jobs</h2>
-      <p class="text-sm">Leave-One-Subject-Out Cross-Validation &nbsp;&bull;&nbsp; Human-Annotated Ground Truth &nbsp;&bull;&nbsp; Threshold = 60.0</p>
+      <h2 style="font-size:1.7rem;font-weight:800;margin-bottom:6px;">本番環境 <span class="glow-cyan">3,507</span> 件で検証済み</h2>
+      <p class="text-sm">評価手法: Leave-One-Subject-Out交差検証（LOSO-CV）&nbsp;&bull;&nbsp; 人間アノテーション付きグラウンドトゥルース &nbsp;&bull;&nbsp; 閾値 = 60.0（LOSO-CVで最適化）</p>
     </div>
 
     <div class="metric-grid mb16" style="max-width:720px;margin-left:auto;margin-right:auto;">
       <div class="metric-tile glow-cyan">
         <div class="metric-number glow-cyan">99.40%</div>
-        <div class="metric-label">Accuracy</div>
+        <div class="metric-label">精度（Accuracy）</div>
         <div class="metric-sub">95% CI: [99.14%, 99.63%]</div>
       </div>
       <div class="metric-tile glow-green">
         <div class="metric-number glow-green">99.62%</div>
-        <div class="metric-label">F1 Score</div>
-        <div class="metric-sub">Harmonic mean of precision &amp; recall</div>
+        <div class="metric-label">F1スコア</div>
+        <div class="metric-sub">適合率と再現率の調和平均</div>
       </div>
       <div class="metric-tile glow-purple">
         <div class="metric-number glow-purple">99.69%</div>
         <div class="metric-label">AUC-ROC</div>
-        <div class="metric-sub">Discriminative power across thresholds</div>
+        <div class="metric-sub">閾値横断の識別能力</div>
       </div>
       <div class="metric-tile" style="border-color:rgba(16,185,129,0.5);background:rgba(16,185,129,0.05);">
         <div class="metric-number" style="color:var(--green);text-shadow:0 0 24px rgba(16,185,129,0.7);">0</div>
-        <div class="metric-label" style="color:var(--green);">False Positives</div>
-        <div class="metric-sub">Perfect precision — confirmed by re-annotation</div>
+        <div class="metric-label" style="color:var(--green);">偽陽性（FP）</div>
+        <div class="metric-sub">再アノテーション後に確認済み</div>
       </div>
     </div>
 
     <div class="split gap-24" style="max-width:720px;margin-left:auto;margin-right:auto;align-items:center;">
       <div>
-        <div class="section-label mb8">Confusion Matrix (N=3,507)</div>
+        <div class="section-label mb8">混同行列（N=3,507）</div>
         <div class="confmat">
           <div class="confmat-cell tp">
             <div class="val" style="color:var(--green);">2,766</div>
-            <div class="lbl">TP — Correct Pass</div>
+            <div class="lbl">TP — 正合格</div>
           </div>
           <div class="confmat-cell fn">
             <div class="val" style="color:var(--orange);">21</div>
-            <div class="lbl">FN — Missed Fail</div>
+            <div class="lbl">FN — 見落とし不合格</div>
           </div>
           <div class="confmat-cell fp">
             <div class="val" style="color:#f87171;">0</div>
-            <div class="lbl">FP — False Pass</div>
+            <div class="lbl">FP — 誤合格</div>
           </div>
           <div class="confmat-cell tn">
             <div class="val" style="color:var(--cyan);">720</div>
-            <div class="lbl">TN — Correct Fail</div>
+            <div class="lbl">TN — 正不合格</div>
           </div>
         </div>
       </div>
       <div class="callout" style="font-size:0.8rem;">
-        The system <strong>never</strong> falsely passes a failing trainee. FP=0 confirmed after independent annotation review of all 16 originally-reported false positives — all confirmed as annotation artifacts.
+        <strong>FP=0の根拠:</strong> 元の16件の偽陽性はすべて4本の動画のアノテーション誤りと判明。160件の同一出力ジョブのうち144件が合格ラベルを付与されており、残り16件のみが不合格ラベルとなっていた矛盾を独立審査で確認。再アノテーション後 FP=0。
       </div>
     </div>
   </section>
 
   <!-- ════════════════════════════════════════════════════════
-       SLIDE 6: VIGILPILOT — REAL-TIME VIOLATION DETECTION
+       スライド 6: VigilPilot — リアルタイム違反検知
        ════════════════════════════════════════════════════════ -->
   <section class="slide bg-radial-purple" id="slide-6">
-    <h2 class="slide-title"><span style="color:#a78bfa;">VigilPilot</span> — Real-Time Violation Detection</h2>
+    <h2 class="slide-title"><span style="color:#a78bfa;">VigilPilot</span> — リアルタイム違反検知</h2>
 
     <div class="split gap-24">
-      <!-- Left: rule definition -->
+      <!-- 左: ルール定義 -->
       <div>
-        <div class="section-label purple mb8">Define Rules in Plain Text</div>
+        <div class="section-label purple mb8">自然言語でルールを定義</div>
         <div class="code-block purple-accent" style="font-size:0.72rem;"><span class="kw">POST</span> <span class="str">/vigil/sessions</span>
 {
   <span class="str">"name"</span>: <span class="str">"Construction Site Safety"</span>,
@@ -1003,13 +1003,13 @@ html, body {
 }</div>
 
         <div class="mt12 card" style="font-size:0.75rem;color:var(--text-muted);">
-          <span style="color:#a78bfa;font-weight:700;">No ML training.</span> Rules are evaluated frame-by-frame by the VLM. Change rules in seconds without redeployment.
+          <span style="color:#a78bfa;font-weight:700;">ルールはゼロショットVLMプロンプト — MLトレーニング不要。</span> ルール変更はリアルタイムに反映（再デプロイ不要）。日本語ルール記述をネイティブサポート。
         </div>
       </div>
 
-      <!-- Right: violation event -->
+      <!-- 右: 違反イベント -->
       <div>
-        <div class="section-label purple mb8">Violation Event Response</div>
+        <div class="section-label purple mb8">違反イベントレスポンス</div>
         <div class="code-block purple-accent" style="font-size:0.72rem;"><span class="cm">// GET /vigil/sessions/{id}/events</span>
 {
   <span class="str">"event_id"</span>: <span class="nu">42</span>,
@@ -1024,76 +1024,76 @@ html, body {
 }</div>
 
         <div class="mt12" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
-          <span class="badge badge-red">&#128308; Critical</span>
-          <span class="badge badge-orange">&#128992; Warning</span>
-          <span class="badge badge-cyan">&#128309; Info</span>
-          <span class="text-xs" style="margin-left:4px;">Per-session severity threshold</span>
+          <span class="badge badge-red">&#128308; 重大</span>
+          <span class="badge badge-orange">&#128992; 警告</span>
+          <span class="badge badge-cyan">&#128309; 情報</span>
+          <span class="text-xs" style="margin-left:4px;">セッション単位で重大度閾値を設定</span>
         </div>
 
         <div class="mt12 card" style="font-size:0.75rem;color:var(--text-muted);">
-          Frame JPEG stored with <span style="color:#a78bfa;font-weight:600;">bbox overlays</span> (Qwen3 backend). RTSP live streams supported via <span class="font-code" style="color:#a78bfa;">POST /vigil/sessions/{id}/stream</span>.
+          フレームJPEGを<span style="color:#a78bfa;font-weight:600;">bboxオーバーレイ付き</span>で保存（Qwen3バックエンド）。RTSPライブストリームは <span class="font-code" style="color:#a78bfa;">POST /vigil/sessions/{id}/stream</span> で対応。
         </div>
       </div>
     </div>
 
-    <!-- Bottom capabilities -->
+    <!-- 下部: 機能カード -->
     <div class="mt16 split col-3" style="gap:12px;">
       <div class="card" style="text-align:center;padding:14px;">
         <div style="font-size:1.4rem;margin-bottom:6px;">&#128247;</div>
-        <div style="font-size:0.72rem;font-weight:700;color:#a78bfa;">Frame Evidence</div>
-        <div class="text-xs mt8">JPEG + bbox metadata per violation event</div>
+        <div style="font-size:0.72rem;font-weight:700;color:#a78bfa;">フレーム証拠</div>
+        <div class="text-xs mt8">違反イベントごとにJPEG + bboxメタデータを保存</div>
       </div>
       <div class="card" style="text-align:center;padding:14px;">
         <div style="font-size:1.4rem;margin-bottom:6px;">&#128250;</div>
-        <div style="font-size:0.72rem;font-weight:700;color:#a78bfa;">RTSP Live Stream</div>
-        <div class="text-xs mt8">Real-time analysis of live camera feeds</div>
+        <div style="font-size:0.72rem;font-weight:700;color:#a78bfa;">RTSPライブストリーム</div>
+        <div class="text-xs mt8">ライブカメラフィードをリアルタイム解析</div>
       </div>
       <div class="card" style="text-align:center;padding:14px;">
         <div style="font-size:1.4rem;margin-bottom:6px;">&#128202;</div>
-        <div style="font-size:0.72rem;font-weight:700;color:#a78bfa;">Session Report</div>
-        <div class="text-xs mt8">Severity &amp; rule breakdown aggregation</div>
+        <div style="font-size:0.72rem;font-weight:700;color:#a78bfa;">セッションレポート</div>
+        <div class="text-xs mt8">重大度・ルール別の違反集計</div>
       </div>
     </div>
   </section>
 
   <!-- ════════════════════════════════════════════════════════
-       SLIDE 7: VLM BACKEND OPTIONS
+       スライド 7: VLMバックエンドオプション
        ════════════════════════════════════════════════════════ -->
   <section class="slide" id="slide-7">
-    <h2 class="slide-title">VLM Backend <span>Options</span></h2>
+    <h2 class="slide-title">VLMバックエンド<span>オプション</span></h2>
 
     <div class="table-wrap mb20">
       <table class="styled-table">
         <thead>
           <tr>
-            <th>Backend</th>
-            <th>Model</th>
-            <th>GPU Required</th>
-            <th>Bounding Boxes</th>
-            <th>Notes</th>
+            <th>バックエンド</th>
+            <th>モデル</th>
+            <th>GPU必要</th>
+            <th>バウンディングボックス</th>
+            <th>備考</th>
           </tr>
         </thead>
         <tbody>
           <tr>
-            <td><code>claude</code> <span class="badge badge-green" style="font-size:0.6rem;padding:2px 7px;">default</span></td>
+            <td><code>claude</code> <span class="badge badge-green" style="font-size:0.6rem;padding:2px 7px;">デフォルト</span></td>
             <td>Claude Sonnet 4.6</td>
-            <td><span style="color:var(--green);">&#10007; No</span></td>
+            <td><span style="color:var(--green);">&#10007; 不要</span></td>
             <td><span style="color:var(--text-muted);">&#10007;</span></td>
-            <td style="color:var(--text-muted);font-size:0.74rem;">Anthropic API key only</td>
+            <td style="color:var(--text-muted);font-size:0.74rem;">Anthropic APIキーのみ。99%のユースケースをカバー。日本語ルール記述をネイティブサポート</td>
           </tr>
           <tr>
             <td><code>qwen3</code></td>
-            <td>Qwen3-VL-4B (local)</td>
+            <td>Qwen3-VL-4B（ローカル）</td>
             <td><span style="color:var(--orange);">&#10003; CUDA</span></td>
-            <td><span style="color:var(--green);">&#10003; XYWH 0–1000</span></td>
-            <td style="color:var(--text-muted);font-size:0.74rem;">~10 GB VRAM, offline inference</td>
+            <td><span style="color:var(--green);">&#10003; XYWH 0–1000正規化座標</span></td>
+            <td style="color:var(--text-muted);font-size:0.74rem;">~10 GB VRAM。エアギャップ環境向け。モデルDL後は外部通信ゼロ</td>
           </tr>
           <tr>
             <td><code>qwen3-api</code></td>
-            <td>Any OpenAI-compat</td>
-            <td><span style="color:var(--text-muted);">Optional</span></td>
+            <td>OpenAI互換エンドポイント</td>
+            <td><span style="color:var(--text-muted);">任意</span></td>
             <td><span style="color:var(--green);">&#10003; XYWH</span></td>
-            <td style="color:var(--text-muted);font-size:0.74rem;">Together.ai / Hyperbolic / vLLM</td>
+            <td style="color:var(--text-muted);font-size:0.74rem;">Together.ai / Hyperbolic / vLLM 互換。&lt;think&gt;タグ自動除去</td>
           </tr>
         </tbody>
       </table>
@@ -1101,41 +1101,41 @@ html, body {
 
     <div class="split gap-24">
       <div>
-        <div class="section-label mb8">Configuration (via environment)</div>
-        <div class="code-block" style="font-size:0.77rem;"><span class="cm"># Default — Claude, no GPU</span>
+        <div class="section-label mb8">環境変数による設定</div>
+        <div class="code-block" style="font-size:0.77rem;"><span class="cm"># デフォルト — Claude、GPU不要</span>
 <span class="ky">VIGIL_VLM_BACKEND</span>=<span class="str">claude</span>
 <span class="ky">ANTHROPIC_API_KEY</span>=<span class="str">sk-ant-...</span>
 
-<span class="cm"># OpenAI-compatible endpoint</span>
+<span class="cm"># OpenAI互換エンドポイント</span>
 <span class="ky">VIGIL_VLM_BACKEND</span>=<span class="str">qwen3-api</span>
 <span class="ky">VIGIL_QWEN3_API_BASE</span>=<span class="str">https://api.together.xyz/v1</span>
 <span class="ky">VIGIL_QWEN3_API_KEY</span>=<span class="str">your-key</span>
 
-<span class="cm"># Local GPU inference</span>
+<span class="cm"># ローカルGPU推論</span>
 <span class="ky">VIGIL_VLM_BACKEND</span>=<span class="str">qwen3</span></div>
       </div>
 
       <div style="display:flex;flex-direction:column;gap:14px;">
-        <div class="section-label mb8">Backend Selection Guide</div>
+        <div class="section-label mb8">バックエンド選択の指針</div>
         <div class="card" style="display:flex;align-items:start;gap:12px;padding:14px;">
           <span style="font-size:1.2rem;margin-top:2px;">&#9889;</span>
           <div>
-            <div style="font-weight:700;font-size:0.8rem;color:var(--cyan);margin-bottom:3px;">Fastest to deploy</div>
-            <div class="text-sm">Use <code style="font-family:var(--font-code);color:var(--cyan);">claude</code> — API key only, zero local infrastructure</div>
+            <div style="font-weight:700;font-size:0.8rem;color:var(--cyan);margin-bottom:3px;">最速デプロイ</div>
+            <div class="text-sm"><code style="font-family:var(--font-code);color:var(--cyan);">claude</code> — APIキーのみ、ローカルインフラ不要</div>
           </div>
         </div>
         <div class="card" style="display:flex;align-items:start;gap:12px;padding:14px;">
           <span style="font-size:1.2rem;margin-top:2px;">&#128683;</span>
           <div>
-            <div style="font-weight:700;font-size:0.8rem;color:#a78bfa;margin-bottom:3px;">Air-gapped / fully offline</div>
-            <div class="text-sm">Use <code style="font-family:var(--font-code);color:#a78bfa;">qwen3</code> local — no external calls after model download</div>
+            <div style="font-weight:700;font-size:0.8rem;color:#a78bfa;margin-bottom:3px;">エアギャップ / 完全オフライン</div>
+            <div class="text-sm"><code style="font-family:var(--font-code);color:#a78bfa;">qwen3</code> ローカル — モデルDL後は外部通信ゼロ</div>
           </div>
         </div>
         <div class="card" style="display:flex;align-items:start;gap:12px;padding:14px;">
           <span style="font-size:1.2rem;margin-top:2px;">&#9878;</span>
           <div>
-            <div style="font-weight:700;font-size:0.8rem;color:var(--orange);margin-bottom:3px;">Cost optimization</div>
-            <div class="text-sm">Use <code style="font-family:var(--font-code);color:var(--orange);">qwen3-api</code> via Together.ai / vLLM cluster</div>
+            <div style="font-weight:700;font-size:0.8rem;color:var(--orange);margin-bottom:3px;">コスト最適化</div>
+            <div class="text-sm"><code style="font-family:var(--font-code);color:var(--orange);">qwen3-api</code> — Together.ai / vLLMクラスター経由</div>
           </div>
         </div>
       </div>
@@ -1143,132 +1143,132 @@ html, body {
   </section>
 
   <!-- ════════════════════════════════════════════════════════
-       SLIDE 8: ARCHITECTURE
+       スライド 8: アーキテクチャ
        ════════════════════════════════════════════════════════ -->
   <section class="slide" id="slide-8">
-    <h2 class="slide-title" style="margin-bottom:20px;"><span>Architecture</span></h2>
+    <h2 class="slide-title" style="margin-bottom:20px;"><span>アーキテクチャ</span></h2>
 
     <pre class="arch-pre"><span class="arch-box">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
-<span class="arch-box">&#9474;</span>  <span class="arch-hl">Browser UI</span>  (single-page HTML/JS, served at /)                 <span class="arch-box">&#9474;</span>
-<span class="arch-box">&#9474;</span>  <span class="arch-sub">SOPilot tabs + VigilPilot &#30417;&#35268;&#12479;&#12502;</span>                               <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-hl">ブラウザUI</span>  (シングルページHTML/JS、/ で配信)                 <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">SOPilotタブ + VigilPilot監視タブ</span>                               <span class="arch-box">&#9474;</span>
 <span class="arch-box">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;</span>
                            <span class="arch-box">&#9474;</span> <span class="arch-hl">HTTP</span>
 <span class="arch-box">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
-<span class="arch-box">&#9474;</span>  <span class="arch-hl">FastAPI application</span>  (sopilot/main.py)                          <span class="arch-box">&#9474;</span>
-<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Middleware: CorrelationID &#8594; CORS &#8594; APIKey &#8594; Rate</span>            <span class="arch-box">&#9474;</span>
-<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Routers: videos &#183; scoring &#183; analytics &#183; admin  (/api/v1)</span>   <span class="arch-box">&#9474;</span>
-<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9492;&#9472;&#9472; VigilPilot router  (/vigil/*)</span>                               <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-hl">FastAPIアプリケーション</span>  (sopilot/main.py)                          <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; ミドルウェア: CorrelationID &#8594; CORS &#8594; APIKey &#8594; Rate</span>            <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; ルーター: videos &#183; scoring &#183; analytics &#183; admin  (/api/v1)</span>   <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9492;&#9472;&#9472; VigilPilotルーター  (/vigil/*)</span>                               <span class="arch-box">&#9474;</span>
 <span class="arch-box">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;</span>
          <span class="arch-box">&#9474;</span>                             <span class="arch-box">&#9474;</span>
 <span class="arch-box">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>    <span class="arch-box">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
-<span class="arch-box">&#9474;</span>  <span class="arch-hl">Video Pipeline</span>   <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">VigilPilot Pipeline (sopilot/vigil/)</span>  <span class="arch-box">&#9474;</span>
-<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Quality Gate</span> <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Frame extractor (OpenCV, 1 fps)</span>   <span class="arch-box">&#9474;</span>
-<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9474;   (5 checks)  </span> <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; VLM client (Claude / Qwen3-VL)</span>    <span class="arch-box">&#9474;</span>
-<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; ColorMotion  </span> <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Severity filter + event store</span>     <span class="arch-box">&#9474;</span>
-<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9492;&#9472;&#9472; Clip store    </span> <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9492;&#9472;&#9472; Background thread (daemon)</span>        <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-hl">映像パイプライン</span>   <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">VigilPilotパイプライン (sopilot/vigil/)</span>  <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; 品質ゲート</span> <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; フレーム抽出 (OpenCV, 1 fps)</span>   <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9474;   (5項目)  </span> <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; VLMクライアント (Claude / Qwen3-VL)</span>    <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; ColorMotion  </span> <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; 重大度フィルタ + イベント保存</span>     <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9492;&#9472;&#9472; クリップ保存    </span> <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9492;&#9472;&#9472; バックグラウンドスレッド（daemon）</span>        <span class="arch-box">&#9474;</span>
 <span class="arch-box">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>    <span class="arch-box">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;</span>
          <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
-         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-hl">Scoring Pipeline</span>                      <span class="arch-box">&#9474;</span>
-         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; DTW alignment (Sakoe-Chiba)</span>       <span class="arch-box">&#9474;</span>
-         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Step detection (cosine CP)</span>        <span class="arch-box">&#9474;</span>
-         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Deviation scoring + comments</span>      <span class="arch-box">&#9474;</span>
-         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9492;&#9472;&#9472; Ensemble / Bootstrap CI</span>           <span class="arch-box">&#9474;</span>
+         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-hl">スコアリングパイプライン</span>                      <span class="arch-box">&#9474;</span>
+         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; DTWアライメント (Sakoe-Chiba)</span>       <span class="arch-box">&#9474;</span>
+         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; ステップ検出 (コサイン変化点)</span>        <span class="arch-box">&#9474;</span>
+         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; 逸脱スコアリング + コメント生成</span>      <span class="arch-box">&#9474;</span>
+         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9492;&#9472;&#9472; アンサンブル / Bootstrap CI</span>           <span class="arch-box">&#9474;</span>
          <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;</span>
          <span class="arch-box">&#9474;</span>                                <span class="arch-box">&#9474;</span>
 <span class="arch-db">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9460;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
-<span class="arch-db">&#9474;</span>  <span class="arch-db">SQLite (WAL mode)</span>  &#8212;  <span class="arch-hl">connection pool, atomic ops</span>             <span class="arch-db">&#9474;</span>
-<span class="arch-db">&#9474;</span>  <span class="arch-sub">./data/sopilot.db   (+ vigil_sessions / vigil_events tables)</span>  <span class="arch-db">&#9474;</span>
+<span class="arch-db">&#9474;</span>  <span class="arch-db">SQLite (WALモード)</span>  &#8212;  <span class="arch-hl">コネクションプール、アトミック操作</span>             <span class="arch-db">&#9474;</span>
+<span class="arch-db">&#9474;</span>  <span class="arch-sub">./data/sopilot.db   (+ vigil_sessions / vigil_events テーブル)</span>  <span class="arch-db">&#9474;</span>
 <span class="arch-db">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span></pre>
   </section>
 
   <!-- ════════════════════════════════════════════════════════
-       SLIDE 9: API SURFACE
+       スライド 9: APIサーフェス
        ════════════════════════════════════════════════════════ -->
   <section class="slide bg-radial-cyan" id="slide-9">
-    <h2 class="slide-title">API <span>Surface</span></h2>
+    <h2 class="slide-title">API <span>サーフェス</span></h2>
 
     <div class="split gap-24">
-      <!-- Left: SOPilot -->
+      <!-- 左: SOPilot -->
       <div>
-        <div class="section-label mb12">SOPilot Core API</div>
+        <div class="section-label mb12">SOPilot コアAPI</div>
         <div class="endpoint-group">
           <div class="endpoint-item">
             <span class="method method-post">POST</span><span class="method method-get">GET</span>
             <span class="path">/gold &nbsp;/videos &nbsp;/videos/{id}</span>
-            <span class="text-xs" style="margin-left:auto;">Video management</span>
+            <span class="text-xs" style="margin-left:auto;">動画管理</span>
           </div>
           <div class="endpoint-item">
             <span class="method method-get">GET</span>
             <span class="path">/videos/{id}/quality</span>
-            <span class="text-xs" style="margin-left:auto;">5-axis quality gate</span>
+            <span class="text-xs" style="margin-left:auto;">5軸品質ゲート</span>
           </div>
           <div class="endpoint-item">
             <span class="method method-post">POST</span><span class="method method-get">GET</span>
             <span class="path">/score &nbsp;/score/batch &nbsp;/score/ensemble</span>
-            <span class="text-xs" style="margin-left:auto;">Scoring</span>
+            <span class="text-xs" style="margin-left:auto;">スコアリング</span>
           </div>
           <div class="endpoint-item">
             <span class="method method-get">GET</span>
             <span class="path">/score/{id}/report/pdf &nbsp;/score/{id}/uncertainty</span>
-            <span class="text-xs" style="margin-left:auto;">Reports</span>
+            <span class="text-xs" style="margin-left:auto;">レポート</span>
           </div>
           <div class="endpoint-item">
             <span class="method method-get">GET</span>
             <span class="path">/analytics &nbsp;/analytics/operators/{id}/trend</span>
-            <span class="text-xs" style="margin-left:auto;">Analytics</span>
+            <span class="text-xs" style="margin-left:auto;">アナリティクス</span>
           </div>
           <div class="endpoint-item">
             <span class="method method-put">PUT</span>
             <span class="path">/task-profile &nbsp;/tasks/steps</span>
-            <span class="text-xs" style="margin-left:auto;">Task config</span>
+            <span class="text-xs" style="margin-left:auto;">タスク設定</span>
           </div>
           <div class="endpoint-item">
             <span class="method method-post">POST</span>
             <span class="path">/admin/rescore &nbsp;/admin/backup</span>
-            <span class="text-xs" style="margin-left:auto;">Admin</span>
+            <span class="text-xs" style="margin-left:auto;">管理</span>
           </div>
         </div>
       </div>
 
-      <!-- Right: VigilPilot -->
+      <!-- 右: VigilPilot -->
       <div>
         <div class="section-label purple mb12">VigilPilot API</div>
         <div class="endpoint-group">
           <div class="endpoint-item" style="border-color:rgba(124,58,237,0.25);">
             <span class="method method-post">POST</span><span class="method method-get">GET</span>
             <span class="path">/vigil/sessions &nbsp;/vigil/sessions/{id}</span>
-            <span class="text-xs" style="margin-left:auto;">Session mgmt</span>
+            <span class="text-xs" style="margin-left:auto;">セッション管理</span>
           </div>
           <div class="endpoint-item" style="border-color:rgba(124,58,237,0.25);">
             <span class="method method-post">POST</span>
             <span class="path">/vigil/sessions/{id}/analyze</span>
-            <span class="text-xs" style="margin-left:auto;">Video analysis</span>
+            <span class="text-xs" style="margin-left:auto;">動画解析</span>
           </div>
           <div class="endpoint-item" style="border-color:rgba(124,58,237,0.25);">
             <span class="method method-post">POST</span><span class="method method-del">DEL</span>
             <span class="path">/vigil/sessions/{id}/stream</span>
-            <span class="text-xs" style="margin-left:auto;">RTSP live stream</span>
+            <span class="text-xs" style="margin-left:auto;">RTSPライブストリーム</span>
           </div>
           <div class="endpoint-item" style="border-color:rgba(124,58,237,0.25);">
             <span class="method method-get">GET</span>
             <span class="path">/vigil/sessions/{id}/events</span>
-            <span class="text-xs" style="margin-left:auto;">Violation events</span>
+            <span class="text-xs" style="margin-left:auto;">違反イベント</span>
           </div>
           <div class="endpoint-item" style="border-color:rgba(124,58,237,0.25);">
             <span class="method method-get">GET</span>
             <span class="path">/vigil/events/{id}/frame?annotate=true</span>
-            <span class="text-xs" style="margin-left:auto;">Frame + bbox</span>
+            <span class="text-xs" style="margin-left:auto;">フレーム + bbox</span>
           </div>
           <div class="endpoint-item" style="border-color:rgba(124,58,237,0.25);">
             <span class="method method-get">GET</span>
             <span class="path">/vigil/sessions/{id}/report</span>
-            <span class="text-xs" style="margin-left:auto;">Report</span>
+            <span class="text-xs" style="margin-left:auto;">レポート</span>
           </div>
         </div>
 
         <div class="mt16" style="display:flex;gap:10px;flex-wrap:wrap;">
-          <span class="badge badge-cyan">&#128216; OpenAPI at /docs</span>
-          <span class="badge badge-cyan">&#128202; Prometheus at /metrics</span>
+          <span class="badge badge-cyan">&#128216; OpenAPI: /docs</span>
+          <span class="badge badge-cyan">&#128202; Prometheus: /metrics</span>
           <span class="badge badge-green">&#10003; GET /health</span>
           <span class="badge badge-green">&#10003; GET /readiness</span>
         </div>
@@ -1277,170 +1277,170 @@ html, body {
   </section>
 
   <!-- ════════════════════════════════════════════════════════
-       SLIDE 10: PRODUCTION HARDENING
+       スライド 10: 本番堅牢化
        ════════════════════════════════════════════════════════ -->
   <section class="slide" id="slide-10">
-    <h2 class="slide-title">Production <span>Hardening</span></h2>
+    <h2 class="slide-title">本番環境<span>堅牢化</span></h2>
 
     <div class="split gap-24">
-      <!-- Security & Reliability -->
+      <!-- セキュリティ & 信頼性 -->
       <div>
-        <div class="section-label mb12">Security &amp; Reliability</div>
+        <div class="section-label mb12">セキュリティ &amp; 信頼性</div>
         <div class="card" style="padding:20px;">
           <ul class="check-list">
             <li>
               <span class="icon green">&#10003;</span>
-              <div><span style="font-weight:600;">X-API-Key authentication</span><br><span class="text-xs">Public paths exempt: /health, /metrics, /docs</span></div>
+              <div><span style="font-weight:600;">X-API-Key認証</span><br><span class="text-xs">パブリックパス除外: /health, /metrics, /docs</span></div>
             </li>
             <li>
               <span class="icon green">&#10003;</span>
-              <div><span style="font-weight:600;">CORS allowlist</span><br><span class="text-xs">Configurable via SOPILOT_CORS_ORIGINS</span></div>
+              <div><span style="font-weight:600;">CORSホワイトリスト</span><br><span class="text-xs">SOPILOT_CORS_ORIGINS で設定可能</span></div>
             </li>
             <li>
               <span class="icon green">&#10003;</span>
-              <div><span style="font-weight:600;">Rate limiting: 120 req/min + burst 20</span><br><span class="text-xs">Sliding-window deque, configurable per deployment</span></div>
+              <div><span style="font-weight:600;">レートリミット: 120 req/min + バースト20</span><br><span class="text-xs">スライディングウィンドウ方式（deque）、デプロイ単位で設定可能</span></div>
             </li>
             <li>
               <span class="icon green">&#10003;</span>
-              <div><span style="font-weight:600;">X-Request-ID correlation</span><br><span class="text-xs">Every request traceable end-to-end</span></div>
+              <div><span style="font-weight:600;">X-Request-IDコリレーション</span><br><span class="text-xs">全リクエストをエンドツーエンドでトレーサブル</span></div>
             </li>
             <li>
               <span class="icon green">&#10003;</span>
-              <div><span style="font-weight:600;">Non-root container (uid 1000)</span><br><span class="text-xs">Security-hardened Docker image</span></div>
+              <div><span style="font-weight:600;">非rootコンテナ（uid 1000）</span><br><span class="text-xs">セキュリティ強化済みDockerイメージ</span></div>
             </li>
             <li>
               <span class="icon green">&#10003;</span>
-              <div><span style="font-weight:600;">Webhook retry with exponential backoff</span><br><span class="text-xs">3 attempts, 1s &rarr; 2s delays, daemon thread</span></div>
+              <div><span style="font-weight:600;">Webhookリトライ（指数バックオフ）</span><br><span class="text-xs">3回、1s &rarr; 2s 遅延、daemonスレッドで非同期実行</span></div>
             </li>
           </ul>
         </div>
       </div>
 
-      <!-- Quality -->
+      <!-- 品質 & 可観測性 -->
       <div>
-        <div class="section-label mb12">Quality &amp; Observability</div>
+        <div class="section-label mb12">品質 &amp; 可観測性</div>
         <div class="card" style="padding:20px;">
           <ul class="check-list">
             <li>
               <span class="icon cyan">&#10003;</span>
-              <div><span style="font-weight:600;">992 automated tests</span><br><span class="text-xs">Unit + integration + property-based + concurrency</span></div>
+              <div><span style="font-weight:600;">1,036件の自動テスト</span><br><span class="text-xs">ユニット + 統合 + 仮説ベース（Hypothesis）+ 並行性テスト</span></div>
             </li>
             <li>
               <span class="icon cyan">&#10003;</span>
-              <div><span style="font-weight:600;">SQLite WAL mode + connection pooling</span><br><span class="text-xs">Configurable pool size via SOPILOT_DB_POOL_SIZE</span></div>
+              <div><span style="font-weight:600;">SQLite WALモード + コネクションプール</span><br><span class="text-xs">SOPILOT_DB_POOL_SIZE で設定可能（デフォルト5接続）</span></div>
             </li>
             <li>
               <span class="icon cyan">&#10003;</span>
-              <div><span style="font-weight:600;">Atomic job claims (no race conditions)</span><br><span class="text-xs">Single UPDATE replacing SELECT-then-UPDATE pattern</span></div>
+              <div><span style="font-weight:600;">スコアジョブのアトミックCLAIM（レース排除）</span><br><span class="text-xs">SELECT-then-UPDATEパターンを単一UPDATEに置換</span></div>
             </li>
             <li>
               <span class="icon cyan">&#10003;</span>
-              <div><span style="font-weight:600;">Audit log: JSON events for all mutations</span><br><span class="text-xs">video_deleted, job_created, job_completed, review_submitted</span></div>
+              <div><span style="font-weight:600;">監査ログ: 全ミューテーションをJSON形式で記録</span><br><span class="text-xs">video_deleted / job_created / job_completed / review_submitted</span></div>
             </li>
             <li>
               <span class="icon cyan">&#10003;</span>
-              <div><span style="font-weight:600;">Docker Compose single-container deployment</span><br><span class="text-xs">No external dependencies; bind-mount ./data</span></div>
+              <div><span style="font-weight:600;">Docker Compose シングルコンテナデプロイ</span><br><span class="text-xs">外部依存ゼロ。./data バインドマウント</span></div>
             </li>
             <li>
               <span class="icon cyan">&#10003;</span>
-              <div><span style="font-weight:600;">Smoke test script: 9/9 checks</span><br><span class="text-xs">End-to-end verification on every deployment</span></div>
+              <div><span style="font-weight:600;">スモークテスト: 9/9チェック通過</span><br><span class="text-xs">デプロイ毎のエンドツーエンド検証</span></div>
             </li>
           </ul>
         </div>
       </div>
     </div>
 
-    <!-- Bottom metrics strip -->
+    <!-- 下部メトリクスストリップ -->
     <div class="mt16" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
       <div class="card" style="padding:10px 20px;text-align:center;flex:1;min-width:120px;">
-        <div style="font-size:1.4rem;font-weight:800;color:var(--cyan);">992</div>
-        <div class="text-xs">Automated Tests</div>
+        <div style="font-size:1.4rem;font-weight:800;color:var(--cyan);">1,036</div>
+        <div class="text-xs">自動テスト数</div>
       </div>
       <div class="card" style="padding:10px 20px;text-align:center;flex:1;min-width:120px;">
         <div style="font-size:1.4rem;font-weight:800;color:var(--green);">9/9</div>
-        <div class="text-xs">Smoke Checks</div>
+        <div class="text-xs">スモークチェック</div>
       </div>
       <div class="card" style="padding:10px 20px;text-align:center;flex:1;min-width:120px;">
         <div style="font-size:1.4rem;font-weight:800;color:var(--orange);">120</div>
-        <div class="text-xs">req/min limit</div>
+        <div class="text-xs">req/min 上限</div>
       </div>
       <div class="card" style="padding:10px 20px;text-align:center;flex:1;min-width:120px;">
         <div style="font-size:1.4rem;font-weight:800;color:var(--purple);">4</div>
-        <div class="text-xs">Middleware layers</div>
+        <div class="text-xs">ミドルウェア層</div>
       </div>
       <div class="card" style="padding:10px 20px;text-align:center;flex:1;min-width:120px;">
         <div style="font-size:1.4rem;font-weight:800;color:var(--cyan);">WAL</div>
-        <div class="text-xs">DB Journal Mode</div>
+        <div class="text-xs">DBジャーナルモード</div>
       </div>
     </div>
   </section>
 
   <!-- ════════════════════════════════════════════════════════
-       SLIDE 11: QUICK START
+       スライド 11: クイックスタート
        ════════════════════════════════════════════════════════ -->
   <section class="slide bg-radial-cyan" id="slide-11">
-    <h2 class="slide-title"><span>Quick Start</span> — Four Commands</h2>
+    <h2 class="slide-title"><span>クイックスタート</span> — 4コマンド</h2>
 
     <div class="split gap-24" style="align-items:start;">
-      <!-- Code block -->
+      <!-- コードブロック -->
       <div style="flex:1.3;">
-        <div class="code-block" style="font-size:0.8rem;"><span class="cm"># 1. Configure</span>
+        <div class="code-block" style="font-size:0.8rem;"><span class="cm"># 1. 設定</span>
 <span class="fn">cp</span> .env.example .env
-<span class="cm"># Set SOPILOT_API_KEY</span>
-<span class="cm"># Set ANTHROPIC_API_KEY   (for VigilPilot)</span>
+<span class="cm"># SOPILOT_API_KEY を設定</span>
+<span class="cm"># ANTHROPIC_API_KEY を設定  (VigilPilot使用時)</span>
 
-<span class="cm"># 2. Launch</span>
+<span class="cm"># 2. 起動</span>
 <span class="fn">docker</span> compose up <span class="ky">-d</span>
-<span class="cm"># Build + start (~3 min first build)</span>
+<span class="cm"># ビルド + 起動（初回ビルド ~3分）</span>
 
-<span class="cm"># 3. Verify</span>
+<span class="cm"># 3. 動作確認</span>
 <span class="fn">python</span> scripts/smoke_test.py
 <span class="cm"># ✓ 9/9 checks passed</span>
 
-<span class="cm"># 4. Open UI</span>
+<span class="cm"># 4. UIを開く</span>
 <span class="fn">open</span> http://localhost:8000
-<span class="cm"># SOP評価コンソール — browser UI</span></div>
+<span class="cm"># SOP評価コンソール — ブラウザUI</span></div>
       </div>
 
-      <!-- Resource table + notes -->
+      <!-- リソーステーブル + 注意事項 -->
       <div style="flex:1;display:flex;flex-direction:column;gap:16px;">
         <div>
-          <div class="section-label mb8">Resource Requirements</div>
+          <div class="section-label mb8">リソース要件</div>
           <div class="table-wrap">
             <table class="styled-table">
               <thead>
-                <tr><th></th><th>Minimum</th><th>Recommended</th></tr>
+                <tr><th></th><th>最小</th><th>推奨</th></tr>
               </thead>
               <tbody>
-                <tr><td>CPU</td><td>2 cores</td><td>4 cores</td></tr>
+                <tr><td>CPU</td><td>2コア</td><td>4コア</td></tr>
                 <tr><td>RAM</td><td>1 GB</td><td>2 GB</td></tr>
-                <tr><td>Disk</td><td>10 GB</td><td>100 GB</td></tr>
-                <tr><td>GPU</td><td colspan="2" style="color:var(--green);font-weight:600;">Not required (ColorMotion backend)</td></tr>
-                <tr><td>Docker</td><td colspan="2">&ge;24 (Linux containers)</td></tr>
+                <tr><td>ディスク</td><td>10 GB</td><td>100 GB</td></tr>
+                <tr><td>GPU</td><td colspan="2" style="color:var(--green);font-weight:600;">不要（ColorMotionバックエンド）</td></tr>
+                <tr><td>Docker</td><td colspan="2">&ge;24（Linuxコンテナ）</td></tr>
               </tbody>
             </table>
           </div>
         </div>
 
         <div class="card card-green" style="padding:14px;">
-          <div style="font-size:0.75rem;font-weight:700;color:var(--green);margin-bottom:8px;">No infrastructure required</div>
+          <div style="font-size:0.75rem;font-weight:700;color:var(--green);margin-bottom:8px;">追加インフラ不要</div>
           <ul class="check-list">
-            <li><span class="icon green">&#10003;</span><span class="text-sm">Single Docker container</span></li>
-            <li><span class="icon green">&#10003;</span><span class="text-sm">No GPU for default operation</span></li>
-            <li><span class="icon green">&#10003;</span><span class="text-sm">No external databases or queues</span></li>
-            <li><span class="icon green">&#10003;</span><span class="text-sm">No internet required (except Claude backend)</span></li>
+            <li><span class="icon green">&#10003;</span><span class="text-sm">Dockerコンテナ1個のみ</span></li>
+            <li><span class="icon green">&#10003;</span><span class="text-sm">通常運用にGPU不要</span></li>
+            <li><span class="icon green">&#10003;</span><span class="text-sm">外部DB・メッセージキュー不要</span></li>
+            <li><span class="icon green">&#10003;</span><span class="text-sm">インターネット接続不要（Claudeバックエンドを除く）</span></li>
           </ul>
         </div>
 
         <div class="callout" style="font-size:0.76rem;">
-          Full documentation: <strong>QUICKSTART.md</strong> — deployment, API walkthrough, configuration reference, troubleshooting
+          完全ドキュメント: <strong>QUICKSTART.md</strong> — デプロイ手順・APIウォークスルー・設定リファレンス・トラブルシューティング
         </div>
       </div>
     </div>
   </section>
 
   <!-- ════════════════════════════════════════════════════════
-       SLIDE 12: CONTACT / SUMMARY
+       スライド 12: サマリー
        ════════════════════════════════════════════════════════ -->
   <section class="slide" id="slide-12" style="background:radial-gradient(ellipse at 50% 40%, rgba(0,212,255,0.07) 0%, rgba(124,58,237,0.06) 50%, transparent 80%), var(--bg);text-align:center;">
     <div style="display:flex;flex-direction:column;align-items:center;gap:0;max-width:720px;">
@@ -1448,54 +1448,54 @@ html, body {
       <div class="hero-version mb12">
         <span class="badge badge-cyan">v1.2.0</span>
         &nbsp;
-        <span class="badge badge-purple">Production Ready</span>
+        <span class="badge badge-purple">本番稼働済み</span>
       </div>
 
       <h1 style="font-size:3.8rem;font-weight:900;letter-spacing:-0.04em;margin-bottom:10px;" class="grad-text">SOPilot</h1>
-      <p class="summary-tagline glow-white">Production-ready. Evidence-based. Zero false positives.</p>
-      <p class="summary-ja">現場の安全を、AIの目で守る。</p>
+      <p class="summary-tagline glow-white">SOPilot v1.2.0 — 本番検証済みの精度、ゼロ偽陽性、完全オンプレミス</p>
+      <p class="summary-ja">現場の安全を、統計的に裏付けられたAIの目で守る。</p>
 
       <div class="card mt16" style="text-align:left;width:100%;padding:20px 28px;">
         <ul class="check-list" style="gap:10px;">
-          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">99.40% accuracy validated on 3,507 production jobs [95% CI: 99.14%, 99.63%]</span></li>
-          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">Zero false positives — confirmed by independent annotation review</span></li>
-          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">Text-defined surveillance rules — no ML training required (VigilPilot)</span></li>
-          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">On-premises — no data leaves your infrastructure</span></li>
-          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">992 automated tests — unit, integration, property-based, concurrency</span></li>
+          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">精度 99.40% — 本番3,507件で検証済み [95% CI: 99.14%, 99.63%]</span></li>
+          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">偽陽性ゼロ（FP=0）— 独立アノテーション審査により確認済み</span></li>
+          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">テキスト定義の監視ルール — MLトレーニング不要（VigilPilot）</span></li>
+          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">完全オンプレミス — データは施設外に出ない</span></li>
+          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">1,036件の自動テスト — ユニット・統合・仮説ベース・並行性</span></li>
         </ul>
       </div>
 
       <div class="mt20 flex-row flex-center">
-        <div class="btn btn-cyan">View Live Demo</div>
-        <div class="btn btn-outline">Read Technical Summary</div>
+        <div class="btn btn-cyan">ライブデモを見る</div>
+        <div class="btn btn-outline">技術サマリーを読む</div>
       </div>
 
       <div class="mt16 text-xs" style="opacity:0.4;letter-spacing:0.08em;">
-        SOPilot v1.2.0 &nbsp;&bull;&nbsp; Cambridge / Google DeepMind Evaluation Build &nbsp;&bull;&nbsp; 2026-03-02
+        SOPilot v1.2.0 &nbsp;&bull;&nbsp; Cambridge / Google DeepMind 評価ビルド &nbsp;&bull;&nbsp; 2026-03-02
       </div>
     </div>
   </section>
 
 </div><!-- /deck -->
 
-<!-- Navigation arrows -->
-<button id="nav-prev" onclick="goToSlide(currentSlide - 1)" title="Previous slide">&#8592;</button>
-<button id="nav-next" onclick="goToSlide(currentSlide + 1)" title="Next slide">&#8594;</button>
+<!-- ナビゲーション矢印 -->
+<button id="nav-prev" onclick="goToSlide(currentSlide - 1)" title="前のスライド">&#8592;</button>
+<button id="nav-next" onclick="goToSlide(currentSlide + 1)" title="次のスライド">&#8594;</button>
 
-<!-- Dot indicators -->
+<!-- ドットインジケーター -->
 <div id="dots">
-  <div class="dot active" onclick="goToSlide(0)" title="Slide 1"></div>
-  <div class="dot" onclick="goToSlide(1)" title="Slide 2"></div>
-  <div class="dot" onclick="goToSlide(2)" title="Slide 3"></div>
-  <div class="dot" onclick="goToSlide(3)" title="Slide 4"></div>
-  <div class="dot" onclick="goToSlide(4)" title="Slide 5"></div>
-  <div class="dot" onclick="goToSlide(5)" title="Slide 6"></div>
-  <div class="dot" onclick="goToSlide(6)" title="Slide 7"></div>
-  <div class="dot" onclick="goToSlide(7)" title="Slide 8"></div>
-  <div class="dot" onclick="goToSlide(8)" title="Slide 9"></div>
-  <div class="dot" onclick="goToSlide(9)" title="Slide 10"></div>
-  <div class="dot" onclick="goToSlide(10)" title="Slide 11"></div>
-  <div class="dot" onclick="goToSlide(11)" title="Slide 12"></div>
+  <div class="dot active" onclick="goToSlide(0)" title="スライド 1"></div>
+  <div class="dot" onclick="goToSlide(1)" title="スライド 2"></div>
+  <div class="dot" onclick="goToSlide(2)" title="スライド 3"></div>
+  <div class="dot" onclick="goToSlide(3)" title="スライド 4"></div>
+  <div class="dot" onclick="goToSlide(4)" title="スライド 5"></div>
+  <div class="dot" onclick="goToSlide(5)" title="スライド 6"></div>
+  <div class="dot" onclick="goToSlide(6)" title="スライド 7"></div>
+  <div class="dot" onclick="goToSlide(7)" title="スライド 8"></div>
+  <div class="dot" onclick="goToSlide(8)" title="スライド 9"></div>
+  <div class="dot" onclick="goToSlide(9)" title="スライド 10"></div>
+  <div class="dot" onclick="goToSlide(10)" title="スライド 11"></div>
+  <div class="dot" onclick="goToSlide(11)" title="スライド 12"></div>
 </div>
 
 <div id="slide-counter">1 / 12</div>
@@ -1527,7 +1527,7 @@ html, body {
     counter.textContent = (currentSlide + 1) + ' / ' + slides.length;
   }
 
-  // Expose globally for onclick handlers
+  // onclick ハンドラからグローバルアクセス可能にする
   window.goToSlide = goToSlide;
 
   document.addEventListener('keydown', function(e) {
@@ -1537,7 +1537,7 @@ html, body {
     if (e.key === 'End')  { e.preventDefault(); goToSlide(slides.length - 1); }
   });
 
-  // Touch/swipe support
+  // タッチ / スワイプ対応
   let touchStartX = 0;
   let touchStartY = 0;
   document.addEventListener('touchstart', function(e) {

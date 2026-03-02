@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>SOPilot v1.2.0 — ライブデモ</title>
+  <title>SOPilot v1.4.0 — ライブデモ</title>
   <style>
     /* ── CSS Variables ─────────────────────────────────────────── */
     :root {
@@ -474,6 +474,50 @@
                   linear-gradient(135deg, rgba(0,212,255,0.3), rgba(124,58,237,0.3)) border-box;
       border: 1px solid transparent;
     }
+    /* ── Perception Engine Panel ─────────────────────────────────── */
+    #perception-panel {
+      display: none;
+      margin-top: 14px;
+      border-radius: 12px;
+      border: 1px solid rgba(139,92,246,.2);
+      background: rgba(88,28,135,.06);
+      overflow: hidden;
+    }
+    #perception-panel.active { display: block; }
+    .perc-hdr {
+      display: flex; align-items: center; gap: 8px;
+      padding: 10px 14px;
+      background: rgba(139,92,246,.1);
+      border-bottom: 1px solid rgba(139,92,246,.15);
+      font-size: 11px; font-weight: 700; letter-spacing: .08em;
+      text-transform: uppercase; color: #c4b5fd;
+    }
+    .perc-hdr-stats { margin-left: auto; display: flex; gap: 14px; font-size: 10px; font-weight: 400; color: #94a3b8; font-variant-numeric: tabular-nums; }
+    .perc-hdr-stats strong { color: #c4b5fd; }
+    .perc-body { padding: 12px 14px; display: flex; flex-direction: column; gap: 10px; }
+    .perc-section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: #7c3aed; margin-bottom: 4px; }
+    .perc-narr-ja { font-size: 13px; font-weight: 600; color: #e2e8f0; line-height: 1.6; }
+    .perc-narr-en { font-size: 11px; color: #64748b; line-height: 1.5; margin-top: 3px; }
+    .perc-act-row { display: flex; flex-wrap: wrap; gap: 5px; }
+    .perc-act-chip { display: inline-flex; align-items: center; gap: 4px; padding: 3px 9px; border-radius: 999px; font-size: 10px; font-weight: 700; }
+    .act-walking { background: rgba(59,130,246,.15); color: #60a5fa; border: 1px solid rgba(59,130,246,.3); }
+    .act-running { background: rgba(249,115,22,.15); color: #fb923c; border: 1px solid rgba(249,115,22,.3); }
+    .act-loitering { background: rgba(245,158,11,.15); color: #f59e0b; border: 1px solid rgba(245,158,11,.3); }
+    .act-stationary { background: rgba(148,163,184,.1); color: #94a3b8; border: 1px solid rgba(148,163,184,.2); }
+    .act-erratic { background: rgba(239,68,68,.15); color: #f87171; border: 1px solid rgba(239,68,68,.3); }
+    .perc-pred { display: flex; gap: 7px; padding: 7px 9px; border-radius: 8px; font-size: 11px; align-items: flex-start; }
+    .perc-pred.urgent { background: rgba(239,68,68,.07); border: 1px solid rgba(239,68,68,.2); }
+    .perc-pred.warn { background: rgba(245,158,11,.07); border: 1px solid rgba(245,158,11,.2); }
+    .perc-pred-text { line-height: 1.4; }
+    .perc-pred-time { font-size: 9px; color: #64748b; margin-top: 2px; }
+    .perc-query-row { display: flex; gap: 6px; }
+    .perc-query-row input { flex: 1; background: rgba(15,23,42,.7); border: 1px solid rgba(139,92,246,.2); border-radius: 7px; padding: 5px 9px; font-size: 11px; color: #e2e8f0; outline: none; }
+    .perc-query-row input:focus { border-color: rgba(139,92,246,.5); }
+    .perc-query-btn { padding: 5px 12px; background: rgba(139,92,246,.2); border: 1px solid rgba(139,92,246,.35); border-radius: 7px; color: #c4b5fd; font-size: 11px; font-weight: 700; cursor: pointer; transition: background .15s; }
+    .perc-query-btn:hover { background: rgba(139,92,246,.3); }
+    .perc-query-answer { margin-top: 6px; padding: 7px 9px; background: rgba(139,92,246,.06); border: 1px solid rgba(139,92,246,.12); border-radius: 7px; font-size: 12px; color: #e2e8f0; display: none; }
+    .perc-query-answer.show { display: block; }
+    .perc-empty { font-size: 11px; color: #64748b; text-align: center; padding: 8px 0; }
   </style>
 </head>
 <body>
@@ -483,7 +527,7 @@
   <div class="header-left">
     <div class="header-logo">
       <div class="logo-icon">S</div>
-      SOPilot <span style="font-weight:400;color:var(--muted);margin-left:2px;">v1.2.0</span>
+      SOPilot <span style="font-weight:400;color:var(--muted);margin-left:2px;">v1.4.0</span>
     </div>
     <div class="header-divider"></div>
     <div class="header-subtitle">現場安全・SOP適合評価システム</div>
@@ -506,7 +550,7 @@
       <span class="lbl">偽陽性</span>
     </div>
     <div class="metric-pill">
-      <span class="val">1,036</span>
+      <span class="val">1,573</span>
       <span class="lbl">テスト件数</span>
     </div>
     <div id="conn-status">
@@ -600,6 +644,45 @@
       <div id="dist-chart"></div>
     </div>
 
+    <!-- Perception Engine Live Panel -->
+    <div id="perception-panel">
+      <div class="perc-hdr">
+        &#129504; Perception Engine — ライブ
+        <div class="perc-hdr-stats">
+          <span>フレーム: <strong id="perc-frames">--</strong></span>
+          <span>処理: <strong id="perc-ms">--</strong> ms</span>
+          <span>追跡: <strong id="perc-tracks">--</strong></span>
+        </div>
+      </div>
+      <div class="perc-body">
+        <!-- Narration -->
+        <div>
+          <div class="perc-section-title">シーン説明</div>
+          <div class="perc-narr-ja" id="perc-narr-ja">—</div>
+          <div class="perc-narr-en" id="perc-narr-en"></div>
+        </div>
+        <!-- Activities -->
+        <div>
+          <div class="perc-section-title">行動分類</div>
+          <div class="perc-act-row" id="perc-acts"><span class="perc-empty">データなし</span></div>
+        </div>
+        <!-- Predictions -->
+        <div id="perc-preds-section">
+          <div class="perc-section-title">予測アラート</div>
+          <div id="perc-preds"><span class="perc-empty">なし</span></div>
+        </div>
+        <!-- NL Query -->
+        <div>
+          <div class="perc-section-title">NLクエリ</div>
+          <div class="perc-query-row">
+            <input id="perc-query-input" type="text" placeholder="例: 何人いる？ / 違反は何件？" />
+            <button class="perc-query-btn" onclick="runPercQuery()">送信</button>
+          </div>
+          <div class="perc-query-answer" id="perc-query-answer"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ RIGHT COLUMN -->
@@ -681,6 +764,10 @@
               <div class="vlm-dot">
                 <div class="d"></div><span>OpenAI互換API (Together.ai等)</span>
               </div>
+              <div class="vlm-dot" style="background:rgba(139,92,246,.08);border-color:rgba(139,92,246,.25);">
+                <div class="d" style="background:#a78bfa;box-shadow:0 0 6px rgba(139,92,246,.5);"></div>
+                <span style="color:#c4b5fd;">Perception Engine — YOLO-World CPU (GPU不要, 18.9ms/frame)</span>
+              </div>
             </div>
           </div>
         </div>
@@ -694,7 +781,7 @@
         <div class="info-row">
           <div class="info-key">テスト数</div>
           <div class="info-val">
-            <code>1,036件</code>
+            <code>1,573件</code>
             <span style="font-size:0.7rem;color:var(--muted);"> (unit + integration + property-based)</span>
           </div>
         </div>
@@ -724,7 +811,7 @@
 
 <!-- ═══════════════════════════════════════════════════════════════ FOOTER -->
 <footer id="footer">
-  <div>SOPilot v1.2.0 — Cambridge / Google DeepMind 評価ビルド &nbsp;·&nbsp; © 2026 SOPilot</div>
+  <div>SOPilot v1.4.0 — Cambridge / Google DeepMind 評価ビルド &nbsp;·&nbsp; © 2026 SOPilot</div>
   <div class="footer-mid">
     <span id="footer-status">--</span>
     <span class="footer-sep">|</span>
@@ -1310,6 +1397,9 @@ async function runAnalysis() {
     const result = await ar.json();
     renderAnalysisResult(result, resultEl);
 
+    // Start perception polling for this session
+    startPercPolling(sessionId);
+
     // Refresh sessions silently
     await loadVigilSessions();
 
@@ -1367,6 +1457,120 @@ function renderAnalysisResult(result, el) {
       ${items}
       ${result.event_id ? `<div style="font-size:0.7rem;color:var(--muted);margin-top:6px;">イベントID: #${result.event_id} として記録されました</div>` : ''}
     </div>`;
+}
+
+// ── PERCEPTION ENGINE LIVE ────────────────────────────────────────────────
+let _percPollTimer = null;
+let _percSessionId = null;
+let _percNarrStyle = 'brief';
+
+async function startPercPolling(sessionId) {
+  _percSessionId = sessionId;
+  // Reset engine state for fresh session tracking
+  await fetch(`${SERVER}/vigil/sessions/${sessionId}/perception-reset`, {method:'POST', headers: headers(false)}).catch(()=>null);
+  document.getElementById('perception-panel').classList.add('active');
+  await _percFetchAll();
+  _percPollTimer = setInterval(_percFetchAll, 5000);
+}
+
+function stopPercPolling() {
+  if (_percPollTimer) { clearInterval(_percPollTimer); _percPollTimer = null; }
+  document.getElementById('perception-panel').classList.remove('active');
+  _percSessionId = null;
+}
+
+async function _percFetchAll() {
+  if (!_percSessionId) return;
+  try {
+    const stateR = await fetch(`${SERVER}/vigil/perception/state`, {headers: headers(false)});
+    if (!stateR.ok) { stopPercPolling(); return; }
+    const state = await stateR.json();
+    _percUpdateStatusBar(state);
+    const [narrRes, actRes, predRes] = await Promise.allSettled([
+      fetch(`${SERVER}/vigil/perception/narration`, {method:'POST', headers: headers(true), body: JSON.stringify({style: _percNarrStyle, language:'ja'})}),
+      fetch(`${SERVER}/vigil/perception/activities`, {headers: headers(false)}),
+      fetch(`${SERVER}/vigil/perception/predictions`, {headers: headers(false)}),
+    ]);
+    if (narrRes.status==='fulfilled' && narrRes.value.ok) {
+      const d = await narrRes.value.json();
+      _percRenderNarration(d);
+    }
+    if (actRes.status==='fulfilled' && actRes.value.ok) {
+      const d = await actRes.value.json();
+      _percRenderActivities(d);
+    }
+    if (predRes.status==='fulfilled' && predRes.value.ok) {
+      const d = await predRes.value.json();
+      _percRenderPredictions(d);
+    }
+  } catch(e) { console.warn('perception fetch', e); }
+}
+
+function _percUpdateStatusBar(state) {
+  const frames = document.getElementById('perc-frames');
+  const ms = document.getElementById('perc-ms');
+  const tracks = document.getElementById('perc-tracks');
+  if (frames) frames.textContent = state.frames_processed ?? '--';
+  if (ms) ms.textContent = state.average_processing_ms != null ? Number(state.average_processing_ms).toFixed(1) : '--';
+  if (tracks) tracks.textContent = state.active_tracks ?? '--';
+}
+
+function _percRenderNarration(d) {
+  const ja = document.getElementById('perc-narr-ja');
+  const en = document.getElementById('perc-narr-en');
+  if (ja) ja.textContent = d.text_ja || d.narration_ja || '—';
+  if (en) en.textContent = d.text_en || d.narration_en || '';
+}
+
+function _percRenderActivities(data) {
+  const el = document.getElementById('perc-acts');
+  if (!el) return;
+  const list = Array.isArray(data) ? data : (data.activities || data.entities || []);
+  if (!list.length) { el.innerHTML = '<span class="perc-empty">アクティブなトラックなし</span>'; return; }
+  const actClass = { walking:'act-walking', running:'act-running', loitering:'act-loitering', stationary:'act-stationary', erratic:'act-erratic' };
+  el.innerHTML = list.map(a => {
+    const act = a.activity || 'unknown';
+    const cls = actClass[act] || 'act-stationary';
+    return `<span class="perc-act-chip ${cls}">ID:${a.entity_id} ${act}</span>`;
+  }).join('');
+}
+
+function _percRenderPredictions(data) {
+  const el = document.getElementById('perc-preds');
+  if (!el) return;
+  const list = Array.isArray(data) ? data : [];
+  if (!list.length) { el.innerHTML = '<span class="perc-empty">予測なし</span>'; return; }
+  el.innerHTML = list.map(p => {
+    const urgent = p.estimated_seconds < 3;
+    const icon = p.prediction_type === 'collision' ? '💥' : '⚠️';
+    const desc = p.prediction_type === 'zone_entry'
+      ? `エンティティ ${p.entity_id} がゾーン "${p.details?.zone_name||p.details?.zone_id||'?'}" に侵入予測`
+      : `エンティティ ${p.entity_id} と ${p.details?.entity_b_id||'?'} が衝突予測`;
+    return `<div class="perc-pred ${urgent?'urgent':'warn'}">
+      <span>${icon}</span>
+      <div><div class="perc-pred-text">${desc}</div>
+      <div class="perc-pred-time">約 ${Number(p.estimated_seconds).toFixed(1)}秒後 (conf: ${(p.confidence*100).toFixed(0)}%)</div></div>
+    </div>`;
+  }).join('');
+}
+
+async function runPercQuery() {
+  const input = document.getElementById('perc-query-input');
+  const answer = document.getElementById('perc-query-answer');
+  if (!input || !answer || !input.value.trim() || !_percSessionId) return;
+  answer.textContent = '...';
+  answer.classList.add('show');
+  try {
+    const r = await fetch(`${SERVER}/vigil/perception/query`, {
+      method: 'POST', headers: headers(true),
+      body: JSON.stringify({question: input.value.trim()})
+    });
+    if (!r.ok) throw new Error(r.status);
+    const d = await r.json();
+    answer.textContent = d.answer || '—';
+  } catch(e) {
+    answer.textContent = 'エラー: ' + e.message;
+  }
 }
 
 // ── INIT ──────────────────────────────────────────────────────────────────

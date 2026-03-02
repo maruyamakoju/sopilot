@@ -1,6 +1,6 @@
 # SOPilot — Technical Summary
 
-**Version:** v1.3.0 (1,501 tests)
+**Version:** v1.4.0 (1,573 tests)
 **Date:** 2026-03-03
 **Evaluation dataset:** 3,507 scored video pairs (96-hour production run)
 
@@ -150,7 +150,7 @@ precision). The 21 FNs represent genuine near-threshold borderline cases.
 
 ---
 
-## Perception Engine (v1.3) — カメラOS R&D
+## Perception Engine (v1.3/v1.4) — カメラOS R&D
 
 Full continuous perception pipeline replacing stateless VLM-per-frame analysis:
 
@@ -173,7 +173,7 @@ Frame → Detect → Track → Scene Graph → World Model
 | Module | Description |
 |---|---|
 | types.py | Shared data structures (BBox, Detection, Track, SceneGraph, WorldState) |
-| detector.py | Grounding-DINO open-vocabulary detection + MockDetector |
+| detector.py | Grounding-DINO + **YOLO-World CPU** (v1.4) + MockDetector |
 | tracker.py | ByteTrack-style MOT with Kalman filter, Hungarian assignment |
 | scene_graph.py | Spatial + semantic relation inference (WEARING, HOLDING, OPERATING) |
 | world_model.py | EntityRegistry, ZoneMonitor, AnomalyBaseline, TemporalMemory |
@@ -282,7 +282,7 @@ Full OpenAPI spec at `http://localhost:8000/docs` (Swagger UI) or `/redoc`.
 - **Reliability:** Score job retry (2 attempts), webhook notification with exponential backoff
 - **Security:** CORS allowlist, `X-Request-ID` correlation, non-root container user (uid 1000)
 - **Audit log:** Structured JSON events for video deletion, job creation, completion, reviews
-- **Test coverage:** 1,501 automated tests (unit + integration + property-based + concurrency)
+- **Test coverage:** 1,573 automated tests (unit + integration + property-based + concurrency)
 
 ---
 

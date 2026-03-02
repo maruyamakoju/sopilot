@@ -471,6 +471,14 @@ def build_vigil_router() -> APIRouter:
                 event_id=event_id,
                 frame_url=frame_url,
             )
+        except HTTPException:
+            raise
+        except Exception as exc:
+            logger.exception("VLM analysis failed for session %d", session_id)
+            raise HTTPException(
+                status_code=503,
+                detail=f"VLM backend error: {exc}",
+            ) from exc
         finally:
             frame_path.unlink(missing_ok=True)
 

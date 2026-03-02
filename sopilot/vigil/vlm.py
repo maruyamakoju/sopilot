@@ -356,6 +356,98 @@ def _infer_severity_from_rule(rule: str) -> str:
     return "warning"
 
 
+# ── Perception Engine backend ─────────────────────────────────────────────
+
+
+class PerceptionVLMClient(VLMClient):
+    """VLM backend powered by the local Perception Engine.
+
+    Instead of sending frames to an external API, uses local object detection,
+    tracking, scene graph construction, and hybrid reasoning.
+
+    Falls back to VLM API for complex cases where local reasoning is uncertain.
+    """
+
+    def __init__(self, config: object = None, vlm_fallback: VLMClient | None = None) -> None:
+        from sopilot.perception.engine import build_perception_engine
+
+        self._vlm_fallback = vlm_fallback
+        self._engine = build_perception_engine(
+            config=config, vlm_client=vlm_fallback,
+        )
+        self._frame_number = 0
+        logger.info(
+            "PerceptionVLMClient initialized: fallback=%s",
+            type(vlm_fallback).__name__ if vlm_fallback else "None",
+        )
+
+    def analyze_frame(self, frame_path: Path, rules: list[str]) -> VLMResult:
+        try:
+            import cv2
+        except ImportError:
+            logger.error(
+                "OpenCV (cv2) is required for PerceptionVLMClient. "
+                "Falling back to VLM API."
+            )
+            if self._vlm_fallback is not None:
+                return self._vlm_fallback.analyze_frame(frame_path, rules)
+            return VLMResult(has_violation=False, violations=[], raw_text="cv2 unavailable")
+
+        frame = cv2.imread(str(frame_path))
+        if frame is None:
+            logger.warning("Failed to read frame: %s", frame_path)
+            return VLMResult(has_violation=False, violations=[], raw_text=f"failed to read {frame_path}")
+
+        self._frame_number += 1
+        timestamp = self._frame_number / 1.0  # synthetic timestamp
+
+        result = self._engine.process_frame(frame, timestamp, self._frame_number, rules)
+
+        # Convert FrameResult.violations → VLMResult violation dicts
+        violations: list[dict] = []
+        raw_parts: list[str] = []
+        for v in result.violations:
+            vdict: dict = {
+                "rule_index": v.rule_index if v.rule_index >= 0 else 0,
+                "rule": v.rule,
+                "description_ja": v.description_ja,
+                "severity": v.severity.value,
+                "confidence": v.confidence,
+            }
+            # Convert BBox (normalized 0-1) to 0-1000 scale like Qwen3
+            if v.bbox is not None:
+                vdict["bboxes"] = [[
+                    round(v.bbox.x1 * 1000, 1),
+                    round(v.bbox.y1 * 1000, 1),
+                    round(v.bbox.x2 * 1000, 1),
+                    round(v.bbox.y2 * 1000, 1),
+                ]]
+            violations.append(vdict)
+            raw_parts.append(
+                f"rule={v.rule!r} sev={v.severity.value} conf={v.confidence:.2f} "
+                f"src={v.source}"
+            )
+
+        raw_text = (
+            f"perception_engine: {len(violations)} violations, "
+            f"{result.detections_count} detections, {result.tracks_count} tracks, "
+            f"vlm_called={result.vlm_called} | "
+            + " | ".join(raw_parts)
+        )
+
+        return VLMResult(
+            has_violation=bool(violations),
+            violations=violations,
+            raw_text=raw_text,
+        )
+
+    def close(self) -> None:
+        self._engine.close()
+        if self._vlm_fallback is not None:
+            self._vlm_fallback.close()
+        logger.info("PerceptionVLMClient closed")
+
+
 # ── JSON violation response parser (Claude / Qwen3-VL API) ─────────────────
 
 
@@ -400,6 +492,7 @@ def build_vlm_client(backend: str | None = None, api_key: str | None = None) -> 
         claude      — Claude Vision via Anthropic API (default; no GPU required)
         qwen3       — Qwen3-VL via local transformers inference (GPU required)
         qwen3-api   — Qwen3-VL via OpenAI-compatible API endpoint (no GPU required)
+        perception  — Local Perception Engine with optional Claude VLM fallback
     """
     backend = backend or os.environ.get("VIGIL_VLM_BACKEND", "claude")
     key = (
@@ -430,6 +523,38 @@ def build_vlm_client(backend: str | None = None, api_key: str | None = None) -> 
         qwen_model = os.environ.get("VIGIL_QWEN3_MODEL", "Qwen/Qwen3-VL-7B-Instruct")
         return Qwen3VLAPIClient(api_base=api_base, api_key=qwen_key, model=qwen_model)
 
+    if backend == "perception":
+        try:
+            from sopilot.perception.engine import build_perception_engine  # noqa: F401
+            from sopilot.perception.types import PerceptionConfig
+        except ImportError:
+            logger.warning(
+                "Perception engine modules not available. "
+                "Falling back to claude backend."
+            )
+            return ClaudeVisionClient(api_key=key, model=model)
+
+        config = PerceptionConfig(
+            detector_backend=os.environ.get("PERCEPTION_DETECTOR", "mock"),
+            device=os.environ.get("PERCEPTION_DEVICE", "auto"),
+        )
+        vlm_fallback: VLMClient | None = None
+        if key:  # If API key available, create Claude fallback
+            vlm_fallback = ClaudeVisionClient(api_key=key, model=model)
+            logger.info("Perception engine: Claude VLM fallback enabled")
+
+        try:
+            return PerceptionVLMClient(config=config, vlm_fallback=vlm_fallback)
+        except Exception:
+            logger.exception(
+                "Failed to initialize Perception engine. "
+                "Falling back to claude backend."
+            )
+            if vlm_fallback is not None:
+                vlm_fallback.close()
+            return ClaudeVisionClient(api_key=key, model=model)
+
     raise ValueError(
-        f"Unknown VLM backend: {backend!r}. Supported: 'claude', 'qwen3', 'qwen3-api'"
+        f"Unknown VLM backend: {backend!r}. "
+        f"Supported: 'claude', 'qwen3', 'qwen3-api', 'perception'"
     )

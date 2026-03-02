@@ -111,12 +111,16 @@ def create_app() -> FastAPI:
     app.add_middleware(CorrelationIDMiddleware)
     # VigilPilot — surveillance camera violation detection
     vigil_repo = VigilRepository(settings.database_path)
+    vigil_vlm_backend = os.environ.get("VIGIL_VLM_BACKEND", "claude")
     vigil_vlm_key = os.environ.get("VIGIL_VLM_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
     vigil_frames_root = Path(settings.data_dir) / "vigil_frames"
-    if vigil_vlm_key:
-        vigil_vlm = build_vlm_client(api_key=vigil_vlm_key)
+    if vigil_vlm_backend == "perception":
+        # Perception engine uses local inference; API key is optional (for VLM fallback)
+        vigil_vlm = build_vlm_client(backend="perception", api_key=vigil_vlm_key or None)
+    elif vigil_vlm_key:
+        vigil_vlm = build_vlm_client(backend=vigil_vlm_backend, api_key=vigil_vlm_key)
     else:
-        vigil_vlm = build_vlm_client(api_key="not-configured")  # will fail gracefully at analysis time
+        vigil_vlm = build_vlm_client(backend=vigil_vlm_backend, api_key="not-configured")  # will fail gracefully at analysis time
     vigil_pipeline = VigilPipeline(repo=vigil_repo, vlm=vigil_vlm, frames_root=vigil_frames_root)
 
     app.state.sopilot_service = service

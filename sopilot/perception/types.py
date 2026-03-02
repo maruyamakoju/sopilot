@@ -467,7 +467,7 @@ class PerceptionConfig:
     detector_backend: str = "grounding-dino"  # "grounding-dino", "yolo-world", "mock"
     detector_model_id: str = "IDEA-Research/grounding-dino-tiny"
     detection_confidence_threshold: float = 0.3
-    yolo_confidence_threshold: float = 0.1  # YOLO-World uses lower threshold by default
+    yolo_confidence_threshold: float = 0.05  # YOLO-World uses lower threshold by default
     detection_nms_threshold: float = 0.5
     device: str = "auto"  # "auto", "cuda", "cpu", "mps"
 
@@ -504,3 +504,9 @@ class PerceptionConfig:
     pose_model: str = "yolov8s-pose.pt"
     pose_confidence_threshold: float = 0.4
     pose_keypoint_confidence: float = 0.3  # minimum visibility for keypoint use
+
+    # SAHI (Slicing Aided Hyper Inference) for small-object detection in high-res frames
+    sahi_enabled: bool = True           # slice-and-infer; disable for real-time streams
+    sahi_slice_height: int = 640        # tile height in pixels
+    sahi_slice_width: int = 640         # tile width in pixels
+    sahi_overlap_ratio: float = 0.2     # overlap fraction between adjacent tiles

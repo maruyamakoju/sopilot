@@ -21,6 +21,7 @@ from sopilot.vigil.schemas import (
     SessionResponse,
     SessionTemplate,
     StreamRequest,
+    VigilAnalytics,
     ViolationDetail,
     ViolationEvent,
     WebcamFrameResult,
@@ -945,5 +946,21 @@ def build_vigil_router() -> APIRouter:
             raise HTTPException(status_code=404, detail="Webhook not found")
         result = await run_in_threadpool(_webhook_dispatcher.test_webhook, row)
         return WebhookTestResult(**result)
+
+    # ── Analytics ──────────────────────────────────────────────────────────────
+
+    @router.get(
+        "/analytics",
+        summary="VigilPilot 分析ダッシュボードデータ",
+        response_model=VigilAnalytics,
+    )
+    async def get_vigil_analytics(
+        request: Request,
+        days: int = Query(30, ge=1, le=365, description="集計対象の日数（直近N日）"),
+    ) -> VigilAnalytics:
+        """Return aggregated analytics data for the VigilPilot dashboard."""
+        repo = _get_repo(request)
+        data = await run_in_threadpool(repo.get_analytics, days)
+        return VigilAnalytics(**data)
 
     return router

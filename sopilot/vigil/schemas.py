@@ -174,3 +174,43 @@ class VLMResult(BaseModel):
     has_violation: bool
     violations: list[dict[str, Any]] = Field(default_factory=list)
     raw_text: str = ""
+
+
+# ── Analytics schemas ───────────────────────────────────────────────────────
+
+
+class SessionEventCount(BaseModel):
+    session_id: int
+    session_name: str
+    total: int
+    critical: int
+    warning: int
+    info: int
+
+
+class RuleCount(BaseModel):
+    rule: str
+    count: int
+
+
+class DailyCount(BaseModel):
+    date: str
+    total: int
+    critical: int
+    warning: int
+    info: int
+
+
+class HourlyCount(BaseModel):
+    hour: int
+    count: int
+
+
+class VigilAnalytics(BaseModel):
+    total_sessions: int
+    total_events: int
+    events_by_severity: dict[str, int]
+    events_by_session: list[SessionEventCount]
+    events_by_rule: list[RuleCount]
+    events_per_day: list[DailyCount]
+    top_violation_hours: list[HourlyCount]

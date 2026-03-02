@@ -626,6 +626,20 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
 #vigilLightbox img{max-width:90vw;max-height:90vh;object-fit:contain;border-radius:8px;
   box-shadow:0 8px 48px rgba(0,0,0,.7)}
 
+/* ── VIGIL ANALYTICS KPI ── */
+.vigil-kpi-card{background:rgba(15,23,42,.8);border:1px solid rgba(255,255,255,.08);
+  border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;gap:4px}
+.vigil-kpi-val{font-size:22px;font-weight:700;color:var(--text);letter-spacing:-.02em}
+.vigil-kpi-lbl{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.vigil-session-bk-row{display:grid;grid-template-columns:1fr 60px 60px 60px 60px;
+  gap:6px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,.04);align-items:center;font-size:11px}
+.vigil-session-bk-row:last-child{border-bottom:none}
+.vigil-rule-row{display:flex;justify-content:space-between;align-items:center;
+  padding:4px 0;border-bottom:1px solid rgba(255,255,255,.04);font-size:11px;gap:8px}
+.vigil-rule-row:last-child{border-bottom:none}
+.vigil-rule-bar-wrap{flex:1;height:6px;background:rgba(255,255,255,.06);border-radius:3px;overflow:hidden;min-width:40px}
+.vigil-rule-bar{height:100%;background:rgba(13,148,136,.5);border-radius:3px}
+
 /* ── VIGIL SOURCE TABS ── */
 .vigil-source-tabs{display:flex;gap:4px;margin-bottom:10px;flex-wrap:wrap}
 .vigil-source-tabs button{padding:5px 12px;font-size:11px;font-weight:600;border-radius:6px;
@@ -1106,6 +1120,10 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
   <div class="analytics-top">
     <button class="btn btn-secondary btn-sm" onclick="closeVigil()">← 戻る</button>
     <span class="analytics-title">VigilPilot — 監視カメラ違反検知</span>
+    <div style="display:flex;gap:4px;margin-left:16px">
+      <button id="vigilTabSessions" class="btn btn-sm" style="background:rgba(13,148,136,.25);color:#4fd1c5;border:1px solid rgba(13,148,136,.4);border-radius:6px;padding:3px 12px;cursor:pointer;font-size:11px;font-weight:600" onclick="switchVigilTab('sessions')">監視</button>
+      <button id="vigilTabAnalytics" class="btn btn-sm" style="background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:3px 12px;cursor:pointer;font-size:11px;font-weight:600" onclick="switchVigilTab('analytics')">分析</button>
+    </div>
     <div class="top-spacer"></div>
     <span id="vigilStatus" style="font-size:11px;color:var(--muted)"></span>
     <button class="btn btn-secondary btn-sm" onclick="Notification.requestPermission().then(p=>toast(p==='granted'?'通知が有効になりました':'通知が許可されませんでした',p==='granted'?'success':'info'))" title="違反検出時にブラウザ通知を受け取る">🔔 通知を有効にする</button>
@@ -1121,7 +1139,7 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
     <span class="perception-stat">処理時間: <strong id="percAvgMs">--</strong> ms</span>
     <span class="perception-stat" id="percTrackCount" style="color:#c4b5fd"></span>
   </div>
-  <div style="flex:1;display:grid;grid-template-columns:310px 1fr;overflow:hidden">
+  <div id="vigilSessionsGrid" style="flex:1;display:grid;grid-template-columns:310px 1fr;overflow:hidden">
     <!-- Left: session list + create form -->
     <div style="border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:rgba(5,10,21,.5)">
       <!-- Create form -->
@@ -1245,6 +1263,68 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           <div id="ppeSummary" class="ppe-summary"></div>
         </div>
       </div>
+    </div>
+  </div>
+  <!-- Analytics Dashboard Panel (full-width, toggled by tab) -->
+  <div id="vigilAnalyticsPanel" style="display:none;flex:1;overflow-y:auto;padding:20px;background:rgba(5,10,21,.7)">
+    <!-- Header row -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+      <span style="font-size:14px;font-weight:700;color:var(--text)">分析ダッシュボード</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:11px;color:var(--muted)">集計期間:</span>
+        <select id="vigilAnalyticsDays" onchange="loadVigilAnalytics(parseInt(this.value))"
+          style="background:rgba(30,41,59,.8);border:1px solid var(--glass-border);border-radius:6px;padding:3px 8px;color:var(--text);font-size:11px;cursor:pointer">
+          <option value="7">直近 7 日</option>
+          <option value="30" selected>直近 30 日</option>
+          <option value="90">直近 90 日</option>
+        </select>
+        <button class="btn btn-secondary btn-sm" onclick="loadVigilAnalytics(parseInt($('vigilAnalyticsDays').value))">更新</button>
+      </div>
+    </div>
+    <!-- KPI row -->
+    <div id="vigilAnalyticsKPI" style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
+      <div class="vigil-kpi-card" id="vkpi_sessions"><div class="vigil-kpi-val">--</div><div class="vigil-kpi-lbl">セッション総数</div></div>
+      <div class="vigil-kpi-card" id="vkpi_events"><div class="vigil-kpi-val">--</div><div class="vigil-kpi-lbl">イベント総数</div></div>
+      <div class="vigil-kpi-card" id="vkpi_critical" style="border-color:rgba(239,68,68,.3)"><div class="vigil-kpi-val" style="color:#f87171">--</div><div class="vigil-kpi-lbl">CRITICAL</div></div>
+      <div class="vigil-kpi-card" id="vkpi_warning" style="border-color:rgba(245,158,11,.3)"><div class="vigil-kpi-val" style="color:#fbbf24">--</div><div class="vigil-kpi-lbl">WARNING</div></div>
+    </div>
+    <!-- Charts row 1: severity bar + daily line -->
+    <div style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:12px">
+      <!-- Severity bar chart -->
+      <div style="background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">重大度別</div>
+        <canvas id="vigilSeverityCanvas" style="width:100%;height:100px;display:block"></canvas>
+      </div>
+      <!-- Daily line chart -->
+      <div style="background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">日別イベント推移</div>
+        <canvas id="vigilDailyCanvas" style="width:100%;height:100px;display:block"></canvas>
+      </div>
+    </div>
+    <!-- Charts row 2: hourly bar + rules table -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+      <!-- Hourly bar chart -->
+      <div style="background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">時間帯別違反件数</div>
+        <canvas id="vigilHourlyCanvas" style="width:100%;height:120px;display:block"></canvas>
+      </div>
+      <!-- Top rules table -->
+      <div style="background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:14px">
+        <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">違反ルール TOP 10</div>
+        <div id="vigilRulesTable" style="overflow-y:auto;max-height:140px">
+          <div style="color:var(--muted);font-size:11px">データなし</div>
+        </div>
+      </div>
+    </div>
+    <!-- Session breakdown table -->
+    <div style="background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.07);border-radius:10px;padding:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">セッション別内訳</div>
+      <div id="vigilSessionBreakdown">
+        <div style="color:var(--muted);font-size:11px">データなし</div>
+      </div>
+    </div>
+    <div id="vigilAnalyticsEmpty" style="display:none;text-align:center;padding:40px;color:var(--muted);font-size:13px">
+      まだデータがありません。セッションを作成して解析を実行してください。
     </div>
   </div>
 </div>
@@ -4834,6 +4914,274 @@ async function stopVigilWebcam(){
   const stopBtn=document.getElementById("vigilWebcamStopBtn");
   if(startBtn)startBtn.style.display="";
   if(stopBtn)stopBtn.style.display="none";
+}
+
+// ── VIGIL: Tab switcher ──
+function switchVigilTab(tab){
+  const gridEl=$("vigilSessionsGrid");
+  const analyticsPanel=$("vigilAnalyticsPanel");
+  const tabSessions=$("vigilTabSessions");
+  const tabAnalytics=$("vigilTabAnalytics");
+
+  if(tab==="analytics"){
+    if(gridEl)gridEl.style.display="none";
+    if(analyticsPanel)analyticsPanel.style.display="block";
+    if(tabSessions){tabSessions.style.background="transparent";tabSessions.style.color="var(--muted)";tabSessions.style.borderColor="rgba(255,255,255,.1)";}
+    if(tabAnalytics){tabAnalytics.style.background="rgba(13,148,136,.25)";tabAnalytics.style.color="#4fd1c5";tabAnalytics.style.borderColor="rgba(13,148,136,.4)";}
+    const days=parseInt(($("vigilAnalyticsDays")||{}).value||"30");
+    loadVigilAnalytics(days);
+  }else{
+    if(gridEl)gridEl.style.display="";
+    if(analyticsPanel)analyticsPanel.style.display="none";
+    if(tabSessions){tabSessions.style.background="rgba(13,148,136,.25)";tabSessions.style.color="#4fd1c5";tabSessions.style.borderColor="rgba(13,148,136,.4)";}
+    if(tabAnalytics){tabAnalytics.style.background="transparent";tabAnalytics.style.color="var(--muted)";tabAnalytics.style.borderColor="rgba(255,255,255,.1)";}
+  }
+}
+
+// ── VIGIL: Analytics Dashboard ──
+let _vigilAnalyticsChartState={};
+
+async function loadVigilAnalytics(days){
+  days=days||30;
+  try{
+    const data=await api(`/vigil/analytics?days=${days}`);
+    renderAnalyticsKPI(data);
+    renderAnalyticsCharts(data);
+    renderRulesTable(data);
+    renderSessionBreakdown(data);
+    const empty=$("vigilAnalyticsEmpty");
+    if(empty)empty.style.display=data.total_events===0?"block":"none";
+  }catch(e){
+    console.error("loadVigilAnalytics error",e);
+    toast("分析データの取得に失敗しました","error");
+  }
+}
+
+function renderAnalyticsKPI(data){
+  const set=(id,val)=>{
+    const el=document.getElementById(id);
+    if(!el)return;
+    el.querySelector(".vigil-kpi-val").textContent=val;
+  };
+  set("vkpi_sessions",data.total_sessions??0);
+  set("vkpi_events",data.total_events??0);
+  set("vkpi_critical",(data.events_by_severity?.critical??0));
+  set("vkpi_warning",(data.events_by_severity?.warning??0));
+}
+
+function renderAnalyticsCharts(data){
+  _drawSeverityChart(data.events_by_severity||{});
+  _drawDailyChart(data.events_per_day||[]);
+  _drawHourlyChart(data.top_violation_hours||[]);
+}
+
+function _drawSeverityChart(bySev){
+  const canvas=$("vigilSeverityCanvas");
+  if(!canvas)return;
+  const W=canvas.clientWidth||200,H=canvas.clientHeight||100;
+  if(!W||!H)return;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  const ctx=canvas.getContext("2d");
+  ctx.scale(dpr,dpr);
+
+  const items=[
+    {label:"CRITICAL",val:bySev.critical||0,color:"rgba(239,68,68,.75)"},
+    {label:"WARNING", val:bySev.warning||0, color:"rgba(245,158,11,.75)"},
+    {label:"INFO",    val:bySev.info||0,    color:"rgba(59,130,246,.65)"},
+  ];
+  const maxVal=Math.max(...items.map(i=>i.val),1);
+  const padL=64,padR=40,padT=6,padB=6;
+  const barH=Math.floor((H-padT-padB-8*2)/3);
+  const gap=(H-padT-padB-3*barH)/2;
+  const cW=W-padL-padR;
+
+  ctx.fillStyle="rgba(15,23,42,.3)";
+  ctx.beginPath();ctx.roundRect(0,0,W,H,6);ctx.fill();
+
+  items.forEach((item,i)=>{
+    const y=padT+i*(barH+gap);
+    // Label
+    ctx.fillStyle="rgba(148,163,184,.7)";
+    ctx.font=`bold 9px Inter,system-ui,sans-serif`;
+    ctx.textAlign="right";
+    ctx.fillText(item.label,padL-6,y+barH/2+3);
+    // Background track
+    ctx.fillStyle="rgba(255,255,255,.04)";
+    ctx.beginPath();ctx.roundRect(padL,y,cW,barH,3);ctx.fill();
+    // Bar
+    const bW=Math.max(cW*(item.val/maxVal),0);
+    if(bW>0){
+      ctx.fillStyle=item.color;
+      ctx.beginPath();ctx.roundRect(padL,y,bW,barH,3);ctx.fill();
+    }
+    // Value
+    ctx.fillStyle="rgba(255,255,255,.75)";
+    ctx.textAlign="left";
+    ctx.fillText(item.val,padL+cW+6,y+barH/2+3);
+  });
+}
+
+function _drawDailyChart(perDay){
+  const canvas=$("vigilDailyCanvas");
+  if(!canvas)return;
+  const W=canvas.clientWidth||400,H=canvas.clientHeight||100;
+  if(!W||!H)return;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  const ctx=canvas.getContext("2d");
+  ctx.scale(dpr,dpr);
+
+  ctx.fillStyle="rgba(15,23,42,.3)";
+  ctx.beginPath();ctx.roundRect(0,0,W,H,6);ctx.fill();
+
+  if(!perDay.length){
+    ctx.fillStyle="rgba(148,163,184,.4)";
+    ctx.font="11px Inter,system-ui,sans-serif";
+    ctx.textAlign="center";
+    ctx.fillText("データなし",W/2,H/2+4);
+    return;
+  }
+
+  const padL=28,padR=10,padT=8,padB=18;
+  const cW=W-padL-padR,cH=H-padT-padB;
+  const n=perDay.length;
+  const maxVal=Math.max(...perDay.map(d=>d.total),1);
+  const xOf=i=>padL+(n<=1?cW/2:(cW*i)/(n-1));
+  const yOf=v=>padT+cH*(1-v/maxVal);
+
+  // Grid
+  ctx.strokeStyle="rgba(255,255,255,.04)";ctx.lineWidth=1;
+  [0,.5,1].forEach(f=>{
+    const y=padT+cH*(1-f);
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cW,y);ctx.stroke();
+  });
+
+  // Y label
+  ctx.fillStyle="rgba(148,163,184,.5)";ctx.font="9px Inter,sans-serif";ctx.textAlign="right";
+  ctx.fillText(maxVal,padL-4,padT+4);
+
+  // X labels (first + last)
+  ctx.textAlign="center";ctx.fillStyle="rgba(148,163,184,.4)";
+  if(n>0)ctx.fillText(perDay[0].date.slice(5),xOf(0),H-2);
+  if(n>1)ctx.fillText(perDay[n-1].date.slice(5),xOf(n-1),H-2);
+
+  const drawLine=(key,color)=>{
+    if(n<2)return;
+    ctx.strokeStyle=color;ctx.lineWidth=1.5;ctx.setLineDash([]);
+    ctx.beginPath();
+    perDay.forEach((d,i)=>{
+      const x=xOf(i),y=yOf(d[key]||0);
+      i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+  };
+
+  // Area for total
+  if(n>=2){
+    ctx.beginPath();
+    ctx.moveTo(xOf(0),yOf(0));
+    perDay.forEach((d,i)=>ctx.lineTo(xOf(i),yOf(d.total)));
+    ctx.lineTo(xOf(n-1),yOf(0));ctx.closePath();
+    const g=ctx.createLinearGradient(0,padT,0,padT+cH);
+    g.addColorStop(0,"rgba(13,148,136,.12)");g.addColorStop(1,"rgba(13,148,136,0)");
+    ctx.fillStyle=g;ctx.fill();
+  }
+
+  drawLine("total","rgba(13,148,136,.7)");
+  drawLine("critical","rgba(239,68,68,.6)");
+  drawLine("warning","rgba(245,158,11,.5)");
+  drawLine("info","rgba(59,130,246,.5)");
+
+  // Dots for total
+  perDay.forEach((d,i)=>{
+    ctx.fillStyle="rgba(13,148,136,.9)";
+    ctx.beginPath();ctx.arc(xOf(i),yOf(d.total),2.5,0,Math.PI*2);ctx.fill();
+  });
+}
+
+function _drawHourlyChart(byHour){
+  const canvas=$("vigilHourlyCanvas");
+  if(!canvas)return;
+  const W=canvas.clientWidth||300,H=canvas.clientHeight||120;
+  if(!W||!H)return;
+  const dpr=window.devicePixelRatio||1;
+  canvas.width=W*dpr;canvas.height=H*dpr;
+  const ctx=canvas.getContext("2d");
+  ctx.scale(dpr,dpr);
+
+  ctx.fillStyle="rgba(15,23,42,.3)";
+  ctx.beginPath();ctx.roundRect(0,0,W,H,6);ctx.fill();
+
+  if(!byHour.length){
+    ctx.fillStyle="rgba(148,163,184,.4)";
+    ctx.font="11px Inter,system-ui,sans-serif";
+    ctx.textAlign="center";
+    ctx.fillText("データなし",W/2,H/2+4);
+    return;
+  }
+
+  const counts=new Array(24).fill(0);
+  byHour.forEach(h=>{ if(h.hour>=0&&h.hour<24)counts[h.hour]=h.count; });
+  const maxVal=Math.max(...counts,1);
+  const padL=24,padR=6,padT=6,padB=16;
+  const cW=W-padL-padR,cH=H-padT-padB;
+  const barW=cW/24;
+
+  ctx.strokeStyle="rgba(255,255,255,.04)";ctx.lineWidth=1;
+  [0,.5,1].forEach(f=>{
+    const y=padT+cH*(1-f);
+    ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+cW,y);ctx.stroke();
+  });
+  ctx.fillStyle="rgba(148,163,184,.45)";ctx.font="8px Inter,sans-serif";ctx.textAlign="right";
+  ctx.fillText(maxVal,padL-3,padT+4);
+
+  counts.forEach((val,h)=>{
+    const x=padL+h*barW;
+    const bH=cH*(val/maxVal);
+    if(bH>0){
+      ctx.fillStyle="rgba(13,148,136,.6)";
+      ctx.beginPath();ctx.roundRect(x+1,padT+cH-bH,barW-2,bH,2);ctx.fill();
+    }
+    if(h%4===0||h===23){
+      ctx.fillStyle="rgba(148,163,184,.4)";ctx.textAlign="center";ctx.font="7px Inter,sans-serif";
+      ctx.fillText(h,x+barW/2,H-2);
+    }
+  });
+}
+
+function renderRulesTable(data){
+  const el=$("vigilRulesTable");
+  if(!el)return;
+  const rules=data.events_by_rule||[];
+  if(!rules.length){el.innerHTML='<div style="color:var(--muted);font-size:11px">データなし</div>';return;}
+  const top=rules.slice(0,10);
+  const maxCount=top[0].count||1;
+  el.innerHTML=top.map(r=>`
+    <div class="vigil-rule-row">
+      <span style="color:var(--text);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${r.rule}">${r.rule}</span>
+      <div class="vigil-rule-bar-wrap"><div class="vigil-rule-bar" style="width:${Math.round(r.count/maxCount*100)}%"></div></div>
+      <span style="color:var(--muted);min-width:28px;text-align:right">${r.count}</span>
+    </div>`).join("");
+}
+
+function renderSessionBreakdown(data){
+  const el=$("vigilSessionBreakdown");
+  if(!el)return;
+  const sessions=data.events_by_session||[];
+  if(!sessions.length){el.innerHTML='<div style="color:var(--muted);font-size:11px">データなし</div>';return;}
+  const header=`<div class="vigil-session-bk-row" style="color:var(--muted);font-weight:700;font-size:10px;border-bottom:1px solid rgba(255,255,255,.08)">
+    <span>セッション</span><span style="text-align:right">合計</span><span style="text-align:right;color:#f87171">CRIT</span><span style="text-align:right;color:#fbbf24">WARN</span><span style="text-align:right;color:#60a5fa">INFO</span>
+  </div>`;
+  const rows=sessions.map(s=>`
+    <div class="vigil-session-bk-row">
+      <span style="color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${s.session_name}">${s.session_name}</span>
+      <span style="text-align:right;color:var(--text)">${s.total}</span>
+      <span style="text-align:right;color:#f87171">${s.critical}</span>
+      <span style="text-align:right;color:#fbbf24">${s.warning}</span>
+      <span style="text-align:right;color:#60a5fa">${s.info}</span>
+    </div>`).join("");
+  el.innerHTML=header+rows;
 }
 
 function openVigilLightbox(url){

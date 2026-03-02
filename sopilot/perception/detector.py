@@ -628,6 +628,7 @@ class YOLOWorldDetector(ObjectDetector):
     """
 
     DEFAULT_MODEL: str = "yolov8s-worldv2.pt"
+    MEDIUM_MODEL: str = "yolov8m-worldv2.pt"
     DEFAULT_CLASSES: list[str] = [
         "person",
         "worker",
@@ -643,6 +644,8 @@ class YOLOWorldDetector(ObjectDetector):
         "box",
         "equipment",
         "tool",
+        "safety cone",
+        "conveyor belt",
     ]
 
     def __init__(
@@ -691,27 +694,13 @@ class YOLOWorldDetector(ObjectDetector):
 
     # ── Detection ─────────────────────────────────────────────────────
 
-    def detect(self, frame: np.ndarray, prompts: list[str]) -> list[Detection]:
-        """Run YOLO-World detection on *frame*.
+    def _detect_raw(self, frame: np.ndarray, prompts: list[str]) -> list[Detection]:
+        """Run YOLO-World inference on a single frame or tile.
 
-        Parameters
-        ----------
-        frame:
-            BGR image as numpy array ``(H, W, 3)``.
-        prompts:
-            Natural-language class names.  If empty, :attr:`DEFAULT_CLASSES`
-            are used.
+        Returns detections with normalized coordinates relative to *frame*.
+        Capped at ``max_detections_per_frame`` to bound per-tile overhead.
         """
-        if frame.size == 0:
-            return []
-
-        effective_prompts = prompts if prompts else self.DEFAULT_CLASSES
-        self._load_model()
-        self._maybe_update_classes(effective_prompts)
-
         h, w = frame.shape[:2]
-        # YOLO-World outputs lower raw scores than standard YOLO; use a
-        # dedicated lower threshold so meaningful detections are not filtered.
         conf_threshold = self._config.yolo_confidence_threshold
 
         try:
@@ -741,7 +730,7 @@ class YOLOWorldDetector(ObjectDetector):
                 if conf < conf_threshold:
                     continue
                 cls_id = int(box.cls[0])
-                label = names.get(cls_id, effective_prompts[0] if effective_prompts else "object")
+                label = names.get(cls_id, prompts[0] if prompts else "object")
 
                 xyxy = box.xyxy[0]
                 if hasattr(xyxy, "cpu"):
@@ -758,11 +747,119 @@ class YOLOWorldDetector(ObjectDetector):
                     continue
                 detections.append(Detection(bbox=bbox, label=label, confidence=conf))
 
-        detections = non_max_suppression(
-            detections, iou_threshold=self._config.detection_nms_threshold
-        )
+        return detections
+
+    def _sahi_detect(self, frame: np.ndarray, prompts: list[str]) -> list[Detection]:
+        """SAHI: Slicing Aided Hyper Inference for small-object detection.
+
+        Slices *frame* into overlapping tiles of size
+        (``sahi_slice_height`` × ``sahi_slice_width``) with ``sahi_overlap_ratio``
+        overlap, runs :meth:`_detect_raw` on each tile, remaps coordinates back
+        to original image space, and applies a final global NMS.  A full-frame
+        pass is also included to catch large objects that span multiple tiles.
+
+        For frames smaller than a single tile, falls back to a single
+        :meth:`_detect_raw` call (no extra overhead).
+        """
+        h, w = frame.shape[:2]
+        slice_h = self._config.sahi_slice_height
+        slice_w = self._config.sahi_slice_width
+        overlap = self._config.sahi_overlap_ratio
+
+        # Fast path: frame fits in one tile — no slicing needed.
+        if h <= slice_h and w <= slice_w:
+            dets = self._detect_raw(frame, prompts)
+            dets = non_max_suppression(dets, iou_threshold=self._config.detection_nms_threshold)
+            return dets[: self._config.max_detections_per_frame]
+
+        stride_h = max(1, int(slice_h * (1.0 - overlap)))
+        stride_w = max(1, int(slice_w * (1.0 - overlap)))
+
+        # Generate tile top-left y positions.
+        y_starts: list[int] = list(range(0, h - slice_h + 1, stride_h))
+        if not y_starts or y_starts[-1] + slice_h < h:
+            y_starts.append(max(0, h - slice_h))
+
+        # Generate tile top-left x positions.
+        x_starts: list[int] = list(range(0, w - slice_w + 1, stride_w))
+        if not x_starts or x_starts[-1] + slice_w < w:
+            x_starts.append(max(0, w - slice_w))
+
+        all_dets: list[Detection] = []
+
+        for y1_px in y_starts:
+            for x1_px in x_starts:
+                y2_px = min(y1_px + slice_h, h)
+                x2_px = min(x1_px + slice_w, w)
+                tile = frame[y1_px:y2_px, x1_px:x2_px]
+                if tile.size == 0:
+                    continue
+
+                tile_dets = self._detect_raw(tile, prompts)
+
+                # Remap normalised tile coords → original image coords.
+                th, tw = tile.shape[:2]
+                for det in tile_dets:
+                    orig_bbox = BBox(
+                        x1=float(np.clip((x1_px + det.bbox.x1 * tw) / w, 0.0, 1.0)),
+                        y1=float(np.clip((y1_px + det.bbox.y1 * th) / h, 0.0, 1.0)),
+                        x2=float(np.clip((x1_px + det.bbox.x2 * tw) / w, 0.0, 1.0)),
+                        y2=float(np.clip((y1_px + det.bbox.y2 * th) / h, 0.0, 1.0)),
+                    )
+                    if orig_bbox.area < 1e-6:
+                        continue
+                    all_dets.append(Detection(bbox=orig_bbox, label=det.label, confidence=det.confidence))
+
+        # Full-frame pass catches large objects that span multiple tiles.
+        all_dets.extend(self._detect_raw(frame, prompts))
+
         logger.debug(
-            "YOLO-World detected %d objects (prompts=%s)", len(detections), effective_prompts
+            "SAHI: %d tiles, prompts=%s → %d raw detections before NMS",
+            len(y_starts) * len(x_starts),
+            prompts,
+            len(all_dets),
+        )
+
+        final = non_max_suppression(all_dets, iou_threshold=self._config.detection_nms_threshold)
+        return final[: self._config.max_detections_per_frame]
+
+    def detect(self, frame: np.ndarray, prompts: list[str]) -> list[Detection]:
+        """Run YOLO-World detection on *frame*.
+
+        When ``config.sahi_enabled`` is True (default), uses
+        :meth:`_sahi_detect` which slices the frame into overlapping tiles for
+        better small-object recall in high-resolution footage.  Set
+        ``sahi_enabled=False`` for real-time RTSP streams where latency matters.
+
+        Parameters
+        ----------
+        frame:
+            BGR image as numpy array ``(H, W, 3)``.
+        prompts:
+            Natural-language class names.  If empty, :attr:`DEFAULT_CLASSES`
+            are used.
+        """
+        if frame.size == 0:
+            return []
+
+        effective_prompts = prompts if prompts else self.DEFAULT_CLASSES
+        self._load_model()
+        self._maybe_update_classes(effective_prompts)
+
+        if self._config.sahi_enabled:
+            detections = self._sahi_detect(frame, effective_prompts)
+        else:
+            detections = self._detect_raw(frame, effective_prompts)
+            detections = non_max_suppression(
+                detections, iou_threshold=self._config.detection_nms_threshold
+            )
+            detections = detections[: self._config.max_detections_per_frame]
+
+        logger.debug(
+            "YOLO-World detected %d objects (sahi=%s, prompts=%s)",
+            len(detections),
+            self._config.sahi_enabled,
+            effective_prompts,
         )
         return detections
 

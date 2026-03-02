@@ -220,3 +220,130 @@ class VigilRepository:
             return None
         min_sev = row.get("webhook_min_severity") or "warning"
         return (url, min_sev)
+
+    # ── Analytics ──────────────────────────────────────────────────────────────
+
+    def get_analytics(self, days: int = 30) -> dict:
+        """Return aggregated analytics for the last *days* days."""
+        with self._connect() as conn:
+            # Total sessions
+            total_sessions: int = conn.execute(
+                "SELECT COUNT(*) FROM vigil_sessions"
+            ).fetchone()[0]
+
+            # Total events
+            total_events: int = conn.execute(
+                "SELECT COUNT(*) FROM vigil_events"
+            ).fetchone()[0]
+
+            # Events grouped by severity (across all violations_json entries)
+            # violations_json is a JSON array; each element has a "severity" key.
+            # We use json_each to expand the array per event row.
+            sev_rows = conn.execute(
+                """
+                SELECT json_extract(v.value, '$.severity') AS severity,
+                       COUNT(*) AS cnt
+                FROM vigil_events e,
+                     json_each(e.violations_json) v
+                GROUP BY severity
+                """
+            ).fetchall()
+            events_by_severity: dict[str, int] = {"info": 0, "warning": 0, "critical": 0}
+            for row in sev_rows:
+                sev = row[0] or "warning"
+                if sev in events_by_severity:
+                    events_by_severity[sev] = row[1]
+
+            # Events per session (join vigil_sessions for name)
+            session_rows = conn.execute(
+                """
+                SELECT
+                    e.session_id,
+                    COALESCE(s.name, 'Unknown') AS session_name,
+                    COUNT(DISTINCT e.id) AS total,
+                    SUM(CASE WHEN json_extract(v.value,'$.severity')='critical' THEN 1 ELSE 0 END) AS critical,
+                    SUM(CASE WHEN json_extract(v.value,'$.severity')='warning'  THEN 1 ELSE 0 END) AS warning,
+                    SUM(CASE WHEN json_extract(v.value,'$.severity')='info'     THEN 1 ELSE 0 END) AS info
+                FROM vigil_events e
+                LEFT JOIN vigil_sessions s ON s.id = e.session_id,
+                     json_each(e.violations_json) v
+                GROUP BY e.session_id
+                ORDER BY total DESC
+                """
+            ).fetchall()
+            events_by_session = [
+                {
+                    "session_id": r[0],
+                    "session_name": r[1],
+                    "total": r[2],
+                    "critical": r[3] or 0,
+                    "warning": r[4] or 0,
+                    "info": r[5] or 0,
+                }
+                for r in session_rows
+            ]
+
+            # Events per rule (top 20 by count)
+            rule_rows = conn.execute(
+                """
+                SELECT json_extract(v.value, '$.rule') AS rule,
+                       COUNT(*) AS cnt
+                FROM vigil_events e,
+                     json_each(e.violations_json) v
+                WHERE json_extract(v.value, '$.rule') IS NOT NULL
+                GROUP BY rule
+                ORDER BY cnt DESC
+                LIMIT 20
+                """
+            ).fetchall()
+            events_by_rule = [{"rule": r[0], "count": r[1]} for r in rule_rows]
+
+            # Events per day (last `days` days, grouped by date, split by severity)
+            day_rows = conn.execute(
+                """
+                SELECT
+                    strftime('%Y-%m-%d', e.created_at) AS day,
+                    COUNT(DISTINCT e.id) AS total,
+                    SUM(CASE WHEN json_extract(v.value,'$.severity')='critical' THEN 1 ELSE 0 END) AS critical,
+                    SUM(CASE WHEN json_extract(v.value,'$.severity')='warning'  THEN 1 ELSE 0 END) AS warning,
+                    SUM(CASE WHEN json_extract(v.value,'$.severity')='info'     THEN 1 ELSE 0 END) AS info
+                FROM vigil_events e,
+                     json_each(e.violations_json) v
+                WHERE e.created_at >= datetime('now', ? || ' days')
+                GROUP BY day
+                ORDER BY day ASC
+                """,
+                (f"-{days}",),
+            ).fetchall()
+            events_per_day = [
+                {
+                    "date": r[0],
+                    "total": r[1],
+                    "critical": r[2] or 0,
+                    "warning": r[3] or 0,
+                    "info": r[4] or 0,
+                }
+                for r in day_rows
+            ]
+
+            # Events per hour (0-23)
+            hour_rows = conn.execute(
+                """
+                SELECT CAST(strftime('%H', e.created_at) AS INTEGER) AS hour,
+                       COUNT(*) AS cnt
+                FROM vigil_events e
+                GROUP BY hour
+                ORDER BY cnt DESC
+                """
+            ).fetchall()
+            top_violation_hours = [{"hour": r[0], "count": r[1]} for r in hour_rows]
+
+        return {
+            "total_sessions": total_sessions,
+            "total_events": total_events,
+            "events_by_severity": events_by_severity,
+            "events_by_session": events_by_session,
+            "events_by_rule": events_by_rule,
+            "events_per_day": events_per_day,
+            "top_violation_hours": top_violation_hours,
+        }

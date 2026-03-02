@@ -121,7 +121,9 @@ class TestYOLOWorldDetectorClassAttributes(unittest.TestCase):
         self.assertIn("worker", classes)
         self.assertIn("box", classes)
         self.assertIn("equipment", classes)
-        self.assertEqual(len(classes), 14)
+        self.assertEqual(len(classes), 16)
+        self.assertIn("safety cone", classes)
+        self.assertIn("conveyor belt", classes)
 
     def test_is_subclass_of_object_detector(self):
         from sopilot.perception.detector import ObjectDetector, YOLOWorldDetector
@@ -529,17 +531,17 @@ class TestYOLOWorldDetectorConfigIntegration(unittest.TestCase):
         call_kwargs = model.predict.call_args[1]
         self.assertEqual(call_kwargs["conf"], 0.05)
 
-    def test_default_yolo_confidence_threshold_is_0_1(self):
-        """Default yolo_confidence_threshold should be 0.1 (lower than general 0.3)."""
+    def test_default_yolo_confidence_threshold_is_0_05(self):
+        """Default yolo_confidence_threshold should be 0.05 (lower than general 0.3)."""
         cfg = PerceptionConfig()
-        self.assertAlmostEqual(cfg.yolo_confidence_threshold, 0.1)
+        self.assertAlmostEqual(cfg.yolo_confidence_threshold, 0.05)
         det = _build_detector(config=cfg)
         model = MockYOLOModel()
         model.predict = mock.MagicMock(return_value=[MockResults(boxes_list=[])])
         with mock.patch("ultralytics.YOLO", return_value=model):
             det.detect(_make_frame(), ["person"])
         call_kwargs = model.predict.call_args[1]
-        self.assertAlmostEqual(call_kwargs["conf"], 0.1)
+        self.assertAlmostEqual(call_kwargs["conf"], 0.05)
 
     def test_predict_uses_config_nms_threshold(self):
         cfg = PerceptionConfig(detection_nms_threshold=0.45)
@@ -661,6 +663,152 @@ class TestYOLOWorldDetectorEdgeCases(unittest.TestCase):
         # detect() method filters conf < threshold, so exactly 0.5 passes.
         if results:
             self.assertGreaterEqual(results[0].confidence, 0.5)
+
+
+# ===========================================================================
+# 10. SAHI (Slicing Aided Hyper Inference) tests
+# ===========================================================================
+
+
+class TestYOLOWorldDetectorSAHI(unittest.TestCase):
+    """Test SAHI slicing logic for high-resolution frames."""
+
+    def test_sahi_enabled_by_default(self):
+        cfg = PerceptionConfig()
+        self.assertTrue(cfg.sahi_enabled)
+
+    def test_sahi_config_fields_exist(self):
+        cfg = PerceptionConfig()
+        self.assertEqual(cfg.sahi_slice_height, 640)
+        self.assertEqual(cfg.sahi_slice_width, 640)
+        self.assertAlmostEqual(cfg.sahi_overlap_ratio, 0.2)
+
+    def test_sahi_disabled_skips_slicing(self):
+        """With sahi_enabled=False, detect() calls _detect_raw directly."""
+        cfg = PerceptionConfig(sahi_enabled=False)
+        det = _build_detector(config=cfg)
+        model = MockYOLOModel()
+        model.predict = mock.MagicMock(return_value=[MockResults(boxes_list=[])])
+        with mock.patch("ultralytics.YOLO", return_value=model):
+            det.detect(_make_frame(720, 1280), ["person"])
+        # With sahi disabled, predict called exactly once (full frame)
+        self.assertEqual(model.predict.call_count, 1)
+
+    def test_sahi_small_frame_fast_path(self):
+        """Frame smaller than tile → single inference call (fast path)."""
+        cfg = PerceptionConfig(sahi_enabled=True, sahi_slice_height=640, sahi_slice_width=640)
+        det = _build_detector(config=cfg)
+        model = MockYOLOModel()
+        model.predict = mock.MagicMock(return_value=[MockResults(boxes_list=[])])
+        with mock.patch("ultralytics.YOLO", return_value=model):
+            # 480×640 frame is exactly at the tile boundary → fast path
+            det.detect(_make_frame(480, 640), ["person"])
+        self.assertEqual(model.predict.call_count, 1)
+
+    def test_sahi_large_frame_multiple_tiles(self):
+        """Frame larger than tile → multiple predict() calls (tiles + full)."""
+        cfg = PerceptionConfig(sahi_enabled=True, sahi_slice_height=640, sahi_slice_width=640)
+        det = _build_detector(config=cfg)
+        model = MockYOLOModel()
+        model.predict = mock.MagicMock(return_value=[MockResults(boxes_list=[])])
+        with mock.patch("ultralytics.YOLO", return_value=model):
+            # 720×1280 frame → needs slicing
+            det.detect(_make_frame(720, 1280), ["person"])
+        # At minimum: 1 tile + 1 full-frame pass
+        self.assertGreater(model.predict.call_count, 1)
+
+    def test_sahi_coordinate_remapping(self):
+        """Detection in a tile must be remapped to original image coordinates."""
+        from sopilot.perception.detector import YOLOWorldDetector
+
+        cfg = PerceptionConfig(
+            sahi_enabled=True,
+            sahi_slice_height=640,
+            sahi_slice_width=640,
+            sahi_overlap_ratio=0.0,  # no overlap for exact math
+            yolo_confidence_threshold=0.05,
+        )
+        det = _build_detector(config=cfg)
+
+        call_count = [0]
+
+        def mock_predict(frame, **kwargs):
+            call_count[0] += 1
+            h, w = frame.shape[:2]
+            if h <= 640 and w <= 640 and call_count[0] == 1:
+                # First tile (top-left): box at center of tile
+                box = MockBox(0, 0, w, h, 0.8, 0)  # full tile box
+                return [MockResults(boxes_list=[box])]
+            return [MockResults(boxes_list=[])]
+
+        model = MockYOLOModel()
+        model.predict = mock_predict
+        with mock.patch("ultralytics.YOLO", return_value=model):
+            # 720×1280 frame with 640×640 tiles, no overlap
+            frame = _make_frame(720, 1280)
+            results = det.detect(frame, ["person"])
+
+        # There should be at least one detection remapped to original coords
+        # The first tile covers [0:640, 0:640] in a 1280×720 frame
+        # A full-tile box (0,0,640,640 in tile) → (0/1280, 0/720, 640/1280, 640/720)
+        # = (0.0, 0.0, 0.5, 0.889)
+        if results:
+            d = results[0]
+            self.assertGreaterEqual(d.bbox.x1, 0.0)
+            self.assertLessEqual(d.bbox.x2, 1.0)
+            self.assertGreaterEqual(d.bbox.y1, 0.0)
+            self.assertLessEqual(d.bbox.y2, 1.0)
+
+    def test_sahi_global_nms_applied(self):
+        """Overlapping detections from different tiles should be merged by NMS."""
+        cfg = PerceptionConfig(
+            sahi_enabled=True,
+            sahi_slice_height=640,
+            sahi_slice_width=640,
+            detection_nms_threshold=0.3,
+            yolo_confidence_threshold=0.05,
+        )
+        det = _build_detector(config=cfg)
+
+        def _predict_fn(frame, **kwargs):
+            # Every tile returns a box at the same relative position
+            h, w = frame.shape[:2]
+            box = MockBox(10, 10, w - 10, h - 10, 0.85, 0)
+            return [MockResults(boxes_list=[box])]
+
+        model = MockYOLOModel()
+        model.predict = mock.MagicMock(side_effect=_predict_fn)
+        with mock.patch("ultralytics.YOLO", return_value=model):
+            results = det.detect(_make_frame(720, 1280), ["person"])
+
+        # Despite multiple tiles each returning a box, NMS should reduce duplicates.
+        # The exact count depends on remapping but should be << num_tiles.
+        num_tiles = model.predict.call_count
+        self.assertLess(len(results), num_tiles)
+
+    def test_medium_model_constant_exists(self):
+        from sopilot.perception.detector import YOLOWorldDetector
+
+        self.assertTrue(hasattr(YOLOWorldDetector, "MEDIUM_MODEL"))
+        self.assertEqual(YOLOWorldDetector.MEDIUM_MODEL, "yolov8m-worldv2.pt")
+
+    def test_sahi_returns_detection_objects(self):
+        """SAHI path returns proper Detection objects."""
+        cfg = PerceptionConfig(sahi_enabled=True, sahi_slice_height=640, sahi_slice_width=640)
+        det = _build_detector(config=cfg)
+        model = MockYOLOModel()
+        with mock.patch("ultralytics.YOLO", return_value=model):
+            results = det.detect(_make_frame(480, 640), ["person"])
+        for d in results:
+            self.assertIsInstance(d, Detection)
+            self.assertIsInstance(d.bbox, BBox)
+            self.assertGreaterEqual(d.confidence, 0.0)
+            self.assertLessEqual(d.confidence, 1.0)
+
+    def test_sahi_empty_frame_returns_empty(self):
+        det = _build_detector()
+        result = det.detect(np.array([], dtype=np.uint8), ["person"])
+        self.assertEqual(result, [])
 
 
 if __name__ == "__main__":

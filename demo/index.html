@@ -1,0 +1,1559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SOPilot v1.2.0 — SOP Compliance &amp; Safety Intelligence</title>
+<style>
+/* ============================================================
+   RESET & BASE
+   ============================================================ */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:          #0a0e1a;
+  --bg2:         #0d1117;
+  --bg3:         #111827;
+  --cyan:        #00d4ff;
+  --cyan-dim:    #00a8cc;
+  --purple:      #7c3aed;
+  --purple-dim:  #6127c4;
+  --green:       #10b981;
+  --orange:      #f59e0b;
+  --red:         #ef4444;
+  --text:        #e2e8f0;
+  --text-muted:  #94a3b8;
+  --border:      rgba(255,255,255,0.08);
+  --border-cyan: rgba(0,212,255,0.35);
+  --border-purple: rgba(124,58,237,0.35);
+  --font-ui:     -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-code:   "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+}
+
+html, body {
+  width: 100%; height: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-ui);
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+/* ============================================================
+   SLIDE CONTAINER
+   ============================================================ */
+#deck {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.slide {
+  display: none;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 48px 64px;
+  overflow: hidden;
+}
+
+.slide.active {
+  display: flex;
+  animation: fadeSlide 0.4s ease forwards;
+}
+
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateX(30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes fadeSlideLeft {
+  from { opacity: 0; transform: translateX(-30px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.slide.active.going-left {
+  animation: fadeSlideLeft 0.4s ease forwards;
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+#nav-prev, #nav-next {
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 100;
+  background: rgba(255,255,255,0.05);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  display: flex; align-items: center; justify-content: center;
+  transition: all 0.2s;
+  backdrop-filter: blur(4px);
+}
+#nav-prev { left: 12px; }
+#nav-next { right: 12px; }
+#nav-prev:hover, #nav-next:hover {
+  background: rgba(0,212,255,0.12);
+  border-color: var(--border-cyan);
+  color: var(--cyan);
+}
+
+/* ============================================================
+   DOT INDICATORS
+   ============================================================ */
+#dots {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  z-index: 100;
+}
+
+.dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.dot.active {
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+  width: 22px;
+  border-radius: 4px;
+}
+
+/* ============================================================
+   SLIDE NUMBER
+   ============================================================ */
+#slide-counter {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-code);
+  z-index: 100;
+}
+
+/* ============================================================
+   TYPOGRAPHY UTILITIES
+   ============================================================ */
+.grad-text {
+  background: linear-gradient(135deg, var(--cyan), var(--purple));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.slide-title {
+  font-size: 1.85rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: 32px;
+  color: var(--text);
+}
+
+.slide-title span { color: var(--cyan); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.badge-cyan  { background: rgba(0,212,255,0.12); border: 1px solid var(--border-cyan); color: var(--cyan); }
+.badge-green { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.35); color: var(--green); }
+.badge-purple{ background: rgba(124,58,237,0.12); border: 1px solid var(--border-purple); color: #a78bfa; }
+.badge-orange{ background: rgba(245,158,11,0.12); border: 1px solid rgba(245,158,11,0.35); color: var(--orange); }
+.badge-red   { background: rgba(239,68,68,0.12); border: 1px solid rgba(239,68,68,0.35); color: #f87171; }
+
+/* ============================================================
+   CARD
+   ============================================================ */
+.card {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+}
+.card-cyan   { border-color: var(--border-cyan); background: rgba(0,212,255,0.04); }
+.card-purple { border-color: var(--border-purple); background: rgba(124,58,237,0.05); }
+.card-green  { border-color: rgba(16,185,129,0.3); background: rgba(16,185,129,0.04); }
+
+/* ============================================================
+   CODE BLOCKS
+   ============================================================ */
+.code-block {
+  background: var(--bg2);
+  border-left: 3px solid var(--cyan);
+  border-radius: 8px;
+  padding: 16px 20px;
+  font-family: var(--font-code);
+  font-size: 0.78rem;
+  line-height: 1.7;
+  color: #c9d1d9;
+  white-space: pre;
+  overflow: hidden;
+}
+.code-block.purple-accent { border-left-color: #a78bfa; }
+.code-block .kw  { color: #ff79c6; }
+.code-block .fn  { color: #50fa7b; }
+.code-block .str { color: #f1fa8c; }
+.code-block .cm  { color: #6272a4; }
+.code-block .nu  { color: var(--cyan); }
+.code-block .ky  { color: #bd93f9; }
+
+/* ============================================================
+   METRIC TILES
+   ============================================================ */
+.metric-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  width: 100%;
+}
+
+.metric-tile {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px 20px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+.metric-tile::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.08), transparent 70%);
+  pointer-events: none;
+}
+.metric-tile.glow-cyan  { border-color: var(--border-cyan); }
+.metric-tile.glow-green { border-color: rgba(16,185,129,0.35); }
+.metric-tile.glow-green::before { background: radial-gradient(ellipse at 50% 0%, rgba(16,185,129,0.08), transparent 70%); }
+.metric-tile.glow-purple { border-color: var(--border-purple); }
+.metric-tile.glow-purple::before { background: radial-gradient(ellipse at 50% 0%, rgba(124,58,237,0.1), transparent 70%); }
+
+.metric-number {
+  font-size: 3.4rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.metric-label {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+.metric-sub {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  margin-top: 4px;
+  font-family: var(--font-code);
+}
+
+/* ============================================================
+   TABLE
+   ============================================================ */
+.styled-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+.styled-table th {
+  background: rgba(0,212,255,0.08);
+  color: var(--cyan);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-align: left;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--border-cyan);
+}
+.styled-table td {
+  padding: 9px 14px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+  vertical-align: middle;
+}
+.styled-table tr:last-child td { border-bottom: none; }
+.styled-table tr:hover td { background: rgba(255,255,255,0.02); }
+.styled-table code {
+  font-family: var(--font-code);
+  font-size: 0.74rem;
+  background: rgba(0,212,255,0.08);
+  color: var(--cyan);
+  padding: 1px 6px;
+  border-radius: 4px;
+}
+
+.table-wrap {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+/* ============================================================
+   CONFMAT
+   ============================================================ */
+.confmat {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  font-family: var(--font-code);
+}
+.confmat-cell {
+  padding: 12px 16px;
+  text-align: center;
+}
+.confmat-cell .val { font-size: 1.4rem; font-weight: 800; }
+.confmat-cell .lbl { font-size: 0.65rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.tp { background: rgba(16,185,129,0.12); border: 1px solid rgba(16,185,129,0.25); }
+.fn { background: rgba(245,158,11,0.07); border: 1px solid rgba(245,158,11,0.2); }
+.fp { background: rgba(239,68,68,0.04); border: 1px solid rgba(239,68,68,0.12); }
+.tn { background: rgba(0,212,255,0.06); border: 1px solid var(--border-cyan); }
+
+/* ============================================================
+   CALLOUT
+   ============================================================ */
+.callout {
+  border-left: 3px solid var(--cyan);
+  background: rgba(0,212,255,0.06);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 18px;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.callout strong { color: var(--cyan); }
+
+/* ============================================================
+   PIPELINE DIAGRAM
+   ============================================================ */
+.pipeline {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+.pipe-box {
+  background: rgba(0,212,255,0.07);
+  border: 1px solid var(--border-cyan);
+  border-radius: 10px;
+  padding: 14px 18px;
+  text-align: center;
+  min-width: 0;
+  flex: 1;
+}
+.pipe-box.purple { background: rgba(124,58,237,0.1); border-color: var(--border-purple); }
+.pipe-box .icon { font-size: 1.4rem; margin-bottom: 6px; }
+.pipe-box .title { font-size: 0.72rem; font-weight: 700; color: var(--cyan); letter-spacing: 0.04em; text-transform: uppercase; }
+.pipe-box.purple .title { color: #a78bfa; }
+.pipe-box .sub { font-size: 0.62rem; color: var(--text-muted); margin-top: 3px; }
+.pipe-arrow {
+  font-size: 1.1rem;
+  color: var(--cyan);
+  margin: 0 8px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   SPLIT LAYOUT
+   ============================================================ */
+.split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  width: 100%;
+}
+.split.col-3 { grid-template-columns: 1fr 1fr 1fr; }
+
+/* ============================================================
+   BULLET LIST
+   ============================================================ */
+.check-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+.check-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.82rem;
+  color: var(--text);
+}
+.check-list li .icon {
+  font-size: 0.9rem;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+.check-list li .icon.green { color: var(--green); }
+.check-list li .icon.red   { color: #f87171; }
+.check-list li .icon.cyan  { color: var(--cyan); }
+.check-list li .icon.orange{ color: var(--orange); }
+
+/* ============================================================
+   SECTION LABEL
+   ============================================================ */
+.section-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 10px;
+}
+.section-label.purple { color: #a78bfa; }
+
+/* ============================================================
+   ENDPOINT GROUP
+   ============================================================ */
+.endpoint-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.endpoint-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.75rem;
+  padding: 7px 12px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+}
+.endpoint-item .method {
+  font-family: var(--font-code);
+  font-size: 0.62rem;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 3px;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+.method-post { background: rgba(16,185,129,0.15); color: var(--green); }
+.method-get  { background: rgba(0,212,255,0.1); color: var(--cyan); }
+.method-put  { background: rgba(245,158,11,0.12); color: var(--orange); }
+.method-del  { background: rgba(239,68,68,0.1); color: #f87171; }
+.endpoint-item .path {
+  font-family: var(--font-code);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   STAT BOX
+   ============================================================ */
+.stat-box {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+}
+.stat-box .val { font-size: 1.8rem; font-weight: 800; color: var(--orange); }
+.stat-box .lbl { font-size: 0.68rem; color: var(--text-muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.06em; }
+
+/* ============================================================
+   BUTTON
+   ============================================================ */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 28px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: default;
+  transition: all 0.2s;
+  text-decoration: none;
+}
+.btn-cyan {
+  background: var(--cyan);
+  color: #0a0e1a;
+  box-shadow: 0 0 20px rgba(0,212,255,0.3);
+}
+.btn-outline {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.25);
+  color: var(--text);
+}
+
+/* ============================================================
+   GLOW EFFECTS
+   ============================================================ */
+.glow-cyan  { text-shadow: 0 0 20px rgba(0,212,255,0.6); color: var(--cyan); }
+.glow-green { text-shadow: 0 0 20px rgba(16,185,129,0.6); color: var(--green); }
+.glow-purple{ text-shadow: 0 0 20px rgba(124,58,237,0.6); color: #a78bfa; }
+.glow-white { text-shadow: 0 0 30px rgba(255,255,255,0.2); }
+
+/* ============================================================
+   BACKGROUND GRADIENT
+   ============================================================ */
+.bg-radial-cyan {
+  background: radial-gradient(ellipse at 30% 20%, rgba(0,212,255,0.06) 0%, transparent 60%),
+              radial-gradient(ellipse at 70% 80%, rgba(124,58,237,0.06) 0%, transparent 60%),
+              var(--bg);
+}
+.bg-radial-purple {
+  background: radial-gradient(ellipse at 70% 20%, rgba(124,58,237,0.08) 0%, transparent 60%),
+              var(--bg);
+}
+
+/* ============================================================
+   SLIDE 1 — HERO
+   ============================================================ */
+#slide-1 {
+  background: radial-gradient(ellipse at 40% 30%, rgba(0,212,255,0.08) 0%, transparent 55%),
+              radial-gradient(ellipse at 70% 70%, rgba(124,58,237,0.09) 0%, transparent 55%),
+              var(--bg);
+  text-align: center;
+  gap: 0;
+}
+
+.hero-version {
+  margin-bottom: 20px;
+}
+
+.hero-title {
+  font-size: 6.5rem;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  margin-bottom: 16px;
+}
+
+.hero-subtitle {
+  font-size: 1.3rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
+  margin-bottom: 8px;
+}
+
+.hero-ja {
+  font-size: 1rem;
+  color: var(--text-muted);
+  opacity: 0.7;
+  margin-bottom: 36px;
+}
+
+.hero-badges {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-bottom: 44px;
+}
+
+.hero-badge {
+  padding: 12px 24px;
+  border-radius: 40px;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.hero-badge.cyan {
+  background: rgba(0,212,255,0.1);
+  border: 1px solid var(--cyan);
+  color: var(--cyan);
+  box-shadow: 0 0 24px rgba(0,212,255,0.2), inset 0 0 16px rgba(0,212,255,0.05);
+}
+.hero-badge.green {
+  background: rgba(16,185,129,0.1);
+  border: 1px solid var(--green);
+  color: var(--green);
+  box-shadow: 0 0 24px rgba(16,185,129,0.2), inset 0 0 16px rgba(16,185,129,0.05);
+}
+
+.hero-hint {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  opacity: 0.5;
+  letter-spacing: 0.08em;
+}
+
+/* ============================================================
+   SLIDE 4 — PIPELINE  (landscape vertical flow)
+   ============================================================ */
+.pipeline-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.pipeline-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.pipe-vert-arrow {
+  text-align: center;
+  color: var(--cyan);
+  font-size: 1rem;
+  padding: 4px 0;
+}
+
+/* ============================================================
+   SLIDE 8 — ARCHITECTURE
+   ============================================================ */
+.arch-pre {
+  font-family: var(--font-code);
+  font-size: 0.62rem;
+  line-height: 1.6;
+  color: #8b949e;
+  background: var(--bg2);
+  border: 1px solid var(--border-cyan);
+  border-radius: 10px;
+  padding: 20px 24px;
+  width: 100%;
+  white-space: pre;
+  overflow: hidden;
+}
+.arch-pre .arch-hl  { color: var(--cyan); }
+.arch-pre .arch-box { color: #c9d1d9; }
+.arch-pre .arch-sub { color: #a78bfa; }
+.arch-pre .arch-db  { color: var(--green); }
+
+/* ============================================================
+   SLIDE 12 — SUMMARY
+   ============================================================ */
+.summary-hero { font-size: 1.1rem; color: var(--text-muted); margin-bottom: 6px; }
+.summary-tagline { font-size: 1.55rem; font-weight: 700; margin-bottom: 8px; }
+.summary-ja { font-size: 1rem; color: var(--text-muted); margin-bottom: 28px; }
+
+/* ============================================================
+   MISC UTILITY
+   ============================================================ */
+.w100 { width: 100%; }
+.mt8  { margin-top: 8px; }
+.mt12 { margin-top: 12px; }
+.mt16 { margin-top: 16px; }
+.mt20 { margin-top: 20px; }
+.mb8  { margin-bottom: 8px; }
+.mb12 { margin-bottom: 12px; }
+.mb16 { margin-bottom: 16px; }
+.flex-row { display: flex; gap: 12px; }
+.flex-col  { display: flex; flex-direction: column; gap: 8px; }
+.text-center { text-align: center; }
+.text-sm { font-size: 0.78rem; color: var(--text-muted); }
+.text-xs { font-size: 0.68rem; color: var(--text-muted); }
+.font-code { font-family: var(--font-code); }
+.flex-center { display: flex; align-items: center; justify-content: center; gap: 16px; }
+.gap-24 { gap: 24px; }
+</style>
+</head>
+<body>
+
+<div id="deck">
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 1: HERO
+       ════════════════════════════════════════════════════════ -->
+  <section class="slide active" id="slide-1">
+    <div class="hero-version">
+      <span class="badge badge-cyan">v1.2.0</span>
+    </div>
+
+    <h1 class="hero-title grad-text">SOPilot</h1>
+
+    <p class="hero-subtitle">Automated SOP Compliance &amp; Safety Intelligence</p>
+    <p class="hero-ja">現場作業コンプライアンス評価 + 監視カメラAI</p>
+
+    <div class="hero-badges">
+      <div class="hero-badge cyan">99.40% Accuracy</div>
+      <div class="hero-badge green">Zero False Positives</div>
+    </div>
+
+    <p class="hero-hint">Press → to navigate &nbsp;&nbsp;|&nbsp;&nbsp; ← → Arrow Keys &nbsp;&nbsp;|&nbsp;&nbsp; PageUp / PageDown</p>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 2: THE PROBLEM
+       ════════════════════════════════════════════════════════ -->
+  <section class="slide bg-radial-cyan" id="slide-2">
+    <h2 class="slide-title">Manual SOP review is <span>broken</span></h2>
+
+    <div class="split" style="align-items:start;">
+      <!-- Left -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <ul class="check-list">
+          <li>
+            <span class="icon red">✗</span>
+            <div>
+              <div style="font-weight:600;margin-bottom:3px;">Reviewing hours of training footage takes days</div>
+              <div class="text-sm">Supervisors spend 40–60% of review time on video scrubbing alone</div>
+            </div>
+          </li>
+          <li>
+            <span class="icon red">✗</span>
+            <div>
+              <div style="font-weight:600;margin-bottom:3px;">Human reviewers miss up to 23% of deviations</div>
+              <div class="text-sm">Cognitive fatigue, inconsistent rubrics, and subjective judgment create unacceptable variance</div>
+            </div>
+          </li>
+          <li>
+            <span class="icon red">✗</span>
+            <div>
+              <div style="font-weight:600;margin-bottom:3px;">Safety violations go undetected until incidents occur</div>
+              <div class="text-sm">Manual CCTV review covers &lt;5% of footage; most violations are never seen</div>
+            </div>
+          </li>
+        </ul>
+
+        <div class="callout mt8">
+          <strong>The root cause:</strong> the volume of video data has outpaced human review capacity. A 500-person facility generates thousands of hours of training footage per quarter.
+        </div>
+      </div>
+
+      <!-- Right -->
+      <div style="display:flex;flex-direction:column;gap:16px;">
+        <div class="card" style="font-family:var(--font-code);font-size:0.73rem;line-height:1.8;color:#8b949e;">
+<span style="color:var(--red);">&#9632; SLOW</span>     Watch 4h video × 50 trainees/month
+<span style="color:var(--orange);">&#9632; ERROR</span>    Miss 1 in 4 critical deviations
+<span style="color:var(--red);">&#9632; COSTLY</span>   Hours of expert reviewer time
+<span style="color:var(--orange);">&#9632; SCALE</span>   Cannot review CCTV in real-time
+<span style="color:#6272a4;">&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;</span>
+<span style="color:var(--text-muted);">Result: incidents, liability, re-training</span>
+        </div>
+
+        <div class="stat-box">
+          <div class="val">$150K</div>
+          <div class="lbl">Average cost per workplace incident (OSHA)</div>
+        </div>
+
+        <div class="card" style="gap:10px;display:flex;flex-direction:column;">
+          <div class="text-xs" style="color:var(--text-muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700;">Compounding risk factors</div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="badge badge-red">High turnover</span>
+            <span class="badge badge-orange">Remote sites</span>
+            <span class="badge badge-red">Complex SOPs</span>
+            <span class="badge badge-orange">Language barriers</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 3: THE SOLUTION — TWO PRODUCTS
+       ════════════════════════════════════════════════════════ -->
+  <section class="slide" id="slide-3">
+    <h2 class="slide-title">One Platform. <span>Two Products.</span></h2>
+
+    <div class="split gap-24" style="align-items:stretch;">
+      <!-- SOPilot card -->
+      <div class="card card-cyan" style="display:flex;flex-direction:column;gap:16px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="font-size:2.4rem;">&#128203;</div>
+          <div>
+            <div style="font-size:1.15rem;font-weight:800;color:var(--cyan);">SOPilot</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);">SOP Compliance Scoring</div>
+          </div>
+        </div>
+
+        <div class="callout" style="font-size:0.8rem;">
+          Upload gold + trainee video &rarr; <strong>0–100 compliance score</strong> + pass/fail verdict in seconds
+        </div>
+
+        <ul class="check-list">
+          <li><span class="icon cyan">&#9670;</span><span>DTW temporal alignment (Sakoe-Chiba band)</span></li>
+          <li><span class="icon cyan">&#9670;</span><span>Automatic step detection &amp; deviation classification</span></li>
+          <li><span class="icon cyan">&#9670;</span><span>Evidence clips with exact gold/trainee timecodes</span></li>
+          <li><span class="icon cyan">&#9670;</span><span>PDF report + Japanese deviation comments</span></li>
+          <li><span class="icon cyan">&#9670;</span><span>Batch scoring + Ensemble scoring with Bootstrap CI</span></li>
+          <li><span class="icon cyan">&#9670;</span><span>Analytics: operator trends, step performance</span></li>
+        </ul>
+
+        <div style="margin-top:auto;">
+          <span class="badge badge-green">No GPU required</span>
+          &nbsp;
+          <span class="badge badge-cyan">On-premises</span>
+        </div>
+      </div>
+
+      <!-- VigilPilot card -->
+      <div class="card card-purple" style="display:flex;flex-direction:column;gap:16px;">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="font-size:2.4rem;">&#127909;</div>
+          <div>
+            <div style="font-size:1.15rem;font-weight:800;color:#a78bfa;">VigilPilot</div>
+            <div style="font-size:0.78rem;color:var(--text-muted);">Real-Time Safety Surveillance</div>
+          </div>
+        </div>
+
+        <div class="callout" style="border-left-color:#a78bfa;background:rgba(124,58,237,0.06);font-size:0.8rem;">
+          Define rules in <strong>plain natural language</strong> &rarr; detect violations automatically — no reference video needed
+        </div>
+
+        <ul class="check-list">
+          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>Text-defined rules — no ML training required</span></li>
+          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>Pluggable VLM: Claude Sonnet 4.6 / Qwen3-VL-4B</span></li>
+          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>RTSP live camera stream support</span></li>
+          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>Bounding-box evidence overlays (Qwen3 backend)</span></li>
+          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>Severity filtering: info / warning / critical</span></li>
+          <li><span class="icon" style="color:#a78bfa;">&#9670;</span><span>Frame evidence stored + report aggregation</span></li>
+        </ul>
+
+        <div style="margin-top:auto;">
+          <span class="badge badge-purple">New in v1.2</span>
+          &nbsp;
+          <span class="badge badge-cyan">On-premises</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 4: SOPILOT — HOW IT WORKS
+       ════════════════════════════════════════════════════════ -->
+  <section class="slide bg-radial-cyan" id="slide-4">
+    <h2 class="slide-title"><span>SOPilot</span> — How It Works</h2>
+
+    <!-- Pipeline forward pass -->
+    <div class="pipeline-row w100 mb16">
+      <div class="pipe-box" style="flex:1.2;">
+        <div class="icon">&#128190;</div>
+        <div class="title">Gold Video Upload</div>
+        <div class="sub">Reference procedure</div>
+      </div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-box" style="flex:1.4;">
+        <div class="icon">&#127775;</div>
+        <div class="title">ColorMotion Embedding</div>
+        <div class="sub">CPU — no GPU required</div>
+      </div>
+      <div class="pipe-arrow">&#8594;</div>
+      <div class="pipe-box">
+        <div class="icon">&#128200;</div>
+        <div class="title">DTW Alignment</div>
+        <div class="sub">Sakoe-Chiba band</div>
+      </div>
+      <div class="pipe-arrow">&#8595;</div>
+      <div class="pipe-box purple" style="flex:1.2;">
+        <div class="icon">&#128214;</div>
+        <div class="title">Step Detection</div>
+        <div class="sub">Cosine CP</div>
+      </div>
+    </div>
+
+    <!-- Pipeline return pass -->
+    <div class="pipeline-row w100 mb16">
+      <div class="pipe-box" style="flex:1.1;background:rgba(16,185,129,0.08);border-color:rgba(16,185,129,0.35);">
+        <div class="icon">&#10003;</div>
+        <div class="title" style="color:var(--green);">Score 0–100</div>
+        <div class="sub">pass / fail verdict</div>
+      </div>
+      <div class="pipe-arrow" style="transform:scaleX(-1);">&#8594;</div>
+      <div class="pipe-box" style="flex:1.3;">
+        <div class="icon">&#128270;</div>
+        <div class="title">Deviation Analysis</div>
+        <div class="sub">miss / swap / over-time</div>
+      </div>
+      <div class="pipe-arrow" style="transform:scaleX(-1);">&#8594;</div>
+      <div class="pipe-box purple">
+        <div class="icon">&#128221;</div>
+        <div class="title">Penalty Scoring</div>
+        <div class="sub">Weighted + clamped [0,1]</div>
+      </div>
+      <div class="pipe-arrow" style="transform:scaleX(-1);">&#8594;</div>
+      <div class="pipe-box purple">
+        <div class="icon">&#128202;</div>
+        <div class="title">Bootstrap CI</div>
+        <div class="sub">Ensemble scoring</div>
+      </div>
+    </div>
+
+    <!-- Decision logic -->
+    <div class="split gap-24">
+      <div>
+        <div class="section-label mb8">Decision Logic</div>
+        <div class="code-block" style="font-size:0.77rem;"><span class="kw">if</span> critical_deviation:      <span class="cm">→ fail  # overrides score</span>
+<span class="kw">elif</span> score <span class="ky">&gt;=</span> <span class="nu">60</span>:            <span class="cm">→ pass</span>
+<span class="kw">elif</span> score <span class="ky">&gt;=</span> <span class="nu">50</span>:            <span class="cm">→ needs_review</span>
+<span class="kw">else</span>:                        <span class="cm">→ retrain</span></div>
+      </div>
+      <div>
+        <div class="section-label mb8">Algorithmic Backbone</div>
+        <div class="card" style="display:flex;flex-direction:column;gap:6px;font-size:0.75rem;">
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Embedding</span><span class="font-code" style="color:var(--cyan);">ColorMotion-v1 / V-JEPA2</span></div>
+          <div style="height:1px;background:var(--border);"></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Alignment</span><span class="font-code" style="color:var(--cyan);">Vectorized DTW</span></div>
+          <div style="height:1px;background:var(--border);"></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">CI</span><span class="font-code" style="color:var(--cyan);">Bootstrap 1000 resamples</span></div>
+          <div style="height:1px;background:var(--border);"></div>
+          <div style="display:flex;justify-content:space-between;"><span style="color:var(--text-muted);">Ensemble</span><span class="font-code" style="color:var(--cyan);">ICC(2,1) + Grubbs outlier</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 5: ACCURACY — PRODUCTION VALIDATION
+       ════════════════════════════════════════════════════════ -->
+  <section class="slide" id="slide-5" style="background:radial-gradient(ellipse at 50% 0%, rgba(0,212,255,0.07) 0%, transparent 55%), var(--bg);">
+    <div style="text-align:center;margin-bottom:24px;">
+      <h2 style="font-size:1.7rem;font-weight:800;margin-bottom:6px;">Validated on <span class="glow-cyan">3,507</span> Production Jobs</h2>
+      <p class="text-sm">Leave-One-Subject-Out Cross-Validation &nbsp;&bull;&nbsp; Human-Annotated Ground Truth &nbsp;&bull;&nbsp; Threshold = 60.0</p>
+    </div>
+
+    <div class="metric-grid mb16" style="max-width:720px;margin-left:auto;margin-right:auto;">
+      <div class="metric-tile glow-cyan">
+        <div class="metric-number glow-cyan">99.40%</div>
+        <div class="metric-label">Accuracy</div>
+        <div class="metric-sub">95% CI: [99.14%, 99.63%]</div>
+      </div>
+      <div class="metric-tile glow-green">
+        <div class="metric-number glow-green">99.62%</div>
+        <div class="metric-label">F1 Score</div>
+        <div class="metric-sub">Harmonic mean of precision &amp; recall</div>
+      </div>
+      <div class="metric-tile glow-purple">
+        <div class="metric-number glow-purple">99.69%</div>
+        <div class="metric-label">AUC-ROC</div>
+        <div class="metric-sub">Discriminative power across thresholds</div>
+      </div>
+      <div class="metric-tile" style="border-color:rgba(16,185,129,0.5);background:rgba(16,185,129,0.05);">
+        <div class="metric-number" style="color:var(--green);text-shadow:0 0 24px rgba(16,185,129,0.7);">0</div>
+        <div class="metric-label" style="color:var(--green);">False Positives</div>
+        <div class="metric-sub">Perfect precision — confirmed by re-annotation</div>
+      </div>
+    </div>
+
+    <div class="split gap-24" style="max-width:720px;margin-left:auto;margin-right:auto;align-items:center;">
+      <div>
+        <div class="section-label mb8">Confusion Matrix (N=3,507)</div>
+        <div class="confmat">
+          <div class="confmat-cell tp">
+            <div class="val" style="color:var(--green);">2,766</div>
+            <div class="lbl">TP — Correct Pass</div>
+          </div>
+          <div class="confmat-cell fn">
+            <div class="val" style="color:var(--orange);">21</div>
+            <div class="lbl">FN — Missed Fail</div>
+          </div>
+          <div class="confmat-cell fp">
+            <div class="val" style="color:#f87171;">0</div>
+            <div class="lbl">FP — False Pass</div>
+          </div>
+          <div class="confmat-cell tn">
+            <div class="val" style="color:var(--cyan);">720</div>
+            <div class="lbl">TN — Correct Fail</div>
+          </div>
+        </div>
+      </div>
+      <div class="callout" style="font-size:0.8rem;">
+        The system <strong>never</strong> falsely passes a failing trainee. FP=0 confirmed after independent annotation review of all 16 originally-reported false positives — all confirmed as annotation artifacts.
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 6: VIGILPILOT — REAL-TIME VIOLATION DETECTION
+       ════════════════════════════════════════════════════════ -->
+  <section class="slide bg-radial-purple" id="slide-6">
+    <h2 class="slide-title"><span style="color:#a78bfa;">VigilPilot</span> — Real-Time Violation Detection</h2>
+
+    <div class="split gap-24">
+      <!-- Left: rule definition -->
+      <div>
+        <div class="section-label purple mb8">Define Rules in Plain Text</div>
+        <div class="code-block purple-accent" style="font-size:0.72rem;"><span class="kw">POST</span> <span class="str">/vigil/sessions</span>
+{
+  <span class="str">"name"</span>: <span class="str">"Construction Site Safety"</span>,
+  <span class="str">"rules"</span>: [
+    <span class="str">"作業者がヘルメットを着用していない場合に検出"</span>,
+    <span class="str">"安全ベルトなしで高所作業している人を検出"</span>,
+    <span class="str">"立入禁止エリアへの侵入を検出"</span>
+  ],
+  <span class="str">"severity_threshold"</span>: <span class="str">"warning"</span>,
+  <span class="str">"backend"</span>: <span class="str">"claude"</span>
+}</div>
+
+        <div class="mt12 card" style="font-size:0.75rem;color:var(--text-muted);">
+          <span style="color:#a78bfa;font-weight:700;">No ML training.</span> Rules are evaluated frame-by-frame by the VLM. Change rules in seconds without redeployment.
+        </div>
+      </div>
+
+      <!-- Right: violation event -->
+      <div>
+        <div class="section-label purple mb8">Violation Event Response</div>
+        <div class="code-block purple-accent" style="font-size:0.72rem;"><span class="cm">// GET /vigil/sessions/{id}/events</span>
+{
+  <span class="str">"event_id"</span>: <span class="nu">42</span>,
+  <span class="str">"timestamp_sec"</span>: <span class="nu">183.5</span>,
+  <span class="str">"violations"</span>: [{
+    <span class="str">"rule"</span>: <span class="str">"ヘルメット未着用"</span>,
+    <span class="str">"severity"</span>: <span class="str">"critical"</span>,
+    <span class="str">"confidence"</span>: <span class="nu">0.94</span>,
+    <span class="str">"bboxes"</span>: [[<span class="nu">234</span>, <span class="nu">112</span>, <span class="nu">498</span>, <span class="nu">287</span>]]
+  }],
+  <span class="str">"frame_url"</span>: <span class="str">"/vigil/events/42/frame?annotate=true"</span>
+}</div>
+
+        <div class="mt12" style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+          <span class="badge badge-red">&#128308; Critical</span>
+          <span class="badge badge-orange">&#128992; Warning</span>
+          <span class="badge badge-cyan">&#128309; Info</span>
+          <span class="text-xs" style="margin-left:4px;">Per-session severity threshold</span>
+        </div>
+
+        <div class="mt12 card" style="font-size:0.75rem;color:var(--text-muted);">
+          Frame JPEG stored with <span style="color:#a78bfa;font-weight:600;">bbox overlays</span> (Qwen3 backend). RTSP live streams supported via <span class="font-code" style="color:#a78bfa;">POST /vigil/sessions/{id}/stream</span>.
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom capabilities -->
+    <div class="mt16 split col-3" style="gap:12px;">
+      <div class="card" style="text-align:center;padding:14px;">
+        <div style="font-size:1.4rem;margin-bottom:6px;">&#128247;</div>
+        <div style="font-size:0.72rem;font-weight:700;color:#a78bfa;">Frame Evidence</div>
+        <div class="text-xs mt8">JPEG + bbox metadata per violation event</div>
+      </div>
+      <div class="card" style="text-align:center;padding:14px;">
+        <div style="font-size:1.4rem;margin-bottom:6px;">&#128250;</div>
+        <div style="font-size:0.72rem;font-weight:700;color:#a78bfa;">RTSP Live Stream</div>
+        <div class="text-xs mt8">Real-time analysis of live camera feeds</div>
+      </div>
+      <div class="card" style="text-align:center;padding:14px;">
+        <div style="font-size:1.4rem;margin-bottom:6px;">&#128202;</div>
+        <div style="font-size:0.72rem;font-weight:700;color:#a78bfa;">Session Report</div>
+        <div class="text-xs mt8">Severity &amp; rule breakdown aggregation</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 7: VLM BACKEND OPTIONS
+       ════════════════════════════════════════════════════════ -->
+  <section class="slide" id="slide-7">
+    <h2 class="slide-title">VLM Backend <span>Options</span></h2>
+
+    <div class="table-wrap mb20">
+      <table class="styled-table">
+        <thead>
+          <tr>
+            <th>Backend</th>
+            <th>Model</th>
+            <th>GPU Required</th>
+            <th>Bounding Boxes</th>
+            <th>Notes</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>claude</code> <span class="badge badge-green" style="font-size:0.6rem;padding:2px 7px;">default</span></td>
+            <td>Claude Sonnet 4.6</td>
+            <td><span style="color:var(--green);">&#10007; No</span></td>
+            <td><span style="color:var(--text-muted);">&#10007;</span></td>
+            <td style="color:var(--text-muted);font-size:0.74rem;">Anthropic API key only</td>
+          </tr>
+          <tr>
+            <td><code>qwen3</code></td>
+            <td>Qwen3-VL-4B (local)</td>
+            <td><span style="color:var(--orange);">&#10003; CUDA</span></td>
+            <td><span style="color:var(--green);">&#10003; XYWH 0–1000</span></td>
+            <td style="color:var(--text-muted);font-size:0.74rem;">~10 GB VRAM, offline inference</td>
+          </tr>
+          <tr>
+            <td><code>qwen3-api</code></td>
+            <td>Any OpenAI-compat</td>
+            <td><span style="color:var(--text-muted);">Optional</span></td>
+            <td><span style="color:var(--green);">&#10003; XYWH</span></td>
+            <td style="color:var(--text-muted);font-size:0.74rem;">Together.ai / Hyperbolic / vLLM</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="split gap-24">
+      <div>
+        <div class="section-label mb8">Configuration (via environment)</div>
+        <div class="code-block" style="font-size:0.77rem;"><span class="cm"># Default — Claude, no GPU</span>
+<span class="ky">VIGIL_VLM_BACKEND</span>=<span class="str">claude</span>
+<span class="ky">ANTHROPIC_API_KEY</span>=<span class="str">sk-ant-...</span>
+
+<span class="cm"># OpenAI-compatible endpoint</span>
+<span class="ky">VIGIL_VLM_BACKEND</span>=<span class="str">qwen3-api</span>
+<span class="ky">VIGIL_QWEN3_API_BASE</span>=<span class="str">https://api.together.xyz/v1</span>
+<span class="ky">VIGIL_QWEN3_API_KEY</span>=<span class="str">your-key</span>
+
+<span class="cm"># Local GPU inference</span>
+<span class="ky">VIGIL_VLM_BACKEND</span>=<span class="str">qwen3</span></div>
+      </div>
+
+      <div style="display:flex;flex-direction:column;gap:14px;">
+        <div class="section-label mb8">Backend Selection Guide</div>
+        <div class="card" style="display:flex;align-items:start;gap:12px;padding:14px;">
+          <span style="font-size:1.2rem;margin-top:2px;">&#9889;</span>
+          <div>
+            <div style="font-weight:700;font-size:0.8rem;color:var(--cyan);margin-bottom:3px;">Fastest to deploy</div>
+            <div class="text-sm">Use <code style="font-family:var(--font-code);color:var(--cyan);">claude</code> — API key only, zero local infrastructure</div>
+          </div>
+        </div>
+        <div class="card" style="display:flex;align-items:start;gap:12px;padding:14px;">
+          <span style="font-size:1.2rem;margin-top:2px;">&#128683;</span>
+          <div>
+            <div style="font-weight:700;font-size:0.8rem;color:#a78bfa;margin-bottom:3px;">Air-gapped / fully offline</div>
+            <div class="text-sm">Use <code style="font-family:var(--font-code);color:#a78bfa;">qwen3</code> local — no external calls after model download</div>
+          </div>
+        </div>
+        <div class="card" style="display:flex;align-items:start;gap:12px;padding:14px;">
+          <span style="font-size:1.2rem;margin-top:2px;">&#9878;</span>
+          <div>
+            <div style="font-weight:700;font-size:0.8rem;color:var(--orange);margin-bottom:3px;">Cost optimization</div>
+            <div class="text-sm">Use <code style="font-family:var(--font-code);color:var(--orange);">qwen3-api</code> via Together.ai / vLLM cluster</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 8: ARCHITECTURE
+       ════════════════════════════════════════════════════════ -->
+  <section class="slide" id="slide-8">
+    <h2 class="slide-title" style="margin-bottom:20px;"><span>Architecture</span></h2>
+
+    <pre class="arch-pre"><span class="arch-box">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-hl">Browser UI</span>  (single-page HTML/JS, served at /)                 <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">SOPilot tabs + VigilPilot &#30417;&#35268;&#12479;&#12502;</span>                               <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;</span>
+                           <span class="arch-box">&#9474;</span> <span class="arch-hl">HTTP</span>
+<span class="arch-box">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-hl">FastAPI application</span>  (sopilot/main.py)                          <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Middleware: CorrelationID &#8594; CORS &#8594; APIKey &#8594; Rate</span>            <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Routers: videos &#183; scoring &#183; analytics &#183; admin  (/api/v1)</span>   <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9492;&#9472;&#9472; VigilPilot router  (/vigil/*)</span>                               <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;</span>
+         <span class="arch-box">&#9474;</span>                             <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>    <span class="arch-box">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-hl">Video Pipeline</span>   <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">VigilPilot Pipeline (sopilot/vigil/)</span>  <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Quality Gate</span> <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Frame extractor (OpenCV, 1 fps)</span>   <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9474;   (5 checks)  </span> <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; VLM client (Claude / Qwen3-VL)</span>    <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; ColorMotion  </span> <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Severity filter + event store</span>     <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9492;&#9472;&#9472; Clip store    </span> <span class="arch-box">&#9474;</span>    <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9492;&#9472;&#9472; Background thread (daemon)</span>        <span class="arch-box">&#9474;</span>
+<span class="arch-box">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>    <span class="arch-box">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;</span>
+         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
+         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-hl">Scoring Pipeline</span>                      <span class="arch-box">&#9474;</span>
+         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; DTW alignment (Sakoe-Chiba)</span>       <span class="arch-box">&#9474;</span>
+         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Step detection (cosine CP)</span>        <span class="arch-box">&#9474;</span>
+         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9500;&#9472;&#9472; Deviation scoring + comments</span>      <span class="arch-box">&#9474;</span>
+         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9474;</span>  <span class="arch-sub">&#9492;&#9472;&#9472; Ensemble / Bootstrap CI</span>           <span class="arch-box">&#9474;</span>
+         <span class="arch-box">&#9474;</span>              <span class="arch-box">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9516;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9524;</span>
+         <span class="arch-box">&#9474;</span>                                <span class="arch-box">&#9474;</span>
+<span class="arch-db">&#9484;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9660;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9460;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span>
+<span class="arch-db">&#9474;</span>  <span class="arch-db">SQLite (WAL mode)</span>  &#8212;  <span class="arch-hl">connection pool, atomic ops</span>             <span class="arch-db">&#9474;</span>
+<span class="arch-db">&#9474;</span>  <span class="arch-sub">./data/sopilot.db   (+ vigil_sessions / vigil_events tables)</span>  <span class="arch-db">&#9474;</span>
+<span class="arch-db">&#9492;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9472;&#9488;</span></pre>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 9: API SURFACE
+       ════════════════════════════════════════════════════════ -->
+  <section class="slide bg-radial-cyan" id="slide-9">
+    <h2 class="slide-title">API <span>Surface</span></h2>
+
+    <div class="split gap-24">
+      <!-- Left: SOPilot -->
+      <div>
+        <div class="section-label mb12">SOPilot Core API</div>
+        <div class="endpoint-group">
+          <div class="endpoint-item">
+            <span class="method method-post">POST</span><span class="method method-get">GET</span>
+            <span class="path">/gold &nbsp;/videos &nbsp;/videos/{id}</span>
+            <span class="text-xs" style="margin-left:auto;">Video management</span>
+          </div>
+          <div class="endpoint-item">
+            <span class="method method-get">GET</span>
+            <span class="path">/videos/{id}/quality</span>
+            <span class="text-xs" style="margin-left:auto;">5-axis quality gate</span>
+          </div>
+          <div class="endpoint-item">
+            <span class="method method-post">POST</span><span class="method method-get">GET</span>
+            <span class="path">/score &nbsp;/score/batch &nbsp;/score/ensemble</span>
+            <span class="text-xs" style="margin-left:auto;">Scoring</span>
+          </div>
+          <div class="endpoint-item">
+            <span class="method method-get">GET</span>
+            <span class="path">/score/{id}/report/pdf &nbsp;/score/{id}/uncertainty</span>
+            <span class="text-xs" style="margin-left:auto;">Reports</span>
+          </div>
+          <div class="endpoint-item">
+            <span class="method method-get">GET</span>
+            <span class="path">/analytics &nbsp;/analytics/operators/{id}/trend</span>
+            <span class="text-xs" style="margin-left:auto;">Analytics</span>
+          </div>
+          <div class="endpoint-item">
+            <span class="method method-put">PUT</span>
+            <span class="path">/task-profile &nbsp;/tasks/steps</span>
+            <span class="text-xs" style="margin-left:auto;">Task config</span>
+          </div>
+          <div class="endpoint-item">
+            <span class="method method-post">POST</span>
+            <span class="path">/admin/rescore &nbsp;/admin/backup</span>
+            <span class="text-xs" style="margin-left:auto;">Admin</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: VigilPilot -->
+      <div>
+        <div class="section-label purple mb12">VigilPilot API</div>
+        <div class="endpoint-group">
+          <div class="endpoint-item" style="border-color:rgba(124,58,237,0.25);">
+            <span class="method method-post">POST</span><span class="method method-get">GET</span>
+            <span class="path">/vigil/sessions &nbsp;/vigil/sessions/{id}</span>
+            <span class="text-xs" style="margin-left:auto;">Session mgmt</span>
+          </div>
+          <div class="endpoint-item" style="border-color:rgba(124,58,237,0.25);">
+            <span class="method method-post">POST</span>
+            <span class="path">/vigil/sessions/{id}/analyze</span>
+            <span class="text-xs" style="margin-left:auto;">Video analysis</span>
+          </div>
+          <div class="endpoint-item" style="border-color:rgba(124,58,237,0.25);">
+            <span class="method method-post">POST</span><span class="method method-del">DEL</span>
+            <span class="path">/vigil/sessions/{id}/stream</span>
+            <span class="text-xs" style="margin-left:auto;">RTSP live stream</span>
+          </div>
+          <div class="endpoint-item" style="border-color:rgba(124,58,237,0.25);">
+            <span class="method method-get">GET</span>
+            <span class="path">/vigil/sessions/{id}/events</span>
+            <span class="text-xs" style="margin-left:auto;">Violation events</span>
+          </div>
+          <div class="endpoint-item" style="border-color:rgba(124,58,237,0.25);">
+            <span class="method method-get">GET</span>
+            <span class="path">/vigil/events/{id}/frame?annotate=true</span>
+            <span class="text-xs" style="margin-left:auto;">Frame + bbox</span>
+          </div>
+          <div class="endpoint-item" style="border-color:rgba(124,58,237,0.25);">
+            <span class="method method-get">GET</span>
+            <span class="path">/vigil/sessions/{id}/report</span>
+            <span class="text-xs" style="margin-left:auto;">Report</span>
+          </div>
+        </div>
+
+        <div class="mt16" style="display:flex;gap:10px;flex-wrap:wrap;">
+          <span class="badge badge-cyan">&#128216; OpenAPI at /docs</span>
+          <span class="badge badge-cyan">&#128202; Prometheus at /metrics</span>
+          <span class="badge badge-green">&#10003; GET /health</span>
+          <span class="badge badge-green">&#10003; GET /readiness</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 10: PRODUCTION HARDENING
+       ════════════════════════════════════════════════════════ -->
+  <section class="slide" id="slide-10">
+    <h2 class="slide-title">Production <span>Hardening</span></h2>
+
+    <div class="split gap-24">
+      <!-- Security & Reliability -->
+      <div>
+        <div class="section-label mb12">Security &amp; Reliability</div>
+        <div class="card" style="padding:20px;">
+          <ul class="check-list">
+            <li>
+              <span class="icon green">&#10003;</span>
+              <div><span style="font-weight:600;">X-API-Key authentication</span><br><span class="text-xs">Public paths exempt: /health, /metrics, /docs</span></div>
+            </li>
+            <li>
+              <span class="icon green">&#10003;</span>
+              <div><span style="font-weight:600;">CORS allowlist</span><br><span class="text-xs">Configurable via SOPILOT_CORS_ORIGINS</span></div>
+            </li>
+            <li>
+              <span class="icon green">&#10003;</span>
+              <div><span style="font-weight:600;">Rate limiting: 120 req/min + burst 20</span><br><span class="text-xs">Sliding-window deque, configurable per deployment</span></div>
+            </li>
+            <li>
+              <span class="icon green">&#10003;</span>
+              <div><span style="font-weight:600;">X-Request-ID correlation</span><br><span class="text-xs">Every request traceable end-to-end</span></div>
+            </li>
+            <li>
+              <span class="icon green">&#10003;</span>
+              <div><span style="font-weight:600;">Non-root container (uid 1000)</span><br><span class="text-xs">Security-hardened Docker image</span></div>
+            </li>
+            <li>
+              <span class="icon green">&#10003;</span>
+              <div><span style="font-weight:600;">Webhook retry with exponential backoff</span><br><span class="text-xs">3 attempts, 1s &rarr; 2s delays, daemon thread</span></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Quality -->
+      <div>
+        <div class="section-label mb12">Quality &amp; Observability</div>
+        <div class="card" style="padding:20px;">
+          <ul class="check-list">
+            <li>
+              <span class="icon cyan">&#10003;</span>
+              <div><span style="font-weight:600;">992 automated tests</span><br><span class="text-xs">Unit + integration + property-based + concurrency</span></div>
+            </li>
+            <li>
+              <span class="icon cyan">&#10003;</span>
+              <div><span style="font-weight:600;">SQLite WAL mode + connection pooling</span><br><span class="text-xs">Configurable pool size via SOPILOT_DB_POOL_SIZE</span></div>
+            </li>
+            <li>
+              <span class="icon cyan">&#10003;</span>
+              <div><span style="font-weight:600;">Atomic job claims (no race conditions)</span><br><span class="text-xs">Single UPDATE replacing SELECT-then-UPDATE pattern</span></div>
+            </li>
+            <li>
+              <span class="icon cyan">&#10003;</span>
+              <div><span style="font-weight:600;">Audit log: JSON events for all mutations</span><br><span class="text-xs">video_deleted, job_created, job_completed, review_submitted</span></div>
+            </li>
+            <li>
+              <span class="icon cyan">&#10003;</span>
+              <div><span style="font-weight:600;">Docker Compose single-container deployment</span><br><span class="text-xs">No external dependencies; bind-mount ./data</span></div>
+            </li>
+            <li>
+              <span class="icon cyan">&#10003;</span>
+              <div><span style="font-weight:600;">Smoke test script: 9/9 checks</span><br><span class="text-xs">End-to-end verification on every deployment</span></div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom metrics strip -->
+    <div class="mt16" style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap;">
+      <div class="card" style="padding:10px 20px;text-align:center;flex:1;min-width:120px;">
+        <div style="font-size:1.4rem;font-weight:800;color:var(--cyan);">992</div>
+        <div class="text-xs">Automated Tests</div>
+      </div>
+      <div class="card" style="padding:10px 20px;text-align:center;flex:1;min-width:120px;">
+        <div style="font-size:1.4rem;font-weight:800;color:var(--green);">9/9</div>
+        <div class="text-xs">Smoke Checks</div>
+      </div>
+      <div class="card" style="padding:10px 20px;text-align:center;flex:1;min-width:120px;">
+        <div style="font-size:1.4rem;font-weight:800;color:var(--orange);">120</div>
+        <div class="text-xs">req/min limit</div>
+      </div>
+      <div class="card" style="padding:10px 20px;text-align:center;flex:1;min-width:120px;">
+        <div style="font-size:1.4rem;font-weight:800;color:var(--purple);">4</div>
+        <div class="text-xs">Middleware layers</div>
+      </div>
+      <div class="card" style="padding:10px 20px;text-align:center;flex:1;min-width:120px;">
+        <div style="font-size:1.4rem;font-weight:800;color:var(--cyan);">WAL</div>
+        <div class="text-xs">DB Journal Mode</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 11: QUICK START
+       ════════════════════════════════════════════════════════ -->
+  <section class="slide bg-radial-cyan" id="slide-11">
+    <h2 class="slide-title"><span>Quick Start</span> — Four Commands</h2>
+
+    <div class="split gap-24" style="align-items:start;">
+      <!-- Code block -->
+      <div style="flex:1.3;">
+        <div class="code-block" style="font-size:0.8rem;"><span class="cm"># 1. Configure</span>
+<span class="fn">cp</span> .env.example .env
+<span class="cm"># Set SOPILOT_API_KEY</span>
+<span class="cm"># Set ANTHROPIC_API_KEY   (for VigilPilot)</span>
+
+<span class="cm"># 2. Launch</span>
+<span class="fn">docker</span> compose up <span class="ky">-d</span>
+<span class="cm"># Build + start (~3 min first build)</span>
+
+<span class="cm"># 3. Verify</span>
+<span class="fn">python</span> scripts/smoke_test.py
+<span class="cm"># ✓ 9/9 checks passed</span>
+
+<span class="cm"># 4. Open UI</span>
+<span class="fn">open</span> http://localhost:8000
+<span class="cm"># SOP評価コンソール — browser UI</span></div>
+      </div>
+
+      <!-- Resource table + notes -->
+      <div style="flex:1;display:flex;flex-direction:column;gap:16px;">
+        <div>
+          <div class="section-label mb8">Resource Requirements</div>
+          <div class="table-wrap">
+            <table class="styled-table">
+              <thead>
+                <tr><th></th><th>Minimum</th><th>Recommended</th></tr>
+              </thead>
+              <tbody>
+                <tr><td>CPU</td><td>2 cores</td><td>4 cores</td></tr>
+                <tr><td>RAM</td><td>1 GB</td><td>2 GB</td></tr>
+                <tr><td>Disk</td><td>10 GB</td><td>100 GB</td></tr>
+                <tr><td>GPU</td><td colspan="2" style="color:var(--green);font-weight:600;">Not required (ColorMotion backend)</td></tr>
+                <tr><td>Docker</td><td colspan="2">&ge;24 (Linux containers)</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card card-green" style="padding:14px;">
+          <div style="font-size:0.75rem;font-weight:700;color:var(--green);margin-bottom:8px;">No infrastructure required</div>
+          <ul class="check-list">
+            <li><span class="icon green">&#10003;</span><span class="text-sm">Single Docker container</span></li>
+            <li><span class="icon green">&#10003;</span><span class="text-sm">No GPU for default operation</span></li>
+            <li><span class="icon green">&#10003;</span><span class="text-sm">No external databases or queues</span></li>
+            <li><span class="icon green">&#10003;</span><span class="text-sm">No internet required (except Claude backend)</span></li>
+          </ul>
+        </div>
+
+        <div class="callout" style="font-size:0.76rem;">
+          Full documentation: <strong>QUICKSTART.md</strong> — deployment, API walkthrough, configuration reference, troubleshooting
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       SLIDE 12: CONTACT / SUMMARY
+       ════════════════════════════════════════════════════════ -->
+  <section class="slide" id="slide-12" style="background:radial-gradient(ellipse at 50% 40%, rgba(0,212,255,0.07) 0%, rgba(124,58,237,0.06) 50%, transparent 80%), var(--bg);text-align:center;">
+    <div style="display:flex;flex-direction:column;align-items:center;gap:0;max-width:720px;">
+
+      <div class="hero-version mb12">
+        <span class="badge badge-cyan">v1.2.0</span>
+        &nbsp;
+        <span class="badge badge-purple">Production Ready</span>
+      </div>
+
+      <h1 style="font-size:3.8rem;font-weight:900;letter-spacing:-0.04em;margin-bottom:10px;" class="grad-text">SOPilot</h1>
+      <p class="summary-tagline glow-white">Production-ready. Evidence-based. Zero false positives.</p>
+      <p class="summary-ja">現場の安全を、AIの目で守る。</p>
+
+      <div class="card mt16" style="text-align:left;width:100%;padding:20px 28px;">
+        <ul class="check-list" style="gap:10px;">
+          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">99.40% accuracy validated on 3,507 production jobs [95% CI: 99.14%, 99.63%]</span></li>
+          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">Zero false positives — confirmed by independent annotation review</span></li>
+          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">Text-defined surveillance rules — no ML training required (VigilPilot)</span></li>
+          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">On-premises — no data leaves your infrastructure</span></li>
+          <li><span class="icon green" style="font-size:1rem;">&#10003;</span><span style="font-size:0.85rem;">992 automated tests — unit, integration, property-based, concurrency</span></li>
+        </ul>
+      </div>
+
+      <div class="mt20 flex-row flex-center">
+        <div class="btn btn-cyan">View Live Demo</div>
+        <div class="btn btn-outline">Read Technical Summary</div>
+      </div>
+
+      <div class="mt16 text-xs" style="opacity:0.4;letter-spacing:0.08em;">
+        SOPilot v1.2.0 &nbsp;&bull;&nbsp; Cambridge / Google DeepMind Evaluation Build &nbsp;&bull;&nbsp; 2026-03-02
+      </div>
+    </div>
+  </section>
+
+</div><!-- /deck -->
+
+<!-- Navigation arrows -->
+<button id="nav-prev" onclick="goToSlide(currentSlide - 1)" title="Previous slide">&#8592;</button>
+<button id="nav-next" onclick="goToSlide(currentSlide + 1)" title="Next slide">&#8594;</button>
+
+<!-- Dot indicators -->
+<div id="dots">
+  <div class="dot active" onclick="goToSlide(0)" title="Slide 1"></div>
+  <div class="dot" onclick="goToSlide(1)" title="Slide 2"></div>
+  <div class="dot" onclick="goToSlide(2)" title="Slide 3"></div>
+  <div class="dot" onclick="goToSlide(3)" title="Slide 4"></div>
+  <div class="dot" onclick="goToSlide(4)" title="Slide 5"></div>
+  <div class="dot" onclick="goToSlide(5)" title="Slide 6"></div>
+  <div class="dot" onclick="goToSlide(6)" title="Slide 7"></div>
+  <div class="dot" onclick="goToSlide(7)" title="Slide 8"></div>
+  <div class="dot" onclick="goToSlide(8)" title="Slide 9"></div>
+  <div class="dot" onclick="goToSlide(9)" title="Slide 10"></div>
+  <div class="dot" onclick="goToSlide(10)" title="Slide 11"></div>
+  <div class="dot" onclick="goToSlide(11)" title="Slide 12"></div>
+</div>
+
+<div id="slide-counter">1 / 12</div>
+
+<script>
+(function() {
+  'use strict';
+
+  let currentSlide = 0;
+  let goingLeft = false;
+  const slides = document.querySelectorAll('.slide');
+  const dots   = document.querySelectorAll('.dot');
+  const counter = document.getElementById('slide-counter');
+
+  function goToSlide(n) {
+    if (n === currentSlide) return;
+    goingLeft = n < currentSlide;
+
+    slides[currentSlide].classList.remove('active', 'going-left');
+    dots[currentSlide].classList.remove('active');
+
+    currentSlide = Math.max(0, Math.min(n, slides.length - 1));
+
+    const slide = slides[currentSlide];
+    slide.classList.remove('going-left');
+    if (goingLeft) slide.classList.add('going-left');
+    slide.classList.add('active');
+    dots[currentSlide].classList.add('active');
+    counter.textContent = (currentSlide + 1) + ' / ' + slides.length;
+  }
+
+  // Expose globally for onclick handlers
+  window.goToSlide = goToSlide;
+
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); goToSlide(currentSlide + 1); }
+    if (e.key === 'ArrowLeft'  || e.key === 'PageUp')   { e.preventDefault(); goToSlide(currentSlide - 1); }
+    if (e.key === 'Home') { e.preventDefault(); goToSlide(0); }
+    if (e.key === 'End')  { e.preventDefault(); goToSlide(slides.length - 1); }
+  });
+
+  // Touch/swipe support
+  let touchStartX = 0;
+  let touchStartY = 0;
+  document.addEventListener('touchstart', function(e) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', function(e) {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 50) {
+      if (dx < 0) goToSlide(currentSlide + 1);
+      else        goToSlide(currentSlide - 1);
+    }
+  }, { passive: true });
+
+})();
+</script>
+</body>
+</html>

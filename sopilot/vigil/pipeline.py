@@ -11,11 +11,54 @@ import shutil
 import threading
 from pathlib import Path
 
+import httpx
+
 from sopilot.vigil.extractor import iter_frames, iter_frames_rtsp
 from sopilot.vigil.repository import VigilRepository
 from sopilot.vigil.vlm import VLMClient
 
 logger = logging.getLogger(__name__)
+
+_WEBHOOK_SEVERITY_ORDER = {"info": 0, "warning": 1, "critical": 2}
+
+
+def _fire_webhook(
+    repo: VigilRepository,
+    session_id: int,
+    event_id: int,
+    timestamp: float,
+    violations_above_threshold: list[dict],
+) -> None:
+    """Fire a webhook notification for a violation event in a daemon thread."""
+    row = repo.get_session(session_id)
+    webhook_url = row.get("webhook_url") if row else None
+    if not webhook_url:
+        return
+    min_sev = row.get("webhook_min_severity") or "warning"
+    min_level = _WEBHOOK_SEVERITY_ORDER.get(min_sev, 1)
+    should_fire = any(
+        _WEBHOOK_SEVERITY_ORDER.get(v.get("severity", "warning"), 1) >= min_level
+        for v in violations_above_threshold
+    )
+    if not should_fire:
+        return
+
+    def _fire() -> None:
+        try:
+            httpx.post(
+                webhook_url,
+                json={
+                    "session_id": session_id,
+                    "event_id": event_id,
+                    "timestamp_sec": timestamp,
+                    "violations": violations_above_threshold,
+                },
+                timeout=5,
+            )
+        except Exception:
+            pass
+
+    threading.Thread(target=_fire, daemon=True).start()
 
 
 class VigilPipeline:
@@ -150,7 +193,7 @@ class VigilPipeline:
                         if _SEVERITY_ORDER.get(v.get("severity", "warning"), 1) >= threshold_level
                     ]
                     if filtered:
-                        self._repo.create_event(
+                        event_id = self._repo.create_event(
                             session_id=session_id,
                             timestamp_sec=ts_sec,
                             frame_number=frame_num,
@@ -162,6 +205,7 @@ class VigilPipeline:
                             "vigil rtsp session=%d  frame=%d  ts=%.1fs  violations=%d",
                             session_id, frame_num, ts_sec, len(filtered),
                         )
+                        _fire_webhook(self._repo, session_id, event_id, ts_sec, filtered)
 
             self._repo.update_session_status(
                 session_id,
@@ -227,7 +271,7 @@ class VigilPipeline:
                         if _SEVERITY_ORDER.get(v.get("severity", "warning"), 1) >= threshold_level
                     ]
                     if filtered:
-                        self._repo.create_event(
+                        event_id = self._repo.create_event(
                             session_id=session_id,
                             timestamp_sec=ts_sec,
                             frame_number=frame_num,
@@ -239,6 +283,7 @@ class VigilPipeline:
                             "vigil session=%d  frame=%d  ts=%.1fs  violations=%d",
                             session_id, frame_num, ts_sec, len(filtered),
                         )
+                        _fire_webhook(self._repo, session_id, event_id, ts_sec, filtered)
 
             self._repo.update_session_status(
                 session_id,

@@ -22,6 +22,7 @@ from sopilot.vigil.schemas import (
     ViolationDetail,
     ViolationEvent,
     WebcamFrameResult,
+    WebhookRequest,
 )
 from sopilot.vigil.vlm import build_vlm_client
 
@@ -486,6 +487,123 @@ def build_vigil_router() -> APIRouter:
             rule_breakdown=rule_breakdown,
             events=[_row_to_event(e) for e in events],
             created_at=row["created_at"],
+        )
+
+    # ── Webhook management ────────────────────────────────────────────────────
+
+    @router.put("/sessions/{session_id}/webhook", summary="Webhookを設定")
+    async def set_webhook(session_id: int, body: WebhookRequest, request: Request) -> dict:
+        repo = _get_repo(request)
+        row = await run_in_threadpool(repo.get_session, session_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        await run_in_threadpool(repo.set_webhook, session_id, body.url, body.min_severity)
+        return {"session_id": session_id, "url": body.url, "min_severity": body.min_severity}
+
+    @router.delete("/sessions/{session_id}/webhook", summary="Webhookを削除")
+    async def clear_webhook(session_id: int, request: Request) -> dict:
+        repo = _get_repo(request)
+        row = await run_in_threadpool(repo.get_session, session_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        await run_in_threadpool(repo.clear_webhook, session_id)
+        return {"session_id": session_id, "cleared": True}
+
+    @router.get("/sessions/{session_id}/webhook", summary="Webhook設定を取得")
+    async def get_webhook(session_id: int, request: Request) -> dict:
+        repo = _get_repo(request)
+        row = await run_in_threadpool(repo.get_session, session_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        result = await run_in_threadpool(repo.get_webhook, session_id)
+        if result is None:
+            raise HTTPException(status_code=404, detail="No webhook configured")
+        url, min_severity = result
+        return {"session_id": session_id, "url": url, "min_severity": min_severity}
+
+    # ── CSV report ────────────────────────────────────────────────────────────
+
+    @router.get("/sessions/{session_id}/report/csv", summary="違反レポートCSVダウンロード")
+    async def download_report_csv(session_id: int, request: Request):  # type: ignore[return]
+        import csv
+        import io
+        import json as _json
+
+        from fastapi.responses import StreamingResponse as _StreamingResponse
+
+        repo = _get_repo(request)
+        row = await run_in_threadpool(repo.get_session, session_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+        events = await run_in_threadpool(repo.list_events, session_id)
+
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            "event_id", "timestamp_sec", "frame_number",
+            "rule_index", "rule", "description_ja", "severity", "confidence", "bboxes",
+        ])
+        for ev in events:
+            for v in ev.get("violations", []):
+                bboxes_val = v.get("bboxes")
+                bboxes_str = _json.dumps(bboxes_val) if bboxes_val else ""
+                writer.writerow([
+                    ev["id"], ev["timestamp_sec"], ev["frame_number"],
+                    v.get("rule_index", ""), v.get("rule", ""), v.get("description_ja", ""),
+                    v.get("severity", ""), v.get("confidence", ""), bboxes_str,
+                ])
+        output.seek(0)
+
+        filename = f"vigil_session_{session_id}_violations.csv"
+        return _StreamingResponse(
+            iter([output.getvalue()]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename={filename}"},
+        )
+
+    # ── SSE real-time feed ────────────────────────────────────────────────────
+
+    @router.get("/sessions/{session_id}/events/stream", summary="SSEリアルタイム違反フィード")
+    async def stream_events(session_id: int, request: Request):  # type: ignore[return]
+        import asyncio
+        import json as _json
+
+        from fastapi.responses import StreamingResponse as _StreamingResponse
+
+        repo = _get_repo(request)
+        row = await run_in_threadpool(repo.get_session, session_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        async def _generate():  # type: ignore[return]
+            last_id = 0
+            while True:
+                if await request.is_disconnected():
+                    break
+                new_events = repo.list_events_since(session_id, last_id)
+                for ev in new_events:
+                    data = {
+                        "type": "violation",
+                        "event_id": ev["id"],
+                        "timestamp_sec": ev["timestamp_sec"],
+                        "frame_number": ev["frame_number"],
+                        "violations": ev.get("violations", []),
+                        "created_at": ev["created_at"],
+                    }
+                    yield f"data: {_json.dumps(data)}\n\n"
+                    last_id = ev["id"]
+                cur = repo.get_session(session_id)
+                status = cur["status"] if cur else "failed"
+                if status in ("completed", "failed"):
+                    yield f"data: {_json.dumps({'type': 'status_change', 'status': status})}\n\n"
+                    break
+                yield f"data: {_json.dumps({'type': 'heartbeat'})}\n\n"
+                await asyncio.sleep(2)
+
+        return _StreamingResponse(
+            _generate(),
+            media_type="text/event-stream",
+            headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
 
     return router

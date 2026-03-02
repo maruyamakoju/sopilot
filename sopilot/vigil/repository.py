@@ -165,3 +165,44 @@ class VigilRepository:
         d = dict(row)
         d["violations"] = json.loads(d.pop("violations_json"))
         return d
+
+    def list_events_since(self, session_id: int, after_id: int) -> list[dict]:
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT * FROM vigil_events WHERE session_id = ? AND id > ? ORDER BY id ASC",
+                (session_id, after_id),
+            ).fetchall()
+        result = []
+        for row in rows:
+            d = dict(row)
+            d["violations"] = json.loads(d.pop("violations_json"))
+            result.append(d)
+        return result
+
+    # ── Webhooks ───────────────────────────────────────────────────────────────
+
+    def set_webhook(self, session_id: int, url: str, min_severity: str = "warning") -> None:
+        now = datetime.now(UTC).isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE vigil_sessions SET webhook_url = ?, webhook_min_severity = ?, updated_at = ? WHERE id = ?",
+                (url, min_severity, now, session_id),
+            )
+
+    def clear_webhook(self, session_id: int) -> None:
+        now = datetime.now(UTC).isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE vigil_sessions SET webhook_url = NULL, updated_at = ? WHERE id = ?",
+                (now, session_id),
+            )
+
+    def get_webhook(self, session_id: int) -> tuple[str, str] | None:
+        row = self.get_session(session_id)
+        if row is None:
+            return None
+        url = row.get("webhook_url")
+        if not url:
+            return None
+        min_sev = row.get("webhook_min_severity") or "warning"
+        return (url, min_sev)

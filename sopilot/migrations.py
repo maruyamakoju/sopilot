@@ -92,6 +92,14 @@ MIGRATIONS: list[Migration] = [
             ON vigil_events(session_id, timestamp_sec);
         """,
     ),
+    Migration(
+        version=6,
+        description="VigilPilot: add webhook_url and webhook_min_severity to vigil_sessions",
+        sql="""
+        ALTER TABLE vigil_sessions ADD COLUMN webhook_url TEXT;
+        ALTER TABLE vigil_sessions ADD COLUMN webhook_min_severity TEXT DEFAULT 'warning';
+        """,
+    ),
 ]
 
 

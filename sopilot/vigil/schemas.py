@@ -105,6 +105,11 @@ class WebcamFrameResult(BaseModel):
     frame_url: str | None = None  # URL to retrieve the annotated frame
 
 
+class WebhookRequest(BaseModel):
+    url: str = Field(..., description="Webhook URL (https://...)")
+    min_severity: str = Field(default="warning", pattern="^(info|warning|critical)$")
+
+
 class VLMResult(BaseModel):
     """Parsed response from VLM for a single frame."""
 

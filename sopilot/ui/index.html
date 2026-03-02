@@ -4006,6 +4006,7 @@ let currentVigilSession=null;
 let _vigilPrevViolationCount=0;
 let _webcamInterval=null;
 let _webcamStream=null;
+let _vigilEventSource=null;
 
 function openVigil(){
   $("vigilModal").classList.add("active");
@@ -4015,6 +4016,7 @@ function openVigil(){
 function closeVigil(){
   $("vigilModal").classList.remove("active");
   if(_vigilPollTimer){clearInterval(_vigilPollTimer);_vigilPollTimer=null;}
+  stopVigilSSE();
 }
 
 async function loadVigilSessions(){
@@ -4092,6 +4094,7 @@ async function deleteVigilSession(sessionId){
 
 async function selectVigilSession(sessionId){
   if(_vigilPollTimer){clearInterval(_vigilPollTimer);_vigilPollTimer=null;}
+  stopVigilSSE();
   currentVigilSession=sessionId;
   _vigilPrevViolationCount=0;
   try{
@@ -4101,7 +4104,7 @@ async function selectVigilSession(sessionId){
     renderVigilSessionList();
     await renderVigilDetail(session);
     if(session.status==="processing"){
-      _vigilPollTimer=setInterval(()=>pollVigilSession(sessionId),3000);
+      startVigilSSE(sessionId);
     }
   }catch(e){toast(`セッション取得失敗: ${e.message}`,"error");}
 }
@@ -4118,6 +4121,138 @@ function _vigilPlayBeep(freq,durationMs){
     osc.start();
     setTimeout(()=>{osc.stop();ctx.close();},durationMs);
   }catch(e){console.warn("_vigilPlayBeep",e);}
+}
+
+function startVigilSSE(sessionId){
+  if(_vigilEventSource){
+    _vigilEventSource.close();
+    _vigilEventSource=null;
+  }
+  _vigilEventSource=new EventSource(`/vigil/sessions/${sessionId}/events/stream`);
+
+  _vigilEventSource.onmessage=function(e){
+    let msg;
+    try{msg=JSON.parse(e.data);}catch{return;}
+    if(msg.type==="heartbeat")return;
+    if(msg.type==="violation"){
+      // Play beep based on severity of the new violation
+      if(msg.violations&&msg.violations.length){
+        const hasCritical=msg.violations.some(v=>v.severity==="critical");
+        const hasWarning=msg.violations.some(v=>v.severity==="warning");
+        if(hasCritical){
+          _vigilPlayBeep(880,300);
+          const desc=msg.violations.find(v=>v.severity==="critical")?.description||"重大違反を検出";
+          if(Notification.permission==="granted"){
+            new Notification("⚠️ 重大違反検出",{body:desc,icon:"/favicon.ico"});
+          }
+        }else if(hasWarning){
+          _vigilPlayBeep(440,150);
+        }
+      }
+      // Refresh session detail
+      api(`/vigil/sessions/${sessionId}`).then(session=>{
+        _vigilActiveSession=session;
+        _vigilPrevViolationCount=session.violation_count||0;
+        renderVigilSessionList();
+        renderVigilDetail(session);
+      }).catch(()=>{});
+    }
+    if(msg.type==="status_change"){
+      api(`/vigil/sessions/${sessionId}`).then(session=>{
+        _vigilActiveSession=session;
+        renderVigilSessionList();
+        renderVigilDetail(session);
+        if(msg.status==="completed"){
+          toast(`解析完了: ${session.violation_count}件の違反を検出`,"success");
+        }else if(msg.status==="failed"){
+          toast("解析に失敗しました","error");
+        }
+      }).catch(()=>{});
+      if(msg.status==="completed"||msg.status==="failed"){
+        _vigilEventSource.close();
+        _vigilEventSource=null;
+      }
+    }
+  };
+  _vigilEventSource.onerror=function(){
+    // Fall back to one-time refresh on error
+    api(`/vigil/sessions/${sessionId}`).then(session=>{
+      _vigilActiveSession=session;
+      renderVigilSessionList();
+      renderVigilDetail(session);
+    }).catch(()=>{});
+    if(_vigilEventSource){
+      _vigilEventSource.close();
+      _vigilEventSource=null;
+    }
+  };
+}
+
+function stopVigilSSE(){
+  if(_vigilEventSource){
+    _vigilEventSource.close();
+    _vigilEventSource=null;
+  }
+}
+
+async function loadVigilWebhook(sessionId){
+  try{
+    const r=await fetch(`/vigil/sessions/${sessionId}/webhook`);
+    if(r.ok){
+      const d=await r.json();
+      const urlEl=document.getElementById("vigilWebhookUrl");
+      const sevEl=document.getElementById("vigilWebhookSev");
+      const statusEl=document.getElementById("vigilWebhookStatus");
+      if(urlEl)urlEl.value=d.url||"";
+      if(sevEl)sevEl.value=d.min_severity||"warning";
+      if(statusEl)statusEl.textContent="設定済み";
+    }else{
+      const urlEl=document.getElementById("vigilWebhookUrl");
+      const statusEl=document.getElementById("vigilWebhookStatus");
+      if(urlEl)urlEl.value="";
+      if(statusEl)statusEl.textContent="未設定";
+    }
+  }catch(e){/* ignore */}
+}
+
+async function saveVigilWebhook(){
+  const sid=currentVigilSession;
+  if(!sid)return;
+  const urlEl=document.getElementById("vigilWebhookUrl");
+  const sevEl=document.getElementById("vigilWebhookSev");
+  const statusEl=document.getElementById("vigilWebhookStatus");
+  const url=urlEl?urlEl.value.trim():"";
+  if(!url)return;
+  const minSev=sevEl?sevEl.value:"warning";
+  try{
+    const r=await fetch(`/vigil/sessions/${sid}/webhook`,{
+      method:"PUT",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({url,min_severity:minSev}),
+    });
+    if(r.ok){
+      if(statusEl)statusEl.textContent="保存しました ✓";
+      setTimeout(()=>{if(statusEl)statusEl.textContent="設定済み";},2000);
+    }
+  }catch(e){console.warn("saveVigilWebhook",e);}
+}
+
+async function clearVigilWebhook(){
+  const sid=currentVigilSession;
+  if(!sid)return;
+  try{
+    await fetch(`/vigil/sessions/${sid}/webhook`,{method:"DELETE"});
+    const urlEl=document.getElementById("vigilWebhookUrl");
+    const statusEl=document.getElementById("vigilWebhookStatus");
+    if(urlEl)urlEl.value="";
+    if(statusEl)statusEl.textContent="未設定";
+  }catch(e){console.warn("clearVigilWebhook",e);}
+}
+
+function downloadVigilCSV(e){
+  e.preventDefault();
+  if(!currentVigilSession)return;
+  window.location.href=`/vigil/sessions/${currentVigilSession}/report/csv`;
 }
 
 async function pollVigilSession(sessionId){
@@ -4215,6 +4350,21 @@ async function renderVigilDetail(session){
       <div style="display:flex;flex-wrap:wrap;gap:6px">
         ${session.rules.map(r=>`<span style="font-size:11px;padding:3px 10px;border-radius:999px;background:rgba(13,148,136,.1);border:1px solid rgba(13,148,136,.2);color:var(--accent-b)">${escHtml(r)}</span>`).join("")}
       </div>
+      <div class="vigil-webhook-section" style="border-top:1px solid rgba(255,255,255,.06);margin-top:12px;padding-top:10px">
+        <h4 style="margin:0 0 6px;font-size:0.85rem;color:#aaa;font-weight:600">Webhook通知</h4>
+        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap">
+          <input id="vigilWebhookUrl" type="url" placeholder="https://hooks.slack.com/..."
+                 style="flex:1;min-width:200px;background:#1a1a2e;color:#e0e0e0;border:1px solid #333;border-radius:4px;padding:4px 8px;font-size:0.8rem;">
+          <select id="vigilWebhookSev" style="background:#1a1a2e;color:#e0e0e0;border:1px solid #333;border-radius:4px;padding:4px 6px;font-size:0.8rem;">
+            <option value="info">info以上</option>
+            <option value="warning" selected>warning以上</option>
+            <option value="critical">criticalのみ</option>
+          </select>
+          <button onclick="saveVigilWebhook()" style="background:#1a6b4a;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:0.8rem;">保存</button>
+          <button onclick="clearVigilWebhook()" style="background:#555;color:#fff;border:none;border-radius:4px;padding:4px 10px;cursor:pointer;font-size:0.8rem;">削除</button>
+        </div>
+        <div id="vigilWebhookStatus" style="font-size:0.75rem;color:#888;margin-top:4px;"></div>
+      </div>
     </div>`;
 
   if(session.status==="completed"||(session.status==="processing"&&session.violation_count>0)){
@@ -4224,7 +4374,11 @@ async function renderVigilDetail(session){
         html+=`<div class="empty-state" style="border:1px solid rgba(255,255,255,.06);border-radius:12px;padding:32px">違反は検出されませんでした ✓</div>`;
       }else{
         const sevOrder={critical:2,warning:1,info:0};
-        html+=`<div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">違反イベント (${events.length}件)</div>`;
+        html+=`<div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em">違反イベント (${events.length}件)</div>
+          <a id="vigilCsvDownload" href="#" onclick="downloadVigilCSV(event)"
+             style="font-size:0.8rem;color:#4fc3f7;text-decoration:none;cursor:pointer;">&#128229; CSV</a>
+        </div>`;
         events.forEach(ev=>{
           const maxSev=ev.violations.reduce((m,v)=>(sevOrder[v.severity]||0)>(sevOrder[m]||0)?v.severity:m,"info");
           html+=`<div class="vigil-event-card" style="flex-direction:column">
@@ -4260,6 +4414,8 @@ async function renderVigilDetail(session){
 
   html+=`</div>`;
   el.innerHTML=html;
+  // Load webhook config after DOM is updated
+  loadVigilWebhook(session.session_id);
 }
 
 function vigilFormatTs(sec){
@@ -4314,9 +4470,8 @@ async function startVigilRTSP(sessionId){
     if(stopBtn)stopBtn.style.display="";
     if(statusEl)statusEl.textContent="ストリーム解析中...";
     toast("RTSPストリーム解析を開始しました","success");
-    // Start polling
-    if(_vigilPollTimer)clearInterval(_vigilPollTimer);
-    _vigilPollTimer=setInterval(()=>pollVigilSession(sessionId),3000);
+    // Start SSE for real-time updates
+    startVigilSSE(sessionId);
   }catch(e){toast(`RTSP開始失敗: ${e.message}`,"error");}
 }
 
@@ -4330,7 +4485,7 @@ async function stopVigilRTSP(sessionId){
     if(startBtn)startBtn.style.display="";
     if(stopBtn)stopBtn.style.display="none";
     if(statusEl)statusEl.textContent="";
-    if(_vigilPollTimer){clearInterval(_vigilPollTimer);_vigilPollTimer=null;}
+    stopVigilSSE();
     toast("ストリームを停止しました","info");
   }catch(e){toast(`RTSP停止失敗: ${e.message}`,"error");}
 }

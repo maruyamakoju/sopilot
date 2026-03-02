@@ -630,6 +630,7 @@ class YOLOWorldDetector(ObjectDetector):
     DEFAULT_MODEL: str = "yolov8s-worldv2.pt"
     DEFAULT_CLASSES: list[str] = [
         "person",
+        "worker",
         "hard hat",
         "helmet",
         "safety vest",
@@ -639,6 +640,9 @@ class YOLOWorldDetector(ObjectDetector):
         "machine",
         "vehicle",
         "pallet",
+        "box",
+        "equipment",
+        "tool",
     ]
 
     def __init__(
@@ -706,11 +710,14 @@ class YOLOWorldDetector(ObjectDetector):
         self._maybe_update_classes(effective_prompts)
 
         h, w = frame.shape[:2]
+        # YOLO-World outputs lower raw scores than standard YOLO; use a
+        # dedicated lower threshold so meaningful detections are not filtered.
+        conf_threshold = self._config.yolo_confidence_threshold
 
         try:
             results = self._model.predict(
                 frame,
-                conf=self._config.detection_confidence_threshold,
+                conf=conf_threshold,
                 iou=self._config.detection_nms_threshold,
                 verbose=False,
                 device="cpu",
@@ -731,7 +738,7 @@ class YOLOWorldDetector(ObjectDetector):
                 if len(detections) >= max_dets:
                     break
                 conf = float(box.conf[0])
-                if conf < self._config.detection_confidence_threshold:
+                if conf < conf_threshold:
                     continue
                 cls_id = int(box.cls[0])
                 label = names.get(cls_id, effective_prompts[0] if effective_prompts else "object")

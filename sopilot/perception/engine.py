@@ -27,7 +27,7 @@ import logging
 import re
 import time
 from pathlib import Path
-from typing import Any, Callable
+from typing import TYPE_CHECKING, Any, Callable
 
 import numpy as np
 
@@ -46,6 +46,9 @@ from sopilot.perception.types import (
     Zone,
 )
 from sopilot.perception.reasoning import HybridReasoner, _OBJECT_ALIASES
+
+if TYPE_CHECKING:
+    from sopilot.perception.pose import PoseEstimator
 
 logger = logging.getLogger(__name__)
 
@@ -141,6 +144,7 @@ class PerceptionEngine:
         causal_reasoner: Any | None = None,
         context_memory: Any | None = None,
         narrator: Any | None = None,
+        pose_estimator: Any | None = None,
     ) -> None:
         """Initialize the perception engine.
 
@@ -192,6 +196,9 @@ class PerceptionEngine:
         self._causal_reasoner = causal_reasoner
         self._context_memory = context_memory
         self._narrator = narrator
+
+        # Pose estimation (optional, opt-in via config.pose_enabled)
+        self._pose_estimator: Any | None = pose_estimator
 
         # Zones for scene graph and world model
         self._zones: list[Zone] = list(self._config.zone_definitions)
@@ -320,6 +327,15 @@ class PerceptionEngine:
             violations.extend(event_violations)
             timings["event_conversion_ms"] = (time.perf_counter() - t_stage) * 1000
 
+            # ── Stage 7: Pose estimation + PPE check (opt-in) ─────
+            t_stage = time.perf_counter()
+            pose_results = []
+            if self._pose_estimator is not None:
+                pose_results = self._run_pose_estimation(frame)
+                ppe_violations = self._pose_ppe_violations(pose_results)
+                violations.extend(ppe_violations)
+            timings["pose_ms"] = (time.perf_counter() - t_stage) * 1000
+
             elapsed_ms = (time.perf_counter() - t0) * 1000
             self._frames_processed += 1
             self._total_processing_ms += elapsed_ms
@@ -327,7 +343,7 @@ class PerceptionEngine:
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug(
                     "Frame %d processed in %.1f ms: "
-                    "det=%.1f trk=%.1f sg=%.1f wm=%.1f rsn=%.1f | "
+                    "det=%.1f trk=%.1f sg=%.1f wm=%.1f rsn=%.1f pose=%.1f | "
                     "%d detections, %d tracks, %d violations",
                     frame_number,
                     elapsed_ms,
@@ -336,6 +352,7 @@ class PerceptionEngine:
                     timings.get("scene_graph_ms", 0),
                     timings.get("world_model_ms", 0),
                     timings.get("reasoning_ms", 0),
+                    timings.get("pose_ms", 0),
                     len(detections),
                     len(tracks),
                     len(violations),
@@ -351,6 +368,7 @@ class PerceptionEngine:
                 tracks_count=len(tracks),
                 vlm_called=self._reasoner._vlm_called_this_frame,
                 vlm_latency_ms=self._reasoner._vlm_latency_this_frame,
+                pose_results=pose_results,
             )
 
         except Exception:
@@ -522,6 +540,11 @@ class PerceptionEngine:
         if self._vlm_client is not None:
             try:
                 self._vlm_client.close()
+            except (AttributeError, Exception):
+                pass
+        if self._pose_estimator is not None:
+            try:
+                self._pose_estimator.close()
             except (AttributeError, Exception):
                 pass
 
@@ -713,6 +736,76 @@ class PerceptionEngine:
             self._context_memory.update(world_state)
         except Exception:
             logger.exception("Context memory update failed")
+
+    def _run_pose_estimation(self, frame: np.ndarray) -> list:
+        """Run pose estimation, returning empty list on failure."""
+        if self._pose_estimator is None:
+            return []
+        try:
+            return self._pose_estimator.estimate(frame)
+        except Exception:
+            logger.exception("Pose estimation failed")
+            return []
+
+    def _pose_ppe_violations(self, pose_results: list) -> list[Violation]:
+        """Generate PPE violations from pose estimation results.
+
+        Generates WARNING violations for:
+        - Missing helmet: confidence of absence > 0.5
+        - Missing safety vest: confidence of absence > 0.5
+
+        Confidence of *absence* is defined as ``1.0 - ppe.<item>_confidence``
+        when the item is inferred absent.
+        """
+        violations: list[Violation] = []
+        for i, pr in enumerate(pose_results):
+            ppe = pr.ppe
+
+            # Missing helmet
+            if not ppe.has_helmet:
+                absence_conf = 1.0 - ppe.helmet_confidence
+                if absence_conf > 0.5:
+                    violations.append(
+                        Violation(
+                            rule="ヘルメット未着用を検出",
+                            rule_index=-1,
+                            description_ja=f"作業者#{i} ヘルメット未着用 (信頼度={absence_conf:.2f})",
+                            severity=ViolationSeverity.WARNING,
+                            confidence=absence_conf,
+                            entity_ids=[],
+                            bbox=pr.person_bbox,
+                            evidence={
+                                "source": "pose",
+                                "helmet_confidence": ppe.helmet_confidence,
+                                "vest_confidence": ppe.vest_confidence,
+                            },
+                            source="pose",
+                        )
+                    )
+
+            # Missing vest
+            if not ppe.has_vest:
+                absence_conf = 1.0 - ppe.vest_confidence
+                if absence_conf > 0.5:
+                    violations.append(
+                        Violation(
+                            rule="安全ベスト未着用を検出",
+                            rule_index=-1,
+                            description_ja=f"作業者#{i} 安全ベスト未着用 (信頼度={absence_conf:.2f})",
+                            severity=ViolationSeverity.WARNING,
+                            confidence=absence_conf,
+                            entity_ids=[],
+                            bbox=pr.person_bbox,
+                            evidence={
+                                "source": "pose",
+                                "helmet_confidence": ppe.helmet_confidence,
+                                "vest_confidence": ppe.vest_confidence,
+                            },
+                            source="pose",
+                        )
+                    )
+
+        return violations
 
     def _events_to_violations(self, world_state: WorldState) -> list[Violation]:
         """Convert world model events (zone entry, prolonged presence) to violations."""
@@ -1025,6 +1118,27 @@ def build_perception_engine(
     except Exception:
         logger.exception("Failed to initialize scene narrator")
 
+    # ── Build pose estimator (opt-in) ──────────────────────────────────
+    pose_estimator = None
+    if config.pose_enabled:
+        try:
+            from sopilot.perception.pose import PoseEstimator
+            pose_estimator = PoseEstimator(
+                model_name=config.pose_model,
+                confidence_threshold=config.pose_confidence_threshold,
+                keypoint_confidence=config.pose_keypoint_confidence,
+            )
+            logger.info(
+                "PoseEstimator initialized (model=%s)", config.pose_model
+            )
+        except ImportError:
+            logger.warning(
+                "sopilot.perception.pose not available. "
+                "Pose estimation will be disabled."
+            )
+        except Exception:
+            logger.exception("Failed to initialize pose estimator")
+
     # ── Assemble engine ───────────────────────────────────────────────
     engine = PerceptionEngine(
         config=config,
@@ -1041,6 +1155,7 @@ def build_perception_engine(
         causal_reasoner=causal_reasoner,
         context_memory=context_memory,
         narrator=narrator,
+        pose_estimator=pose_estimator,
     )
 
     return engine

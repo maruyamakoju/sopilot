@@ -118,7 +118,10 @@ class TestYOLOWorldDetectorClassAttributes(unittest.TestCase):
         self.assertIn("helmet", classes)
         self.assertIn("safety vest", classes)
         self.assertIn("forklift", classes)
-        self.assertEqual(len(classes), 10)
+        self.assertIn("worker", classes)
+        self.assertIn("box", classes)
+        self.assertIn("equipment", classes)
+        self.assertEqual(len(classes), 14)
 
     def test_is_subclass_of_object_detector(self):
         from sopilot.perception.detector import ObjectDetector, YOLOWorldDetector
@@ -321,8 +324,8 @@ class TestYOLOWorldDetectorDetect(unittest.TestCase):
             results = det.detect(_make_frame(), ["person", "hard hat", "helmet"])
         self.assertLessEqual(len(results), 1)
 
-    def test_respects_confidence_threshold(self):
-        cfg = PerceptionConfig(detection_confidence_threshold=0.8)
+    def test_respects_yolo_confidence_threshold(self):
+        cfg = PerceptionConfig(yolo_confidence_threshold=0.8)
         det = _build_detector(config=cfg)
         model = MockYOLOModel()
         # One box above threshold, one below
@@ -515,15 +518,28 @@ class TestYOLOWorldDetectorClose(unittest.TestCase):
 class TestYOLOWorldDetectorConfigIntegration(unittest.TestCase):
     """Test that PerceptionConfig fields are properly respected."""
 
-    def test_predict_uses_config_confidence(self):
-        cfg = PerceptionConfig(detection_confidence_threshold=0.7)
+    def test_predict_uses_yolo_confidence_threshold(self):
+        """YOLOWorldDetector uses yolo_confidence_threshold, not detection_confidence_threshold."""
+        cfg = PerceptionConfig(yolo_confidence_threshold=0.05)
         det = _build_detector(config=cfg)
         model = MockYOLOModel()
         model.predict = mock.MagicMock(return_value=[MockResults(boxes_list=[])])
         with mock.patch("ultralytics.YOLO", return_value=model):
             det.detect(_make_frame(), ["person"])
         call_kwargs = model.predict.call_args[1]
-        self.assertEqual(call_kwargs["conf"], 0.7)
+        self.assertEqual(call_kwargs["conf"], 0.05)
+
+    def test_default_yolo_confidence_threshold_is_0_1(self):
+        """Default yolo_confidence_threshold should be 0.1 (lower than general 0.3)."""
+        cfg = PerceptionConfig()
+        self.assertAlmostEqual(cfg.yolo_confidence_threshold, 0.1)
+        det = _build_detector(config=cfg)
+        model = MockYOLOModel()
+        model.predict = mock.MagicMock(return_value=[MockResults(boxes_list=[])])
+        with mock.patch("ultralytics.YOLO", return_value=model):
+            det.detect(_make_frame(), ["person"])
+        call_kwargs = model.predict.call_args[1]
+        self.assertAlmostEqual(call_kwargs["conf"], 0.1)
 
     def test_predict_uses_config_nms_threshold(self):
         cfg = PerceptionConfig(detection_nms_threshold=0.45)
@@ -631,8 +647,8 @@ class TestYOLOWorldDetectorEdgeCases(unittest.TestCase):
         self.assertEqual(det._current_classes, prompts)
 
     def test_confidence_exactly_at_threshold(self):
-        """Detection with confidence exactly at threshold should be kept."""
-        cfg = PerceptionConfig(detection_confidence_threshold=0.5)
+        """Detection with confidence exactly at yolo threshold should be kept."""
+        cfg = PerceptionConfig(yolo_confidence_threshold=0.5)
         det = _build_detector(config=cfg)
         model = MockYOLOModel()
         boxes = [MockBox(10, 10, 200, 200, 0.5, 0)]

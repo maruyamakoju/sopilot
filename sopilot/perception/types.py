@@ -403,6 +403,35 @@ class Violation:
     source: str = "local"  # "local" (scene graph) or "vlm" (Claude/Qwen)
 
 
+@dataclass(frozen=True)
+class PoseKeypoint:
+    """A single COCO body keypoint with normalized coordinates."""
+
+    x: float           # normalized [0, 1]
+    y: float           # normalized [0, 1]
+    confidence: float  # keypoint visibility confidence
+
+
+@dataclass
+class PPEStatus:
+    """Per-person PPE compliance status inferred from pose + color analysis."""
+
+    has_helmet: bool = False
+    helmet_confidence: float = 0.0
+    has_vest: bool = False
+    vest_confidence: float = 0.0
+
+
+@dataclass
+class PoseResult:
+    """Result for one person detected by the pose estimator."""
+
+    person_bbox: BBox
+    keypoints: list[PoseKeypoint]   # 17 COCO keypoints; confidence=0 if not visible
+    ppe: PPEStatus
+    pose_confidence: float          # overall person detection confidence
+
+
 @dataclass
 class FrameResult:
     """Complete result of processing a single frame through the perception engine.
@@ -420,6 +449,7 @@ class FrameResult:
     tracks_count: int = 0
     vlm_called: bool = False  # whether VLM was consulted for any rule
     vlm_latency_ms: float = 0.0
+    pose_results: list["PoseResult"] = field(default_factory=list)
 
 
 # ── Configuration ──────────────────────────────────────────────────────────
@@ -437,6 +467,7 @@ class PerceptionConfig:
     detector_backend: str = "grounding-dino"  # "grounding-dino", "yolo-world", "mock"
     detector_model_id: str = "IDEA-Research/grounding-dino-tiny"
     detection_confidence_threshold: float = 0.3
+    yolo_confidence_threshold: float = 0.1  # YOLO-World uses lower threshold by default
     detection_nms_threshold: float = 0.5
     device: str = "auto"  # "auto", "cuda", "cpu", "mps"
 
@@ -467,3 +498,9 @@ class PerceptionConfig:
     max_detections_per_frame: int = 50
     scene_graph_max_relations: int = 200
     skip_frames: int = 0  # process every Nth frame (0 = all)
+
+    # Pose estimation
+    pose_enabled: bool = False           # opt-in: disabled by default
+    pose_model: str = "yolov8s-pose.pt"
+    pose_confidence_threshold: float = 0.4
+    pose_keypoint_confidence: float = 0.3  # minimum visibility for keypoint use

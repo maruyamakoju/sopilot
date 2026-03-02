@@ -13,11 +13,13 @@ from fastapi.responses import FileResponse, Response
 from sopilot.vigil.pipeline import VigilPipeline
 from sopilot.vigil.repository import VigilRepository
 from sopilot.vigil.schemas import (
+    AcknowledgeRequest,
     AnalyzeResponse,
     SessionCreateRequest,
     SessionListItem,
     SessionReport,
     SessionResponse,
+    SessionTemplate,
     StreamRequest,
     ViolationDetail,
     ViolationEvent,
@@ -29,6 +31,70 @@ from sopilot.vigil.vlm import build_vlm_client
 logger = logging.getLogger(__name__)
 
 _SEVERITY_ORDER = {"info": 0, "warning": 1, "critical": 2}
+
+_VIGIL_TEMPLATES = [
+    {
+        "id": "construction_safety",
+        "name": "建設現場安全",
+        "description": "建設・土木現場向けの安全ルールセット",
+        "rules": [
+            "ヘルメット未着用の作業者を検出",
+            "安全ベルトなしで高所作業している人を検出",
+            "立入禁止エリアへの侵入を検出",
+            "重機の安全距離違反を検出",
+        ],
+        "sample_fps": 1.0,
+        "severity_threshold": "warning",
+    },
+    {
+        "id": "food_factory_hygiene",
+        "name": "食品工場衛生管理",
+        "description": "食品製造施設向けの衛生管理ルールセット",
+        "rules": [
+            "手袋未着用での食品取り扱いを検出",
+            "マスク未着用の作業者を検出",
+            "異物混入リスクのある行動を検出",
+        ],
+        "sample_fps": 0.5,
+        "severity_threshold": "info",
+    },
+    {
+        "id": "warehouse_safety",
+        "name": "倉庫作業安全",
+        "description": "倉庫・物流施設向けの安全ルールセット",
+        "rules": [
+            "フォークリフトの安全速度超過を検出",
+            "歩行者とフォークリフトの接近を検出",
+            "不安定な積載物の取り扱いを検出",
+        ],
+        "sample_fps": 1.0,
+        "severity_threshold": "critical",
+    },
+    {
+        "id": "fire_safety",
+        "name": "防火・避難安全",
+        "description": "消防法対応・避難経路確保向けルールセット",
+        "rules": [
+            "非常口・避難通路のブロックを検出",
+            "消火器の設置位置の遮蔽を検出",
+            "禁煙エリアでの喫煙を検出",
+        ],
+        "sample_fps": 0.5,
+        "severity_threshold": "critical",
+    },
+    {
+        "id": "office_security",
+        "name": "オフィスセキュリティ",
+        "description": "オフィス・施設向けのセキュリティルールセット",
+        "rules": [
+            "IDカード未着用の人物を検出",
+            "許可なき立入エリアへのアクセスを検出",
+            "機密書類の放置を検出",
+        ],
+        "sample_fps": 0.5,
+        "severity_threshold": "warning",
+    },
+]
 
 
 def _get_repo(request: Request) -> VigilRepository:
@@ -68,6 +134,8 @@ def _row_to_event(row: dict) -> ViolationEvent:
             else None
         ),
         created_at=row["created_at"],
+        acknowledged_at=row.get("acknowledged_at"),
+        acknowledged_by=row.get("acknowledged_by"),
     )
 
 
@@ -418,6 +486,26 @@ def build_vigil_router() -> APIRouter:
         rows = await run_in_threadpool(repo.list_events, session_id)
         return [_row_to_event(r) for r in rows]
 
+    @router.patch(
+        "/events/{event_id}/acknowledge",
+        summary="違反イベントを確認済みにする",
+    )
+    async def acknowledge_event(
+        event_id: int,
+        body: AcknowledgeRequest,
+        request: Request,
+    ) -> dict:
+        """Mark a violation event as acknowledged by an operator."""
+        repo = _get_repo(request)
+        updated = await run_in_threadpool(repo.acknowledge_event, event_id, body.acknowledged_by)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Event not found")
+        return {
+            "event_id": event_id,
+            "acknowledged": True,
+            "acknowledged_by": body.acknowledged_by,
+        }
+
     @router.get("/events/{event_id}/frame", summary="違反フレーム画像取得（bbox描画対応）")
     async def get_frame(
         event_id: int,
@@ -605,5 +693,16 @@ def build_vigil_router() -> APIRouter:
             media_type="text/event-stream",
             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
         )
+
+    # ── Templates ─────────────────────────────────────────────────────────────
+
+    @router.get(
+        "/templates",
+        summary="セッションテンプレート一覧",
+        response_model=list[SessionTemplate],
+    )
+    async def list_templates() -> list[SessionTemplate]:
+        """Return predefined rule-set templates for common surveillance scenarios."""
+        return [SessionTemplate(**t) for t in _VIGIL_TEMPLATES]
 
     return router

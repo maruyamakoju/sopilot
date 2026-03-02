@@ -1045,6 +1045,10 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
         <div class="panel-title">新規セッション</div>
         <div style="display:flex;flex-direction:column;gap:6px">
           <input id="vigilNewName" placeholder="セッション名 (例: 玄関カメラ)" style="font-size:12px"/>
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <label style="font-size:0.8rem;color:#aaa;">監視ルール（1行1ルール）</label>
+            <a href="#" onclick="showVigilTemplates(event)" style="font-size:0.75rem;color:#4fc3f7;text-decoration:none;">📋 テンプレートから選択</a>
+          </div>
           <textarea id="vigilNewRules" rows="3"
             style="background:rgba(30,41,59,.6);border:1px solid var(--glass-border);border-radius:8px;padding:7px 10px;color:var(--text);font:inherit;font-size:11px;resize:vertical;outline:none;min-height:60px;transition:all .2s"
             placeholder="ルール (1行1件)&#10;例: ヘルメット未着用&#10;例: 立入禁止エリア侵入"></textarea>
@@ -4390,6 +4394,9 @@ async function renderVigilDetail(session){
                 <span style="font-size:12px;font-weight:700;color:var(--accent-b)">${vigilFormatTs(ev.timestamp_sec)}</span>
                 <span style="font-size:10px;color:var(--muted)">Frame ${ev.frame_number}</span>
                 <span class="vigil-status-badge sev-${maxSev}">${vigilSevLabel(maxSev)}</span>
+                ${ev.acknowledged_at
+                  ?`<span style="font-size:0.72rem;background:#0a2a1a;color:#4ade80;border:1px solid #2d6a4f;border-radius:4px;padding:2px 8px;">✓ 確認済み</span>`
+                  :`<button onclick="acknowledgeVigilEvent(${ev.event_id})" style="font-size:0.72rem;background:#1a3a2a;color:#4ade80;border:1px solid #2d6a4f;border-radius:4px;padding:2px 8px;cursor:pointer;">確認</button>`}
               </div>
               <div style="display:flex;flex-direction:column;gap:6px">
                 ${ev.violations.map(v=>`
@@ -4576,6 +4583,100 @@ function closeVigilLightbox(){
   const lb=$("vigilLightbox");
   lb.classList.remove("active");
   lb.querySelector("img").src="";
+}
+
+// ── VIGIL: Violation Acknowledgment ──
+async function acknowledgeVigilEvent(eventId){
+  if(!currentVigilSession)return;
+  try{
+    const r=await fetch(`/vigil/events/${eventId}/acknowledge`,{
+      method:"PATCH",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({acknowledged_by:"operator"}),
+    });
+    if(r.ok){
+      loadVigilSession(currentVigilSession);
+    }
+  }catch(e){console.error("acknowledge failed",e);}
+}
+
+// Helper: re-select the current vigil session (refresh detail view)
+async function loadVigilSession(sessionId){
+  try{
+    const session=await api(`/vigil/sessions/${sessionId}`);
+    _vigilActiveSession=session;
+    renderVigilSessionList();
+    await renderVigilDetail(session);
+  }catch(e){console.warn("loadVigilSession",e);}
+}
+
+// ── VIGIL: Session Template Picker ──
+async function showVigilTemplates(e){
+  e.preventDefault();
+  let templates;
+  try{
+    const r=await fetch("/vigil/templates");
+    if(!r.ok)return;
+    templates=await r.json();
+  }catch(e){console.warn("showVigilTemplates",e);return;}
+
+  const existing=document.getElementById("vigilTemplateModal");
+  if(existing)existing.remove();
+
+  const modal=document.createElement("div");
+  modal.id="vigilTemplateModal";
+  modal.style.cssText=`
+    position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);
+    background:#1a1a2e;border:1px solid #333;border-radius:8px;
+    padding:16px;z-index:10000;width:380px;max-width:90vw;
+    box-shadow:0 8px 32px rgba(0,0,0,0.6);
+  `;
+
+  modal.innerHTML=`
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <h4 style="margin:0;color:#e0e0e0;font-size:0.9rem;">テンプレートを選択</h4>
+      <button onclick="document.getElementById('vigilTemplateModal').remove()"
+              style="background:none;border:none;color:#888;font-size:1.2rem;cursor:pointer;">×</button>
+    </div>
+    ${templates.map(t=>`
+      <div onclick="applyVigilTemplate(${JSON.stringify(t).replace(/"/g,"&quot;")})"
+           style="padding:8px 10px;margin-bottom:6px;border:1px solid #333;border-radius:6px;
+                  cursor:pointer;transition:background 0.15s;"
+           onmouseover="this.style.background='#252540'"
+           onmouseout="this.style.background='transparent'">
+        <div style="font-size:0.85rem;color:#e0e0e0;font-weight:500;">${t.name}</div>
+        <div style="font-size:0.75rem;color:#888;margin-top:2px;">${t.description}</div>
+        <div style="font-size:0.72rem;color:#4fc3f7;margin-top:3px;">${t.rules.length}ルール • ${t.sample_fps}fps • ${t.severity_threshold}</div>
+      </div>
+    `).join("")}
+  `;
+  document.body.appendChild(modal);
+
+  setTimeout(()=>{
+    document.addEventListener("click",function closeModal(ev){
+      if(!modal.contains(ev.target)){
+        modal.remove();
+        document.removeEventListener("click",closeModal);
+      }
+    });
+  },100);
+}
+
+function applyVigilTemplate(template){
+  const rulesEl=document.getElementById("vigilNewRules");
+  if(rulesEl)rulesEl.value=template.rules.join("\n");
+
+  const fpsEl=document.getElementById("vigilNewFps");
+  if(fpsEl)fpsEl.value=template.sample_fps;
+
+  const sevEl=document.getElementById("vigilNewThreshold");
+  if(sevEl)sevEl.value=template.severity_threshold;
+
+  const nameEl=document.getElementById("vigilNewName");
+  if(nameEl&&!nameEl.value.trim())nameEl.value=template.name;
+
+  const modal=document.getElementById("vigilTemplateModal");
+  if(modal)modal.remove();
 }
 </script>
 

@@ -152,6 +152,8 @@ class VigilRepository:
         for row in rows:
             d = dict(row)
             d["violations"] = json.loads(d.pop("violations_json"))
+            d.setdefault("acknowledged_at", None)
+            d.setdefault("acknowledged_by", None)
             result.append(d)
         return result
 
@@ -164,7 +166,19 @@ class VigilRepository:
             return None
         d = dict(row)
         d["violations"] = json.loads(d.pop("violations_json"))
+        d.setdefault("acknowledged_at", None)
+        d.setdefault("acknowledged_by", None)
         return d
+
+    def acknowledge_event(self, event_id: int, acknowledged_by: str) -> bool:
+        """Mark a violation event as acknowledged. Returns True if found and updated."""
+        now = datetime.now(UTC).isoformat()
+        with self._connect() as conn:
+            cur = conn.execute(
+                "UPDATE vigil_events SET acknowledged_at = ?, acknowledged_by = ? WHERE id = ?",
+                (now, acknowledged_by, event_id),
+            )
+            return cur.rowcount > 0
 
     def list_events_since(self, session_id: int, after_id: int) -> list[dict]:
         with self._connect() as conn:

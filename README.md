@@ -1,6 +1,6 @@
 ![Version](https://img.shields.io/badge/version-1.2.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11+-green)
-![Tests](https://img.shields.io/badge/tests-1021%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-1036%20passed-brightgreen)
 ![License](https://img.shields.io/badge/license-proprietary-red)
 
 # SOPilot / VigilPilot

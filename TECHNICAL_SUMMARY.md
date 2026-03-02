@@ -200,7 +200,7 @@ Full OpenAPI spec at `http://localhost:8000/docs` (Swagger UI) or `/redoc`.
 - **Reliability:** Score job retry (2 attempts), webhook notification with exponential backoff
 - **Security:** CORS allowlist, `X-Request-ID` correlation, non-root container user (uid 1000)
 - **Audit log:** Structured JSON events for video deletion, job creation, completion, reviews
-- **Test coverage:** 1,021 automated tests (unit + integration + property-based + concurrency)
+- **Test coverage:** 1,036 automated tests (unit + integration + property-based + concurrency)
 
 ---
 

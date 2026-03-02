@@ -50,6 +50,8 @@ class ViolationEvent(BaseModel):
     violations: list[ViolationDetail]
     frame_url: str | None = None
     created_at: str
+    acknowledged_at: str | None = None
+    acknowledged_by: str | None = None
 
 
 class SessionResponse(BaseModel):
@@ -108,6 +110,19 @@ class WebcamFrameResult(BaseModel):
 class WebhookRequest(BaseModel):
     url: str = Field(..., description="Webhook URL (https://...)")
     min_severity: str = Field(default="warning", pattern="^(info|warning|critical)$")
+
+
+class AcknowledgeRequest(BaseModel):
+    acknowledged_by: str = Field(default="operator", description="確認者IDまたは名前")
+
+
+class SessionTemplate(BaseModel):
+    id: str
+    name: str
+    description: str
+    rules: list[str]
+    sample_fps: float
+    severity_threshold: str
 
 
 class VLMResult(BaseModel):

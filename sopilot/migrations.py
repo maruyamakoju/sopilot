@@ -100,6 +100,14 @@ MIGRATIONS: list[Migration] = [
         ALTER TABLE vigil_sessions ADD COLUMN webhook_min_severity TEXT DEFAULT 'warning';
         """,
     ),
+    Migration(
+        version=7,
+        description="VigilPilot: add acknowledged_at and acknowledged_by to vigil_events",
+        sql="""
+        ALTER TABLE vigil_events ADD COLUMN acknowledged_at TEXT;
+        ALTER TABLE vigil_events ADD COLUMN acknowledged_by TEXT;
+        """,
+    ),
 ]
 
 

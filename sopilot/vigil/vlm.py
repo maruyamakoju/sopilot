@@ -11,6 +11,7 @@ import json
 import logging
 import os
 import re
+import threading
 from pathlib import Path
 
 import httpx
@@ -79,6 +80,14 @@ class VLMClient:
 
     def analyze_frame(self, frame_path: Path, rules: list[str]) -> VLMResult:
         raise NotImplementedError
+
+    def reset_session(self) -> None:
+        """Reset any internal state between analysis sessions.
+
+        Stateless backends (Claude, Qwen3) are no-ops.  Stateful backends
+        (PerceptionVLMClient) must clear tracker / world-model state so that
+        tracking identities from one video do not bleed into the next.
+        """
 
     def close(self) -> None:
         pass
@@ -366,20 +375,41 @@ class PerceptionVLMClient(VLMClient):
     tracking, scene graph construction, and hybrid reasoning.
 
     Falls back to VLM API for complex cases where local reasoning is uncertain.
+
+    **Session isolation**: Call :meth:`reset_session` before each new video /
+    stream analysis so that tracker identities and world-model state from one
+    session do not contaminate the next.  The VigilPipeline calls this
+    automatically at the start of ``_run()`` and ``_stream_worker()``.
     """
 
     def __init__(self, config: object = None, vlm_fallback: VLMClient | None = None) -> None:
         from sopilot.perception.engine import build_perception_engine
 
         self._vlm_fallback = vlm_fallback
+        self._config = config
         self._engine = build_perception_engine(
             config=config, vlm_client=vlm_fallback,
         )
         self._frame_number = 0
+        # Guard concurrent access to the stateful engine from multiple
+        # pipeline threads (video + webcam can overlap).
+        self._lock = threading.Lock()
         logger.info(
             "PerceptionVLMClient initialized: fallback=%s",
             type(vlm_fallback).__name__ if vlm_fallback else "None",
         )
+
+    def reset_session(self) -> None:
+        """Reset perception engine state between analysis sessions.
+
+        Clears the tracker identity pool, world model temporal state, and the
+        internal frame counter so that a new video analysis starts with a clean
+        slate.
+        """
+        with self._lock:
+            self._engine.reset()
+            self._frame_number = 0
+            logger.info("PerceptionVLMClient session reset")
 
     def analyze_frame(self, frame_path: Path, rules: list[str]) -> VLMResult:
         try:
@@ -398,10 +428,11 @@ class PerceptionVLMClient(VLMClient):
             logger.warning("Failed to read frame: %s", frame_path)
             return VLMResult(has_violation=False, violations=[], raw_text=f"failed to read {frame_path}")
 
-        self._frame_number += 1
-        timestamp = self._frame_number / 1.0  # synthetic timestamp
+        with self._lock:
+            self._frame_number += 1
+            timestamp = self._frame_number / 1.0  # synthetic timestamp
 
-        result = self._engine.process_frame(frame, timestamp, self._frame_number, rules)
+            result = self._engine.process_frame(frame, timestamp, self._frame_number, rules)
 
         # Convert FrameResult.violations → VLMResult violation dicts
         violations: list[dict] = []

@@ -1,6 +1,6 @@
 # SOPilot — Technical Summary
 
-**Version:** v1.2.0 (1,036 tests)
+**Version:** v1.3.0 (1,147 tests)
 **Date:** 2026-03-02
 **Evaluation dataset:** 3,507 scored video pairs (96-hour production run)
 
@@ -144,6 +144,43 @@ precision). The 21 FNs represent genuine near-threshold borderline cases.
 
 ---
 
+## Perception Engine (v1.3)
+
+The Perception Engine adds spatial-temporal scene understanding to VigilPilot. Instead of
+sending raw frames to a VLM for every check, it builds a structured world model from video
+and reasons over it — enabling multi-object tracking, inter-object rule evaluation, and
+hybrid local+VLM analysis.
+
+**Pipeline:** Frame --> Detect --> Track --> Scene Graph --> World Model --> Reason --> Events
+
+### Modules
+
+| Module | Role |
+|---|---|
+| **Frame Sampler** (`frame_sampler.py`) | Extracts frames from video/RTSP at configurable fps; feeds downstream pipeline |
+| **Detector** (`detector.py`) | Runs object detection on each frame; returns bounding boxes with class labels and confidence scores in normalized `[0,1]` coordinates |
+| **Tracker** (`tracker.py`) | ByteTrack-based multi-object tracker; assigns persistent IDs across frames, handles occlusion and re-identification |
+| **Scene Graph** (`scene_graph.py`) | Builds per-frame spatial relationship graph from detections (containment, proximity, relative position); uses normalized coordinates for resolution independence |
+| **World Model** (`world_model.py`) | Maintains temporal state across frames: object histories, zone occupancy, activity timelines; provides query interface for the reasoner |
+| **Reasoner** (`reasoner.py`) | Hybrid rule engine: evaluates spatial/temporal rules locally (no API call), escalates ambiguous or complex rules to VLM; parses rules in both Japanese and English |
+| **Mock Detector** (`mock_detector.py`) | Deterministic detection stub for testing without GPU; produces repeatable bounding boxes and class labels for the full pipeline |
+
+### Key Design Decisions
+
+- **Normalized coordinates** — all bounding boxes use `[0,1]` ranges, making rules resolution-independent and simplifying spatial reasoning
+- **ByteTrack tracking** — chosen for its balance of speed and accuracy; handles low-confidence detections gracefully via two-stage association
+- **Hybrid local+VLM reasoning** — simple spatial/temporal rules (e.g., "no person in zone A") are evaluated locally with zero API cost; only ambiguous or semantic rules are escalated to the VLM backend
+- **Japanese/English rule parsing** — the reasoner accepts natural-language rules in both languages, matching the existing bilingual UI pattern
+- **Mock detector for testing** — enables full pipeline integration tests (111 tests) without any GPU or model dependency
+
+### Metrics
+
+- ~5,200 lines of perception code across 7 modules
+- 111 dedicated tests (bringing project total from 1,036 to 1,147)
+- Enable via `VIGIL_VLM_BACKEND=perception`
+
+---
+
 ## Decision Logic
 
 ```
@@ -200,7 +237,7 @@ Full OpenAPI spec at `http://localhost:8000/docs` (Swagger UI) or `/redoc`.
 - **Reliability:** Score job retry (2 attempts), webhook notification with exponential backoff
 - **Security:** CORS allowlist, `X-Request-ID` correlation, non-root container user (uid 1000)
 - **Audit log:** Structured JSON events for video deletion, job creation, completion, reviews
-- **Test coverage:** 1,036 automated tests (unit + integration + property-based + concurrency)
+- **Test coverage:** 1,147 automated tests (unit + integration + property-based + concurrency)
 
 ---
 

@@ -163,6 +163,9 @@ class VigilPipeline:
         _SEVERITY_ORDER = {"info": 0, "warning": 1, "critical": 2}
         threshold_level = _SEVERITY_ORDER.get(severity_threshold, 1)
 
+        # Reset stateful VLM backends between sessions (see _run()).
+        self._vlm.reset_session()
+
         try:
             self._repo.update_session_status(
                 session_id,
@@ -244,6 +247,11 @@ class VigilPipeline:
         violation_count = 0
         _SEVERITY_ORDER = {"info": 0, "warning": 1, "critical": 2}
         threshold_level = _SEVERITY_ORDER.get(severity_threshold, 1)
+
+        # Reset stateful VLM backends (e.g. PerceptionVLMClient) so that
+        # tracker / world-model state from a previous session does not leak
+        # into this one.
+        self._vlm.reset_session()
 
         try:
             self._repo.update_session_status(

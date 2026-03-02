@@ -112,6 +112,49 @@ class WebhookRequest(BaseModel):
     min_severity: str = Field(default="warning", pattern="^(info|warning|critical)$")
 
 
+# ── Global webhook management schemas ──────────────────────────────────────
+
+
+class WebhookCreate(BaseModel):
+    """Request body for POST /vigil/webhooks."""
+
+    url: str = Field(..., description="Webhook URL — must start with http:// or https://")
+    name: str = Field(default="", description="Human-readable label for this webhook")
+    secret: str = Field(default="", description="Optional HMAC-SHA256 signing secret")
+    min_severity: str = Field(
+        default="critical",
+        pattern="^(info|warning|critical)$",
+        description="Minimum violation severity that triggers this webhook",
+    )
+
+
+class WebhookResponse(BaseModel):
+    """Response schema for a registered webhook."""
+
+    id: int
+    url: str
+    name: str
+    min_severity: str
+    enabled: bool
+    created_at: str
+    last_triggered_at: str | None
+    trigger_count: int
+
+
+class WebhookEnableRequest(BaseModel):
+    """Request body for PATCH /vigil/webhooks/{id}/enable."""
+
+    enabled: bool
+
+
+class WebhookTestResult(BaseModel):
+    """Result of a test delivery attempt."""
+
+    ok: bool
+    status_code: int | None = None
+    error: str | None = None
+
+
 class AcknowledgeRequest(BaseModel):
     acknowledged_by: str = Field(default="operator", description="確認者IDまたは名前")
 

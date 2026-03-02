@@ -26,6 +26,7 @@ from sopilot.vigil.perception_router import build_perception_router
 from sopilot.vigil.pipeline import VigilPipeline
 from sopilot.vigil.repository import VigilRepository
 from sopilot.vigil.vlm import build_vlm_client
+from sopilot.vigil.webhook_repository import WebhookRepository as GlobalWebhookRepository
 
 logger = logging.getLogger(__name__)
 
@@ -112,6 +113,7 @@ def create_app() -> FastAPI:
     app.add_middleware(CorrelationIDMiddleware)
     # VigilPilot — surveillance camera violation detection
     vigil_repo = VigilRepository(settings.database_path)
+    vigil_webhook_repo = GlobalWebhookRepository(settings.database_path)
     vigil_vlm_backend = os.environ.get("VIGIL_VLM_BACKEND", "claude")
     vigil_vlm_key = os.environ.get("VIGIL_VLM_API_KEY") or os.environ.get("ANTHROPIC_API_KEY", "")
     vigil_frames_root = Path(settings.data_dir) / "vigil_frames"
@@ -122,13 +124,19 @@ def create_app() -> FastAPI:
         vigil_vlm = build_vlm_client(backend=vigil_vlm_backend, api_key=vigil_vlm_key)
     else:
         vigil_vlm = build_vlm_client(backend=vigil_vlm_backend, api_key="not-configured")  # will fail gracefully at analysis time
-    vigil_pipeline = VigilPipeline(repo=vigil_repo, vlm=vigil_vlm, frames_root=vigil_frames_root)
+    vigil_pipeline = VigilPipeline(
+        repo=vigil_repo,
+        vlm=vigil_vlm,
+        frames_root=vigil_frames_root,
+        webhook_repo=vigil_webhook_repo,
+    )
 
     app.state.sopilot_service = service
     app.state.score_queue = queue
     app.state.settings = settings
     app.state.embedder = embedder
     app.state.vigil_repo = vigil_repo
+    app.state.vigil_webhook_repo = vigil_webhook_repo
     app.state.vigil_pipeline = vigil_pipeline
     app.include_router(build_vigil_router())
     app.include_router(build_perception_router())

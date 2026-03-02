@@ -24,9 +24,15 @@ from sopilot.vigil.schemas import (
     ViolationDetail,
     ViolationEvent,
     WebcamFrameResult,
+    WebhookCreate,
+    WebhookEnableRequest,
     WebhookRequest,
+    WebhookResponse,
+    WebhookTestResult,
 )
 from sopilot.vigil.vlm import build_vlm_client
+from sopilot.vigil.webhook_dispatcher import WebhookDispatcher
+from sopilot.vigil.webhook_repository import WebhookRepository as GlobalWebhookRepository
 
 logger = logging.getLogger(__name__)
 
@@ -103,6 +109,26 @@ def _get_repo(request: Request) -> VigilRepository:
 
 def _get_pipeline(request: Request) -> VigilPipeline:
     return request.app.state.vigil_pipeline  # type: ignore[no-any-return]
+
+
+def _get_webhook_repo(request: Request) -> GlobalWebhookRepository:
+    return request.app.state.vigil_webhook_repo  # type: ignore[no-any-return]
+
+
+_webhook_dispatcher = WebhookDispatcher()
+
+
+def _row_to_webhook(row: dict) -> WebhookResponse:
+    return WebhookResponse(
+        id=row["id"],
+        url=row["url"],
+        name=row["name"] or "",
+        min_severity=row["min_severity"],
+        enabled=bool(row["enabled"]),
+        created_at=row["created_at"],
+        last_triggered_at=row.get("last_triggered_at"),
+        trigger_count=int(row["trigger_count"] or 0),
+    )
 
 
 def _row_to_session(row: dict) -> SessionResponse:
@@ -503,6 +529,102 @@ def build_vigil_router() -> APIRouter:
         logger.info("Perception session reset for vigil session %d", session_id)
         return {"ok": True, "session_id": session_id}
 
+    # ── PPE Status ────────────────────────────────────────────────────────────
+
+    @router.get(
+        "/sessions/{session_id}/ppe-status",
+        summary="PPEステータス取得（PerceptionエンジンのポーズAI使用時）",
+    )
+    async def get_ppe_status(session_id: int, request: Request) -> dict:
+        """Get the latest per-person PPE compliance status for this session.
+
+        Only meaningful when the VLM backend is ``perception`` with pose
+        estimation enabled.  For all other backends the response will have
+        ``pose_enabled=False`` and an empty ``persons`` list.
+        """
+        repo = _get_repo(request)
+        row = await run_in_threadpool(repo.get_session, session_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        pipeline = _get_pipeline(request)
+        vlm = pipeline._vlm
+
+        # Only PerceptionVLMClient exposes pose results
+        if not hasattr(vlm, "get_pose_results"):
+            return {
+                "session_id": session_id,
+                "pose_enabled": False,
+                "persons": [],
+                "summary": {"total_persons": 0, "helmets_ok": 0, "vests_ok": 0},
+            }
+
+        pose_results = await run_in_threadpool(vlm.get_pose_results)
+
+        persons = []
+        for idx, pr in enumerate(pose_results):
+            persons.append({
+                "index": idx,
+                "has_helmet": pr.ppe.has_helmet,
+                "helmet_confidence": round(pr.ppe.helmet_confidence, 4),
+                "has_vest": pr.ppe.has_vest,
+                "vest_confidence": round(pr.ppe.vest_confidence, 4),
+                "pose_confidence": round(pr.pose_confidence, 4),
+            })
+
+        helmets_ok = sum(1 for p in persons if p["has_helmet"])
+        vests_ok = sum(1 for p in persons if p["has_vest"])
+
+        # Determine whether pose is enabled on the underlying engine
+        pose_enabled = False
+        if hasattr(vlm, "_engine") and hasattr(vlm._engine, "_config"):
+            pose_enabled = bool(getattr(vlm._engine._config, "pose_enabled", False))
+        elif hasattr(vlm, "_engine") and getattr(vlm._engine, "_pose_estimator", None) is not None:
+            pose_enabled = True
+
+        return {
+            "session_id": session_id,
+            "pose_enabled": pose_enabled,
+            "persons": persons,
+            "summary": {
+                "total_persons": len(persons),
+                "helmets_ok": helmets_ok,
+                "vests_ok": vests_ok,
+            },
+        }
+
+    @router.post(
+        "/sessions/{session_id}/pose-enable",
+        summary="ポーズ推定の有効/無効を切替（Perceptionエンジンのみ）",
+    )
+    async def enable_pose_for_session(
+        session_id: int,
+        request: Request,
+        enabled: bool = True,
+    ) -> dict:
+        """Enable or disable PoseEstimator on the pipeline VLM client.
+
+        No-op (returns ``ok=True``) for non-perception backends so the UI can
+        call this unconditionally without error handling.
+        """
+        repo = _get_repo(request)
+        row = await run_in_threadpool(repo.get_session, session_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Session not found")
+
+        pipeline = _get_pipeline(request)
+        vlm = pipeline._vlm
+
+        if hasattr(vlm, "set_pose_enabled"):
+            await run_in_threadpool(vlm.set_pose_enabled, enabled)
+            logger.info(
+                "Pose estimation %s for vigil session %d",
+                "enabled" if enabled else "disabled",
+                session_id,
+            )
+
+        return {"ok": True, "session_id": session_id, "pose_enabled": enabled}
+
     # ── Events ────────────────────────────────────────────────────────────
 
     @router.get(
@@ -733,5 +855,95 @@ def build_vigil_router() -> APIRouter:
     async def list_templates() -> list[SessionTemplate]:
         """Return predefined rule-set templates for common surveillance scenarios."""
         return [SessionTemplate(**t) for t in _VIGIL_TEMPLATES]
+
+    # ── Global webhook management ──────────────────────────────────────────────
+
+    @router.post(
+        "/webhooks",
+        summary="Webhookを登録",
+        response_model=WebhookResponse,
+        status_code=201,
+    )
+    async def create_global_webhook(body: WebhookCreate, request: Request) -> WebhookResponse:
+        """Register a new global webhook for violation alert delivery."""
+        if not body.url.startswith(("http://", "https://")):
+            raise HTTPException(
+                status_code=422,
+                detail="url must start with http:// or https://",
+            )
+        wh_repo = _get_webhook_repo(request)
+        row = await run_in_threadpool(
+            wh_repo.create, body.url, body.name, body.secret, body.min_severity
+        )
+        return _row_to_webhook(row)
+
+    @router.get(
+        "/webhooks",
+        summary="Webhook一覧",
+        response_model=list[WebhookResponse],
+    )
+    async def list_global_webhooks(request: Request) -> list[WebhookResponse]:
+        """Return all registered global webhooks."""
+        wh_repo = _get_webhook_repo(request)
+        rows = await run_in_threadpool(wh_repo.list_all)
+        return [_row_to_webhook(r) for r in rows]
+
+    @router.get(
+        "/webhooks/{webhook_id}",
+        summary="Webhook詳細",
+        response_model=WebhookResponse,
+    )
+    async def get_global_webhook(webhook_id: int, request: Request) -> WebhookResponse:
+        """Return a single registered webhook by ID."""
+        wh_repo = _get_webhook_repo(request)
+        row = await run_in_threadpool(wh_repo.get, webhook_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Webhook not found")
+        return _row_to_webhook(row)
+
+    @router.delete(
+        "/webhooks/{webhook_id}",
+        summary="Webhookを削除",
+        status_code=204,
+    )
+    async def delete_global_webhook(webhook_id: int, request: Request) -> Response:
+        """Delete a registered webhook by ID."""
+        wh_repo = _get_webhook_repo(request)
+        deleted = await run_in_threadpool(wh_repo.delete, webhook_id)
+        if not deleted:
+            raise HTTPException(status_code=404, detail="Webhook not found")
+        return Response(status_code=204)
+
+    @router.patch(
+        "/webhooks/{webhook_id}/enable",
+        summary="Webhookを有効/無効化",
+        response_model=WebhookResponse,
+    )
+    async def toggle_global_webhook(
+        webhook_id: int,
+        body: WebhookEnableRequest,
+        request: Request,
+    ) -> WebhookResponse:
+        """Enable or disable a webhook without deleting it."""
+        wh_repo = _get_webhook_repo(request)
+        updated = await run_in_threadpool(wh_repo.update_enabled, webhook_id, body.enabled)
+        if not updated:
+            raise HTTPException(status_code=404, detail="Webhook not found")
+        row = await run_in_threadpool(wh_repo.get, webhook_id)
+        return _row_to_webhook(row)  # type: ignore[arg-type]
+
+    @router.post(
+        "/webhooks/{webhook_id}/test",
+        summary="Webhookテスト送信",
+        response_model=WebhookTestResult,
+    )
+    async def test_global_webhook(webhook_id: int, request: Request) -> WebhookTestResult:
+        """Send a test payload to a registered webhook and return the result."""
+        wh_repo = _get_webhook_repo(request)
+        row = await run_in_threadpool(wh_repo.get, webhook_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Webhook not found")
+        result = await run_in_threadpool(_webhook_dispatcher.test_webhook, row)
+        return WebhookTestResult(**result)
 
     return router

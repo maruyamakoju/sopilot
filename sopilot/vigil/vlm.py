@@ -391,6 +391,8 @@ class PerceptionVLMClient(VLMClient):
             config=config, vlm_client=vlm_fallback,
         )
         self._frame_number = 0
+        # Thread-safe store for the most recent pose results
+        self._last_pose_results: list = []
         # Guard concurrent access to the stateful engine from multiple
         # pipeline threads (video + webcam can overlap).
         self._lock = threading.Lock()
@@ -434,6 +436,10 @@ class PerceptionVLMClient(VLMClient):
 
             result = self._engine.process_frame(frame, timestamp, self._frame_number, rules)
 
+            # Cache the latest pose results for the PPE status endpoint
+            if hasattr(result, "pose_results"):
+                self._last_pose_results = list(result.pose_results)
+
         # Convert FrameResult.violations → VLMResult violation dicts
         violations: list[dict] = []
         raw_parts: list[str] = []
@@ -471,6 +477,57 @@ class PerceptionVLMClient(VLMClient):
             violations=violations,
             raw_text=raw_text,
         )
+
+    def get_pose_results(self) -> list:
+        """Return the most recent pose results (list[PoseResult]) thread-safely.
+
+        Returns an empty list if pose estimation is disabled or no frame has
+        been processed yet.
+        """
+        with self._lock:
+            return list(self._last_pose_results)
+
+    def set_pose_enabled(self, enabled: bool) -> None:
+        """Enable or disable pose estimation on the underlying perception engine.
+
+        Modifies ``self._engine._config.pose_enabled`` and, if the engine
+        already has a ``_pose_estimator`` attribute, creates or releases it.
+        """
+        with self._lock:
+            if hasattr(self._engine, "_config"):
+                self._engine._config.pose_enabled = enabled
+
+            if enabled:
+                # Lazily create the PoseEstimator on the engine if missing
+                if not getattr(self._engine, "_pose_estimator", None):
+                    try:
+                        from sopilot.perception.pose import PoseEstimator
+                        from sopilot.perception.types import PerceptionConfig
+
+                        cfg = getattr(self._engine, "_config", None)
+                        model_name = getattr(cfg, "pose_model", None) if cfg else None
+                        confidence = getattr(cfg, "pose_confidence_threshold", 0.4) if cfg else 0.4
+                        kp_conf = getattr(cfg, "pose_keypoint_confidence", 0.3) if cfg else 0.3
+                        estimator = PoseEstimator(
+                            model_name=model_name,
+                            confidence_threshold=confidence,
+                            keypoint_confidence=kp_conf,
+                        )
+                        self._engine._pose_estimator = estimator
+                        logger.info("PerceptionVLMClient: PoseEstimator created via set_pose_enabled(True)")
+                    except Exception:
+                        logger.exception("PerceptionVLMClient: failed to create PoseEstimator")
+            else:
+                # Release the pose estimator
+                estimator = getattr(self._engine, "_pose_estimator", None)
+                if estimator is not None:
+                    try:
+                        estimator.close()
+                    except Exception:
+                        pass
+                    self._engine._pose_estimator = None
+                    logger.info("PerceptionVLMClient: PoseEstimator released via set_pose_enabled(False)")
+                self._last_pose_results = []
 
     def close(self) -> None:
         self._engine.close()

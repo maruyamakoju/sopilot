@@ -108,6 +108,23 @@ MIGRATIONS: list[Migration] = [
         ALTER TABLE vigil_events ADD COLUMN acknowledged_by TEXT;
         """,
     ),
+    Migration(
+        version=8,
+        description="VigilPilot: add vigil_webhooks table for global webhook alert management",
+        sql="""
+        CREATE TABLE IF NOT EXISTS vigil_webhooks (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            url TEXT NOT NULL,
+            name TEXT NOT NULL DEFAULT '',
+            secret TEXT NOT NULL DEFAULT '',
+            min_severity TEXT NOT NULL DEFAULT 'critical',
+            enabled INTEGER NOT NULL DEFAULT 1,
+            created_at TEXT NOT NULL DEFAULT (datetime('now')),
+            last_triggered_at TEXT,
+            trigger_count INTEGER NOT NULL DEFAULT 0
+        );
+        """,
+    ),
 ]
 
 

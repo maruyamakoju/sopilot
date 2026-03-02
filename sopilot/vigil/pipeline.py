@@ -16,6 +16,7 @@ import httpx
 from sopilot.vigil.extractor import iter_frames, iter_frames_rtsp
 from sopilot.vigil.repository import VigilRepository
 from sopilot.vigil.vlm import VLMClient
+from sopilot.vigil.webhook_dispatcher import WebhookDispatcher
 
 logger = logging.getLogger(__name__)
 
@@ -64,12 +65,20 @@ def _fire_webhook(
 class VigilPipeline:
     """Background pipeline: video → frames → VLM → violation events."""
 
-    def __init__(self, repo: VigilRepository, vlm: VLMClient, frames_root: Path) -> None:
+    def __init__(
+        self,
+        repo: VigilRepository,
+        vlm: VLMClient,
+        frames_root: Path,
+        webhook_repo=None,  # WebhookRepository | None
+    ) -> None:
         self._repo = repo
         self._vlm = vlm
         self._frames_root = frames_root
         self._frames_root.mkdir(parents=True, exist_ok=True)
         self._stream_stop_events: dict[int, threading.Event] = {}
+        self._webhook_repo = webhook_repo
+        self._webhook_dispatcher = WebhookDispatcher() if webhook_repo is not None else None
 
     def analyze_async(
         self,
@@ -147,6 +156,49 @@ class VigilPipeline:
         logger.info("vigil session=%d RTSP stop requested", session_id)
         return True
 
+    # ── Global webhook dispatch ────────────────────────────────────────────
+
+    def _dispatch_global_webhooks(
+        self,
+        session_id: int,
+        event_id: int,
+        timestamp_sec: float,
+        violations: list[dict],
+    ) -> None:
+        """Dispatch violation to all registered global webhooks (fire-and-forget).
+
+        Called after each event is saved.  Silently no-ops if no webhook repo
+        or dispatcher is configured.
+        """
+        if self._webhook_repo is None or self._webhook_dispatcher is None:
+            return
+        try:
+            webhooks = self._webhook_repo.list_all()
+            if not webhooks:
+                return
+            # Use the highest severity among the violations in this event
+            from sopilot.vigil.webhook_dispatcher import SEVERITY_ORDER
+            top_sev = max(
+                violations,
+                key=lambda v: SEVERITY_ORDER.get(v.get("severity", "info"), 0),
+                default=None,
+            )
+            severity = top_sev.get("severity", "warning") if top_sev else "warning"
+            from datetime import UTC, datetime
+            payload = {
+                "event": "violation",
+                "session_id": session_id,
+                "event_id": event_id,
+                "severity": severity,
+                "timestamp_sec": timestamp_sec,
+                "violations": violations,
+                "timestamp": datetime.now(UTC).isoformat(),
+                "source": "sopilot-vigil",
+            }
+            self._webhook_dispatcher.dispatch_violation(payload, webhooks, self._webhook_repo)
+        except Exception:
+            logger.exception("global webhook dispatch failed for session=%d", session_id)
+
     def _stream_worker(
         self,
         session_id: int,
@@ -209,6 +261,9 @@ class VigilPipeline:
                             session_id, frame_num, ts_sec, len(filtered),
                         )
                         _fire_webhook(self._repo, session_id, event_id, ts_sec, filtered)
+                        self._dispatch_global_webhooks(
+                            session_id, event_id, ts_sec, filtered
+                        )
 
             self._repo.update_session_status(
                 session_id,
@@ -292,6 +347,9 @@ class VigilPipeline:
                             session_id, frame_num, ts_sec, len(filtered),
                         )
                         _fire_webhook(self._repo, session_id, event_id, ts_sec, filtered)
+                        self._dispatch_global_webhooks(
+                            session_id, event_id, ts_sec, filtered
+                        )
 
             self._repo.update_session_status(
                 session_id,

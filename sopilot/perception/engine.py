@@ -229,6 +229,15 @@ class PerceptionEngine:
         self._action_executor = None
         self._fusion_engine = None
 
+        # Phase 8: Depth + Spatial + Adaptive + Attention + Scene
+        self._depth_estimator = None
+        self._spatial_map = None
+        self._adaptive_learner = None
+        self._attention_broker = None
+        self._scene_understanding = None
+        self._last_depth_estimates: list = []
+        self._last_scene_analysis = None
+
         # Pose estimation (optional, opt-in via config.pose_enabled)
         self._pose_estimator: Any | None = pose_estimator
 
@@ -294,6 +303,16 @@ class PerceptionEngine:
             prompts = self._get_detection_prompts(rules)
             detections = self._run_detection(frame, prompts)
             timings["detection_ms"] = (time.perf_counter() - t_stage) * 1000
+
+            # ── Stage 1b: Monocular depth estimation ──────────────
+            if self._depth_estimator is not None and detections:
+                try:
+                    self._last_depth_estimates = self._depth_estimator.estimate(detections)
+                except Exception:
+                    logger.debug("Depth estimation failed", exc_info=True)
+                    self._last_depth_estimates = []
+            else:
+                self._last_depth_estimates = []
 
             # ── Stage 2: Track objects ────────────────────────────
             t_stage = time.perf_counter()
@@ -368,6 +387,24 @@ class PerceptionEngine:
                 world_state.events.extend(nl_events)
             timings["nl_task_ms"] = (time.perf_counter() - t_stage) * 1000
 
+            # ── Stage 4j: Spatial map update ──────────────────────
+            if self._spatial_map is not None:
+                try:
+                    self._spatial_map.update(
+                        world_state, self._last_depth_estimates, timestamp
+                    )
+                except Exception:
+                    logger.debug("Spatial map update failed", exc_info=True)
+
+            # ── Stage 4k: Scene understanding ─────────────────────
+            if self._scene_understanding is not None:
+                try:
+                    self._last_scene_analysis = self._scene_understanding.analyze(
+                        world_state, self._spatial_map, frame_number
+                    )
+                except Exception:
+                    logger.debug("Scene understanding failed", exc_info=True)
+
             # ── Stage 5: Evaluate rules (hybrid reasoning) ────────
             t_stage = time.perf_counter()
             violations = self._reasoner.evaluate_rules(
@@ -407,6 +444,16 @@ class PerceptionEngine:
                     self._fusion_engine.fuse_with_visual(world_state)
                 except Exception:
                     logger.debug("Multimodal fusion failed", exc_info=True)
+
+            # ── Stage 6g: Adaptive learner (concept drift) ────────
+            if self._adaptive_learner is not None and world_state.events:
+                try:
+                    for _ev in world_state.events:
+                        if hasattr(_ev.event_type, "name") and _ev.event_type.name == "ANOMALY":
+                            _score = float(_ev.details.get("z_score", 0.0))
+                            self._adaptive_learner.observe(_score, timestamp)
+                except Exception:
+                    logger.debug("Adaptive learner failed", exc_info=True)
 
             # ── Stage 7: Pose estimation + PPE check (opt-in) ─────
             t_stage = time.perf_counter()
@@ -714,6 +761,46 @@ class PerceptionEngine:
             return None
         try:
             return self._fusion_engine.get_state_dict()
+        except Exception:
+            return None
+
+    def get_depth_estimates(self) -> list:
+        """Return depth estimates from the most recent frame."""
+        return list(self._last_depth_estimates)
+
+    def get_spatial_state(self) -> dict | None:
+        """Return spatial map state dict, or None if not initialized."""
+        if self._spatial_map is None:
+            return None
+        try:
+            return self._spatial_map.get_state_dict()
+        except Exception:
+            return None
+
+    def get_adaptive_state(self) -> dict | None:
+        """Return adaptive learner state dict, or None if not initialized."""
+        if self._adaptive_learner is None:
+            return None
+        try:
+            return self._adaptive_learner.get_state_dict()
+        except Exception:
+            return None
+
+    def get_attention_state(self) -> dict | None:
+        """Return attention broker state dict, or None if not initialized."""
+        if self._attention_broker is None:
+            return None
+        try:
+            return self._attention_broker.get_state_dict()
+        except Exception:
+            return None
+
+    def get_scene_state(self) -> dict | None:
+        """Return latest scene understanding state dict, or None if not initialized."""
+        if self._scene_understanding is None:
+            return None
+        try:
+            return self._scene_understanding.get_state_dict()
         except Exception:
             return None
 
@@ -1890,5 +1977,57 @@ def build_perception_engine(
         logger.debug("Multimodal fusion module not available")
     except Exception:
         logger.exception("Failed to initialize multimodal fusion engine")
+
+    # ── Build Phase 8 components ──────────────────────────────────────
+    try:
+        from sopilot.perception.depth import MonocularDepthEstimator
+        engine._depth_estimator = MonocularDepthEstimator()
+        logger.info("MonocularDepthEstimator initialized")
+    except ImportError:
+        logger.debug("Depth estimation module not available")
+    except Exception:
+        logger.exception("Failed to initialize depth estimator")
+
+    try:
+        from sopilot.perception.spatial_map import SpatialMap
+        engine._spatial_map = SpatialMap()
+        logger.info("SpatialMap initialized")
+    except ImportError:
+        logger.debug("Spatial map module not available")
+    except Exception:
+        logger.exception("Failed to initialize spatial map")
+
+    try:
+        from sopilot.perception.adaptive_learner import AdaptiveLearner
+        _anomaly_ensemble = getattr(
+            getattr(engine, "_world_model", None), "_anomaly_ensemble", None
+        )
+        engine._adaptive_learner = AdaptiveLearner(ensemble=_anomaly_ensemble)
+        logger.info("AdaptiveLearner initialized")
+    except ImportError:
+        logger.debug("Adaptive learner module not available")
+    except Exception:
+        logger.exception("Failed to initialize adaptive learner")
+
+    try:
+        from sopilot.perception.attention_broker import AttentionBroker
+        engine._attention_broker = AttentionBroker(
+            global_cpm=config.vlm_max_calls_per_minute * 3,
+            session_cpm=config.vlm_max_calls_per_minute,
+        )
+        logger.info("AttentionBroker initialized")
+    except ImportError:
+        logger.debug("Attention broker module not available")
+    except Exception:
+        logger.exception("Failed to initialize attention broker")
+
+    try:
+        from sopilot.perception.scene_understanding import SceneUnderstanding
+        engine._scene_understanding = SceneUnderstanding()
+        logger.info("SceneUnderstanding initialized")
+    except ImportError:
+        logger.debug("Scene understanding module not available")
+    except Exception:
+        logger.exception("Failed to initialize scene understanding")
 
     return engine

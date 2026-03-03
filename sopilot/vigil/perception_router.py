@@ -1403,4 +1403,111 @@ def build_perception_router() -> APIRouter:
 
         return await run_in_threadpool(_get)
 
+    # ── Phase 8: Depth Estimation ───────────────────────────────────────────
+
+    @router.get("/depth")
+    async def get_depth_estimates(request: Request) -> dict:
+        """直近フレームのエンティティ深度推定結果。"""
+        engine = _get_perception_engine(request)
+
+        def _get():
+            estimates = engine.get_depth_estimates()
+            return {
+                "estimates": [e.to_dict() if hasattr(e, "to_dict") else vars(e) for e in estimates],
+                "count": len(estimates),
+            }
+
+        return await run_in_threadpool(_get)
+
+    # ── Phase 8: Spatial Map ────────────────────────────────────────────────
+
+    @router.get("/spatial-map")
+    async def get_spatial_map(request: Request) -> dict:
+        """空間占有グリッドの現在状態。"""
+        engine = _get_perception_engine(request)
+
+        def _get():
+            state = engine.get_spatial_state()
+            if state is None:
+                return {"grid_w": 0, "grid_h": 0, "crowd_density": 0.0, "hotspots": []}
+            return state
+
+        return await run_in_threadpool(_get)
+
+    # ── Phase 8: Scene Understanding ────────────────────────────────────────
+
+    @router.get("/scene")
+    async def get_scene(request: Request) -> dict:
+        """最新のホリスティックシーン解析結果。"""
+        engine = _get_perception_engine(request)
+
+        def _get():
+            state = engine.get_scene_state()
+            if state is None:
+                return {"history_size": 0, "latest": None, "trend": {}}
+            return state
+
+        return await run_in_threadpool(_get)
+
+    @router.get("/scene/history")
+    async def get_scene_history(request: Request, n: int = 10) -> dict:
+        """シーン解析の履歴 (直近 n 件)。"""
+        engine = _get_perception_engine(request)
+
+        def _get():
+            if engine._scene_understanding is None:
+                return {"history": [], "total": 0}
+            history = engine._scene_understanding.get_history(n)
+            return {
+                "history": [h.to_dict() for h in history],
+                "total": len(history),
+            }
+
+        return await run_in_threadpool(_get)
+
+    # ── Phase 8: Adaptive Learner ───────────────────────────────────────────
+
+    @router.get("/adaptive-learner/state")
+    async def get_adaptive_learner_state(request: Request) -> dict:
+        """コンセプトドリフト検出 + 自動再キャリブレーションの状態。"""
+        engine = _get_perception_engine(request)
+
+        def _get():
+            state = engine.get_adaptive_state()
+            if state is None:
+                return {"total_observed": 0, "recalibration_count": 0, "drift_count": 0}
+            return state
+
+        return await run_in_threadpool(_get)
+
+    @router.post("/adaptive-learner/recalibrate")
+    async def force_recalibrate(request: Request) -> dict:
+        """手動で閾値再キャリブレーションをトリガー。"""
+        engine = _get_perception_engine(request)
+        if engine._adaptive_learner is None:
+            raise HTTPException(status_code=503, detail="AdaptiveLearner not initialized")
+
+        def _do():
+            record = engine._adaptive_learner.force_recalibrate()
+            if record is None:
+                return {"status": "skipped", "reason": "insufficient_observations"}
+            return {"status": "applied", "record": record.to_dict()}
+
+        return await run_in_threadpool(_do)
+
+    # ── Phase 8: Attention Broker ───────────────────────────────────────────
+
+    @router.get("/attention/state")
+    async def get_attention_state(request: Request) -> dict:
+        """マルチカメラ VLM コールバジェット管理の状態。"""
+        engine = _get_perception_engine(request)
+
+        def _get():
+            state = engine.get_attention_state()
+            if state is None:
+                return {"global_cpm": 0, "session_count": 0, "global_allowed_total": 0}
+            return state
+
+        return await run_in_threadpool(_get)
+
     return router

@@ -776,6 +776,16 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
 .episode-sev-warning{border-left-color:#fbbf24}
 .episode-sev-info{border-left-color:#60a5fa}
 .episode-tag{display:inline-block;padding:0 5px;border-radius:8px;font-size:9px;font-weight:700;background:rgba(139,92,246,.18);color:#a78bfa;margin-right:2px}
+/* Phase 8: Scene + Spatial + Adaptive + Attention */
+.scene-risk-bar{height:8px;border-radius:4px;background:rgba(60,60,80,.4);overflow:hidden;margin:2px 0}
+.scene-risk-fill{height:100%;border-radius:4px;transition:width .4s}
+.scene-zone-tag{display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;background:rgba(96,165,250,.15);color:#60a5fa;margin:1px 2px 1px 0}
+.adaptive-drift-badge{display:inline-block;padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700}
+.adaptive-drift-ok{background:#1a3a1a;color:#4ade80}
+.adaptive-drift-warn{background:#4a3a1a;color:#fbbf24}
+.attention-session-row{display:flex;align-items:center;gap:6px;padding:2px 4px;font-size:10px;border-radius:3px}
+.attention-bar{height:5px;border-radius:3px;background:rgba(139,92,246,.3);flex:1;overflow:hidden}
+.attention-bar-fill{height:100%;border-radius:3px;background:#a78bfa;transition:width .3s}
 /* Phase 7: Action Executor + Multimodal Fusion */
 .action-plan-item{display:flex;align-items:center;gap:6px;padding:3px 6px;margin:2px 0;background:rgba(15,23,42,.4);border-radius:4px;font-size:11px}
 .action-type-badge{padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700}
@@ -1454,6 +1464,33 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           <div style="font-size:10px;color:var(--muted);margin-bottom:4px">融合ログ</div>
           <div id="mmFusionLog" style="max-height:80px;overflow-y:auto"></div>
           <div id="mmState" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
+        </div>
+        <!-- Phase 8: Scene Understanding Panel -->
+        <div class="perc-card" id="percSceneCard" style="display:none">
+          <div class="perc-card-title">🌐 シーン理解</div>
+          <div id="sceneKPIs" class="anomaly-kpi-row"></div>
+          <div id="sceneRiskBar" style="margin:4px 0 6px 0"></div>
+          <div id="sceneSummary" style="font-size:11px;color:var(--muted);line-height:1.4"></div>
+          <div id="sceneZones" style="margin-top:4px;font-size:10px"></div>
+        </div>
+        <!-- Phase 8: Spatial Map Panel -->
+        <div class="perc-card" id="percSpatialCard" style="display:none">
+          <div class="perc-card-title">📐 空間マップ</div>
+          <canvas id="spatialMapCanvas" width="160" height="120" style="width:100%;image-rendering:pixelated;border-radius:4px;border:1px solid var(--border)"></canvas>
+          <div id="spatialHotspots" style="font-size:10px;margin-top:4px"></div>
+        </div>
+        <!-- Phase 8: Adaptive Learner Panel -->
+        <div class="perc-card" id="percAdaptiveCard" style="display:none">
+          <div class="perc-card-title">🔄 自己適応</div>
+          <div id="adaptiveState" style="font-size:11px;color:var(--muted)"></div>
+          <div id="adaptiveDrift" style="margin-top:4px"></div>
+          <button class="btn btn-secondary btn-sm" style="margin-top:6px" onclick="forceRecalibrate()">手動再キャリブレーション</button>
+        </div>
+        <!-- Phase 8: Attention Broker Panel -->
+        <div class="perc-card" id="percAttentionCard" style="display:none">
+          <div class="perc-card-title">🎯 注意管理</div>
+          <div id="attentionGlobal" style="font-size:11px;color:var(--muted);margin-bottom:6px"></div>
+          <div id="attentionSessions" style="max-height:80px;overflow-y:auto"></div>
         </div>
       </div>
     </div>
@@ -5731,7 +5768,7 @@ function resetPerceptionPanels(){
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -5750,7 +5787,7 @@ async function _percFetchAll(sessionId){
     $("perceptionStatusBar").classList.remove("active");
     $("percInactive").classList.add("show");
     $("perceptionPanels").classList.remove("show");
-    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard"].forEach(id=>{
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard"].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.style.display="none";
     });
@@ -5766,7 +5803,7 @@ async function _percFetchAll(sessionId){
   _percUpdateStatusBar(stateData);
 
   // Fetch all perception data in parallel
-  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData] = await Promise.allSettled([
+  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData, sceneData, spatialData, adaptiveData, attentionData] = await Promise.allSettled([
     fetch(`/vigil/perception/narration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:_percNarrationStyle})}).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/activities`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/predictions`).then(r=>r.ok?r.json():null).catch(()=>null),
@@ -5779,6 +5816,10 @@ async function _percFetchAll(sessionId){
     fetch(`/vigil/perception/tasks`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/actions/state`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/multimodal/fusion-log?n=10`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/scene`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/spatial-map`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/adaptive-learner/state`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/attention/state`).then(r=>r.ok?r.json():null).catch(()=>null),
   ]);
 
   _percRenderNarration(narData.status==="fulfilled"?narData.value:null);
@@ -5795,6 +5836,10 @@ async function _percFetchAll(sessionId){
   _percRenderNLTasks(nlTaskData.status==="fulfilled"?nlTaskData.value:null);
   _percRenderActions(actionData.status==="fulfilled"?actionData.value:null);
   _percRenderMultimodal(fusionData.status==="fulfilled"?fusionData.value:null);
+  _percRenderScene(sceneData.status==="fulfilled"?sceneData.value:null);
+  _percRenderSpatialMap(spatialData.status==="fulfilled"?spatialData.value:null);
+  _percRenderAdaptive(adaptiveData.status==="fulfilled"?adaptiveData.value:null);
+  _percRenderAttention(attentionData.status==="fulfilled"?attentionData.value:null);
 
   // Show query card (always visible when perception is active)
   const qcard=document.getElementById("percQueryCard");
@@ -6533,6 +6578,176 @@ function _percRenderEpisodes(data){
         </div>`;
       }
     }
+  }
+}
+
+// ─── Phase 8: Scene Understanding Panel ────────────────────────────────────
+
+function _percRenderScene(data){
+  const card=document.getElementById("percSceneCard");
+  if(!card)return;
+  const latest=data&&data.latest;
+  if(!latest){card.style.display="none";return;}
+  card.style.display="block";
+
+  // KPIs
+  const kpiEl=document.getElementById("sceneKPIs");
+  if(kpiEl){
+    const risk=latest.risk_index!=null?Math.round(latest.risk_index*100):0;
+    const crowd=latest.crowd_density!=null?Math.round(latest.crowd_density*100):0;
+    const flow=latest.flow_speed!=null?(latest.flow_speed*100).toFixed(1):0;
+    kpiEl.innerHTML=`
+      <div class="anomaly-kpi"><div class="anomaly-kpi-val">${latest.entity_count||0}</div><div class="anomaly-kpi-lbl">エンティティ</div></div>
+      <div class="anomaly-kpi"><div class="anomaly-kpi-val">${crowd}%</div><div class="anomaly-kpi-lbl">混雑度</div></div>
+      <div class="anomaly-kpi"><div class="anomaly-kpi-val" style="color:${risk>=70?"#f87171":risk>=40?"#fbbf24":"#4ade80"}">${risk}</div><div class="anomaly-kpi-lbl">リスク</div></div>
+      <div class="anomaly-kpi"><div class="anomaly-kpi-val">${flow}</div><div class="anomaly-kpi-lbl">フロー</div></div>`;
+  }
+
+  // Risk bar
+  const riskBarEl=document.getElementById("sceneRiskBar");
+  if(riskBarEl&&latest.risk_index!=null){
+    const pct=Math.round(latest.risk_index*100);
+    const col=pct>=70?"#f87171":pct>=40?"#fbbf24":"#4ade80";
+    riskBarEl.innerHTML=`<div class="scene-risk-bar"><div class="scene-risk-fill" style="width:${pct}%;background:${col}"></div></div>`;
+  }
+
+  // Summary
+  const summEl=document.getElementById("sceneSummary");
+  if(summEl)summEl.textContent=latest.summary_ja||"";
+
+  // Active zones
+  const zoneEl=document.getElementById("sceneZones");
+  if(zoneEl){
+    const zones=latest.active_zones||[];
+    if(zones.length){
+      zoneEl.innerHTML="ゾーン: "+zones.map(z=>`<span class="scene-zone-tag">${escHtml(z)}</span>`).join("");
+    }else{
+      zoneEl.innerHTML="";
+    }
+  }
+}
+
+// ─── Phase 8: Spatial Map Panel ─────────────────────────────────────────────
+
+function _percRenderSpatialMap(data){
+  const card=document.getElementById("percSpatialCard");
+  if(!card)return;
+  if(!data||!data.grid_w){card.style.display="none";return;}
+  card.style.display="block";
+
+  const canvas=document.getElementById("spatialMapCanvas");
+  if(canvas&&data.occupancy_grid){
+    const grid=data.occupancy_grid;
+    const gh=grid.length,gw=grid[0]?grid[0].length:0;
+    if(gh>0&&gw>0){
+      canvas.width=gw;canvas.height=gh;
+      const ctx=canvas.getContext("2d");
+      const img=ctx.createImageData(gw,gh);
+      // Find max occupancy for normalization
+      let maxOcc=0;
+      for(let y=0;y<gh;y++)for(let x=0;x<gw;x++)maxOcc=Math.max(maxOcc,grid[y][x]||0);
+      if(maxOcc<0.01)maxOcc=0.01;
+      for(let y=0;y<gh;y++){
+        for(let x=0;x<gw;x++){
+          const occ=Math.min(1,(grid[y][x]||0)/maxOcc);
+          const idx=(y*gw+x)*4;
+          // color: black→dark-blue→green→yellow→red
+          const r=occ>0.66?255:occ>0.33?Math.round((occ-0.33)*3*255):0;
+          const g=occ>0.66?Math.round((1-occ)*3*255):occ>0.33?255:Math.round(occ*3*255*0.5);
+          const b=occ<0.33?Math.round(occ*3*200):0;
+          img.data[idx]=r;img.data[idx+1]=g;img.data[idx+2]=b;img.data[idx+3]=occ>0.01?220:40;
+        }
+      }
+      ctx.putImageData(img,0,0);
+    }
+  }
+
+  const hotEl=document.getElementById("spatialHotspots");
+  if(hotEl){
+    const hotspots=data.hotspots||[];
+    if(!hotspots.length){hotEl.innerHTML="";return;}
+    hotEl.innerHTML="ホットスポット: "+hotspots.map(h=>`(${h.gx},${h.gy}) ${Math.round((h.occupancy||0)*100)}%`).join(" · ");
+  }
+}
+
+// ─── Phase 8: Adaptive Learner Panel ────────────────────────────────────────
+
+function _percRenderAdaptive(data){
+  const card=document.getElementById("percAdaptiveCard");
+  if(!card)return;
+  if(!data){card.style.display="none";return;}
+  card.style.display="block";
+
+  const stateEl=document.getElementById("adaptiveState");
+  if(stateEl){
+    const obs=data.total_observed||0;
+    const win=data.score_window_size||0;
+    const mean=data.score_mean!=null?(+data.score_mean).toFixed(2):"?";
+    const recal=data.recalibration_count||0;
+    stateEl.textContent=`観測 ${obs} · 窓 ${win} · 平均スコア ${mean} · 再調整 ${recal}回`;
+  }
+
+  const driftEl=document.getElementById("adaptiveDrift");
+  if(driftEl){
+    const dc=data.drift_count||0;
+    const last=data.last_recalibration;
+    const cls=dc>0?"adaptive-drift-warn":"adaptive-drift-ok";
+    const label=dc>0?`ドリフト ${dc}件検出`:"正常";
+    let html=`<span class="adaptive-drift-badge ${cls}">${label}</span>`;
+    if(last){
+      html+=`<span style="font-size:9px;color:var(--muted);margin-left:6px">最終: ${last.old_threshold}→${last.new_threshold} (${last.reason})</span>`;
+    }
+    driftEl.innerHTML=html;
+  }
+}
+
+async function forceRecalibrate(){
+  try{
+    const r=await fetch("/vigil/perception/adaptive-learner/recalibrate",{method:"POST"});
+    const d=await r.json().catch(()=>({}));
+    if(d.status==="applied"){
+      alert(`再キャリブレーション完了: ${d.record?.old_threshold}→${d.record?.new_threshold}`);
+    }else if(d.status==="skipped"){
+      alert("スキップ: 観測データ不足");
+    }else{
+      alert("エラー: "+(d.detail||r.status));
+    }
+    const stateR=await fetch("/vigil/perception/adaptive-learner/state").catch(()=>null);
+    if(stateR&&stateR.ok)_percRenderAdaptive(await stateR.json());
+  }catch(e){alert("エラー: "+e.message);}
+}
+
+// ─── Phase 8: Attention Broker Panel ────────────────────────────────────────
+
+function _percRenderAttention(data){
+  const card=document.getElementById("percAttentionCard");
+  if(!card)return;
+  if(!data||!data.global_cpm){card.style.display="none";return;}
+  card.style.display="block";
+
+  const globEl=document.getElementById("attentionGlobal");
+  if(globEl){
+    const used=data.global_calls_this_window||0;
+    const cap=data.global_cpm||1;
+    const pct=Math.min(100,Math.round(used/cap*100));
+    const denied=data.global_denied_total||0;
+    globEl.innerHTML=`グローバル: ${used}/${cap} CPM (${pct}%) · 拒否 ${denied}件`;
+  }
+
+  const sessEl=document.getElementById("attentionSessions");
+  if(sessEl){
+    const sessions=data.sessions||{};
+    const entries=Object.entries(sessions);
+    if(!entries.length){sessEl.innerHTML="<div style=\"color:var(--muted);font-size:10px\">セッションなし</div>";return;}
+    sessEl.innerHTML=entries.slice(0,5).map(([sid,s])=>{
+      const pri=Math.round((s.priority||0)*100);
+      return `<div class="attention-session-row">
+        <span style="color:var(--muted);min-width:60px;overflow:hidden;text-overflow:ellipsis">${escHtml(sid.slice(0,8))}</span>
+        <div class="attention-bar"><div class="attention-bar-fill" style="width:${pri}%"></div></div>
+        <span style="font-size:9px;color:var(--muted)">${pri}%</span>
+        <span style="font-size:9px;color:var(--muted)">${s.calls_total||0}回</span>
+      </div>`;
+    }).join("");
   }
 }
 

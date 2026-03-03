@@ -125,6 +125,25 @@ MIGRATIONS: list[Migration] = [
         );
         """,
     ),
+    Migration(
+        version=9,
+        description="VigilPilot: add camera_groups table and camera_group_id to vigil_sessions",
+        sql="""
+        CREATE TABLE IF NOT EXISTS camera_groups (
+            id                   INTEGER PRIMARY KEY AUTOINCREMENT,
+            name                 TEXT    NOT NULL,
+            description          TEXT    NOT NULL DEFAULT '',
+            anomaly_profile_name TEXT    NOT NULL DEFAULT '',
+            location             TEXT    NOT NULL DEFAULT '',
+            created_at           TEXT    NOT NULL,
+            updated_at           TEXT    NOT NULL
+        );
+
+        ALTER TABLE vigil_sessions ADD COLUMN camera_group_id INTEGER REFERENCES camera_groups(id) ON DELETE SET NULL;
+
+        CREATE INDEX IF NOT EXISTS idx_vigil_sessions_group ON vigil_sessions(camera_group_id);
+        """,
+    ),
 ]
 
 

@@ -81,7 +81,7 @@ class VLMClient:
     def analyze_frame(self, frame_path: Path, rules: list[str]) -> VLMResult:
         raise NotImplementedError
 
-    def reset_session(self) -> None:
+    def reset_session(self, session_id: str | None = None) -> None:
         """Reset any internal state between analysis sessions.
 
         Stateless backends (Claude, Qwen3) are no-ops.  Stateful backends
@@ -401,17 +401,23 @@ class PerceptionVLMClient(VLMClient):
             type(vlm_fallback).__name__ if vlm_fallback else "None",
         )
 
-    def reset_session(self) -> None:
+    def reset_session(self, session_id: str | None = None) -> None:
         """Reset perception engine state between analysis sessions.
 
         Clears the tracker identity pool, world model temporal state, and the
         internal frame counter so that a new video analysis starts with a clean
         slate.
+
+        Args:
+            session_id: Optional session ID. When provided, registers SSE event queue
+                        so real-time events are broadcast to the browser.
         """
         with self._lock:
             self._engine.reset()
             self._frame_number = 0
-            logger.info("PerceptionVLMClient session reset")
+            if session_id is not None:
+                self._engine.set_session_id(str(session_id))
+            logger.info("PerceptionVLMClient session reset (session_id=%s)", session_id)
 
     def analyze_frame(self, frame_path: Path, rules: list[str]) -> VLMResult:
         try:

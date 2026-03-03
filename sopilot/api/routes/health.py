@@ -161,6 +161,27 @@ def build_health_router() -> APIRouter:
         lines.append(f'sopilot_info{{version="{__version__}",task_id="{settings.primary_task_id}",embedder="{embedder_name}"}} 1')
         lines.append("")
 
+        # Perception Engine metrics
+        try:
+            from sopilot.perception.perc_metrics import get_registry
+            snap = get_registry().get_snapshot()
+            _metric("perception_frames_total", snap["frames_total"],
+                    "Total video frames processed by the Perception Engine", "counter")
+            _metric("perception_detections_total", snap["detections_total"],
+                    "Total object detections returned by the detector", "counter")
+            _metric("perception_vlm_calls_total", snap["vlm_calls_total"],
+                    "Total VLM escalation calls made", "counter")
+            lines.append("# HELP perception_processing_seconds_avg Average frame processing time in seconds")
+            lines.append("# TYPE perception_processing_seconds_avg gauge")
+            avg = snap["processing_seconds_sum"] / snap["processing_seconds_count"] if snap["processing_seconds_count"] > 0 else 0.0
+            lines.append(f"perception_processing_seconds_avg {avg:.6f}")
+            for sev, cnt in snap["violations_by_severity"].items():
+                lines.append(f'perception_violations_total{{severity="{sev}"}} {cnt}')
+            for det, cnt in snap["anomaly_events_by_detector"].items():
+                lines.append(f'perception_anomaly_events_total{{detector="{det}"}} {cnt}')
+        except ImportError:
+            pass
+
         return PlainTextResponse("\n".join(lines), media_type="text/plain; version=0.0.4; charset=utf-8")
 
     return router

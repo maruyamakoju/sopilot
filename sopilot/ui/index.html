@@ -721,9 +721,78 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
 .ppe-ok{background:#1a4a1a;color:#4caf50}
 .ppe-ng{background:#4a1a1a;color:#f44336}
 .ppe-summary{font-size:11px;color:#888;margin-top:8px}
+/* Anomaly Detection Panel */
+.anomaly-kpi-row{display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.anomaly-kpi{background:rgba(15,23,42,.5);border:1px solid var(--border);border-radius:6px;padding:6px 10px;flex:1;min-width:60px;text-align:center}
+.anomaly-kpi-val{font-size:16px;font-weight:700;color:var(--text)}
+.anomaly-kpi-lbl{font-size:9px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.anomaly-heatmap-container{text-align:center}
+.anomaly-hourly-chart{display:flex;align-items:flex-end;gap:1px;height:60px}
+.anomaly-hourly-bar{flex:1;min-width:0;border-radius:2px 2px 0 0;transition:height .3s}
+.anomaly-feed{max-height:160px;overflow-y:auto}
+.anomaly-event-item{display:flex;gap:6px;align-items:flex-start;padding:4px 6px;margin:2px 0;background:rgba(15,23,42,.4);border-radius:4px;font-size:11px;line-height:1.3}
+.anomaly-sev{padding:1px 5px;border-radius:8px;font-size:9px;font-weight:700;white-space:nowrap}
+.anomaly-sev-info{background:#1a3a4a;color:#60a5fa}
+.anomaly-sev-warning{background:#4a3a1a;color:#fbbf24}
+.anomaly-sev-critical{background:#4a1a1a;color:#f87171}
+.anomaly-profile-row{border-top:1px solid var(--border);padding-top:8px}
+.anomaly-fb-row{display:flex;gap:4px;margin-top:3px}
+.anomaly-fb-btn{padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer;border:none;transition:opacity .2s}
+.anomaly-fb-ok{background:#1a4a1a;color:#4ade80}
+.anomaly-fb-ng{background:#4a1a1a;color:#f87171}
+/* Phase 6: SSE Live Events + NL Tasks + Re-ID + LTM */
+#sseToastArea{position:fixed;top:64px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none;max-width:360px}
+.sse-toast{padding:8px 12px;border-radius:8px;font-size:11px;background:rgba(15,23,42,.92);border:1px solid rgba(139,92,246,.3);color:var(--text);animation:sseFadeIn .3s ease;pointer-events:auto;line-height:1.4}
+.sse-toast-anomaly{border-color:rgba(248,113,113,.45);background:rgba(40,12,12,.88)}
+.sse-toast-violation{border-color:rgba(251,191,36,.45);background:rgba(40,35,12,.88)}
+.sse-toast-goal{border-color:rgba(96,165,250,.45)}
+.sse-toast-deliberation{border-color:rgba(139,92,246,.45)}
+@keyframes sseFadeIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
+.sse-status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
+.sse-connected{background:#4ade80}
+.sse-disconnected{background:#6b7280}
+.nl-task-item{display:flex;align-items:center;gap:6px;padding:3px 6px;margin:2px 0;background:rgba(15,23,42,.4);border-radius:4px;font-size:11px}
+.nl-task-badge{padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700;background:rgba(139,92,246,.2);color:#a78bfa}
+.reid-track-item{padding:4px 8px;margin:2px 0;background:rgba(15,23,42,.4);border-radius:4px;font-size:11px;border-left:3px solid rgba(96,165,250,.4)}
+.reid-track-cross{border-left-color:#4ade80}
+.ltm-fact-row{display:flex;justify-content:space-between;font-size:10px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04)}
+/* Phase 5: Deliberative Cognition */
+.cog-grade{display:inline-block;width:36px;height:36px;line-height:36px;text-align:center;border-radius:50%;font-size:18px;font-weight:900;background:rgba(15,23,42,.6);border:2px solid rgba(139,92,246,.25)}
+.cog-grade-A{border-color:#4ade80;color:#4ade80}
+.cog-grade-B{border-color:#60a5fa;color:#60a5fa}
+.cog-grade-C{border-color:#fbbf24;color:#fbbf24}
+.cog-grade-D{border-color:#fb923c;color:#fb923c}
+.cog-grade-F{border-color:#f87171;color:#f87171}
+.cog-issue{font-size:10px;color:#fbbf24;padding:1px 0;display:flex;gap:4px;align-items:center}
+.cog-goal-item{display:flex;align-items:flex-start;gap:6px;padding:3px 6px;margin:2px 0;background:rgba(15,23,42,.4);border-radius:4px;font-size:11px}
+.cog-risk-bar{width:38px;height:6px;border-radius:3px;background:rgba(60,60,80,.4);flex-shrink:0;margin-top:4px}
+.cog-risk-fill{height:100%;border-radius:3px}
+.cog-delib-item{padding:4px 8px;margin:2px 0;background:rgba(15,23,42,.45);border-radius:4px;font-size:11px;border-left:3px solid rgba(139,92,246,.4)}
+.cog-delib-urgent{border-left-color:#f87171}
+.cog-delib-high{border-left-color:#fbbf24}
+.cog-delib-medium{border-left-color:#60a5fa}
+.episode-item{padding:5px 8px;margin:3px 0;background:rgba(15,23,42,.4);border-radius:4px;font-size:11px;border-left:3px solid rgba(139,92,246,.3)}
+.episode-sev-critical{border-left-color:#f87171}
+.episode-sev-warning{border-left-color:#fbbf24}
+.episode-sev-info{border-left-color:#60a5fa}
+.episode-tag{display:inline-block;padding:0 5px;border-radius:8px;font-size:9px;font-weight:700;background:rgba(139,92,246,.18);color:#a78bfa;margin-right:2px}
+/* Phase 7: Action Executor + Multimodal Fusion */
+.action-plan-item{display:flex;align-items:center;gap:6px;padding:3px 6px;margin:2px 0;background:rgba(15,23,42,.4);border-radius:4px;font-size:11px}
+.action-type-badge{padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700}
+.action-type-alert{background:#4a1a1a;color:#f87171}
+.action-type-escalate{background:#4a2010;color:#fb923c}
+.action-type-record{background:#1a3a1a;color:#4ade80}
+.action-type-suppress{background:#1a2a4a;color:#60a5fa}
+.action-type-webhook{background:#2a1a4a;color:#a78bfa}
+.action-log-item{padding:3px 6px;margin:2px 0;background:rgba(15,23,42,.35);border-radius:4px;font-size:10px;border-left:3px solid rgba(100,100,120,.3)}
+.action-log-success{border-left-color:#4ade80}
+.mm-fusion-item{padding:3px 6px;margin:2px 0;background:rgba(15,23,42,.4);border-radius:4px;font-size:11px;border-left:3px solid rgba(96,165,250,.35)}
 </style>
 </head>
 <body>
+
+<!-- SSE live event toast area (Phase 6) -->
+<div id="sseToastArea"></div>
 
 <!-- TOP BAR -->
 <div id="topbar">
@@ -1123,6 +1192,7 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
     <div style="display:flex;gap:4px;margin-left:16px">
       <button id="vigilTabSessions" class="btn btn-sm" style="background:rgba(13,148,136,.25);color:#4fd1c5;border:1px solid rgba(13,148,136,.4);border-radius:6px;padding:3px 12px;cursor:pointer;font-size:11px;font-weight:600" onclick="switchVigilTab('sessions')">監視</button>
       <button id="vigilTabAnalytics" class="btn btn-sm" style="background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:3px 12px;cursor:pointer;font-size:11px;font-weight:600" onclick="switchVigilTab('analytics')">分析</button>
+      <button id="vigilTabGroups" class="btn btn-sm" style="background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:3px 12px;cursor:pointer;font-size:11px;font-weight:600" onclick="switchVigilTab('groups')">グループ</button>
     </div>
     <div class="top-spacer"></div>
     <span id="vigilStatus" style="font-size:11px;color:var(--muted)"></span>
@@ -1262,6 +1332,129 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           <div id="ppePersonList" class="ppe-persons"></div>
           <div id="ppeSummary" class="ppe-summary"></div>
         </div>
+        <!-- Anomaly Detection Panel -->
+        <div class="perc-card" id="percAnomalyCard" style="display:none">
+          <div class="perc-card-title">&#128269; 自律異常検知</div>
+          <div id="anomalyWarmup" style="color:var(--muted);font-size:11px">学習中... <span id="anomalyWarmupPct">0</span>%</div>
+          <div id="anomalyContent" style="display:none">
+            <div id="anomalyKPIs" class="anomaly-kpi-row"></div>
+            <div class="anomaly-heatmap-container">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:4px">空間占有ヒートマップ</div>
+              <canvas id="anomalyHeatmap" width="200" height="200" style="border:1px solid var(--border);border-radius:4px"></canvas>
+            </div>
+            <div style="margin-top:8px">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:4px">24時間密度チャート</div>
+              <div id="anomalyHourlyChart" class="anomaly-hourly-chart"></div>
+            </div>
+            <div style="margin-top:8px">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:4px">直近の異常イベント</div>
+              <div id="anomalyFeed" class="anomaly-feed"></div>
+            </div>
+            <div id="anomalyProfileControls" class="anomaly-profile-row" style="margin-top:8px">
+              <div style="font-size:10px;color:var(--muted);margin-bottom:4px">プロファイル管理</div>
+              <div style="display:flex;gap:4px;align-items:center;flex-wrap:wrap">
+                <select id="anomalyProfileSelect" style="flex:1;min-width:100px;padding:2px 4px;font-size:11px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px">
+                  <option value="">-- 選択 --</option>
+                </select>
+                <button class="btn btn-sm btn-secondary" onclick="loadAnomalyProfile()" style="font-size:10px;padding:2px 6px">読込</button>
+                <input id="anomalyProfileName" type="text" placeholder="プロファイル名" style="width:90px;padding:2px 4px;font-size:11px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px">
+                <button class="btn btn-sm btn-secondary" onclick="saveAnomalyProfile()" style="font-size:10px;padding:2px 6px">保存</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase 5: 思考パネル (System 2 Deliberative Cognition) -->
+        <div class="perc-card" id="percCognitionCard" style="display:none">
+          <div class="perc-card-title">🧠 自律推論 (System 2)</div>
+          <!-- Engine Health -->
+          <div id="cogHealthRow" style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:11px;color:var(--muted)">知覚品質:</span>
+            <span id="cogGrade" style="font-size:18px;font-weight:700;color:#4fd1c5">--</span>
+            <span id="cogScore" style="font-size:11px;color:var(--muted)"></span>
+          </div>
+          <!-- Health issues -->
+          <div id="cogIssues" style="margin-bottom:8px"></div>
+          <!-- High-risk goals -->
+          <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">高リスク意図</div>
+          <div id="cogGoalFeed" style="max-height:80px;overflow-y:auto;margin-bottom:8px">
+            <div style="color:var(--muted);font-size:11px">なし</div>
+          </div>
+          <!-- Deliberation feed -->
+          <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">熟慮推論</div>
+          <div id="cogDelibFeed" style="max-height:110px;overflow-y:auto">
+            <div style="color:var(--muted);font-size:11px">推論待機中...</div>
+          </div>
+        </div>
+
+        <!-- Phase 5: エピソード記憶パネル -->
+        <div class="perc-card" id="percEpisodeCard" style="display:none">
+          <div class="perc-card-title">📼 エピソード記憶</div>
+          <div id="episodeSummary" style="font-size:11px;color:var(--muted);margin-bottom:8px"></div>
+          <div id="episodeFeed" style="max-height:120px;overflow-y:auto">
+            <div class="empty-state" style="font-size:11px">まだエピソードなし</div>
+          </div>
+        </div>
+
+        <!-- Phase 6: NL監視タスクパネル -->
+        <div class="perc-card" id="percNLTaskCard" style="display:none">
+          <div class="perc-card-title">
+            📋 自然言語監視タスク
+            <span id="sseStatusDot" class="sse-status-dot sse-disconnected" title="リアルタイム接続"></span>
+          </div>
+          <div style="display:flex;gap:4px;margin-bottom:8px">
+            <input id="nlTaskInput" type="text" placeholder="例: Zone Aに3分以上いる人を警告"
+              style="flex:1;background:rgba(15,23,42,.5);border:1px solid var(--border);border-radius:6px;padding:4px 8px;font-size:11px;color:var(--text)"
+              onkeydown="if(event.key==='Enter')addNLTask()"/>
+            <button onclick="addNLTask()" style="padding:4px 10px;font-size:10px;font-weight:700;border-radius:6px;background:rgba(139,92,246,.2);border:1px solid rgba(139,92,246,.4);color:#c4b5fd;cursor:pointer">追加</button>
+          </div>
+          <div id="nlTaskList" style="max-height:120px;overflow-y:auto">
+            <div style="color:var(--muted);font-size:11px">タスクなし</div>
+          </div>
+        </div>
+
+        <!-- Phase 6: 長期記憶パネル -->
+        <div class="perc-card" id="percLTMCard" style="display:none">
+          <div class="perc-card-title">📚 長期記憶</div>
+          <div id="ltmSummary" style="font-size:11px;color:var(--muted);margin-bottom:8px">データなし</div>
+          <div id="ltmFacts" style="max-height:100px;overflow-y:auto"></div>
+        </div>
+        <!-- Phase 7: Action Executor Panel -->
+        <div class="perc-card" id="percActionCard" style="display:none">
+          <div class="perc-card-title">⚡ 自律アクション</div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+            <select id="actionTypeSelect" style="flex:1;min-width:100px;background:rgba(30,41,59,.8);border:1px solid var(--glass-border);border-radius:6px;padding:3px 6px;color:var(--text);font-size:11px">
+              <option value="alert">ALERT</option>
+              <option value="escalate">ESCALATE</option>
+              <option value="record">RECORD</option>
+              <option value="suppress">SUPPRESS</option>
+              <option value="webhook">WEBHOOK</option>
+            </select>
+            <input id="actionTriggerInput" type="text" placeholder="イベントタイプ (例: ANOMALY)" style="flex:2;background:rgba(30,41,59,.8);border:1px solid var(--glass-border);border-radius:6px;padding:3px 8px;color:var(--text);font-size:11px" />
+            <button class="btn btn-primary btn-sm" onclick="addActionPlan()">追加</button>
+          </div>
+          <div id="actionPlanList" style="max-height:80px;overflow-y:auto;margin-bottom:6px"></div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">実行ログ</div>
+          <div id="actionLogList" style="max-height:70px;overflow-y:auto"></div>
+        </div>
+        <!-- Phase 7: Multimodal Fusion Panel -->
+        <div class="perc-card" id="percMultimodalCard" style="display:none">
+          <div class="perc-card-title">🎛️ マルチモーダル融合</div>
+          <div style="display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap">
+            <select id="mmSourceSelect" style="flex:1;min-width:80px;background:rgba(30,41,59,.8);border:1px solid var(--glass-border);border-radius:6px;padding:3px 6px;color:var(--text);font-size:11px">
+              <option value="audio">audio</option>
+              <option value="iot">iot</option>
+              <option value="access">access</option>
+              <option value="custom">custom</option>
+            </select>
+            <input id="mmSignalTypeInput" type="text" placeholder="signal_type (例: door_open)" style="flex:2;background:rgba(30,41,59,.8);border:1px solid var(--glass-border);border-radius:6px;padding:3px 8px;color:var(--text);font-size:11px" />
+            <input id="mmValueInput" type="number" min="0" max="1" step="0.1" value="0.8" style="width:60px;background:rgba(30,41,59,.8);border:1px solid var(--glass-border);border-radius:6px;padding:3px 6px;color:var(--text);font-size:11px" />
+            <button class="btn btn-primary btn-sm" onclick="ingestSignal()">送信</button>
+          </div>
+          <div style="font-size:10px;color:var(--muted);margin-bottom:4px">融合ログ</div>
+          <div id="mmFusionLog" style="max-height:80px;overflow-y:auto"></div>
+          <div id="mmState" style="font-size:10px;color:var(--muted);margin-top:4px"></div>
+        </div>
       </div>
     </div>
   </div>
@@ -1325,6 +1518,37 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
     </div>
     <div id="vigilAnalyticsEmpty" style="display:none;text-align:center;padding:40px;color:var(--muted);font-size:13px">
       まだデータがありません。セッションを作成して解析を実行してください。
+    </div>
+  </div>
+
+  <!-- Camera Groups Panel (toggled by グループ tab) -->
+  <div id="vigilGroupsPanel" style="display:none;flex:1;overflow:hidden">
+    <div style="display:grid;grid-template-columns:300px 1fr;height:100%;overflow:hidden">
+      <!-- Left: Group list + create form -->
+      <div style="border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;background:rgba(5,10,21,.5)">
+        <!-- Create form -->
+        <div style="padding:14px;border-bottom:1px solid var(--border);flex-shrink:0">
+          <div class="panel-title">新規グループ</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <input id="cgNewName" placeholder="グループ名 (例: 1F エリア)" style="font-size:12px"/>
+            <input id="cgNewDesc" placeholder="説明 (任意)" style="font-size:12px"/>
+            <input id="cgNewLocation" placeholder="設置場所 (任意)" style="font-size:12px"/>
+            <button class="btn btn-primary btn-sm" onclick="createCameraGroup()" style="width:100%">グループ作成</button>
+          </div>
+        </div>
+        <!-- Group list -->
+        <div style="flex:1;overflow-y:auto">
+          <div id="cameraGroupList" style="display:flex;flex-direction:column">
+            <div class="empty-state">グループなし</div>
+          </div>
+        </div>
+      </div>
+      <!-- Right: Group detail -->
+      <div id="cameraGroupDetail" style="overflow-y:auto;padding:20px;background:rgba(5,10,21,.3)">
+        <div id="cameraGroupDetailContent" style="color:var(--muted);font-size:13px;text-align:center;padding:60px 0">
+          左のリストからグループを選択してください
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -4261,6 +4485,7 @@ function openVigil(){
   $("vigilModal").classList.add("active");
   loadVigilSessions();
   loadWebhooks();
+  loadCameraGroups();
 }
 
 function closeVigil(){
@@ -4920,22 +5145,210 @@ async function stopVigilWebcam(){
 function switchVigilTab(tab){
   const gridEl=$("vigilSessionsGrid");
   const analyticsPanel=$("vigilAnalyticsPanel");
+  const groupsPanel=$("vigilGroupsPanel");
   const tabSessions=$("vigilTabSessions");
   const tabAnalytics=$("vigilTabAnalytics");
+  const tabGroups=$("vigilTabGroups");
+  const _activeStyle="rgba(13,148,136,.25)";const _activeColor="#4fd1c5";const _activeBorder="rgba(13,148,136,.4)";
+  const _inactiveStyle="transparent";const _inactiveColor="var(--muted)";const _inactiveBorder="rgba(255,255,255,.1)";
+
+  // hide all panels first
+  if(gridEl)gridEl.style.display="none";
+  if(analyticsPanel)analyticsPanel.style.display="none";
+  if(groupsPanel)groupsPanel.style.display="none";
+  [tabSessions,tabAnalytics,tabGroups].forEach(t=>{if(t){t.style.background=_inactiveStyle;t.style.color=_inactiveColor;t.style.borderColor=_inactiveBorder;}});
 
   if(tab==="analytics"){
-    if(gridEl)gridEl.style.display="none";
     if(analyticsPanel)analyticsPanel.style.display="block";
-    if(tabSessions){tabSessions.style.background="transparent";tabSessions.style.color="var(--muted)";tabSessions.style.borderColor="rgba(255,255,255,.1)";}
-    if(tabAnalytics){tabAnalytics.style.background="rgba(13,148,136,.25)";tabAnalytics.style.color="#4fd1c5";tabAnalytics.style.borderColor="rgba(13,148,136,.4)";}
+    if(tabAnalytics){tabAnalytics.style.background=_activeStyle;tabAnalytics.style.color=_activeColor;tabAnalytics.style.borderColor=_activeBorder;}
     const days=parseInt(($("vigilAnalyticsDays")||{}).value||"30");
     loadVigilAnalytics(days);
+  }else if(tab==="groups"){
+    if(groupsPanel)groupsPanel.style.display="flex";
+    if(tabGroups){tabGroups.style.background=_activeStyle;tabGroups.style.color=_activeColor;tabGroups.style.borderColor=_activeBorder;}
+    loadCameraGroups();
   }else{
     if(gridEl)gridEl.style.display="";
-    if(analyticsPanel)analyticsPanel.style.display="none";
-    if(tabSessions){tabSessions.style.background="rgba(13,148,136,.25)";tabSessions.style.color="#4fd1c5";tabSessions.style.borderColor="rgba(13,148,136,.4)";}
-    if(tabAnalytics){tabAnalytics.style.background="transparent";tabAnalytics.style.color="var(--muted)";tabAnalytics.style.borderColor="rgba(255,255,255,.1)";}
+    if(tabSessions){tabSessions.style.background=_activeStyle;tabSessions.style.color=_activeColor;tabSessions.style.borderColor=_activeBorder;}
   }
+}
+
+// ── VIGIL: Camera Groups ──
+let _cameraGroups=[];
+let _selectedGroupId=null;
+
+async function loadCameraGroups(){
+  try{
+    _cameraGroups=await api("/vigil/camera-groups");
+    renderCameraGroupList(_cameraGroups);
+  }catch(e){console.warn("loadCameraGroups",e);}
+}
+
+function renderCameraGroupList(groups){
+  const el=$("cameraGroupList");
+  if(!el)return;
+  if(!groups||!groups.length){
+    el.innerHTML=`<div class="empty-state">グループなし<br><span style="font-size:10px">左フォームから新規作成</span></div>`;
+    return;
+  }
+  el.innerHTML=groups.map(g=>`
+    <div onclick="selectCameraGroup(${g.id})" style="padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.05);cursor:pointer;transition:background .15s;${_selectedGroupId===g.id?'background:rgba(13,148,136,.15);border-left:3px solid #4fd1c5':'border-left:3px solid transparent'}" onmouseover="this.style.background='rgba(13,148,136,.08)'" onmouseout="this.style.background='${_selectedGroupId===g.id?'rgba(13,148,136,.15)':'transparent'}'">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="font-size:12px;font-weight:600;color:var(--text)">${g.name}</span>
+        <button onclick="event.stopPropagation();deleteCameraGroup(${g.id})" style="background:rgba(239,68,68,.15);color:#f87171;border:1px solid rgba(239,68,68,.3);border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px">削除</button>
+      </div>
+      ${g.location?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${g.location}</div>`:""}
+      ${g.description?`<div style="font-size:10px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${g.description}</div>`:""}
+    </div>`).join("");
+}
+
+async function createCameraGroup(){
+  const name=($("cgNewName")||{}).value||"";
+  if(!name.trim()){toast("グループ名を入力してください","warning");return;}
+  try{
+    await api("/vigil/camera-groups","POST",{
+      name:name.trim(),
+      description:($("cgNewDesc")||{}).value||"",
+      location:($("cgNewLocation")||{}).value||""
+    });
+    $("cgNewName").value="";$("cgNewDesc").value="";$("cgNewLocation").value="";
+    toast("グループを作成しました","success");
+    await loadCameraGroups();
+  }catch(e){toast("グループ作成に失敗しました","error");console.warn(e);}
+}
+
+async function deleteCameraGroup(groupId){
+  if(!confirm("グループを削除しますか？（セッションはグループ未割当に戻ります）"))return;
+  try{
+    await api(`/vigil/camera-groups/${groupId}`,"DELETE");
+    if(_selectedGroupId===groupId){_selectedGroupId=null;_renderGroupDetailEmpty();}
+    toast("グループを削除しました","success");
+    await loadCameraGroups();
+  }catch(e){toast("削除に失敗しました","error");console.warn(e);}
+}
+
+async function selectCameraGroup(groupId){
+  _selectedGroupId=groupId;
+  renderCameraGroupList(_cameraGroups);
+  try{
+    const overview=await api(`/vigil/camera-groups/${groupId}/overview`);
+    _renderGroupDetail(overview);
+  }catch(e){console.warn("selectCameraGroup",e);}
+}
+
+function _renderGroupDetailEmpty(){
+  const el=$("cameraGroupDetailContent");
+  if(el)el.innerHTML=`<div style="color:var(--muted);font-size:13px;text-align:center;padding:60px 0">左のリストからグループを選択してください</div>`;
+}
+
+function _renderGroupDetail(overview){
+  const g=overview.group||{};
+  const sessions=overview.sessions||[];
+  const events=overview.recent_events||[];
+  const detail=$("cameraGroupDetailContent");
+  if(!detail)return;
+  detail.innerHTML=`
+    <div style="margin-bottom:16px">
+      <div style="font-size:16px;font-weight:700;color:var(--text);margin-bottom:4px">${g.name||""}</div>
+      ${g.location?`<div style="font-size:11px;color:var(--muted)">${g.location}</div>`:""}
+      ${g.description?`<div style="font-size:11px;color:var(--muted);margin-top:2px">${g.description}</div>`:""}
+    </div>
+    <!-- KPI row -->
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+      <div style="background:rgba(15,23,42,.7);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#4fd1c5">${overview.total_sessions||0}</div>
+        <div style="font-size:10px;color:var(--muted)">総セッション</div>
+      </div>
+      <div style="background:rgba(15,23,42,.7);border:1px solid rgba(74,222,128,.2);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#4ade80">${overview.active_sessions||0}</div>
+        <div style="font-size:10px;color:var(--muted)">稼働中</div>
+      </div>
+      <div style="background:rgba(15,23,42,.7);border:1px solid rgba(239,68,68,.2);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:#f87171">${overview.total_violations||0}</div>
+        <div style="font-size:10px;color:var(--muted)">違反総数</div>
+      </div>
+      <div style="background:rgba(15,23,42,.7);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:18px;font-weight:700;color:var(--text)">${overview.total_frames_analyzed||0}</div>
+        <div style="font-size:10px;color:var(--muted)">解析フレーム</div>
+      </div>
+    </div>
+    <!-- Apply profile row -->
+    <div style="background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:12px;margin-bottom:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-size:11px;color:var(--muted);flex-shrink:0">異常プロファイル適用:</span>
+      <input id="cgProfileName" value="${g.anomaly_profile_name||""}" placeholder="プロファイル名" style="flex:1;font-size:11px;min-width:120px"/>
+      <button onclick="applyProfileToGroup(${g.id})" class="btn btn-secondary btn-sm">適用</button>
+    </div>
+    <!-- Sessions in group -->
+    <div style="background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:14px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">グループ内セッション (${sessions.length})</div>
+      ${sessions.length===0?`<div style="color:var(--muted);font-size:11px">セッションなし</div>`:
+        sessions.map(s=>`<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+          <div>
+            <span style="font-size:12px;color:var(--text)">${s.name}</span>
+            <span style="font-size:10px;color:var(--muted);margin-left:8px">${s.status}</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span style="font-size:10px;color:#f87171">${s.violation_count} 件</span>
+            <button onclick="removeSessionFromGroup(${g.id},${s.id})" style="background:rgba(239,68,68,.1);color:#f87171;border:1px solid rgba(239,68,68,.2);border-radius:4px;padding:1px 6px;cursor:pointer;font-size:10px">外す</button>
+          </div>
+        </div>`).join("")}
+    </div>
+    <!-- Add session to group -->
+    <div style="background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">セッションを追加</div>
+      <div style="display:flex;gap:6px">
+        <select id="cgAddSessionSelect" style="flex:1;font-size:11px;background:rgba(30,41,59,.8);border:1px solid var(--glass-border);border-radius:6px;padding:3px 6px;color:var(--text)">
+          <option value="">セッションを選択...</option>
+          ${(_vigilSessions||[]).filter(vs=>vs.camera_group_id!==g.id).map(vs=>`<option value="${vs.id}">${vs.name}</option>`).join("")}
+        </select>
+        <button onclick="addSessionToGroup(${g.id})" class="btn btn-primary btn-sm">追加</button>
+      </div>
+    </div>
+    <!-- Recent events -->
+    ${events.length>0?`<div style="background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:14px">
+      <div style="font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">直近のイベント (${events.length})</div>
+      ${events.map(ev=>{
+        const vlist=(ev.violations||[]).map(v=>`<span style="font-size:10px;color:#fbbf24">${v.rule||""}</span>`).join(" / ");
+        const sev=(ev.violations&&ev.violations[0]||{}).severity||"info";
+        const sevColor={critical:"#f87171",warning:"#fbbf24",info:"#60a5fa"}[sev]||"#60a5fa";
+        return `<div style="padding:6px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+          <div style="display:flex;justify-content:space-between">
+            <span style="font-size:10px;color:${sevColor};font-weight:600;text-transform:uppercase">${sev}</span>
+            <span style="font-size:10px;color:var(--muted)">${ev.session_name||""}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text);margin-top:2px">${vlist||"(詳細なし)"}</div>
+        </div>`;}).join("")}
+    </div>`:""}`;
+}
+
+async function addSessionToGroup(groupId){
+  const sel=$("cgAddSessionSelect");
+  const sessionId=sel?parseInt(sel.value):NaN;
+  if(!sessionId||isNaN(sessionId)){toast("セッションを選択してください","warning");return;}
+  try{
+    await api(`/vigil/camera-groups/${groupId}/sessions`,"POST",{session_id:sessionId});
+    toast("セッションを追加しました","success");
+    await loadVigilSessions();
+    await selectCameraGroup(groupId);
+  }catch(e){toast("追加に失敗しました","error");console.warn(e);}
+}
+
+async function removeSessionFromGroup(groupId,sessionId){
+  try{
+    await api(`/vigil/camera-groups/${groupId}/sessions/${sessionId}`,"DELETE");
+    toast("セッションをグループから外しました","success");
+    await loadVigilSessions();
+    await selectCameraGroup(groupId);
+  }catch(e){toast("操作に失敗しました","error");console.warn(e);}
+}
+
+async function applyProfileToGroup(groupId){
+  const name=($("cgProfileName")||{}).value||"";
+  if(!name.trim()){toast("プロファイル名を入力してください","warning");return;}
+  try{
+    const res=await api(`/vigil/camera-groups/${groupId}/apply-profile`,"POST",{profile_name:name.trim()});
+    toast(`プロファイル "${name}" を ${res.sessions_updated} セッションに適用しました`,"success");
+  }catch(e){toast("適用に失敗しました","error");console.warn(e);}
 }
 
 // ── VIGIL: Analytics Dashboard ──
@@ -5302,6 +5715,8 @@ async function loadPerceptionData(sessionId){
   _percActiveSession=sessionId;
   // Clear any previous refresh timer
   if(_percRefreshTimer){clearInterval(_percRefreshTimer);_percRefreshTimer=null;}
+  // Connect SSE for real-time events
+  _sseConnect(String(sessionId));
   // Do an initial load
   await _percFetchAll(sessionId);
   // Schedule auto-refresh every 5 seconds
@@ -5312,10 +5727,11 @@ async function loadPerceptionData(sessionId){
 function resetPerceptionPanels(){
   _percActiveSession=null;
   if(_percRefreshTimer){clearInterval(_percRefreshTimer);_percRefreshTimer=null;}
+  _sseDisconnect();
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -5334,7 +5750,7 @@ async function _percFetchAll(sessionId){
     $("perceptionStatusBar").classList.remove("active");
     $("percInactive").classList.add("show");
     $("perceptionPanels").classList.remove("show");
-    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard"].forEach(id=>{
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard"].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.style.display="none";
     });
@@ -5350,15 +5766,35 @@ async function _percFetchAll(sessionId){
   _percUpdateStatusBar(stateData);
 
   // Fetch all perception data in parallel
-  const [narData, actData, predData] = await Promise.allSettled([
+  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData] = await Promise.allSettled([
     fetch(`/vigil/perception/narration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:_percNarrationStyle})}).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/activities`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/predictions`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/anomalies?lookback_seconds=300`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/health`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/goals`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/deliberation?n=5`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/episodes?n=8`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/long-term-memory`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/tasks`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/actions/state`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/multimodal/fusion-log?n=10`).then(r=>r.ok?r.json():null).catch(()=>null),
   ]);
 
   _percRenderNarration(narData.status==="fulfilled"?narData.value:null);
   _percRenderActivities(actData.status==="fulfilled"?actData.value:null);
   _percRenderPredictions(predData.status==="fulfilled"?predData.value:null);
+  _percRenderAnomalies(anomData.status==="fulfilled"?anomData.value:null);
+  _percRenderCognition(
+    healthData.status==="fulfilled"?healthData.value:null,
+    goalsData.status==="fulfilled"?goalsData.value:null,
+    delibData.status==="fulfilled"?delibData.value:null,
+  );
+  _percRenderEpisodes(episData.status==="fulfilled"?episData.value:null);
+  _percRenderLTM(ltmData.status==="fulfilled"?ltmData.value:null);
+  _percRenderNLTasks(nlTaskData.status==="fulfilled"?nlTaskData.value:null);
+  _percRenderActions(actionData.status==="fulfilled"?actionData.value:null);
+  _percRenderMultimodal(fusionData.status==="fulfilled"?fusionData.value:null);
 
   // Show query card (always visible when perception is active)
   const qcard=document.getElementById("percQueryCard");
@@ -5607,6 +6043,599 @@ function renderPPEStatus(data){
   `).join("");
   const s=data.summary;
   summary.textContent=`${s.total_persons}名 | ヘルメット: ${s.helmets_ok}/${s.total_persons} | ベスト: ${s.vests_ok}/${s.total_persons}`;
+}
+
+// ── Anomaly Detection Panel ──────────────────────────────────────
+
+function _percRenderAnomalies(data){
+  const card=document.getElementById("percAnomalyCard");
+  if(!card)return;
+  if(!data){card.style.display="none";return;}
+  card.style.display="block";
+
+  const warmupEl=document.getElementById("anomalyWarmup");
+  const contentEl=document.getElementById("anomalyContent");
+  const pctEl=document.getElementById("anomalyWarmupPct");
+
+  if(!data.is_warmed_up){
+    if(warmupEl)warmupEl.style.display="block";
+    if(contentEl)contentEl.style.display="none";
+    if(pctEl){
+      const pct=data.warmup_frames>0?Math.min(100,Math.round(data.observations/data.warmup_frames*100)):0;
+      pctEl.textContent=pct;
+    }
+    return;
+  }
+
+  if(warmupEl)warmupEl.style.display="none";
+  if(contentEl)contentEl.style.display="block";
+
+  // KPIs
+  const kpiEl=document.getElementById("anomalyKPIs");
+  if(kpiEl){
+    const recentCount=(data.recent_events||[]).length;
+    const detectorCount=Object.keys(data.detectors||{}).length;
+    kpiEl.innerHTML=`
+      <div class="anomaly-kpi"><div class="anomaly-kpi-val">${data.observations}</div><div class="anomaly-kpi-lbl">観測数</div></div>
+      <div class="anomaly-kpi"><div class="anomaly-kpi-val">${detectorCount}</div><div class="anomaly-kpi-lbl">検出器</div></div>
+      <div class="anomaly-kpi"><div class="anomaly-kpi-val">${data.active_cooldowns}</div><div class="anomaly-kpi-lbl">冷却中</div></div>
+      <div class="anomaly-kpi"><div class="anomaly-kpi-val">${recentCount}</div><div class="anomaly-kpi-lbl">直近異常</div></div>
+    `;
+  }
+
+  // Heatmap
+  const canvas=document.getElementById("anomalyHeatmap");
+  if(canvas&&data.detectors&&data.detectors.spatial){
+    _drawHeatmap(canvas,data.detectors.spatial.grid);
+  }
+
+  // Hourly chart
+  const hourlyEl=document.getElementById("anomalyHourlyChart");
+  if(hourlyEl&&data.detectors&&data.detectors.temporal){
+    _drawHourlyBars(hourlyEl,data.detectors.temporal.hourly_stats);
+  }
+
+  // Event feed
+  const feedEl=document.getElementById("anomalyFeed");
+  if(feedEl){
+    _renderAnomalyFeed(feedEl,data.recent_events||[]);
+  }
+
+  // Profile list (lazy load)
+  _refreshAnomalyProfiles();
+}
+
+function _drawHeatmap(canvas,grid){
+  if(!grid||!grid.length)return;
+  const ctx=canvas.getContext("2d");
+  const gs=grid.length;
+  const cw=canvas.width/gs;
+  const ch=canvas.height/gs;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  for(let r=0;r<gs;r++){
+    for(let c=0;c<gs;c++){
+      const v=Math.min(1,grid[r][c]);
+      // green→yellow→red colormap
+      let red,green,blue;
+      if(v<0.5){
+        red=Math.round(v*2*255);
+        green=Math.round(100+v*2*155);
+        blue=Math.round(50*(1-v*2));
+      }else{
+        red=Math.round(255);
+        green=Math.round(255*(1-(v-0.5)*2));
+        blue=0;
+      }
+      ctx.fillStyle=`rgba(${red},${green},${blue},${0.3+v*0.7})`;
+      ctx.fillRect(c*cw,r*ch,cw-0.5,ch-0.5);
+    }
+  }
+}
+
+function _drawHourlyBars(container,stats){
+  if(!stats||!stats.length)return;
+  const maxMean=Math.max(1,...stats.map(s=>s.mean));
+  container.innerHTML=stats.map(s=>{
+    const h=Math.max(2,Math.round(s.mean/maxMean*56));
+    const obs=s.observations;
+    const title=`${s.hour}時: 平均${s.mean}, σ=${s.std}, 観測=${obs}`;
+    const bg=obs>0?"rgba(139,92,246,.6)":"rgba(100,100,100,.2)";
+    return `<div class="anomaly-hourly-bar" style="height:${h}px;background:${bg}" title="${title}"></div>`;
+  }).join("");
+}
+
+function _renderAnomalyFeed(container,events){
+  if(!events.length){
+    container.innerHTML="<div style=\"color:var(--muted);font-size:11px\">直近5分間の異常なし</div>";
+    return;
+  }
+  const sorted=events.slice().sort((a,b)=>b.timestamp-a.timestamp).slice(0,20);
+  container.innerHTML=sorted.map((e,i)=>{
+    const sevCls="anomaly-sev anomaly-sev-"+(e.severity||"info");
+    const sevLbl=(e.severity||"info").toUpperCase();
+    const ts=new Date(e.timestamp*1000).toLocaleTimeString("ja-JP");
+    const vlm=e.vlm_explanation?`<div style="color:#a78bfa;font-size:10px;margin-top:2px">[VLM] ${e.vlm_explanation}</div>`:"";
+    const fbId=`afb_${e.detector}_${e.metric}_${e.entity_id}_${i}`;
+    return `<div class="anomaly-event-item" id="${fbId}">
+      <span class="${sevCls}">${sevLbl}</span>
+      <div style="flex:1">
+        <div>${e.description_ja||e.detector+"/"+e.metric}</div>
+        <div style="color:var(--muted);font-size:9px">${ts} | z=${e.z_score} | ${e.detector}</div>
+        ${vlm}
+        <div class="anomaly-fb-row">
+          <button class="anomaly-fb-btn anomaly-fb-ok" title="本物の異常" onclick="sendAnomalyFeedback('${e.detector}','${e.metric}',${e.entity_id},true,'${fbId}')">✓ 正解</button>
+          <button class="anomaly-fb-btn anomaly-fb-ng" title="誤検知" onclick="sendAnomalyFeedback('${e.detector}','${e.metric}',${e.entity_id},false,'${fbId}')">✗ FP</button>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+async function sendAnomalyFeedback(detector,metric,entityId,confirmed,domId){
+  try{
+    const r=await fetch("/vigil/perception/anomaly-feedback",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({detector,metric,entity_id:entityId,confirmed})
+    });
+    if(!r.ok)return;
+    // Visual feedback: dim the item
+    const el=document.getElementById(domId);
+    if(el){
+      el.style.opacity="0.5";
+      el.querySelector(".anomaly-fb-row").innerHTML=`<span style="font-size:9px;color:${confirmed?"#4ade80":"#f87171"}">${confirmed?"✓ 正解として記録":"✗ FPとして記録"}</span>`;
+    }
+  }catch(e){console.debug("Feedback error",e);}
+}
+
+let _anomalyProfilesLoaded=false;
+async function _refreshAnomalyProfiles(){
+  if(_anomalyProfilesLoaded)return;
+  _anomalyProfilesLoaded=true;
+  try{
+    const r=await fetch("/vigil/perception/anomaly-profiles");
+    if(!r.ok)return;
+    const profiles=await r.json();
+    const sel=document.getElementById("anomalyProfileSelect");
+    if(!sel)return;
+    sel.innerHTML='<option value="">-- 選択 --</option>'+
+      profiles.map(p=>`<option value="${p.name}">${p.name} (${p.observations}obs)</option>`).join("");
+  }catch(e){console.debug("Profile list fetch failed",e);}
+  // Allow re-fetch on next poll
+  setTimeout(()=>{_anomalyProfilesLoaded=false;},30000);
+}
+
+async function saveAnomalyProfile(){
+  const nameEl=document.getElementById("anomalyProfileName");
+  const name=(nameEl&&nameEl.value||"").trim();
+  if(!name){alert("プロファイル名を入力してください");return;}
+  try{
+    const r=await fetch("/vigil/perception/anomaly-profile/save",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name})
+    });
+    if(!r.ok){const e=await r.json().catch(()=>({}));alert("保存失敗: "+(e.detail||r.status));return;}
+    alert("プロファイル保存完了: "+name);
+    _anomalyProfilesLoaded=false;
+    _refreshAnomalyProfiles();
+  }catch(e){alert("保存エラー: "+e.message);}
+}
+
+// ─── Phase 6: SSE Real-time Events ─────────────────────────────────────────
+
+let _sseSource = null;
+const _SSE_TOAST_TTL = 5000;  // ms before toast fades
+
+function _sseConnect(sessionId){
+  if(_sseSource){_sseSource.close();_sseSource=null;}
+  const dot=document.getElementById("sseStatusDot");
+  try{
+    _sseSource=new EventSource(`/vigil/perception/events/stream?session_id=${encodeURIComponent(sessionId)}`);
+    _sseSource.onopen=()=>{
+      if(dot){dot.className="sse-status-dot sse-connected";dot.title="リアルタイム接続中";}
+    };
+    _sseSource.onmessage=(e)=>{
+      try{
+        const evt=JSON.parse(e.data);
+        _sseShowToast(evt);
+      }catch(_){}
+    };
+    _sseSource.onerror=()=>{
+      if(dot){dot.className="sse-status-dot sse-disconnected";dot.title="接続切断";}
+    };
+  }catch(err){
+    if(dot){dot.className="sse-status-dot sse-disconnected";}
+  }
+}
+
+function _sseDisconnect(){
+  if(_sseSource){_sseSource.close();_sseSource=null;}
+  const dot=document.getElementById("sseStatusDot");
+  if(dot){dot.className="sse-status-dot sse-disconnected";dot.title="未接続";}
+}
+
+function _sseShowToast(evt){
+  const area=document.getElementById("sseToastArea");
+  if(!area)return;
+  const type=(evt.type||"").toUpperCase();
+  if(type==="HEARTBEAT"||type.startsWith(":"))return;  // skip keepalives
+
+  const sevMap={CRITICAL:"🔴",WARNING:"🟡",INFO:"🔵"};
+  const sev=(evt.severity||"").toUpperCase();
+  const icon=sevMap[sev]||"⚪";
+  const typeLabel={ANOMALY:"異常",RULE_VIOLATION:"違反",GOAL_DETECTED:"意図検出",DELIBERATION_RESULT:"推論",EPISODE_CLOSED:"エピソード終了",NL_TASK_TRIGGERED:"タスク発火"}[type]||type;
+  const desc=evt.description_ja||evt.action_ja||"";
+
+  const cls=type==="ANOMALY"?"sse-toast-anomaly":
+             type==="RULE_VIOLATION"?"sse-toast-violation":
+             type==="GOAL_DETECTED"?"sse-toast-goal":
+             type==="DELIBERATION_RESULT"?"sse-toast-deliberation":"";
+
+  const el=document.createElement("div");
+  el.className=`sse-toast ${cls}`;
+  el.innerHTML=`<span>${icon} <b>${typeLabel}</b>${desc?` — ${escHtml(String(desc).slice(0,80))}`:""}</span>`;
+  area.appendChild(el);
+  setTimeout(()=>{
+    el.style.transition="opacity .4s";
+    el.style.opacity="0";
+    setTimeout(()=>el.remove(),400);
+  },_SSE_TOAST_TTL);
+
+  // Keep max 5 toasts
+  while(area.children.length>5)area.removeChild(area.firstChild);
+}
+
+// ─── Phase 6: NL Task Panel ────────────────────────────────────────────────
+
+async function addNLTask(){
+  const inp=document.getElementById("nlTaskInput");
+  const text=(inp&&inp.value||"").trim();
+  if(!text)return;
+  try{
+    const r=await fetch("/vigil/perception/tasks",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({text})
+    });
+    if(!r.ok){const e=await r.json().catch(()=>({}));alert("タスク追加失敗: "+(e.detail||r.status));return;}
+    inp.value="";
+    // Refresh task list
+    const data=await fetch("/vigil/perception/tasks").then(r=>r.ok?r.json():null).catch(()=>null);
+    _percRenderNLTasks(data);
+  }catch(e){alert("エラー: "+e.message);}
+}
+
+async function removeNLTask(taskId){
+  try{
+    const r=await fetch(`/vigil/perception/tasks/${taskId}`,{method:"DELETE"});
+    if(!r.ok)return;
+    const data=await fetch("/vigil/perception/tasks").then(r=>r.ok?r.json():null).catch(()=>null);
+    _percRenderNLTasks(data);
+  }catch(_){}
+}
+
+function _percRenderNLTasks(data){
+  const card=document.getElementById("percNLTaskCard");
+  if(!card)return;
+  card.style.display="block";  // always show when perception is active
+  const listEl=document.getElementById("nlTaskList");
+  if(!listEl)return;
+  const tasks=(data&&data.tasks)||[];
+  if(!tasks.length){
+    listEl.innerHTML="<div style=\"color:var(--muted);font-size:11px\">タスクなし — 上の入力で追加</div>";
+    return;
+  }
+  const typeLabel={loiter:"滞留",zone_entry:"侵入",approach:"接近",count_threshold:"人数閾値",time_filter:"時間帯"}
+  listEl.innerHTML=tasks.map(t=>{
+    const lbl=typeLabel[t.task_type]||t.task_type;
+    const active=t.active!==false;
+    return `<div class="nl-task-item">
+      <span class="nl-task-badge">${lbl}</span>
+      <span style="flex:1;color:${active?"var(--text)":"var(--muted)"}">${escHtml(t.description_ja||t.raw_text)}</span>
+      <button onclick="removeNLTask('${t.id}')" style="padding:0 5px;font-size:10px;background:rgba(248,113,113,.15);border:none;border-radius:4px;color:#f87171;cursor:pointer">✕</button>
+    </div>`;
+  }).join("");
+}
+
+// ─── Phase 6: Long-term Memory Panel ──────────────────────────────────────
+
+function _percRenderLTM(data){
+  const card=document.getElementById("percLTMCard");
+  if(!card)return;
+  if(!data||!data.total_facts){card.style.display="none";return;}
+  card.style.display="block";
+
+  const summEl=document.getElementById("ltmSummary");
+  if(summEl)summEl.textContent=data.summary_ja||`${data.total_facts}件の事実を蓄積`;
+
+  const factsEl=document.getElementById("ltmFacts");
+  if(factsEl&&data.by_type){
+    const entries=Object.entries(data.by_type||{});
+    if(!entries.length){factsEl.innerHTML="";return;}
+    factsEl.innerHTML=entries.map(([type,count])=>{
+      const label={hourly_activity:"時間帯活動",severity_pattern:"重要度パターン",entity_frequency:"エンティティ頻度"}[type]||type;
+      return `<div class="ltm-fact-row"><span style="color:var(--muted)">${label}</span><span>${count}件</span></div>`;
+    }).join("");
+  }
+}
+
+async function loadAnomalyProfile(){
+  const sel=document.getElementById("anomalyProfileSelect");
+  const name=sel&&sel.value;
+  if(!name){alert("プロファイルを選択してください");return;}
+  try{
+    const r=await fetch("/vigil/perception/anomaly-profile/load",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name})
+    });
+    if(!r.ok){const e=await r.json().catch(()=>({}));alert("読込失敗: "+(e.detail||r.status));return;}
+    alert("プロファイル読込完了: "+name);
+  }catch(e){alert("読込エラー: "+e.message);}
+}
+
+// ─── Phase 5: Deliberative Cognition Rendering ─────────────────────────────
+
+function _percRenderCognition(health, goals, delib){
+  const card=document.getElementById("percCognitionCard");
+  if(!card)return;
+  // Show card only if at least one data source is available
+  if(!health&&!goals&&!delib){card.style.display="none";return;}
+  card.style.display="block";
+
+  // Health grade
+  const gradeEl=document.getElementById("cogGrade");
+  const scoreEl=document.getElementById("cogScore");
+  if(gradeEl&&health){
+    const g=health.quality_grade||"?";
+    gradeEl.textContent=g;
+    gradeEl.className="cog-grade cog-grade-"+(["A","B","C","D","F"].includes(g)?g:"F");
+  }
+  if(scoreEl&&health){
+    const s=health.quality_score!=null?Math.round(health.quality_score):null;
+    const fp=health.fp_rate_estimate!=null?Math.round(health.fp_rate_estimate*100):null;
+    const parts=[];
+    if(s!=null)parts.push(`スコア ${s}/100`);
+    if(fp!=null)parts.push(`FP推定 ${fp}%`);
+    if(health.frames_observed)parts.push(`${health.frames_observed}フレーム`);
+    scoreEl.textContent=parts.join(" · ");
+  }
+
+  // Issues & recommendations
+  const issuesEl=document.getElementById("cogIssues");
+  if(issuesEl&&health){
+    const issues=health.issues||[];
+    const recs=health.recommendations||[];
+    if(!issues.length&&!recs.length){
+      issuesEl.innerHTML="";
+    }else{
+      issuesEl.innerHTML=
+        issues.map(i=>`<div class="cog-issue">⚠ ${escHtml(i)}</div>`).join("")+
+        recs.map(r=>`<div class="cog-issue" style="color:#60a5fa">💡 ${escHtml(r)}</div>`).join("");
+    }
+    // Show auto-adjustments if any
+    const adj=health.auto_adjustments||[];
+    if(adj.length){
+      issuesEl.innerHTML+=adj.map(a=>`<div class="cog-issue" style="color:#4ade80">✓ ${escHtml(a)}</div>`).join("");
+    }
+  }
+
+  // High-risk goal hypotheses feed
+  const goalFeedEl=document.getElementById("cogGoalFeed");
+  if(goalFeedEl&&goals){
+    const allHyps=[];
+    const entityMap=goals.entity_hypotheses||{};
+    Object.entries(entityMap).forEach(([eid,hyps])=>{
+      (hyps||[]).forEach(h=>allHyps.push({...h,entity_id:eid}));
+    });
+    const highRisk=allHyps.filter(h=>(h.risk_score||0)>=0.5).sort((a,b)=>b.risk_score-a.risk_score).slice(0,4);
+    if(!highRisk.length){
+      goalFeedEl.innerHTML="<div style=\"color:var(--muted);font-size:10px\">高リスクゴールなし</div>";
+    }else{
+      goalFeedEl.innerHTML=highRisk.map(h=>{
+        const riskPct=Math.round((h.risk_score||0)*100);
+        const riskColor=riskPct>=80?"#f87171":riskPct>=60?"#fbbf24":"#fb923c";
+        const conf=Math.round((h.confidence||0)*100);
+        return `<div class="cog-goal-item">
+          <div style="flex:1">
+            <div style="font-size:10px;color:${riskColor};font-weight:700">${escHtml(h.description_ja||h.goal_type||"")}</div>
+            <div style="font-size:9px;color:var(--muted)">ID ${escHtml(String(h.entity_id))} · 確信 ${conf}% · リスク ${riskPct}%</div>
+          </div>
+          <div>
+            <div class="cog-risk-bar"><div class="cog-risk-fill" style="width:${riskPct}%;background:${riskColor}"></div></div>
+          </div>
+        </div>`;
+      }).join("");
+    }
+  }
+
+  // Deliberation results feed
+  const delibFeedEl=document.getElementById("cogDelibFeed");
+  if(delibFeedEl&&delib){
+    const items=(delib.recent||[]).slice(0,4);
+    if(!items.length){
+      delibFeedEl.innerHTML="<div style=\"color:var(--muted);font-size:10px\">推論履歴なし</div>";
+    }else{
+      delibFeedEl.innerHTML=items.map(d=>{
+        const urgency=(d.urgency||"low").toLowerCase();
+        const urgCls=urgency==="critical"?"cog-delib-urgent":urgency==="high"?"cog-delib-high":"cog-delib-medium";
+        const urgLabel={"critical":"緊急","high":"高","medium":"中","low":"低"}[urgency]||urgency;
+        const conf=d.overall_confidence!=null?Math.round(d.overall_confidence*100):null;
+        const ms=d.duration_ms!=null?Math.round(d.duration_ms):null;
+        return `<div class="cog-delib-item ${urgCls}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:2px">
+            <span style="font-size:9px;font-weight:700;color:${urgency==="critical"?"#f87171":urgency==="high"?"#fbbf24":"#60a5fa"}">[${urgLabel}] ${escHtml(d.trigger_event_type||"")}</span>
+            ${ms!=null?`<span style="font-size:9px;color:var(--muted)">${ms}ms</span>`:""}
+          </div>
+          <div style="font-size:10px">${escHtml(d.action_ja||"")}</div>
+          ${conf!=null?`<div style="font-size:9px;color:var(--muted)">確信度 ${conf}% · ${(d.hypotheses||[]).length}仮説</div>`:""}
+        </div>`;
+      }).join("");
+    }
+    // Show total count if any
+    if(delib.total_deliberations){
+      delibFeedEl.innerHTML+=`<div style="font-size:9px;color:var(--muted);text-align:right;margin-top:2px">累計 ${delib.total_deliberations} 回の推論</div>`;
+    }
+  }
+}
+
+// ─── Phase 5: Episodic Memory Rendering ───────────────────────────────────
+
+function _percRenderEpisodes(data){
+  const card=document.getElementById("percEpisodeCard");
+  if(!card)return;
+  if(!data){card.style.display="none";return;}
+
+  const episodes=data.episodes||[];
+  const patterns=data.patterns||[];
+  const crossSummary=data.cross_summary||"";
+
+  if(!episodes.length&&!crossSummary){card.style.display="none";return;}
+  card.style.display="block";
+
+  // Cross-episode summary
+  const summEl=document.getElementById("episodeSummary");
+  if(summEl){
+    const patCount=patterns.length;
+    const epCount=episodes.length;
+    const parts=[];
+    if(epCount)parts.push(`${epCount}エピソード`);
+    if(patCount)parts.push(`${patCount}パターン検出`);
+    if(crossSummary)parts.push(crossSummary);
+    summEl.textContent=parts.join(" · ")||"記録なし";
+  }
+
+  // Episode feed
+  const feedEl=document.getElementById("episodeFeed");
+  if(feedEl){
+    if(!episodes.length){
+      feedEl.innerHTML="<div style=\"color:var(--muted);font-size:10px\">エピソードなし</div>";
+    }else{
+      feedEl.innerHTML=episodes.slice(0,6).map(ep=>{
+        const sev=(ep.severity||"info").toLowerCase();
+        const sevCls="episode-item episode-sev-"+sev;
+        const dur=ep.duration_seconds!=null?Math.round(ep.duration_seconds)+"秒":null;
+        const events=ep.event_count!=null?ep.event_count+"件":null;
+        const entities=ep.entity_count!=null?ep.entity_count+"エンティティ":null;
+        const tags=(ep.tags||[]).slice(0,3);
+        const endTime=ep.end_time?new Date(ep.end_time*1000).toLocaleTimeString("ja-JP"):"進行中";
+        return `<div class="${sevCls}">
+          <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+            <span style="font-size:9px;font-weight:700;color:var(--muted)">${endTime}</span>
+            <span style="font-size:9px;color:var(--muted)">${[dur,events,entities].filter(Boolean).join(" · ")}</span>
+          </div>
+          <div style="font-size:10px;margin-bottom:2px">${escHtml(ep.summary_ja||ep.summary_en||"")}</div>
+          ${tags.length?`<div>${tags.map(t=>`<span class="episode-tag">${escHtml(t)}</span>`).join("")}</div>`:""}
+        </div>`;
+      }).join("");
+      // Temporal patterns summary
+      if(patterns.length){
+        feedEl.innerHTML+=`<div style="font-size:9px;color:#a78bfa;margin-top:6px;padding-top:4px;border-top:1px solid var(--border)">
+          パターン: ${patterns.slice(0,2).map(p=>escHtml(p.description_ja||p.pattern_id)).join("、")}
+          ${patterns.length>2?` 他${patterns.length-2}件`:""}
+        </div>`;
+      }
+    }
+  }
+}
+
+// ─── Phase 7: Action Executor Panel ────────────────────────────────────────
+
+async function addActionPlan(){
+  const actionType=document.getElementById("actionTypeSelect").value;
+  const triggerType=(document.getElementById("actionTriggerInput").value||"").trim().toUpperCase();
+  if(!triggerType){alert("イベントタイプを入力してください (例: ANOMALY)");return;}
+  try{
+    const r=await fetch("/vigil/perception/actions/plans",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({action_type:actionType,trigger_event_type:triggerType})
+    });
+    if(!r.ok){const e=await r.json().catch(()=>({}));alert("追加失敗: "+(e.detail||r.status));return;}
+    document.getElementById("actionTriggerInput").value="";
+    const stateR=await fetch("/vigil/perception/actions/state").catch(()=>null);
+    if(stateR&&stateR.ok)_percRenderActions(await stateR.json());
+  }catch(e){alert("エラー: "+e.message);}
+}
+
+async function removeActionPlan(planId){
+  try{
+    const r=await fetch(`/vigil/perception/actions/plans/${encodeURIComponent(planId)}`,{method:"DELETE"});
+    if(!r.ok){const e=await r.json().catch(()=>({}));alert("削除失敗: "+(e.detail||r.status));return;}
+    const stateR=await fetch("/vigil/perception/actions/state").catch(()=>null);
+    if(stateR&&stateR.ok)_percRenderActions(await stateR.json());
+  }catch(e){alert("エラー: "+e.message);}
+}
+
+function _percRenderActions(data){
+  const card=document.getElementById("percActionCard");
+  if(!card)return;
+  card.style.display="block";
+  const typeClass={alert:"action-type-alert",escalate:"action-type-escalate",record:"action-type-record",suppress:"action-type-suppress",webhook:"action-type-webhook"};
+  const planEl=document.getElementById("actionPlanList");
+  if(planEl){
+    const plans=(data&&data.plans)||[];
+    if(!plans.length){
+      planEl.innerHTML="<div style=\"color:var(--muted);font-size:10px\">プランなし — 上フォームで追加</div>";
+    }else{
+      planEl.innerHTML=plans.map(p=>{
+        const cls=typeClass[p.action_type]||"";
+        return `<div class="action-plan-item">
+          <span class="action-type-badge ${cls}">${escHtml((p.action_type||"").toUpperCase())}</span>
+          <span style="flex:1;color:var(--text)">${escHtml(p.trigger_event_type)}</span>
+          <span style="font-size:9px;color:var(--muted)">CD ${p.cooldown_seconds||60}s</span>
+          <button onclick="removeActionPlan('${escHtml(p.plan_id)}')" style="padding:0 4px;font-size:9px;background:rgba(248,113,113,.15);border:none;border-radius:3px;color:#f87171;cursor:pointer">✕</button>
+        </div>`;
+      }).join("");
+    }
+  }
+  const logEl=document.getElementById("actionLogList");
+  if(logEl){
+    const total=data&&data.total_executions!=null?data.total_executions:0;
+    const enabled=data&&data.enabled_plans!=null?data.enabled_plans:0;
+    logEl.innerHTML=`<div style="font-size:10px;color:var(--muted)">有効プラン ${enabled} · 累計実行 ${total} 回</div>`;
+  }
+}
+
+// ─── Phase 7: Multimodal Fusion Panel ──────────────────────────────────────
+
+async function ingestSignal(){
+  const source=document.getElementById("mmSourceSelect").value;
+  const signalType=(document.getElementById("mmSignalTypeInput").value||"").trim();
+  const value=parseFloat(document.getElementById("mmValueInput").value)||0.8;
+  if(!signalType){alert("signal_type を入力してください (例: door_open)");return;}
+  try{
+    const r=await fetch("/vigil/perception/multimodal/signals",{
+      method:"POST",headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({source,signal_type:signalType,value})
+    });
+    if(!r.ok){const e=await r.json().catch(()=>({}));alert("送信失敗: "+(e.detail||r.status));return;}
+    document.getElementById("mmSignalTypeInput").value="";
+    const logR=await fetch("/vigil/perception/multimodal/fusion-log?n=10").catch(()=>null);
+    if(logR&&logR.ok)_percRenderMultimodal(await logR.json());
+  }catch(e){alert("エラー: "+e.message);}
+}
+
+function _percRenderMultimodal(data){
+  const card=document.getElementById("percMultimodalCard");
+  if(!card)return;
+  card.style.display="block";
+  const ftLabel={multimodal_anomaly:"複合異常",confirmed_access:"アクセス確認",sensor_confirmed_intrusion:"侵入確認",urgency_confirmed:"緊急確認",correlated_event:"相関イベント"};
+  const fusionEl=document.getElementById("mmFusionLog");
+  if(fusionEl){
+    const log=(data&&data.log)||[];
+    if(!log.length){
+      fusionEl.innerHTML="<div style=\"color:var(--muted);font-size:10px\">融合イベントなし</div>";
+    }else{
+      fusionEl.innerHTML=log.slice().reverse().slice(0,8).map(ev=>{
+        const conf=ev.confidence!=null?Math.round(ev.confidence*100):"?";
+        const ts=ev.timestamp?new Date(ev.timestamp*1000).toLocaleTimeString("ja-JP",{hour:"2-digit",minute:"2-digit",second:"2-digit"}):"";
+        const lbl=ftLabel[ev.fusion_type]||ev.fusion_type||"";
+        return `<div class="mm-fusion-item">${ts} <span style="color:#60a5fa">${escHtml(lbl)}</span> <span style="font-size:9px;color:var(--muted)">${conf}%</span> <span style="color:var(--muted);font-size:10px">${escHtml(ev.description_ja||"")}</span></div>`;
+      }).join("");
+    }
+  }
+  const stateEl=document.getElementById("mmState");
+  if(stateEl){
+    const total=data&&data.total!=null?data.total:0;
+    stateEl.textContent=total?`${total}件の融合イベント`:"";
+  }
 }
 </script>
 

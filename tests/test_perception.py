@@ -764,7 +764,7 @@ class TestWorldModel(unittest.TestCase):
 
     def test_anomaly_baseline_flags_unusual_count(self):
         """After warmup, an anomalous entity count should trigger ANOMALY event."""
-        model = WorldModel(PerceptionConfig())
+        model = WorldModel(PerceptionConfig(anomaly_warmup_frames=30))
         # Warmup: 35 frames with 2 entities each (min observations = 30)
         for i in range(35):
             entities = [

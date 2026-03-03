@@ -510,3 +510,11 @@ class PerceptionConfig:
     sahi_slice_height: int = 640        # tile height in pixels
     sahi_slice_width: int = 640         # tile width in pixels
     sahi_overlap_ratio: float = 0.2     # overlap fraction between adjacent tiles
+
+    # Autonomous anomaly detection (4-detector ensemble)
+    anomaly_enabled: bool = True              # enable anomaly detector ensemble
+    anomaly_warmup_frames: int = 100          # frames before anomaly detection activates
+    anomaly_sigma_threshold: float = 2.0      # minimum weighted z-score to fire
+    anomaly_cooldown_seconds: float = 60.0    # suppress duplicate alerts per (detector, metric, entity)
+    anomaly_spatial_grid_size: int = 10       # NxN spatial occupancy grid
+    anomaly_ema_alpha: float = 0.05           # EMA smoothing factor (lower = slower adaptation)

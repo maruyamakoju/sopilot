@@ -863,3 +863,479 @@ class TestDiagnostics(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+# ---------------------------------------------------------------------------
+# CausalGraph tests
+# ---------------------------------------------------------------------------
+
+from sopilot.perception.causality import CausalGraph, CausalNode  # noqa: E402
+
+
+def _make_link(
+    cause_type_ev: EntityEventType,
+    effect_type_ev: EntityEventType,
+    cause_entity: int = 1,
+    effect_entity: int = 1,
+    cause_ts: float = 10.0,
+    effect_ts: float = 15.0,
+    cause_type: str = "equipment_removal_violation",
+    cause_details: dict | None = None,
+    effect_details: dict | None = None,
+) -> CausalLink:
+    """Helper that builds a CausalLink from two simple events."""
+    cause_ev = _make_event(
+        cause_type_ev,
+        entity_id=cause_entity,
+        timestamp=cause_ts,
+        details=cause_details or {},
+    )
+    effect_ev = _make_event(
+        effect_type_ev,
+        entity_id=effect_entity,
+        timestamp=effect_ts,
+        details=effect_details or {},
+    )
+    return CausalLink(
+        cause_event=cause_ev,
+        effect_event=effect_ev,
+        cause_type=cause_type,
+        confidence=0.8,
+        explanation_ja="テスト因果",
+        explanation_en="test causal",
+        time_delta_seconds=effect_ts - cause_ts,
+    )
+
+
+class TestCausalGraph(unittest.TestCase):
+    """Tests for the CausalGraph class."""
+
+    # ── Construction ──────────────────────────────────────────────────────
+
+    def test_init_empty(self):
+        """A freshly created graph has no nodes."""
+        graph = CausalGraph()
+        stats = graph.get_stats()
+        self.assertEqual(stats["node_count"], 0)
+
+    # ── add_link ──────────────────────────────────────────────────────────
+
+    def test_add_link_creates_nodes(self):
+        """Adding one link creates exactly two nodes (cause + effect)."""
+        graph = CausalGraph()
+        link = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+        )
+        graph.add_link(link)
+        self.assertEqual(graph.get_stats()["node_count"], 2)
+
+    def test_add_link_returns_ids(self):
+        """add_link returns a tuple of two non-empty string IDs."""
+        graph = CausalGraph()
+        link = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+        )
+        result = graph.add_link(link)
+        self.assertIsInstance(result, tuple)
+        self.assertEqual(len(result), 2)
+        self.assertIsInstance(result[0], str)
+        self.assertIsInstance(result[1], str)
+        self.assertTrue(result[0])
+        self.assertTrue(result[1])
+
+    def test_add_duplicate_does_not_create_extra_nodes(self):
+        """Adding the same link twice reuses the existing nodes."""
+        graph = CausalGraph()
+        link = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+            cause_ts=10.0,
+            effect_ts=12.0,
+        )
+        id1 = graph.add_link(link)
+        id2 = graph.add_link(link)  # identical link
+        # Same node IDs returned.
+        self.assertEqual(id1, id2)
+        # Still only two nodes, not four.
+        self.assertEqual(graph.get_stats()["node_count"], 2)
+
+    # ── get_root_causes ───────────────────────────────────────────────────
+
+    def test_root_causes_empty(self):
+        """An empty graph returns an empty root-cause list."""
+        graph = CausalGraph()
+        self.assertEqual(graph.get_root_causes(), [])
+
+    def test_root_causes_single_chain(self):
+        """In A→B, A is the root cause and B is not."""
+        graph = CausalGraph()
+        link = _make_link(
+            EntityEventType.ZONE_ENTERED,
+            EntityEventType.PROLONGED_PRESENCE,
+            cause_entity=5,
+            effect_entity=5,
+            cause_ts=100.0,
+            effect_ts=165.0,
+            cause_type="zone_entry_prolonged",
+        )
+        cause_id, effect_id = graph.add_link(link)
+        roots = graph.get_root_causes()
+        self.assertEqual(len(roots), 1)
+        self.assertEqual(roots[0].node_id, cause_id)
+
+    def test_root_causes_multiple_chains(self):
+        """Two independent single-step chains produce two root causes."""
+        graph = CausalGraph()
+        link1 = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+            cause_entity=1,
+            effect_entity=1,
+            cause_ts=10.0,
+            effect_ts=12.0,
+        )
+        link2 = _make_link(
+            EntityEventType.ZONE_ENTERED,
+            EntityEventType.PROLONGED_PRESENCE,
+            cause_entity=2,
+            effect_entity=2,
+            cause_ts=20.0,
+            effect_ts=80.0,
+            cause_type="zone_entry_prolonged",
+        )
+        graph.add_link(link1)
+        graph.add_link(link2)
+        roots = graph.get_root_causes()
+        self.assertEqual(len(roots), 2)
+
+    def test_root_causes_sorted_by_importance(self):
+        """Root with more downstream nodes is ranked first."""
+        graph = CausalGraph()
+        # Chain A: root_a → mid → leaf  (2 downstream from root_a)
+        link_a1 = _make_link(
+            EntityEventType.ZONE_ENTRY_PREDICTED,
+            EntityEventType.ZONE_ENTERED,
+            cause_entity=10,
+            effect_entity=10,
+            cause_ts=1.0,
+            effect_ts=5.0,
+            cause_type="approach_zone_entry",
+        )
+        link_a2 = _make_link(
+            EntityEventType.ZONE_ENTERED,
+            EntityEventType.PROLONGED_PRESENCE,
+            cause_entity=10,
+            effect_entity=10,
+            cause_ts=5.0,
+            effect_ts=70.0,
+            cause_type="zone_entry_prolonged",
+        )
+        # Chain B: root_b → leaf_b  (1 downstream from root_b)
+        link_b = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+            cause_entity=20,
+            effect_entity=20,
+            cause_ts=100.0,
+            effect_ts=105.0,
+        )
+        graph.add_link(link_a1)
+        graph.add_link(link_a2)
+        graph.add_link(link_b)
+
+        roots = graph.get_root_causes()
+        # root_a has 2 descendants; root_b has 1 → root_a should be first.
+        self.assertGreater(roots[0].importance, roots[1].importance)
+
+    # ── get_consequences ──────────────────────────────────────────────────
+
+    def test_get_consequences_empty(self):
+        """A leaf node has no consequences."""
+        graph = CausalGraph()
+        link = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+        )
+        _, effect_id = graph.add_link(link)
+        self.assertEqual(graph.get_consequences(effect_id), [])
+
+    def test_get_consequences_chain(self):
+        """A→B→C: consequences of A are [B, C]."""
+        graph = CausalGraph()
+        link1 = _make_link(
+            EntityEventType.ZONE_ENTRY_PREDICTED,
+            EntityEventType.ZONE_ENTERED,
+            cause_entity=7,
+            effect_entity=7,
+            cause_ts=100.0,
+            effect_ts=105.0,
+            cause_type="approach_zone_entry",
+        )
+        link2 = _make_link(
+            EntityEventType.ZONE_ENTERED,
+            EntityEventType.PROLONGED_PRESENCE,
+            cause_entity=7,
+            effect_entity=7,
+            cause_ts=105.0,
+            effect_ts=170.0,
+            cause_type="zone_entry_prolonged",
+        )
+        a_id, _ = graph.add_link(link1)
+        graph.add_link(link2)
+        consequences = graph.get_consequences(a_id)
+        self.assertEqual(len(consequences), 2)
+
+    def test_get_consequences_max_depth(self):
+        """BFS stops at max_depth=1: only immediate children returned."""
+        graph = CausalGraph()
+        link1 = _make_link(
+            EntityEventType.ZONE_ENTRY_PREDICTED,
+            EntityEventType.ZONE_ENTERED,
+            cause_entity=7,
+            effect_entity=7,
+            cause_ts=100.0,
+            effect_ts=105.0,
+            cause_type="approach_zone_entry",
+        )
+        link2 = _make_link(
+            EntityEventType.ZONE_ENTERED,
+            EntityEventType.PROLONGED_PRESENCE,
+            cause_entity=7,
+            effect_entity=7,
+            cause_ts=105.0,
+            effect_ts=170.0,
+            cause_type="zone_entry_prolonged",
+        )
+        a_id, _ = graph.add_link(link1)
+        graph.add_link(link2)
+        # depth=1 → only B is returned, C is not
+        consequences = graph.get_consequences(a_id, max_depth=1)
+        self.assertEqual(len(consequences), 1)
+        self.assertEqual(consequences[0].event.event_type, EntityEventType.ZONE_ENTERED)
+
+    # ── get_intervention_targets ──────────────────────────────────────────
+
+    def test_get_intervention_targets_empty(self):
+        """Empty graph returns an empty list."""
+        graph = CausalGraph()
+        self.assertEqual(graph.get_intervention_targets(), [])
+
+    def test_get_intervention_targets_violations(self):
+        """A node upstream of a RULE_VIOLATION has violation_count >= 1."""
+        graph = CausalGraph()
+        link = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+            cause_entity=1,
+            effect_entity=1,
+            cause_ts=10.0,
+            effect_ts=12.0,
+        )
+        cause_id, _ = graph.add_link(link)
+        targets = graph.get_intervention_targets()
+        # At least the cause node should appear with violation_count >= 1.
+        cause_targets = [t for t in targets if t[0].node_id == cause_id]
+        self.assertEqual(len(cause_targets), 1)
+        self.assertGreaterEqual(cause_targets[0][1], 1)
+
+    def test_get_intervention_targets_sorted(self):
+        """Results are sorted by violation_count descending."""
+        graph = CausalGraph()
+        # A chain: root → violation1 → violation2 (root has 2 downstream violations)
+        link1 = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+            cause_entity=1,
+            effect_entity=1,
+            cause_ts=10.0,
+            effect_ts=12.0,
+        )
+        link2 = _make_link(
+            EntityEventType.RULE_VIOLATION,
+            EntityEventType.RULE_VIOLATION,
+            cause_entity=1,
+            effect_entity=2,
+            cause_ts=12.0,
+            effect_ts=14.0,
+            cause_type="anomaly_violation",
+        )
+        graph.add_link(link1)
+        graph.add_link(link2)
+        targets = graph.get_intervention_targets()
+        self.assertGreaterEqual(len(targets), 2)
+        # Verify descending sort.
+        counts = [t[1] for t in targets]
+        self.assertEqual(counts, sorted(counts, reverse=True))
+
+    # ── get_causal_narrative ──────────────────────────────────────────────
+
+    def test_causal_narrative_empty(self):
+        """An empty graph returns a non-empty graceful string."""
+        graph = CausalGraph()
+        narrative = graph.get_causal_narrative()
+        self.assertIsInstance(narrative, str)
+        self.assertGreater(len(narrative), 0)
+
+    def test_causal_narrative_format(self):
+        """Narrative for a real chain contains Japanese text."""
+        graph = CausalGraph()
+        link = _make_link(
+            EntityEventType.ZONE_ENTERED,
+            EntityEventType.PROLONGED_PRESENCE,
+            cause_entity=5,
+            effect_entity=5,
+            cause_ts=100.0,
+            effect_ts=165.0,
+            cause_type="zone_entry_prolonged",
+        )
+        graph.add_link(link)
+        narrative = graph.get_causal_narrative()
+        # Should contain Japanese characters (multi-byte).
+        has_japanese = any(ord(c) > 0x3000 for c in narrative)
+        self.assertTrue(has_japanese, f"Narrative lacks Japanese text: {narrative!r}")
+
+    def test_causal_narrative_max_chains(self):
+        """max_chains=1 produces at most one chain line."""
+        graph = CausalGraph()
+        for i in range(4):
+            link = _make_link(
+                EntityEventType.STATE_CHANGED,
+                EntityEventType.RULE_VIOLATION,
+                cause_entity=i * 10,
+                effect_entity=i * 10,
+                cause_ts=float(i * 100),
+                effect_ts=float(i * 100 + 5),
+            )
+            graph.add_link(link)
+        narrative = graph.get_causal_narrative(max_chains=1)
+        # At most 1 chain-line (separated by newlines).
+        lines = [ln for ln in narrative.splitlines() if ln.strip()]
+        self.assertLessEqual(len(lines), 1)
+
+    # ── prune_old_nodes ───────────────────────────────────────────────────
+
+    def test_prune_old_nodes_removes_old(self):
+        """Nodes older than max_age_seconds are removed."""
+        graph = CausalGraph(max_age_seconds=60.0)
+        link = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+            cause_ts=0.0,
+            effect_ts=5.0,
+        )
+        graph.add_link(link)
+        self.assertEqual(graph.get_stats()["node_count"], 2)
+        # current_time = 70 → both nodes (ts=0, ts=5) are older than 60 s.
+        graph.prune_old_nodes(current_time=70.0)
+        self.assertEqual(graph.get_stats()["node_count"], 0)
+
+    def test_prune_old_nodes_keeps_recent(self):
+        """Nodes younger than max_age_seconds are NOT removed."""
+        graph = CausalGraph(max_age_seconds=600.0)
+        link = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+            cause_ts=1000.0,
+            effect_ts=1005.0,
+        )
+        graph.add_link(link)
+        # current_time = 1100 → age = 95–100 s < 600 s → kept.
+        graph.prune_old_nodes(current_time=1100.0)
+        self.assertEqual(graph.get_stats()["node_count"], 2)
+
+    def test_prune_returns_count(self):
+        """prune_old_nodes returns the number of nodes removed."""
+        graph = CausalGraph(max_age_seconds=10.0)
+        link = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+            cause_ts=0.0,
+            effect_ts=3.0,
+        )
+        graph.add_link(link)
+        removed = graph.prune_old_nodes(current_time=100.0)
+        self.assertEqual(removed, 2)
+
+    # ── compute_importance ────────────────────────────────────────────────
+
+    def test_compute_importance(self):
+        """Root node (with descendants) has higher importance than a leaf."""
+        graph = CausalGraph()
+        link = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+            cause_ts=10.0,
+            effect_ts=12.0,
+        )
+        cause_id, effect_id = graph.add_link(link)
+        graph.compute_importance()
+        cause_node = graph._nodes[cause_id]
+        effect_node = graph._nodes[effect_id]
+        self.assertGreater(cause_node.importance, effect_node.importance)
+
+    def test_compute_importance_normalized(self):
+        """All importance values are in [0, 1]."""
+        graph = CausalGraph()
+        link1 = _make_link(
+            EntityEventType.ZONE_ENTRY_PREDICTED,
+            EntityEventType.ZONE_ENTERED,
+            cause_entity=3,
+            effect_entity=3,
+            cause_ts=1.0,
+            effect_ts=5.0,
+            cause_type="approach_zone_entry",
+        )
+        link2 = _make_link(
+            EntityEventType.ZONE_ENTERED,
+            EntityEventType.PROLONGED_PRESENCE,
+            cause_entity=3,
+            effect_entity=3,
+            cause_ts=5.0,
+            effect_ts=70.0,
+            cause_type="zone_entry_prolonged",
+        )
+        graph.add_link(link1)
+        graph.add_link(link2)
+        graph.compute_importance()
+        for node in graph._nodes.values():
+            self.assertGreaterEqual(node.importance, 0.0)
+            self.assertLessEqual(node.importance, 1.0)
+
+    # ── get_stats ──────────────────────────────────────────────────────────
+
+    def test_get_stats_is_dict(self):
+        """get_stats() returns a dict."""
+        graph = CausalGraph()
+        self.assertIsInstance(graph.get_stats(), dict)
+
+    def test_get_stats_node_count(self):
+        """get_stats() contains a 'node_count' key reflecting the actual count."""
+        graph = CausalGraph()
+        link = _make_link(
+            EntityEventType.STATE_CHANGED,
+            EntityEventType.RULE_VIOLATION,
+        )
+        graph.add_link(link)
+        stats = graph.get_stats()
+        self.assertIn("node_count", stats)
+        self.assertEqual(stats["node_count"], 2)
+
+    # ── max_nodes limit ───────────────────────────────────────────────────
+
+    def test_max_nodes_respected(self):
+        """Adding many links never exceeds max_nodes."""
+        max_n = 10
+        graph = CausalGraph(max_nodes=max_n)
+        for i in range(50):
+            link = _make_link(
+                EntityEventType.STATE_CHANGED,
+                EntityEventType.RULE_VIOLATION,
+                cause_entity=i,
+                effect_entity=i + 1000,
+                cause_ts=float(i),
+                effect_ts=float(i) + 2.0,
+            )
+            graph.add_link(link)
+        self.assertLessEqual(graph.get_stats()["node_count"], max_n + 1)

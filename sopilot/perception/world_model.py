@@ -784,7 +784,19 @@ class WorldModel:
         self._temporal_memory = TemporalMemoryBuffer(
             max_seconds=config.temporal_memory_seconds,
         )
-        self._anomaly_baseline = AnomalyBaseline()
+
+        # Anomaly detection: prefer ensemble, fall back to baseline
+        anomaly_enabled = getattr(config, "anomaly_enabled", True)
+        if anomaly_enabled:
+            try:
+                from sopilot.perception.anomaly import AnomalyDetectorEnsemble
+                self._anomaly_baseline = AnomalyDetectorEnsemble(config)
+                logger.info("Using AnomalyDetectorEnsemble (4-detector)")
+            except ImportError:
+                self._anomaly_baseline = AnomalyBaseline()
+                logger.info("AnomalyDetectorEnsemble not available, using AnomalyBaseline")
+        else:
+            self._anomaly_baseline = AnomalyBaseline()
 
         # Frame counter for diagnostics
         self._frames_processed: int = 0

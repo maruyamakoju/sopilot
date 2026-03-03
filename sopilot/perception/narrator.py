@@ -549,7 +549,19 @@ class SceneNarrator:
             return f"{label_ja}(ID: {eid})の状態が変化しました。"
 
         if event.event_type == EntityEventType.ANOMALY:
-            return f"{label_ja}(ID: {eid})に異常が検出されました。"
+            desc_ja = details.get("description_ja", "")
+            if desc_ja:
+                return f"\u26a0 自律検知: {desc_ja}"
+            detector = details.get("detector", "")
+            if detector == "behavioral":
+                return f"\u26a0 行動異常を検出: {label_ja}(ID: {eid})の速度または活動パターンが通常と異なります。"
+            if detector == "spatial":
+                return f"\u26a0 空間異常を検出: {label_ja}(ID: {eid})が通常無人のエリアにいます。"
+            if detector == "temporal":
+                return f"\u26a0 時間帯異常を検出: この時間帯に通常と異なるエンティティ数が観測されました。"
+            if detector == "interaction":
+                return f"\u26a0 関係性異常を検出: {label_ja}(ID: {eid})に珍しいエンティティ間関係が発生しました。"
+            return f"\u26a0 {label_ja}(ID: {eid})に異常が検出されました。"
 
         if event.event_type == EntityEventType.RULE_VIOLATION:
             rule = details.get("rule", "不明")
@@ -753,6 +765,18 @@ class SceneNarrator:
             return f"{label_en} (ID: {eid}) changed state."
 
         if event.event_type == EntityEventType.ANOMALY:
+            desc_en = details.get("description_en", "")
+            if desc_en:
+                return f"Autonomous detection: {desc_en}"
+            detector = details.get("detector", "")
+            if detector == "behavioral":
+                return f"Behavioral anomaly: {label_en} (ID: {eid}) shows unusual speed or activity pattern."
+            if detector == "spatial":
+                return f"Spatial anomaly: {label_en} (ID: {eid}) in a rarely-occupied area."
+            if detector == "temporal":
+                return f"Temporal anomaly: unusual entity count for the current time of day."
+            if detector == "interaction":
+                return f"Interaction anomaly: rare entity-pair relationship involving {label_en} (ID: {eid})."
             return f"Anomaly detected for {label_en} (ID: {eid})."
 
         if event.event_type == EntityEventType.RULE_VIOLATION:

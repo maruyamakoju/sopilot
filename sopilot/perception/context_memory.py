@@ -396,6 +396,28 @@ class ContextMemory:
         if _matches_any(q, ["制限エリア", "restricted", "制限区域"]):
             return self._query_restricted_zone_visitors()
 
+        # --- Anomaly queries ---
+        if _matches_any(q, ["異常", "anomaly", "anomalies", "アノマリ"]):
+            anomaly_events = [
+                e for e in self._events
+                if e.event_type == EntityEventType.ANOMALY
+            ]
+            if not anomaly_events:
+                return "セッション中に自律検知された異常はありません。"
+            # Group by detector
+            by_detector: dict[str, int] = {}
+            for e in anomaly_events:
+                det = e.details.get("detector", "unknown")
+                by_detector[det] = by_detector.get(det, 0) + 1
+            parts = [f"{det}: {cnt}件" for det, cnt in sorted(by_detector.items())]
+            latest = anomaly_events[-1]
+            latest_desc = latest.details.get("description_ja", "詳細なし")
+            return (
+                f"自律検知された異常: 合計{len(anomaly_events)}件 "
+                f"({', '.join(parts)})。"
+                f"最新: {latest_desc}"
+            )
+
         # --- Break / stationary check ---
         if _matches_any(q, ["休憩", "break"]):
             entity_id = _extract_entity_id(q)

@@ -1,0 +1,122 @@
+# =============================================================================
+# SOPilot -- Production Docker Compose
+# =============================================================================
+# Usage:
+#   cp .env.example .env          # set SOPILOT_API_KEY and SSL cert paths
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Prerequisites:
+#   - SSL certificates at ./nginx/ssl/cert.pem and ./nginx/ssl/key.pem
+#   - .env file with all required variables (see .env.example)
+#   - ./data and ./logs directories writable by uid 1000 (sopilot user)
+# =============================================================================
+
+services:
+  # ---------------------------------------------------------------------------
+  # Application service
+  # ---------------------------------------------------------------------------
+  sopilot:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sopilot_app
+    # Do NOT expose 8000 to the host in production — nginx is the sole ingress.
+    expose:
+      - "8000"
+
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+
+    env_file:
+      - .env
+
+    environment:
+      SOPILOT_DATA_DIR: /app/data
+      SOPILOT_LOG_JSON: "true"
+      SOPILOT_LOG_LEVEL: "${SOPILOT_LOG_LEVEL:-INFO}"
+      SOPILOT_EMBEDDER_BACKEND: "${SOPILOT_EMBEDDER_BACKEND:-color-motion}"
+      SOPILOT_ALLOW_EMBEDDER_FALLBACK: "${SOPILOT_ALLOW_EMBEDDER_FALLBACK:-true}"
+      SOPILOT_PRIMARY_TASK_ID: "${SOPILOT_PRIMARY_TASK_ID:-pilot_task}"
+      SOPILOT_PRIMARY_TASK_NAME: "${SOPILOT_PRIMARY_TASK_NAME:-PoC Primary Task}"
+      SOPILOT_ENFORCE_PRIMARY_TASK: "${SOPILOT_ENFORCE_PRIMARY_TASK:-true}"
+      SOPILOT_SCORE_WORKERS: "${SOPILOT_SCORE_WORKERS:-2}"
+      SOPILOT_SCORE_JOB_MAX_RETRIES: "${SOPILOT_SCORE_JOB_MAX_RETRIES:-2}"
+      SOPILOT_DEFAULT_PASS_SCORE: "${SOPILOT_DEFAULT_PASS_SCORE:-60.0}"
+      SOPILOT_DEFAULT_RETRAIN_SCORE: "${SOPILOT_DEFAULT_RETRAIN_SCORE:-50.0}"
+      SOPILOT_DB_POOL_SIZE: "${SOPILOT_DB_POOL_SIZE:-5}"
+      SOPILOT_SAMPLE_FPS: "${SOPILOT_SAMPLE_FPS:-4}"
+      SOPILOT_CLIP_SECONDS: "${SOPILOT_CLIP_SECONDS:-4}"
+      SOPILOT_MAX_UPLOAD_MB: "${SOPILOT_MAX_UPLOAD_MB:-500}"
+      SOPILOT_API_KEY: "${SOPILOT_API_KEY}"
+      # In production, CORS origins are the public HTTPS domain(s) only.
+      SOPILOT_CORS_ORIGINS: "${SOPILOT_CORS_ORIGINS:-https://localhost}"
+      SOPILOT_RATE_LIMIT_RPM: "${SOPILOT_RATE_LIMIT_RPM:-120}"
+      SOPILOT_RATE_LIMIT_BURST: "${SOPILOT_RATE_LIMIT_BURST:-20}"
+      SOPILOT_WEBHOOK_URL: "${SOPILOT_WEBHOOK_URL:-}"
+      ANTHROPIC_API_KEY: "${ANTHROPIC_API_KEY:-}"
+      VIGIL_VLM_API_KEY: "${VIGIL_VLM_API_KEY:-}"
+      VIGIL_VLM_BACKEND: "${VIGIL_VLM_BACKEND:-claude}"
+
+    restart: always
+
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      start_period: 20s
+      retries: 3
+
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+        reservations:
+          memory: 512M
+
+    networks:
+      - sopilot_net
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "50m"
+        max-file: "5"
+
+  # ---------------------------------------------------------------------------
+  # nginx reverse proxy
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: sopilot_nginx
+    ports:
+      - "80:80"
+      - "443:443"
+
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+      - ./logs/nginx:/var/log/nginx
+
+    depends_on:
+      sopilot:
+        condition: service_healthy
+
+    restart: always
+
+    networks:
+      - sopilot_net
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "20m"
+        max-file: "3"
+
+# ---------------------------------------------------------------------------
+# Networks
+# ---------------------------------------------------------------------------
+networks:
+  sopilot_net:
+    driver: bridge
+    name: sopilot_net

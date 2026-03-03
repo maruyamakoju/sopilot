@@ -30,7 +30,8 @@ from __future__ import annotations
 
 import logging
 import threading
-from collections import deque
+import uuid
+from collections import defaultdict, deque
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -630,3 +631,269 @@ def _matches_conditions(
         if details[key] != expected:
             return False
     return True
+
+
+# ── Causal Graph ──────────────────────────────────────────────────────────────
+
+
+@dataclass
+class CausalNode:
+    """A node in the causal graph representing a single event."""
+
+    node_id: str                    # UUID
+    event: EntityEvent
+    caused_by: list[str] = field(default_factory=list)   # node_ids of cause nodes
+    causes: list[str] = field(default_factory=list)      # node_ids of effect nodes
+    importance: float = 0.0         # computed centrality
+
+
+class CausalGraph:
+    """Directed causal graph over recent events.
+
+    Maintains a DAG where edges represent causal links detected by
+    CausalAnalyzer.  Provides:
+    - Root cause identification (follow chains backward to events with no cause)
+    - Intervention target ranking (which events, if prevented, would eliminate the most violations)
+    - Natural-language causal narrative generation in Japanese
+    - Automatic pruning of old nodes (configurable max age)
+
+    Usage:
+        graph = CausalGraph()
+        for link in causal_links:
+            graph.add_link(link)
+        roots = graph.get_root_causes()
+        narrative = graph.get_causal_narrative()
+    """
+
+    def __init__(self, max_nodes: int = 200, max_age_seconds: float = 600.0) -> None:
+        self._max_nodes = max_nodes
+        self._max_age_seconds = max_age_seconds
+        self._nodes: dict[str, CausalNode] = {}          # node_id → CausalNode
+        # Track edges separately for fast lookup
+        self._cause_to_effects: dict[str, list[str]] = defaultdict(list)  # cause_node_id → effect_node_ids
+        self._effect_to_causes: dict[str, list[str]] = defaultdict(list)  # effect_node_id → cause_node_ids
+
+    def add_link(self, link: CausalLink) -> tuple[str, str]:
+        """Register a CausalLink as two nodes + one edge.
+
+        Creates nodes for cause_event and effect_event if they don't exist.
+        Matches events by timestamp+entity_id to avoid duplicates.
+        Returns (cause_node_id, effect_node_id).
+        """
+        cause_id = self._find_or_create_node(link.cause_event)
+        effect_id = self._find_or_create_node(link.effect_event)
+
+        cause_node = self._nodes[cause_id]
+        effect_node = self._nodes[effect_id]
+
+        # Add the edge only if it does not already exist.
+        if effect_id not in cause_node.causes:
+            cause_node.causes.append(effect_id)
+        if cause_id not in effect_node.caused_by:
+            effect_node.caused_by.append(cause_id)
+
+        # Keep the fast-lookup edge indices in sync.
+        if effect_id not in self._cause_to_effects[cause_id]:
+            self._cause_to_effects[cause_id].append(effect_id)
+        if cause_id not in self._effect_to_causes[effect_id]:
+            self._effect_to_causes[effect_id].append(cause_id)
+
+        # Enforce max_nodes limit by discarding the oldest nodes (by timestamp).
+        while len(self._nodes) > self._max_nodes:
+            self._evict_oldest()
+
+        return cause_id, effect_id
+
+    def get_root_causes(self, max_depth: int = 5) -> list[CausalNode]:
+        """Return nodes that have no incoming causal edges (root causes).
+        Sorted by importance desc (number of downstream effects).
+        """
+        self.compute_importance()
+        roots = [
+            node for node in self._nodes.values()
+            if not node.caused_by
+        ]
+        roots.sort(key=lambda n: n.importance, reverse=True)
+        return roots
+
+    def get_consequences(self, node_id: str, max_depth: int = 5) -> list[CausalNode]:
+        """Follow causal chain forward from node_id. BFS up to max_depth.
+        Returns list of consequence nodes (excluding the start node).
+        """
+        if node_id not in self._nodes:
+            return []
+
+        visited: set[str] = {node_id}
+        queue: list[tuple[str, int]] = [(node_id, 0)]
+        results: list[CausalNode] = []
+
+        while queue:
+            current_id, depth = queue.pop(0)
+            if depth >= max_depth:
+                continue
+            for effect_id in self._cause_to_effects.get(current_id, []):
+                if effect_id not in visited:
+                    visited.add(effect_id)
+                    results.append(self._nodes[effect_id])
+                    queue.append((effect_id, depth + 1))
+
+        return results
+
+    def get_intervention_targets(self) -> list[tuple[CausalNode, int]]:
+        """Return (node, downstream_violation_count) pairs sorted by violation_count desc.
+
+        For each node, count how many RULE_VIOLATION events are reachable
+        downstream (via get_consequences). Nodes with more downstream violations
+        are higher-leverage intervention points.
+        """
+        results: list[tuple[CausalNode, int]] = []
+        for node_id, node in self._nodes.items():
+            consequences = self.get_consequences(node_id)
+            violation_count = sum(
+                1 for c in consequences
+                if c.event.event_type == EntityEventType.RULE_VIOLATION
+            )
+            # Also count the node itself if it is a violation.
+            if node.event.event_type == EntityEventType.RULE_VIOLATION:
+                violation_count += 1
+            results.append((node, violation_count))
+
+        results.sort(key=lambda x: x[1], reverse=True)
+        return results
+
+    def get_causal_narrative(self, max_chains: int = 3) -> str:
+        """Generate a Japanese NL description of the top causal chains.
+
+        For each root cause (up to max_chains):
+          「{cause_event_type}」が発生し、その結果「{effect1}」「{effect2}」...に繋がりました。
+
+        Example:
+          「STATE_CHANGED」が発生し、その結果「RULE_VIOLATION」「ANOMALY」に繋がりました。
+          「ZONE_ENTERED」が発生し、その結果「PROLONGED_PRESENCE」に繋がりました。
+        """
+        roots = self.get_root_causes()
+        if not roots:
+            return "因果関係のあるイベントはまだ記録されていません。"
+
+        lines: list[str] = []
+        for root in roots[:max_chains]:
+            consequences = self.get_consequences(root.node_id)
+            if not consequences:
+                continue
+            effect_types = list(dict.fromkeys(
+                c.event.event_type.value for c in consequences
+            ))
+            effect_str = "".join(f"「{et}」" for et in effect_types)
+            cause_type = root.event.event_type.value
+            lines.append(
+                f"「{cause_type}」が発生し、その結果{effect_str}に繋がりました。"
+            )
+
+        if not lines:
+            return "因果関係のあるイベントはまだ記録されていません。"
+
+        return "\n".join(lines)
+
+    def prune_old_nodes(self, current_time: float) -> int:
+        """Remove nodes older than max_age_seconds. Returns count removed."""
+        cutoff = current_time - self._max_age_seconds
+        to_remove = [
+            nid for nid, node in self._nodes.items()
+            if node.event.timestamp < cutoff
+        ]
+        for nid in to_remove:
+            self._remove_node(nid)
+        return len(to_remove)
+
+    def compute_importance(self) -> None:
+        """Recompute importance scores for all nodes.
+        importance = (number of descendants) / total_nodes (normalized centrality).
+        """
+        total = len(self._nodes)
+        if total == 0:
+            return
+        for node_id, node in self._nodes.items():
+            descendants = self.get_consequences(node_id)
+            node.importance = len(descendants) / total
+
+    def get_stats(self) -> dict:
+        """Return graph statistics for API/debugging."""
+        edge_count = sum(
+            len(effects) for effects in self._cause_to_effects.values()
+        )
+        root_count = sum(
+            1 for node in self._nodes.values() if not node.caused_by
+        )
+        leaf_count = sum(
+            1 for node in self._nodes.values() if not node.causes
+        )
+        return {
+            "node_count": len(self._nodes),
+            "edge_count": edge_count,
+            "root_count": root_count,
+            "leaf_count": leaf_count,
+            "max_nodes": self._max_nodes,
+            "max_age_seconds": self._max_age_seconds,
+        }
+
+    # ── Internal ──────────────────────────────────────────────────────────────
+
+    def _find_or_create_node(self, event: EntityEvent) -> str:
+        """Find existing node matching this event, or create a new one. Returns node_id."""
+        for node_id, node in self._nodes.items():
+            if self._event_matches(node, event):
+                return node_id
+        # Create a new node.
+        node_id = str(uuid.uuid4())
+        self._nodes[node_id] = CausalNode(node_id=node_id, event=event)
+        return node_id
+
+    def _event_matches(self, node: CausalNode, event: EntityEvent) -> bool:
+        """True if node.event and event refer to the same event instance.
+        Match by: event_type, entity_id, and abs(timestamp - node.event.timestamp) < 1.0
+        """
+        return (
+            node.event.event_type == event.event_type
+            and node.event.entity_id == event.entity_id
+            and abs(node.event.timestamp - event.timestamp) < 1.0
+        )
+
+    def _remove_node(self, node_id: str) -> None:
+        """Remove a node and clean up all edge references to/from it."""
+        if node_id not in self._nodes:
+            return
+        node = self._nodes.pop(node_id)
+
+        # Remove this node from its causes' effect lists.
+        for cause_id in node.caused_by:
+            if cause_id in self._nodes:
+                cause_node = self._nodes[cause_id]
+                if node_id in cause_node.causes:
+                    cause_node.causes.remove(node_id)
+            if cause_id in self._cause_to_effects:
+                if node_id in self._cause_to_effects[cause_id]:
+                    self._cause_to_effects[cause_id].remove(node_id)
+
+        # Remove this node from its effects' cause lists.
+        for effect_id in node.causes:
+            if effect_id in self._nodes:
+                effect_node = self._nodes[effect_id]
+                if node_id in effect_node.caused_by:
+                    effect_node.caused_by.remove(node_id)
+            if effect_id in self._effect_to_causes:
+                if node_id in self._effect_to_causes[effect_id]:
+                    self._effect_to_causes[effect_id].remove(node_id)
+
+        # Remove edge-index entries for this node.
+        self._cause_to_effects.pop(node_id, None)
+        self._effect_to_causes.pop(node_id, None)
+
+    def _evict_oldest(self) -> None:
+        """Remove the oldest node (by event timestamp) to stay within max_nodes."""
+        if not self._nodes:
+            return
+        oldest_id = min(
+            self._nodes,
+            key=lambda nid: self._nodes[nid].event.timestamp,
+        )
+        self._remove_node(oldest_id)

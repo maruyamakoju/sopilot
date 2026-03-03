@@ -22,6 +22,8 @@ from sopilot.services.sopilot_service import SOPilotService
 from sopilot.services.storage import FileStorage
 from sopilot.services.video_processor import VideoProcessor
 from sopilot.vigil import build_vigil_router
+from sopilot.vigil.camera_group_repository import CameraGroupRepository
+from sopilot.vigil.camera_group_router import build_camera_group_router
 from sopilot.vigil.perception_router import build_perception_router
 from sopilot.vigil.pipeline import VigilPipeline
 from sopilot.vigil.repository import VigilRepository
@@ -131,6 +133,8 @@ def create_app() -> FastAPI:
         webhook_repo=vigil_webhook_repo,
     )
 
+    camera_group_repo = CameraGroupRepository(settings.database_path)
+
     app.state.sopilot_service = service
     app.state.score_queue = queue
     app.state.settings = settings
@@ -138,8 +142,10 @@ def create_app() -> FastAPI:
     app.state.vigil_repo = vigil_repo
     app.state.vigil_webhook_repo = vigil_webhook_repo
     app.state.vigil_pipeline = vigil_pipeline
+    app.state.camera_group_repo = camera_group_repo
     app.include_router(build_vigil_router())
     app.include_router(build_perception_router())
+    app.include_router(build_camera_group_router())
     app.include_router(build_router(), prefix="/api/v1")
     # Backward-compatible: mount same routes at root for existing clients
     app.include_router(build_router())

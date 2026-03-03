@@ -962,7 +962,7 @@ class TestAnomalyDetection(unittest.TestCase):
 
     def test_anomaly_on_entity_count_spike(self):
         """Baseline with 1 entity for 40 frames, then spike to 15."""
-        config = _build_config()
+        config = _build_config(anomaly_warmup_frames=30)
         world_model = WorldModel(config)
 
         # Phase 1: 40 frames with exactly 1 entity.
@@ -1020,12 +1020,10 @@ class TestAnomalyDetection(unittest.TestCase):
             "Expected at least 1 ANOMALY event after entity count spike",
         )
 
-        # Verify anomaly details.
+        # Verify anomaly details (compatible with both AnomalyBaseline and Ensemble).
         anomaly = anomaly_events[0]
-        self.assertEqual(anomaly.entity_id, -1)  # scene-level
-        self.assertEqual(anomaly.details.get("metric"), "entity_count")
-        self.assertEqual(anomaly.details.get("current"), 15)
-        self.assertGreater(anomaly.details.get("z_score", 0), 2.0)
+        self.assertIn("z_score", anomaly.details)
+        self.assertGreater(anomaly.details["z_score"], 2.0)
 
     def test_anomaly_through_engine(self):
         """Full engine pipeline with anomaly detection."""

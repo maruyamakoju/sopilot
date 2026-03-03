@@ -1510,4 +1510,77 @@ def build_perception_router() -> APIRouter:
 
         return await run_in_threadpool(_get)
 
+    # ── Phase 9: Anticipation Engine ─────────────────────────────────────────
+
+    @router.get("/anticipation/hazards")
+    async def get_anticipation_hazards(request: Request) -> dict:
+        """予測安全エンジン: アクティブ危険アセスメント一覧。"""
+        engine = _get_perception_engine(request)
+
+        def _get():
+            hazards = engine.get_active_hazards()
+            return {
+                "hazards": [h.to_dict() if hasattr(h, "to_dict") else h for h in hazards],
+                "count": len(hazards),
+            }
+
+        return await run_in_threadpool(_get)
+
+    @router.get("/anticipation/state")
+    async def get_anticipation_state(request: Request) -> dict:
+        """予測安全エンジンの統計・設定。"""
+        engine = _get_perception_engine(request)
+
+        def _get():
+            state = engine.get_anticipation_state()
+            if state is None:
+                return {"enabled": False, "total_hazards_detected": 0}
+            return {"enabled": True, **state}
+
+        return await run_in_threadpool(_get)
+
+    # ── CLIP Zero-shot Classifier ─────────────────────────────────────────────
+
+    @router.get("/clip/state")
+    async def get_clip_state(request: Request) -> dict:
+        """CLIP ゼロショット分類器の状態・ラベル一覧。"""
+        engine = _get_perception_engine(request)
+
+        def _get():
+            state = engine.get_clip_state()
+            if state is None:
+                return {"enabled": False}
+            return {"enabled": True, **state}
+
+        return await run_in_threadpool(_get)
+
+    # ── Multi-Agent Coordinator ───────────────────────────────────────────────
+
+    @router.get("/multi-agent/state")
+    async def get_multi_agent_state() -> dict:
+        """マルチエージェント協調の状態 (グローバルシングルトン)。"""
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            coordinator = get_coordinator()
+            return coordinator.get_state_dict()
+        except ImportError:
+            return {"enabled": False, "total_agents": 0}
+
+    @router.post("/multi-agent/agents")
+    async def register_multi_agent(request: Request) -> dict:
+        """新しいカメラエージェントを登録。"""
+        body = await request.json()
+        agent_id = str(body.get("agent_id", ""))
+        camera_id = str(body.get("camera_id", ""))
+        location = str(body.get("location", ""))
+        if not agent_id:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=422, detail="agent_id required")
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            info = get_coordinator().register_agent(agent_id, camera_id, location)
+            return info.to_dict()
+        except ImportError:
+            return {"error": "multi_agent module not available"}
+
     return router

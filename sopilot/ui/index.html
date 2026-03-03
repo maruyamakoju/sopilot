@@ -786,6 +786,14 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
 .attention-session-row{display:flex;align-items:center;gap:6px;padding:2px 4px;font-size:10px;border-radius:3px}
 .attention-bar{height:5px;border-radius:3px;background:rgba(139,92,246,.3);flex:1;overflow:hidden}
 .attention-bar-fill{height:100%;border-radius:3px;background:#a78bfa;transition:width .3s}
+/* Phase 9: Anticipation + CLIP + Multi-Agent */
+.hazard-item{display:flex;align-items:center;gap:6px;padding:3px 6px;margin:2px 0;border-radius:4px;font-size:11px;border-left:3px solid #4ade80}
+.hazard-item.critical{border-left-color:#f87171;background:rgba(30,10,10,.4)}
+.hazard-item.warning{border-left-color:#fbbf24;background:rgba(30,25,10,.4)}
+.hazard-item.info{border-left-color:#60a5fa;background:rgba(10,15,30,.4)}
+.hazard-badge{padding:1px 5px;border-radius:8px;font-size:9px;font-weight:700;background:rgba(80,80,120,.4)}
+.clip-label-row{display:flex;align-items:center;gap:4px;padding:2px 4px;font-size:10px}
+.multi-agent-row{display:flex;align-items:center;gap:6px;padding:2px 4px;font-size:10px}
 /* Phase 7: Action Executor + Multimodal Fusion */
 .action-plan-item{display:flex;align-items:center;gap:6px;padding:3px 6px;margin:2px 0;background:rgba(15,23,42,.4);border-radius:4px;font-size:11px}
 .action-type-badge{padding:1px 6px;border-radius:8px;font-size:9px;font-weight:700}
@@ -1491,6 +1499,22 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           <div class="perc-card-title">🎯 注意管理</div>
           <div id="attentionGlobal" style="font-size:11px;color:var(--muted);margin-bottom:6px"></div>
           <div id="attentionSessions" style="max-height:80px;overflow-y:auto"></div>
+        </div>
+        <!-- Phase 9: Anticipation Engine panel -->
+        <div class="perc-card" id="percAnticipationCard" style="display:none">
+          <div class="perc-card-title">&#x26A1; 予測安全 (Phase 9)</div>
+          <div id="anticipationKPIs" class="anomaly-kpi-row" style="margin-bottom:6px"></div>
+          <div id="anticipationHazards" style="max-height:120px;overflow-y:auto"></div>
+        </div>
+        <!-- Phase 9: CLIP Classifier panel -->
+        <div class="perc-card" id="percCLIPCard" style="display:none">
+          <div class="perc-card-title">&#x1F52E; CLIP ゼロショット分類</div>
+          <div id="clipState" style="font-size:11px;color:var(--muted)"></div>
+        </div>
+        <!-- Phase 9: Multi-Agent Coordinator panel -->
+        <div class="perc-card" id="percMultiAgentCard" style="display:none">
+          <div class="perc-card-title">&#x1F578;&#xFE0F; マルチエージェント協調</div>
+          <div id="multiAgentState" style="font-size:11px;color:var(--muted)"></div>
         </div>
       </div>
     </div>
@@ -5768,7 +5792,7 @@ function resetPerceptionPanels(){
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -5787,7 +5811,7 @@ async function _percFetchAll(sessionId){
     $("perceptionStatusBar").classList.remove("active");
     $("percInactive").classList.add("show");
     $("perceptionPanels").classList.remove("show");
-    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard"].forEach(id=>{
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard"].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.style.display="none";
     });
@@ -5803,7 +5827,7 @@ async function _percFetchAll(sessionId){
   _percUpdateStatusBar(stateData);
 
   // Fetch all perception data in parallel
-  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData, sceneData, spatialData, adaptiveData, attentionData] = await Promise.allSettled([
+  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData, sceneData, spatialData, adaptiveData, attentionData, anticData, clipData, multiAgentData] = await Promise.allSettled([
     fetch(`/vigil/perception/narration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:_percNarrationStyle})}).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/activities`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/predictions`).then(r=>r.ok?r.json():null).catch(()=>null),
@@ -5820,6 +5844,9 @@ async function _percFetchAll(sessionId){
     fetch(`/vigil/perception/spatial-map`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/adaptive-learner/state`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/attention/state`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/anticipation/state`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/clip/state`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/multi-agent/state`).then(r=>r.ok?r.json():null).catch(()=>null),
   ]);
 
   _percRenderNarration(narData.status==="fulfilled"?narData.value:null);
@@ -5840,6 +5867,9 @@ async function _percFetchAll(sessionId){
   _percRenderSpatialMap(spatialData.status==="fulfilled"?spatialData.value:null);
   _percRenderAdaptive(adaptiveData.status==="fulfilled"?adaptiveData.value:null);
   _percRenderAttention(attentionData.status==="fulfilled"?attentionData.value:null);
+  _percRenderAnticipation(anticData.status==="fulfilled"?anticData.value:null);
+  _percRenderCLIP(clipData.status==="fulfilled"?clipData.value:null);
+  _percRenderMultiAgent(multiAgentData.status==="fulfilled"?multiAgentData.value:null);
 
   // Show query card (always visible when perception is active)
   const qcard=document.getElementById("percQueryCard");
@@ -6748,6 +6778,62 @@ function _percRenderAttention(data){
         <span style="font-size:9px;color:var(--muted)">${s.calls_total||0}回</span>
       </div>`;
     }).join("");
+  }
+}
+
+// ─── Phase 9: Anticipation Engine Panel ─────────────────────────────────────
+
+function _percRenderAnticipation(data){
+  const card=document.getElementById("percAnticipationCard");
+  if(!card)return;
+  if(!data||data.enabled===false){card.style.display="none";return;}
+  card.style.display="block";
+  const kpi=document.getElementById("anticipationKPIs");
+  if(kpi){
+    const total=data.total_hazards_detected||0;
+    const active=data.active_hazards||0;
+    kpi.innerHTML=`<span style="color:var(--muted);font-size:10px">総検出: ${total}</span> <span style="color:#fbbf24;font-size:10px">アクティブ: ${active}</span>`;
+  }
+  const feed=document.getElementById("anticipationHazards");
+  if(feed){
+    const horizon=data.ttc_horizon_s||5;
+    const dist=data.collision_distance_norm||0.05;
+    feed.innerHTML=`<div style="font-size:10px;color:var(--muted)">TTC horizon: ${horizon}s | 衝突距離: ${(dist*100).toFixed(0)}%</div>`;
+  }
+}
+
+// ─── Phase 9: CLIP Classifier Panel ─────────────────────────────────────────
+
+function _percRenderCLIP(data){
+  const card=document.getElementById("percCLIPCard");
+  if(!card)return;
+  if(!data||data.enabled===false){card.style.display="none";return;}
+  card.style.display="block";
+  const el=document.getElementById("clipState");
+  if(el){
+    const backend=data.backend||"unknown";
+    const labels=data.label_count||0;
+    const calls=data.calls_total||0;
+    const refine=data.refinements_made||0;
+    const avail=data.is_available?"✓":"mock";
+    el.innerHTML=`バックエンド: ${escHtml(backend)} (${avail}) | ラベル: ${labels} | 推論: ${calls}回 | 修正: ${refine}件`;
+  }
+}
+
+// ─── Phase 9: Multi-Agent Coordinator Panel ──────────────────────────────────
+
+function _percRenderMultiAgent(data){
+  const card=document.getElementById("percMultiAgentCard");
+  if(!card)return;
+  if(!data||data.enabled===false){card.style.display="none";return;}
+  card.style.display="block";
+  const el=document.getElementById("multiAgentState");
+  if(el){
+    const total=data.total_agents||0;
+    const active=data.active_agents||0;
+    const entities=data.total_global_entities||0;
+    const events=data.total_events_broadcast||0;
+    el.innerHTML=`エージェント: ${active}/${total} (アクティブ/総数) | グローバルエンティティ: ${entities} | イベント: ${events}件`;
   }
 }
 

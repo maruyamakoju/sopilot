@@ -343,6 +343,9 @@ class EntityEventType(enum.Enum):
     PROLONGED_PRESENCE = "prolonged_presence"  # entity stayed too long
     ZONE_ENTRY_PREDICTED = "zone_entry_predicted"  # predicted zone entry
     COLLISION_PREDICTED = "collision_predicted"  # predicted collision
+    NEAR_MISS = "near_miss"                      # imminent near-miss hazard
+    HAZARD_ZONE_BREACH = "hazard_zone_breach"    # entity about to enter forbidden zone
+    CROWD_SURGE = "crowd_surge"                  # sudden crowd density increase
 
 
 @dataclass

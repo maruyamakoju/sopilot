@@ -238,6 +238,11 @@ class PerceptionEngine:
         self._last_depth_estimates: list = []
         self._last_scene_analysis = None
 
+        # Phase 9: Anticipation Engine + CLIP Classifier
+        self._anticipation_engine = None
+        self._clip_classifier = None
+        self._last_hazards: list = []
+
         # Pose estimation (optional, opt-in via config.pose_enabled)
         self._pose_estimator: Any | None = pose_estimator
 
@@ -313,6 +318,13 @@ class PerceptionEngine:
                     self._last_depth_estimates = []
             else:
                 self._last_depth_estimates = []
+
+            # ── Stage 1c: CLIP zero-shot reclassification ─────────
+            if self._clip_classifier is not None and detections:
+                try:
+                    self._clip_classifier.classify_entities(detections, frame)
+                except Exception:
+                    logger.debug("CLIP classification failed", exc_info=True)
 
             # ── Stage 2: Track objects ────────────────────────────
             t_stage = time.perf_counter()
@@ -404,6 +416,22 @@ class PerceptionEngine:
                     )
                 except Exception:
                     logger.debug("Scene understanding failed", exc_info=True)
+
+            # ── Stage 4l: Anticipation engine (predictive safety) ──
+            if self._anticipation_engine is not None:
+                try:
+                    self._last_hazards = self._anticipation_engine.analyze(
+                        world_state,
+                        depth_estimates=self._last_depth_estimates,
+                        scene_snapshot=self._last_scene_analysis,
+                        frame_number=frame_number,
+                        timestamp=timestamp,
+                    )
+                except Exception:
+                    logger.debug("Anticipation engine failed", exc_info=True)
+                    self._last_hazards = []
+            else:
+                self._last_hazards = []
 
             # ── Stage 5: Evaluate rules (hybrid reasoning) ────────
             t_stage = time.perf_counter()
@@ -801,6 +829,33 @@ class PerceptionEngine:
             return None
         try:
             return self._scene_understanding.get_state_dict()
+        except Exception:
+            return None
+
+    def get_anticipation_state(self) -> dict | None:
+        """Return anticipation engine state dict (hazard counts, history), or None."""
+        if self._anticipation_engine is None:
+            return None
+        try:
+            return self._anticipation_engine.get_state_dict()
+        except Exception:
+            return None
+
+    def get_active_hazards(self) -> list:
+        """Return active hazard assessments from last anticipation analysis."""
+        if self._anticipation_engine is None:
+            return []
+        try:
+            return self._anticipation_engine.get_active_hazards()
+        except Exception:
+            return []
+
+    def get_clip_state(self) -> dict | None:
+        """Return CLIP classifier state dict, or None if not initialized."""
+        if self._clip_classifier is None:
+            return None
+        try:
+            return self._clip_classifier.get_state_dict()
         except Exception:
             return None
 
@@ -2029,5 +2084,26 @@ def build_perception_engine(
         logger.debug("Scene understanding module not available")
     except Exception:
         logger.exception("Failed to initialize scene understanding")
+
+    # ── Build Phase 9 components ──────────────────────────────────────────
+    try:
+        from sopilot.perception.anticipation import AnticipationEngine
+        engine._anticipation_engine = AnticipationEngine(
+            fps_hint=getattr(config, "fps_hint", 10.0),
+        )
+        logger.info("AnticipationEngine (Phase 9) initialized")
+    except ImportError:
+        logger.debug("Anticipation engine module not available")
+    except Exception:
+        logger.exception("Failed to initialize anticipation engine")
+
+    try:
+        from sopilot.perception.clip_classifier import build_clip_classifier
+        engine._clip_classifier = build_clip_classifier(backend="mock")
+        logger.info("CLIPZeroShotClassifier initialized (backend=mock)")
+    except ImportError:
+        logger.debug("CLIP classifier module not available")
+    except Exception:
+        logger.exception("Failed to initialize CLIP classifier")
 
     return engine

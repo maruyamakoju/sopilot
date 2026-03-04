@@ -211,6 +211,55 @@ class AnomalyLearningStateResponse(BaseModel):
     tuner: TunerStateSchema
 
 
+# ── Phase 11A: Active Query schemas ───────────────────────────────────────────
+
+
+class ReviewItemSchema(BaseModel):
+    review_id: str
+    detector: str
+    metric: str
+    entity_id: int
+    z_score: float
+    timestamp: float
+    frame_number: int
+    description_ja: str
+    priority: float
+    created_at: float
+    reviewed: bool = False
+    confirmed: bool | None = None
+    note: str = ""
+
+
+class ReviewQueueResponse(BaseModel):
+    items: list[ReviewItemSchema]
+    pending_count: int
+
+
+class ReviewSubmitRequest(BaseModel):
+    confirmed: bool
+    note: str = ""
+
+
+class ReviewSubmitResponse(BaseModel):
+    review_id: str
+    confirmed: bool
+    detector: str
+    metric: str
+    note: str
+    tuner_updated: bool = False
+
+
+class ReviewStatsResponse(BaseModel):
+    pending_count: int
+    reviewed_count: int
+    confirmed_count: int
+    denied_count: int
+    confirm_rate: float
+    detector_counts: dict[str, int] = Field(default_factory=dict)
+    z_threshold: float
+    max_pending: int
+
+
 class PerceptionStateResponse(BaseModel):
     frames_processed: int
     average_processing_ms: float
@@ -931,6 +980,107 @@ def build_perception_router() -> APIRouter:
 
         data = await run_in_threadpool(_get)
         return AnomalyLearningStateResponse(**data)
+
+    # ── Phase 11A: Active Query Review Queue ───────────────────────
+
+    def _get_review_queue(request: Request):
+        """engine._review_queue を返す。なければ 400。"""
+        try:
+            eng = _get_perception_engine(request)
+            rq = getattr(eng, "_review_queue", None)
+            if rq is not None:
+                return rq
+        except Exception:
+            pass
+        raise HTTPException(status_code=400, detail="Review queue not available")
+
+    @router.get("/review-queue", response_model=ReviewQueueResponse)
+    async def get_review_queue(
+        request: Request, n: int = 20
+    ) -> ReviewQueueResponse:
+        """保留中のオペレーターレビューリストを取得 (Phase 11A)。
+
+        priority 降順 (z_score 高い順) で最大 n 件を返す。
+        """
+        rq = _get_review_queue(request)
+
+        def _get():
+            items = rq.get_pending(n=n)
+            return [ReviewItemSchema(**item.to_dict()) for item in items]
+
+        items = await run_in_threadpool(_get)
+        return ReviewQueueResponse(items=items, pending_count=len(items))
+
+    @router.post("/review/{review_id}", response_model=ReviewSubmitResponse)
+    async def submit_review(
+        review_id: str, body: ReviewSubmitRequest, request: Request
+    ) -> ReviewSubmitResponse:
+        """オペレーターのラベル付け結果を登録し、AnomalyTuner へ自動ルーティング。
+
+        confirmed=true → 本物の異常 / confirmed=false → 誤検知
+        """
+        rq = _get_review_queue(request)
+        tuner = _get_tuner(request)
+
+        def _submit():
+            item = rq.record_review(review_id, confirmed=body.confirmed, note=body.note)
+            if item is None:
+                return None
+            # AnomalyTuner に自動ルーティング
+            tuner_updated = False
+            try:
+                tuner.record_feedback(
+                    detector=item.detector,
+                    metric=item.metric,
+                    entity_id=item.entity_id,
+                    confirmed=body.confirmed,
+                    note=body.note,
+                )
+                tuner_updated = True
+            except Exception:
+                pass
+            return item, tuner_updated
+
+        result = await run_in_threadpool(_submit)
+        if result is None:
+            raise HTTPException(status_code=404, detail=f"review_id '{review_id}' not found")
+        item, tuner_updated = result
+        return ReviewSubmitResponse(
+            review_id=item.review_id,
+            confirmed=body.confirmed,
+            detector=item.detector,
+            metric=item.metric,
+            note=body.note,
+            tuner_updated=tuner_updated,
+        )
+
+    @router.get("/review-stats", response_model=ReviewStatsResponse)
+    async def get_review_stats(request: Request) -> ReviewStatsResponse:
+        """能動的クエリキューの統計情報。"""
+        rq = _get_review_queue(request)
+
+        def _get():
+            return rq.get_stats()
+
+        stats = await run_in_threadpool(_get)
+        return ReviewStatsResponse(**stats)
+
+    @router.get("/frame-snapshot")
+    async def get_frame_snapshot(request: Request):
+        """最新フレームのJPEGスナップショットを返す (Phase 11B)。
+
+        フレームがない場合は 204 No Content を返す。
+        """
+        from fastapi.responses import Response
+        engine = _get_perception_engine(request)
+
+        def _get():
+            return engine.get_latest_frame_jpeg()
+
+        jpeg = await run_in_threadpool(_get)
+        if jpeg is None:
+            return Response(status_code=204)
+        return Response(content=jpeg, media_type="image/jpeg")
 
     # ── Phase 5: Goal Recognition ──────────────────────────────────
 

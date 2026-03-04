@@ -234,7 +234,7 @@ class PerceptionEngine:
         self._spatial_map = None
         self._adaptive_learner = None
         self._anomaly_tuner = None          # AnomalyTuner (Phase 10)
-        self._auto_apply_threshold = 20     # N フィードバック蓄積で自動適用
+        self._auto_apply_threshold = getattr(config, "tuner_auto_apply_threshold", 20)
         self._last_tuner_feedback_count = 0
         self._attention_broker = None
         self._scene_understanding = None
@@ -245,6 +245,14 @@ class PerceptionEngine:
         self._anticipation_engine = None
         self._clip_classifier = None
         self._last_hazards: list = []
+
+        # Phase 11A: Active query review queue
+        self._review_queue = None
+
+        # Phase 11B: Frame ring buffer (JPEG snapshots)
+        from collections import deque as _deque
+        _ring_size = getattr(config, "frame_ring_buffer_size", 50)
+        self._frame_ring: "_deque[tuple[float, bytes]]" = _deque(maxlen=_ring_size)
 
         # Pose estimation (optional, opt-in via config.pose_enabled)
         self._pose_estimator: Any | None = pose_estimator
@@ -304,6 +312,17 @@ class PerceptionEngine:
         """
         t0 = time.perf_counter()
         timings: dict[str, float] = {}
+
+        # ── Phase 11B: フレームをリングバッファに保存 ────────────────────────
+        try:
+            import io as _io
+            from PIL import Image as _PILImage
+            _pil_frame = _PILImage.fromarray(frame[..., ::-1])  # BGR→RGB
+            _buf = _io.BytesIO()
+            _pil_frame.save(_buf, format="JPEG", quality=50)
+            self._frame_ring.append((timestamp, _buf.getvalue()))
+        except Exception:
+            pass  # PIL unavailable or frame malformed — silently skip
 
         try:
             # ── Stage 1: Detect objects ───────────────────────────
@@ -497,6 +516,16 @@ class PerceptionEngine:
                             self._last_tuner_feedback_count = cur
                 except Exception:
                     pass
+
+            # ── Stage 6i: 能動的クエリ (Active Query) ────────────────────────
+            if self._review_queue is not None and world_state.events:
+                try:
+                    for _ev in world_state.events:
+                        if hasattr(_ev.event_type, "name") and _ev.event_type.name == "ANOMALY":
+                            _z = float(_ev.details.get("z_score", 0.0)) if _ev.details else 0.0
+                            self._review_queue.maybe_add(_ev, _z, tuner=self._anomaly_tuner)
+                except Exception:
+                    logger.debug("Active query stage failed", exc_info=True)
 
             # ── Stage 7: Pose estimation + PPE check (opt-in) ─────
             t_stage = time.perf_counter()
@@ -851,6 +880,16 @@ class PerceptionEngine:
             "suppressed_pairs": [], "trusted_pairs": [],
             "min_samples_for_tuning": 10,
         }}
+
+    def get_latest_frame_jpeg(self) -> bytes | None:
+        """最新のフレーム JPEG バイト列を返す (Phase 11B)。バッファが空なら None。"""
+        if not self._frame_ring:
+            return None
+        try:
+            _ts, _jpeg = self._frame_ring[-1]
+            return _jpeg
+        except Exception:
+            return None
 
     def get_attention_state(self) -> dict | None:
         """Return attention broker state dict, or None if not initialized."""
@@ -2153,5 +2192,19 @@ def build_perception_engine(
         logger.debug("AnomalyTuner module not available")
     except Exception:
         logger.exception("Failed to initialize AnomalyTuner")
+
+    # ── Phase 11A: ReviewQueue 注入 ──────────────────────────────────────────
+    try:
+        from sopilot.perception.active_query import ReviewQueue as _RQ
+        engine._review_queue = _RQ(
+            z_threshold=getattr(config, "review_z_threshold", 2.5),
+            max_pending=getattr(config, "review_queue_max_pending", 50),
+            dedup_seconds=getattr(config, "review_dedup_seconds", 60.0),
+        )
+        logger.info("ReviewQueue (Phase 11A) initialized")
+    except ImportError:
+        logger.debug("Active query module not available")
+    except Exception:
+        logger.exception("Failed to initialize ReviewQueue")
 
     return engine

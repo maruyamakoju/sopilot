@@ -521,3 +521,11 @@ class PerceptionConfig:
     anomaly_cooldown_seconds: float = 60.0    # suppress duplicate alerts per (detector, metric, entity)
     anomaly_spatial_grid_size: int = 10       # NxN spatial occupancy grid
     anomaly_ema_alpha: float = 0.05           # EMA smoothing factor (lower = slower adaptation)
+    # Phase 10: Self-learning tuning parameters
+    tuner_auto_apply_threshold: int = 20      # フィードバック蓄積後に apply_tuning() を自動実行
+    # Phase 11A: Active query review queue
+    review_z_threshold: float = 2.5           # この z_score 以上の異常を review queue へ追加
+    review_queue_max_pending: int = 50        # 最大保留件数
+    review_dedup_seconds: float = 60.0        # 同一 (detector, metric) の重複抑制時間
+    # Phase 11B: Frame ring buffer
+    frame_ring_buffer_size: int = 50          # 保持するフレーム数 (JPEG圧縮済み)

@@ -167,6 +167,50 @@ class TuningApplyResponse(BaseModel):
     pairs_evaluated: int
 
 
+# ── Phase 10: Self-learning state schemas ─────────────────────────────────────
+
+
+class AdaptiveLearnerStateSchema(BaseModel):
+    total_observed: int = 0
+    score_window_size: int = 0
+    score_mean: float = 0.0
+    score_std: float = 0.0
+    drift_count: int = 0
+    recalibration_count: int = 0
+    last_recalibration: dict | None = None
+    ph_state: dict = Field(default_factory=dict)
+
+
+class PairStatSchema(BaseModel):
+    detector: str
+    metric: str
+    total: int
+    confirmed: int
+    denied: int
+    confirmation_rate: float
+    fp_rate: float
+
+
+class TunerStateSchema(BaseModel):
+    total_feedback: int = 0
+    confirmed: int = 0
+    denied: int = 0
+    overall_confirm_rate: float = 0.0
+    pairs_tracked: int = 0
+    pairs_suppressed: int = 0
+    pairs_trusted: int = 0
+    last_tuning: float = 0.0
+    pair_stats: list[PairStatSchema] = Field(default_factory=list)
+    suppressed_pairs: list[PairStatSchema] = Field(default_factory=list)
+    trusted_pairs: list[PairStatSchema] = Field(default_factory=list)
+    min_samples_for_tuning: int = 10
+
+
+class AnomalyLearningStateResponse(BaseModel):
+    adaptive_learner: AdaptiveLearnerStateSchema
+    tuner: TunerStateSchema
+
+
 class PerceptionStateResponse(BaseModel):
     frames_processed: int
     average_processing_ms: float
@@ -797,7 +841,14 @@ def build_perception_router() -> APIRouter:
     # ── Anomaly Feedback & Tuning ──────────────────────────────────
 
     def _get_tuner(request: Request):
-        """Get or lazily create an AnomalyTuner attached to app.state."""
+        """Get AnomalyTuner — prefer engine._anomaly_tuner to avoid two-object problem."""
+        try:
+            eng = _get_perception_engine(request)
+            t = getattr(eng, "_anomaly_tuner", None)
+            if t is not None:
+                return t
+        except Exception:
+            pass
         if not hasattr(request.app.state, "anomaly_tuner"):
             from pathlib import Path as _Path
             from sopilot.perception.anomaly_tuner import AnomalyTuner
@@ -865,6 +916,21 @@ def build_perception_router() -> APIRouter:
         tuner = _get_tuner(request)
         tuner.reset()
         return {"status": "ok"}
+
+    @router.get("/anomaly-learning-state", response_model=AnomalyLearningStateResponse)
+    async def get_anomaly_learning_state(request: Request) -> AnomalyLearningStateResponse:
+        """自己学習状態取得 — AdaptiveLearner + AnomalyTuner を統合 (Phase 10)。"""
+        engine = _get_perception_engine(request)
+        tuner = _get_tuner(request)
+
+        def _get():
+            raw = engine.get_adaptive_learner_state()
+            if not raw["tuner"]:
+                raw["tuner"] = tuner.get_stats()
+            return raw
+
+        data = await run_in_threadpool(_get)
+        return AnomalyLearningStateResponse(**data)
 
     # ── Phase 5: Goal Recognition ──────────────────────────────────
 

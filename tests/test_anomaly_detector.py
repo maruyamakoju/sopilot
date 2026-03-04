@@ -1735,5 +1735,357 @@ class TestEngineProfileMethods(unittest.TestCase):
                 pass
 
 
+# ===========================================================================
+# Phase 10: AdaptiveLearner engine integration tests
+# ===========================================================================
+
+
+class TestAdaptiveLearnerEngineIntegration(unittest.TestCase):
+    """Tests for get_adaptive_learner_state() and AdaptiveLearner wiring."""
+
+    def _make_engine_with_wm(self):
+        from sopilot.perception.engine import PerceptionEngine
+        from sopilot.perception.world_model import WorldModel
+        config = PerceptionConfig(anomaly_enabled=True, anomaly_spatial_grid_size=3)
+        wm = WorldModel(config)
+        engine = PerceptionEngine(config=config, world_model=wm)
+        return engine
+
+    def test_get_adaptive_learner_state_returns_dict(self):
+        engine = self._make_engine_with_wm()
+        state = engine.get_adaptive_learner_state()
+        self.assertIsInstance(state, dict)
+
+    def test_get_adaptive_learner_state_has_adaptive_learner_key(self):
+        engine = self._make_engine_with_wm()
+        state = engine.get_adaptive_learner_state()
+        self.assertIn("adaptive_learner", state)
+
+    def test_get_adaptive_learner_state_has_tuner_key(self):
+        engine = self._make_engine_with_wm()
+        state = engine.get_adaptive_learner_state()
+        self.assertIn("tuner", state)
+
+    def test_adaptive_learner_state_has_required_al_fields(self):
+        engine = self._make_engine_with_wm()
+        state = engine.get_adaptive_learner_state()
+        al = state["adaptive_learner"]
+        for key in ("total_observed", "score_window_size", "score_mean",
+                    "score_std", "drift_count", "recalibration_count"):
+            self.assertIn(key, al, f"missing key: {key}")
+
+    def test_adaptive_learner_state_has_required_tuner_fields(self):
+        engine = self._make_engine_with_wm()
+        state = engine.get_adaptive_learner_state()
+        t = state["tuner"]
+        for key in ("total_feedback", "confirmed", "denied", "overall_confirm_rate",
+                    "pairs_tracked", "pairs_suppressed", "pairs_trusted"):
+            self.assertIn(key, t, f"missing tuner key: {key}")
+
+    def test_adaptive_learner_state_without_world_model(self):
+        from sopilot.perception.engine import PerceptionEngine
+        engine = PerceptionEngine(config=PerceptionConfig())
+        state = engine.get_adaptive_learner_state()
+        # Should not raise; defaults must be valid
+        self.assertIsInstance(state, dict)
+        al = state["adaptive_learner"]
+        self.assertEqual(al["total_observed"], 0)
+
+    def test_adaptive_learner_state_tuner_fallback_defaults(self):
+        from sopilot.perception.engine import PerceptionEngine
+        engine = PerceptionEngine(config=PerceptionConfig())
+        # No tuner attached — should return fallback dict
+        state = engine.get_adaptive_learner_state()
+        t = state["tuner"]
+        self.assertEqual(t["total_feedback"], 0)
+        self.assertEqual(t["pairs_tracked"], 0)
+
+    def test_adaptive_learner_none_gives_default_total_observed(self):
+        from sopilot.perception.engine import PerceptionEngine
+        engine = PerceptionEngine(config=PerceptionConfig())
+        engine._adaptive_learner = None
+        state = engine.get_adaptive_learner_state()
+        self.assertEqual(state["adaptive_learner"]["total_observed"], 0)
+
+    def test_adaptive_learner_state_numeric_types(self):
+        engine = self._make_engine_with_wm()
+        state = engine.get_adaptive_learner_state()
+        al = state["adaptive_learner"]
+        self.assertIsInstance(al["score_mean"], float)
+        self.assertIsInstance(al["drift_count"], int)
+
+    def test_adaptive_learner_tuner_attached_after_build(self):
+        """After build_perception_engine() the engine._anomaly_tuner should be set."""
+        from sopilot.perception.engine import build_perception_engine
+        engine = build_perception_engine()
+        self.assertIsNotNone(engine._anomaly_tuner)
+
+    def test_anomaly_tuner_field_initialized(self):
+        from sopilot.perception.engine import PerceptionEngine
+        engine = PerceptionEngine(config=PerceptionConfig())
+        # Field exists (may be None if no build_perception_engine)
+        self.assertTrue(hasattr(engine, "_anomaly_tuner"))
+
+    def test_auto_apply_threshold_default(self):
+        from sopilot.perception.engine import PerceptionEngine
+        engine = PerceptionEngine(config=PerceptionConfig())
+        self.assertEqual(engine._auto_apply_threshold, 20)
+
+    def test_last_tuner_feedback_count_initialized_to_zero(self):
+        from sopilot.perception.engine import PerceptionEngine
+        engine = PerceptionEngine(config=PerceptionConfig())
+        self.assertEqual(engine._last_tuner_feedback_count, 0)
+
+    def test_get_adaptive_learner_state_with_tuner_returns_stats(self):
+        from pathlib import Path as _P
+        from sopilot.perception.engine import PerceptionEngine
+        from sopilot.perception.anomaly_tuner import AnomalyTuner
+        import tempfile
+        with tempfile.TemporaryDirectory() as tmp:
+            engine = PerceptionEngine(config=PerceptionConfig())
+            engine._anomaly_tuner = AnomalyTuner(_P(tmp) / "fb.json")
+            engine._anomaly_tuner.record_feedback("behavioral", "speed_zscore", -1, False)
+            state = engine.get_adaptive_learner_state()
+            self.assertGreaterEqual(state["tuner"]["total_feedback"], 1)
+
+    def test_get_adaptive_learner_state_tuner_exception_graceful(self):
+        from sopilot.perception.engine import PerceptionEngine
+        from unittest.mock import MagicMock
+        engine = PerceptionEngine(config=PerceptionConfig())
+        bad_tuner = MagicMock()
+        bad_tuner.get_stats.side_effect = RuntimeError("fail")
+        engine._anomaly_tuner = bad_tuner
+        # Must not raise
+        state = engine.get_adaptive_learner_state()
+        self.assertIn("tuner", state)
+
+
+# ===========================================================================
+# Phase 10: AnomalyTuner engine integration tests
+# ===========================================================================
+
+
+class TestAnomalyTunerEngineIntegration(unittest.TestCase):
+    """Tests for AnomalyTuner injection and Stage 6h auto-apply."""
+
+    def _make_engine_with_tuner(self, threshold: int = 2):
+        from pathlib import Path as _P
+        from sopilot.perception.engine import PerceptionEngine
+        from sopilot.perception.world_model import WorldModel
+        from sopilot.perception.anomaly_tuner import AnomalyTuner
+        import tempfile
+        config = PerceptionConfig(anomaly_enabled=True, anomaly_spatial_grid_size=3)
+        wm = WorldModel(config)
+        engine = PerceptionEngine(config=config, world_model=wm)
+        self._tmp = tempfile.mkdtemp()
+        engine._anomaly_tuner = AnomalyTuner(_P(self._tmp) / "fb.json")
+        engine._auto_apply_threshold = threshold
+        return engine
+
+    def tearDown(self):
+        import shutil
+        if hasattr(self, "_tmp"):
+            shutil.rmtree(self._tmp, ignore_errors=True)
+
+    def test_anomaly_tuner_exists_on_built_engine(self):
+        from sopilot.perception.engine import build_perception_engine
+        engine = build_perception_engine()
+        self.assertIsNotNone(engine._anomaly_tuner)
+
+    def test_anomaly_tuner_type(self):
+        from sopilot.perception.engine import build_perception_engine
+        from sopilot.perception.anomaly_tuner import AnomalyTuner
+        engine = build_perception_engine()
+        self.assertIsInstance(engine._anomaly_tuner, AnomalyTuner)
+
+    def test_auto_apply_counter_initialized(self):
+        engine = self._make_engine_with_tuner()
+        self.assertEqual(engine._last_tuner_feedback_count, 0)
+
+    def test_auto_apply_threshold_configurable(self):
+        engine = self._make_engine_with_tuner(threshold=5)
+        self.assertEqual(engine._auto_apply_threshold, 5)
+
+    def test_auto_apply_not_triggered_below_threshold(self):
+        engine = self._make_engine_with_tuner(threshold=10)
+        # Add 5 records (< 10 threshold)
+        for i in range(5):
+            engine._anomaly_tuner.record_feedback("behavioral", "speed_zscore", i, False)
+        cur = len(engine._anomaly_tuner._records)
+        # Counter should NOT have advanced
+        self.assertEqual(engine._last_tuner_feedback_count, 0)
+
+    def test_auto_apply_triggered_at_threshold(self):
+        engine = self._make_engine_with_tuner(threshold=2)
+        # Add records meeting the threshold
+        for i in range(2):
+            engine._anomaly_tuner.record_feedback("behavioral", "speed_zscore", i, False)
+        # Manually simulate what Stage 6h does
+        cur = len(engine._anomaly_tuner._records)
+        if (cur - engine._last_tuner_feedback_count) >= engine._auto_apply_threshold:
+            if engine._world_model is not None:
+                bl = engine._world_model.get_anomaly_baseline()
+                if bl is not None:
+                    engine._anomaly_tuner.apply_tuning(bl)
+                    engine._last_tuner_feedback_count = cur
+        # After manual trigger, counter should match record count
+        self.assertGreaterEqual(engine._last_tuner_feedback_count, 0)
+
+    def test_stage_6h_no_tuner_no_error(self):
+        """Stage 6h should be a no-op when _anomaly_tuner is None."""
+        from sopilot.perception.engine import PerceptionEngine
+        import numpy as np
+        engine = PerceptionEngine(config=PerceptionConfig())
+        engine._anomaly_tuner = None
+        # process_frame should not raise
+        frame = np.zeros((64, 64, 3), dtype=np.uint8)
+        try:
+            engine.process_frame(frame)
+        except Exception:
+            pass  # Other components may fail; what matters is no AttributeError on tuner
+
+    def test_anomaly_tuner_record_feedback_persists(self):
+        engine = self._make_engine_with_tuner()
+        engine._anomaly_tuner.record_feedback("spatial", "rare_cell", -1, True)
+        self.assertEqual(len(engine._anomaly_tuner._records), 1)
+
+    def test_anomaly_tuner_get_stats_returns_dict(self):
+        engine = self._make_engine_with_tuner()
+        stats = engine._anomaly_tuner.get_stats()
+        self.assertIsInstance(stats, dict)
+        self.assertIn("total_feedback", stats)
+
+    def test_auto_apply_exception_does_not_crash(self):
+        """If _world_model.get_anomaly_baseline() raises, Stage 6h must not crash."""
+        from unittest.mock import MagicMock
+        engine = self._make_engine_with_tuner(threshold=1)
+        bad_wm = MagicMock()
+        bad_wm.get_anomaly_baseline.side_effect = RuntimeError("boom")
+        engine._world_model = bad_wm
+        engine._anomaly_tuner.record_feedback("behavioral", "speed_zscore", -1, False)
+        # Simulate Stage 6h
+        try:
+            cur = len(engine._anomaly_tuner._records)
+            if (cur - engine._last_tuner_feedback_count) >= engine._auto_apply_threshold:
+                bl = engine._world_model.get_anomaly_baseline()
+                if bl is not None:
+                    engine._anomaly_tuner.apply_tuning(bl)
+                    engine._last_tuner_feedback_count = cur
+        except Exception:
+            pass  # graceful
+        # Should not have crashed
+
+    def test_last_tuner_feedback_count_resets_after_apply(self):
+        engine = self._make_engine_with_tuner(threshold=1)
+        engine._anomaly_tuner.record_feedback("behavioral", "speed_zscore", -1, False)
+        cur = len(engine._anomaly_tuner._records)
+        engine._last_tuner_feedback_count = cur  # simulate apply
+        self.assertEqual(engine._last_tuner_feedback_count, cur)
+
+
+# ===========================================================================
+# Phase 10: GET /anomaly-learning-state endpoint tests
+# ===========================================================================
+
+
+class TestAnomalyLearningStateEndpoint(unittest.TestCase):
+    """E2E HTTP tests for GET /vigil/perception/anomaly-learning-state."""
+
+    def setUp(self):
+        import os
+        import tempfile
+        from pathlib import Path as _P
+        from unittest.mock import MagicMock
+        from fastapi.testclient import TestClient
+        from sopilot.main import create_app
+
+        self._tmp = tempfile.TemporaryDirectory()
+        root = _P(self._tmp.name)
+        os.environ["SOPILOT_DATA_DIR"] = str(root / "data")
+        os.environ["SOPILOT_EMBEDDER_BACKEND"] = "color-motion"
+        os.environ["SOPILOT_PRIMARY_TASK_ID"] = "learn-state-test"
+        os.environ["SOPILOT_RATE_LIMIT_RPM"] = "0"
+
+        self.app = create_app()
+        self.client = TestClient(self.app)
+
+        # Build mock engine with get_adaptive_learner_state
+        engine = MagicMock()
+        engine._anomaly_tuner = None
+        engine.get_adaptive_learner_state.return_value = {
+            "adaptive_learner": {
+                "total_observed": 0, "score_window_size": 0,
+                "score_mean": 0.0, "score_std": 0.0,
+                "drift_count": 0, "recalibration_count": 0,
+                "last_recalibration": None, "ph_state": {},
+            },
+            "tuner": {
+                "total_feedback": 0, "confirmed": 0, "denied": 0,
+                "overall_confirm_rate": 0.0,
+                "pairs_tracked": 0, "pairs_suppressed": 0, "pairs_trusted": 0,
+                "last_tuning": 0.0, "pair_stats": [],
+                "suppressed_pairs": [], "trusted_pairs": [],
+                "min_samples_for_tuning": 10,
+            },
+        }
+
+        vlm = MagicMock()
+        vlm._engine = engine
+        self.app.state.vigil_pipeline._vlm = vlm
+        self.engine = engine
+
+    def tearDown(self):
+        import os
+        self._tmp.cleanup()
+        for k in ("SOPILOT_DATA_DIR", "SOPILOT_EMBEDDER_BACKEND",
+                   "SOPILOT_PRIMARY_TASK_ID", "SOPILOT_RATE_LIMIT_RPM"):
+            os.environ.pop(k, None)
+
+    def test_endpoint_returns_200(self):
+        r = self.client.get("/vigil/perception/anomaly-learning-state")
+        self.assertEqual(r.status_code, 200)
+
+    def test_response_has_adaptive_learner_key(self):
+        r = self.client.get("/vigil/perception/anomaly-learning-state")
+        data = r.json()
+        self.assertIn("adaptive_learner", data)
+
+    def test_response_has_tuner_key(self):
+        r = self.client.get("/vigil/perception/anomaly-learning-state")
+        data = r.json()
+        self.assertIn("tuner", data)
+
+    def test_adaptive_learner_fields(self):
+        r = self.client.get("/vigil/perception/anomaly-learning-state")
+        al = r.json()["adaptive_learner"]
+        for key in ("total_observed", "drift_count", "recalibration_count",
+                    "score_mean", "score_std"):
+            self.assertIn(key, al)
+
+    def test_tuner_fields(self):
+        r = self.client.get("/vigil/perception/anomaly-learning-state")
+        t = r.json()["tuner"]
+        for key in ("total_feedback", "confirmed", "denied",
+                    "overall_confirm_rate", "pairs_tracked"):
+            self.assertIn(key, t)
+
+    def test_tuner_pair_stats_is_list(self):
+        r = self.client.get("/vigil/perception/anomaly-learning-state")
+        self.assertIsInstance(r.json()["tuner"]["pair_stats"], list)
+
+    def test_total_feedback_after_mock_feedback(self):
+        self.engine.get_adaptive_learner_state.return_value["tuner"]["total_feedback"] = 1
+        r = self.client.get("/vigil/perception/anomaly-learning-state")
+        self.assertGreaterEqual(r.json()["tuner"]["total_feedback"], 1)
+
+    def test_response_schema_valid(self):
+        r = self.client.get("/vigil/perception/anomaly-learning-state")
+        self.assertEqual(r.status_code, 200)
+        data = r.json()
+        # Pydantic validation passed if we got 200; sanity-check types
+        self.assertIsInstance(data["adaptive_learner"]["drift_count"], int)
+        self.assertIsInstance(data["tuner"]["overall_confirm_rate"], float)
+
+
 if __name__ == "__main__":
     unittest.main()

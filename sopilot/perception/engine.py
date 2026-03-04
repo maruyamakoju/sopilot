@@ -233,6 +233,9 @@ class PerceptionEngine:
         self._depth_estimator = None
         self._spatial_map = None
         self._adaptive_learner = None
+        self._anomaly_tuner = None          # AnomalyTuner (Phase 10)
+        self._auto_apply_threshold = 20     # N フィードバック蓄積で自動適用
+        self._last_tuner_feedback_count = 0
         self._attention_broker = None
         self._scene_understanding = None
         self._last_depth_estimates: list = []
@@ -482,6 +485,18 @@ class PerceptionEngine:
                             self._adaptive_learner.observe(_score, timestamp)
                 except Exception:
                     logger.debug("Adaptive learner failed", exc_info=True)
+
+            # ── Stage 6h: AnomalyTuner 自動適用 ──────────────────────────────
+            if self._anomaly_tuner is not None and self._world_model is not None:
+                try:
+                    cur = len(self._anomaly_tuner._records)
+                    if (cur - self._last_tuner_feedback_count) >= self._auto_apply_threshold:
+                        bl = self._world_model.get_anomaly_baseline()
+                        if bl is not None:
+                            self._anomaly_tuner.apply_tuning(bl)
+                            self._last_tuner_feedback_count = cur
+                except Exception:
+                    pass
 
             # ── Stage 7: Pose estimation + PPE check (opt-in) ─────
             t_stage = time.perf_counter()
@@ -813,6 +828,29 @@ class PerceptionEngine:
             return self._adaptive_learner.get_state_dict()
         except Exception:
             return None
+
+    def get_adaptive_learner_state(self) -> dict:
+        """Return combined AdaptiveLearner + AnomalyTuner state (Phase 10)."""
+        al = self.get_adaptive_state() or {
+            "total_observed": 0, "score_window_size": 0,
+            "score_mean": 0.0, "score_std": 0.0,
+            "drift_count": 0, "recalibration_count": 0,
+            "last_recalibration": None, "ph_state": {},
+        }
+        tuner_state: dict = {}
+        if self._anomaly_tuner is not None:
+            try:
+                tuner_state = self._anomaly_tuner.get_stats()
+            except Exception:
+                pass
+        return {"adaptive_learner": al, "tuner": tuner_state or {
+            "total_feedback": 0, "confirmed": 0, "denied": 0,
+            "overall_confirm_rate": 0.0, "pairs_tracked": 0,
+            "pairs_suppressed": 0, "pairs_trusted": 0,
+            "last_tuning": 0.0, "pair_stats": [],
+            "suppressed_pairs": [], "trusted_pairs": [],
+            "min_samples_for_tuning": 10,
+        }}
 
     def get_attention_state(self) -> dict | None:
         """Return attention broker state dict, or None if not initialized."""
@@ -2105,5 +2143,15 @@ def build_perception_engine(
         logger.debug("CLIP classifier module not available")
     except Exception:
         logger.exception("Failed to initialize CLIP classifier")
+
+    # ── Phase 10: AnomalyTuner 注入 ──────────────────────────────────────────
+    try:
+        from sopilot.perception.anomaly_tuner import AnomalyTuner as _AT
+        engine._anomaly_tuner = _AT(Path("data/anomaly_feedback.json"))
+        logger.info("AnomalyTuner (Phase 10) initialized")
+    except ImportError:
+        logger.debug("AnomalyTuner module not available")
+    except Exception:
+        logger.exception("Failed to initialize AnomalyTuner")
 
     return engine

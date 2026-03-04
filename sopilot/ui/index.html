@@ -740,6 +740,10 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
 .anomaly-fb-btn{padding:1px 6px;border-radius:4px;font-size:9px;font-weight:700;cursor:pointer;border:none;transition:opacity .2s}
 .anomaly-fb-ok{background:#1a4a1a;color:#4ade80}
 .anomaly-fb-ng{background:#4a1a1a;color:#f87171}
+.learn-pair-row{display:flex;align-items:center;gap:6px;margin-bottom:2px;font-size:9px}
+.learn-pair-bar{flex:1;height:4px;background:rgba(255,255,255,.1);border-radius:2px;overflow:hidden}
+.learn-pair-fill{height:100%;border-radius:2px;transition:width .3s}
+.learn-fill-ok{background:#4ade80}.learn-fill-mid{background:#fbbf24}.learn-fill-fp{background:#f87171}
 /* Phase 6: SSE Live Events + NL Tasks + Re-ID + LTM */
 #sseToastArea{position:fixed;top:64px;right:16px;z-index:9999;display:flex;flex-direction:column;gap:6px;pointer-events:none;max-width:360px}
 .sse-toast{padding:8px 12px;border-radius:8px;font-size:11px;background:rgba(15,23,42,.92);border:1px solid rgba(139,92,246,.3);color:var(--text);animation:sseFadeIn .3s ease;pointer-events:auto;line-height:1.4}
@@ -1378,6 +1382,15 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
                 <input id="anomalyProfileName" type="text" placeholder="プロファイル名" style="width:90px;padding:2px 4px;font-size:11px;background:var(--bg);color:var(--text);border:1px solid var(--border);border-radius:4px">
                 <button class="btn btn-sm btn-secondary" onclick="saveAnomalyProfile()" style="font-size:10px;padding:2px 6px">保存</button>
               </div>
+            </div>
+            <div id="anomalySelfLearning" style="margin-top:10px;border-top:1px solid var(--border);padding-top:8px;display:none">
+              <div style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">自己学習</div>
+              <div id="anomalyLearnDrift" style="margin-bottom:4px"></div>
+              <div id="anomalyLearnRecal" style="font-size:9px;color:var(--muted);margin-bottom:6px"></div>
+              <div id="anomalyLearnPairs" style="margin-bottom:6px;max-height:80px;overflow-y:auto"></div>
+              <div id="anomalyLearnSummary" style="font-size:9px;color:var(--muted);margin-bottom:6px"></div>
+              <button class="btn btn-secondary" style="width:100%;font-size:10px;padding:4px 0"
+                      onclick="applyAnomalyTuning()">チューニング適用</button>
             </div>
           </div>
         </div>
@@ -5827,7 +5840,7 @@ async function _percFetchAll(sessionId){
   _percUpdateStatusBar(stateData);
 
   // Fetch all perception data in parallel
-  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData, sceneData, spatialData, adaptiveData, attentionData, anticData, clipData, multiAgentData] = await Promise.allSettled([
+  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData, sceneData, spatialData, adaptiveData, attentionData, anticData, clipData, multiAgentData, selfLearnRes] = await Promise.allSettled([
     fetch(`/vigil/perception/narration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:_percNarrationStyle})}).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/activities`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/predictions`).then(r=>r.ok?r.json():null).catch(()=>null),
@@ -5847,6 +5860,7 @@ async function _percFetchAll(sessionId){
     fetch(`/vigil/perception/anticipation/state`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/clip/state`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/multi-agent/state`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/anomaly-learning-state`).then(r=>r.ok?r.json():null).catch(()=>null),
   ]);
 
   _percRenderNarration(narData.status==="fulfilled"?narData.value:null);
@@ -5870,6 +5884,7 @@ async function _percFetchAll(sessionId){
   _percRenderAnticipation(anticData.status==="fulfilled"?anticData.value:null);
   _percRenderCLIP(clipData.status==="fulfilled"?clipData.value:null);
   _percRenderMultiAgent(multiAgentData.status==="fulfilled"?multiAgentData.value:null);
+  _percRenderSelfLearning(selfLearnRes?.status==="fulfilled"?selfLearnRes.value:null);
 
   // Show query card (always visible when perception is active)
   const qcard=document.getElementById("percQueryCard");
@@ -6260,6 +6275,68 @@ async function sendAnomalyFeedback(detector,metric,entityId,confirmed,domId){
       el.querySelector(".anomaly-fb-row").innerHTML=`<span style="font-size:9px;color:${confirmed?"#4ade80":"#f87171"}">${confirmed?"✓ 正解として記録":"✗ FPとして記録"}</span>`;
     }
   }catch(e){console.debug("Feedback error",e);}
+}
+
+function _percRenderSelfLearning(data){
+  const panel=document.getElementById("anomalySelfLearning");
+  if(!panel)return;
+  if(!data){panel.style.display="none";return;}
+  panel.style.display="";
+  const al=data.adaptive_learner||{};
+  const t=data.tuner||{};
+  // Drift badge
+  const driftEl=document.getElementById("anomalyLearnDrift");
+  if(driftEl){
+    const dc=al.drift_count||0;
+    const col=dc>0?"#fbbf24":"#4ade80";
+    driftEl.innerHTML=`<span style="font-size:10px">ドリフト検出: <b style="color:${col}">${dc}回</b></span>`;
+  }
+  // Recalibration history
+  const recalEl=document.getElementById("anomalyLearnRecal");
+  if(recalEl){
+    const rc=al.recalibration_count||0;
+    const lr=al.last_recalibration;
+    recalEl.textContent=`再調整: ${rc}回${lr&&lr.timestamp?` (最終: ${new Date(lr.timestamp*1000).toLocaleTimeString()})`:""}`;
+  }
+  // Per-detector pair bars
+  const pairsEl=document.getElementById("anomalyLearnPairs");
+  if(pairsEl){
+    const pairs=(t.pair_stats||[]).slice(0,6);
+    if(pairs.length===0){
+      pairsEl.innerHTML='<span style="font-size:9px;color:var(--muted)">フィードバックなし</span>';
+    }else{
+      pairsEl.innerHTML=pairs.map(p=>{
+        const rate=p.confirmation_rate||0;
+        const fillCls=rate>=0.7?"learn-fill-ok":rate>=0.4?"learn-fill-mid":"learn-fill-fp";
+        return `<div class="learn-pair-row">
+          <span style="min-width:80px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${p.detector}/${p.metric}">${p.detector}</span>
+          <div class="learn-pair-bar"><div class="learn-pair-fill ${fillCls}" style="width:${Math.round(rate*100)}%"></div></div>
+          <span style="min-width:28px;text-align:right">${Math.round(rate*100)}%</span>
+          <span style="color:var(--muted)">(${p.total})</span>
+        </div>`;
+      }).join("");
+    }
+  }
+  // Summary row
+  const sumEl=document.getElementById("anomalyLearnSummary");
+  if(sumEl){
+    const total=t.total_feedback||0;
+    const sup=t.pairs_suppressed||0;
+    const tru=t.pairs_trusted||0;
+    sumEl.textContent=`FB計: ${total} / 抑制ペア: ${sup} / 信頼ペア: ${tru}`;
+  }
+}
+
+async function applyAnomalyTuning(){
+  try{
+    const r=await fetch("/vigil/perception/anomaly-tuning/apply",{method:"POST"});
+    if(!r.ok){alert("適用失敗: "+r.status);return;}
+    const d=await r.json();
+    alert(`チューニング適用完了: ${d.changes_applied}件の変更 (評価ペア: ${d.pairs_evaluated})`);
+    // Refresh self-learning panel
+    const lr=await fetch("/vigil/perception/anomaly-learning-state").then(x=>x.ok?x.json():null).catch(()=>null);
+    _percRenderSelfLearning(lr);
+  }catch(e){alert("エラー: "+e.message);}
 }
 
 let _anomalyProfilesLoaded=false;

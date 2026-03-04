@@ -249,6 +249,11 @@ class PerceptionEngine:
         # Phase 11A: Active query review queue
         self._review_queue = None
 
+        # Phase 12A: Adaptive sigma tuner
+        self._sigma_tuner = None
+        self._last_sigma_feedback_count = 0
+        self._sigma_apply_interval = getattr(config, "sigma_apply_interval", 10)
+
         # Phase 11B: Frame ring buffer (JPEG snapshots)
         from collections import deque as _deque
         _ring_size = getattr(config, "frame_ring_buffer_size", 50)
@@ -526,6 +531,17 @@ class PerceptionEngine:
                             self._review_queue.maybe_add(_ev, _z, tuner=self._anomaly_tuner)
                 except Exception:
                     logger.debug("Active query stage failed", exc_info=True)
+
+            # ── Stage 6j: SigmaTuner 自動σ調整 ──────────────────────────────
+            if self._sigma_tuner is not None and self._anomaly_tuner is not None:
+                try:
+                    cur = len(self._anomaly_tuner._records)
+                    if (cur - self._last_sigma_feedback_count) >= self._sigma_apply_interval:
+                        stats = self._anomaly_tuner.get_stats()
+                        self._sigma_tuner.compute_and_apply(stats)
+                        self._last_sigma_feedback_count = cur
+                except Exception:
+                    pass
 
             # ── Stage 7: Pose estimation + PPE check (opt-in) ─────
             t_stage = time.perf_counter()
@@ -880,6 +896,15 @@ class PerceptionEngine:
             "suppressed_pairs": [], "trusted_pairs": [],
             "min_samples_for_tuning": 10,
         }}
+
+    def get_sigma_state(self) -> dict | None:
+        """Return SigmaTuner state dict, or None if not initialized (Phase 12A)."""
+        if self._sigma_tuner is None:
+            return None
+        try:
+            return self._sigma_tuner.get_state()
+        except Exception:
+            return None
 
     def get_latest_frame_jpeg(self) -> bytes | None:
         """最新のフレーム JPEG バイト列を返す (Phase 11B)。バッファが空なら None。"""
@@ -1511,6 +1536,18 @@ class PerceptionEngine:
         violations: list[Violation] = []
 
         for event in world_state.events:
+            # Phase 12A: per-detector sigma filter for ANOMALY events
+            if (
+                self._sigma_tuner is not None
+                and hasattr(event.event_type, "name")
+                and event.event_type.name == "ANOMALY"
+                and event.details
+            ):
+                det = event.details.get("detector", "")
+                z = float(event.details.get("z_score", 0.0))
+                if z < self._sigma_tuner.get_sigma(det):
+                    continue  # below per-detector threshold → skip violation
+
             violation = self._event_to_violation(event, world_state)
             if violation is not None:
                 violations.append(violation)
@@ -2206,5 +2243,17 @@ def build_perception_engine(
         logger.debug("Active query module not available")
     except Exception:
         logger.exception("Failed to initialize ReviewQueue")
+
+    # ── Phase 12A: SigmaTuner 注入 ──────────────────────────────────────────
+    try:
+        from sopilot.perception.sigma_tuner import SigmaTuner as _ST
+        engine._sigma_tuner = _ST(
+            base_sigma=getattr(config, "anomaly_sigma_threshold", 2.0),
+        )
+        logger.info("SigmaTuner (Phase 12A) initialized")
+    except ImportError:
+        logger.debug("SigmaTuner module not available")
+    except Exception:
+        logger.exception("Failed to initialize SigmaTuner")
 
     return engine

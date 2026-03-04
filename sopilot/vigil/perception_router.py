@@ -260,6 +260,57 @@ class ReviewStatsResponse(BaseModel):
     max_pending: int
 
 
+# ── Phase 12A: Sigma Tuner schemas ────────────────────────────────────────────
+
+
+class DetectorSigmaInfo(BaseModel):
+    current_sigma: float
+    base_sigma: float
+    delta: float
+    adjusted: bool
+
+
+class SigmaStateResponse(BaseModel):
+    base_sigma: float
+    target_fp_rate: float
+    total_adjustments: int
+    detector_sigmas: dict[str, DetectorSigmaInfo]
+    recent_adjustments: list[dict] = Field(default_factory=list)
+
+
+# ── Phase 12B: Shift Report schemas ───────────────────────────────────────────
+
+
+class DetectorSummarySchema(BaseModel):
+    detector: str
+    event_count: int
+    fp_count: int = 0
+    tp_count: int = 0
+    fp_rate: float = 0.0
+
+
+class ShiftReportResponse(BaseModel):
+    session_id: int
+    session_name: str
+    generated_at: float
+    duration_seconds: float | None = None
+    status: str
+    total_events: int
+    events_by_severity: dict[str, int] = Field(default_factory=dict)
+    top_rules: list[dict] = Field(default_factory=list)
+    top_detectors: list[DetectorSummarySchema] = Field(default_factory=list)
+    tuner_feedback_total: int = 0
+    tuner_confirm_rate: float = 0.0
+    sigma_adjustments_total: int = 0
+    detector_sigmas: dict[str, float] = Field(default_factory=dict)
+    drift_events: int = 0
+    recalibrations: int = 0
+    review_pending: int = 0
+    review_confirmed: int = 0
+    review_denied: int = 0
+    recommendations: list[str] = Field(default_factory=list)
+
+
 class PerceptionStateResponse(BaseModel):
     frames_processed: int
     average_processing_ms: float
@@ -1081,6 +1132,81 @@ def build_perception_router() -> APIRouter:
         if jpeg is None:
             return Response(status_code=204)
         return Response(content=jpeg, media_type="image/jpeg")
+
+    # ── Phase 12A: Adaptive Sigma Tuner ────────────────────────────
+
+    @router.get("/sigma-state", response_model=SigmaStateResponse)
+    async def get_sigma_state(request: Request) -> SigmaStateResponse:
+        """detector ごとの現在 sigma_threshold 状態を返す (Phase 12A)。"""
+        engine = _get_perception_engine(request)
+
+        def _get() -> dict:
+            state = engine.get_sigma_state()
+            if state is None:
+                base = getattr(engine._config if hasattr(engine, "_config") else object(), "anomaly_sigma_threshold", 2.0)
+                state = {
+                    "base_sigma": base,
+                    "target_fp_rate": 0.30,
+                    "total_adjustments": 0,
+                    "detector_sigmas": {
+                        det: {"current_sigma": base, "base_sigma": base, "delta": 0.0, "adjusted": False}
+                        for det in ("behavioral", "spatial", "temporal", "interaction")
+                    },
+                    "recent_adjustments": [],
+                }
+            return state
+
+        data = await run_in_threadpool(_get)
+        return SigmaStateResponse(**data)
+
+    @router.post("/sigma-reset")
+    async def reset_sigma(request: Request) -> dict:
+        """全 detector の sigma をベースラインにリセット (Phase 12A)。"""
+        engine = _get_perception_engine(request)
+
+        def _reset():
+            sigma_tuner = getattr(engine, "_sigma_tuner", None)
+            if sigma_tuner is not None:
+                sigma_tuner.reset()
+                return True
+            return False
+
+        ok = await run_in_threadpool(_reset)
+        return {"status": "ok" if ok else "no_sigma_tuner"}
+
+    # ── Phase 12B: Shift Report ────────────────────────────────────
+
+    @router.get("/shift-report/{session_id}", response_model=ShiftReportResponse)
+    async def get_shift_report(
+        session_id: int, request: Request
+    ) -> ShiftReportResponse:
+        """セッションのシフトレポートを生成して返す (Phase 12B)。
+
+        vigil_events + 学習状態 (AnomalyTuner + SigmaTuner + ReviewQueue) を統合し
+        構造化レポートと推奨アクションを返す。
+        """
+        from sopilot.vigil.shift_report import ShiftReportGenerator
+
+        vigil_repo = getattr(request.app.state, "vigil_repo", None)
+        if vigil_repo is None:
+            raise HTTPException(status_code=503, detail="Vigil repository not available")
+
+        engine = None
+        try:
+            engine = _get_perception_engine(request)
+        except Exception:
+            pass
+
+        def _generate():
+            gen = ShiftReportGenerator()
+            return gen.generate(session_id, vigil_repo, engine=engine)
+
+        try:
+            report = await run_in_threadpool(_generate)
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc))
+
+        return ShiftReportResponse(**report.to_dict())
 
     # ── Phase 5: Goal Recognition ──────────────────────────────────
 

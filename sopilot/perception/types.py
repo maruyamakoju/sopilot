@@ -523,6 +523,8 @@ class PerceptionConfig:
     anomaly_ema_alpha: float = 0.05           # EMA smoothing factor (lower = slower adaptation)
     # Phase 10: Self-learning tuning parameters
     tuner_auto_apply_threshold: int = 20      # フィードバック蓄積後に apply_tuning() を自動実行
+    # Phase 12A: Adaptive sigma tuning
+    sigma_apply_interval: int = 10            # σ調整の最小フィードバック増分
     # Phase 11A: Active query review queue
     review_z_threshold: float = 2.5           # この z_score 以上の異常を review queue へ追加
     review_queue_max_pending: int = 50        # 最大保留件数

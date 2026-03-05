@@ -17,7 +17,7 @@ import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
-from fastapi.responses import StreamingResponse
+from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
@@ -228,6 +228,7 @@ class ReviewItemSchema(BaseModel):
     reviewed: bool = False
     confirmed: bool | None = None
     note: str = ""
+    frame_path: str = ""
 
 
 class ReviewQueueResponse(BaseModel):
@@ -276,6 +277,29 @@ class SigmaStateResponse(BaseModel):
     total_adjustments: int
     detector_sigmas: dict[str, DetectorSigmaInfo]
     recent_adjustments: list[dict] = Field(default_factory=list)
+
+
+# ── Phase 14A: Learning Dashboard schemas ─────────────────────────────────────
+
+
+class LearningHealthStatus(BaseModel):
+    status: str = "ok"  # "ok" | "warning" | "degraded"
+    issues: list[str] = Field(default_factory=list)
+    sigma_clamped_detectors: list[str] = Field(default_factory=list)
+    pending_backlog: int = 0
+    overall_fp_rate: float = 0.0
+    total_feedback: int = 0
+
+
+class LearningDashboardResponse(BaseModel):
+    health: LearningHealthStatus
+    sigma_history: list[dict] = Field(default_factory=list)
+    confirm_timeline: list[dict] = Field(default_factory=list)
+    current_sigmas: dict[str, Any] = Field(default_factory=dict)
+    suppressed_pairs: list[dict] = Field(default_factory=list)
+    trusted_pairs: list[dict] = Field(default_factory=list)
+    queue_stats: dict[str, Any] = Field(default_factory=dict)
+    tuner_stats: dict[str, Any] = Field(default_factory=dict)
 
 
 # ── Phase 12B: Shift Report schemas ───────────────────────────────────────────
@@ -1116,6 +1140,36 @@ def build_perception_router() -> APIRouter:
         stats = await run_in_threadpool(_get)
         return ReviewStatsResponse(**stats)
 
+    @router.get("/review/{review_id}/frame")
+    async def get_review_frame(review_id: str, request: Request):
+        """レビューアイテムの証拠フレーム JPEG を返す (Phase 13B)。
+
+        frame_path が空または存在しない場合は 404 を返す。
+        """
+        rq = _get_review_queue(request)
+
+        def _find():
+            with rq._lock:
+                all_items = list(rq._pending) + list(rq._reviewed)
+            for it in all_items:
+                if it.review_id == review_id:
+                    return it
+            return None
+
+        item = await run_in_threadpool(_find)
+        if item is None:
+            raise HTTPException(status_code=404, detail=f"review_id '{review_id}' not found")
+
+        from pathlib import Path as _P
+        fp = item.frame_path
+        if not fp:
+            raise HTTPException(status_code=404, detail="No frame captured for this review item")
+        p = _P(fp)
+        if not p.exists():
+            raise HTTPException(status_code=404, detail="Frame file not found on disk")
+
+        return Response(content=p.read_bytes(), media_type="image/jpeg")
+
     @router.get("/frame-snapshot")
     async def get_frame_snapshot(request: Request):
         """最新フレームのJPEGスナップショットを返す (Phase 11B)。
@@ -1173,6 +1227,130 @@ def build_perception_router() -> APIRouter:
 
         ok = await run_in_threadpool(_reset)
         return {"status": "ok" if ok else "no_sigma_tuner"}
+
+    # ── Phase 14A: Learning Dashboard ─────────────────────────────
+    SIGMA_CLAMP_THRESHOLD = 5.8  # near SIGMA_MAX(6.0)
+    HIGH_FP_THRESHOLD = 0.60
+    MIN_FEEDBACK_FOR_FP_ALERT = 10
+    BACKLOG_ALERT_THRESHOLD = 20
+
+    @router.get("/learning-dashboard", response_model=LearningDashboardResponse)
+    async def get_learning_dashboard(
+        sigma_limit: int = 100,
+        review_limit: int = 50,
+        request: Request = ...,
+    ):
+        """自己学習モニタリングダッシュボード (Phase 14A)。
+
+        σ調整履歴・確認率タイムライン・ヘルスステータスを一括返却する。
+        """
+        engine = _get_perception_engine(request)
+
+        def _build():
+            # ── sigma history & current state ──
+            sigma_history: list[dict] = []
+            current_sigmas: dict[str, Any] = {}
+            sigma_clamped: list[str] = []
+            sigma_tuner = getattr(engine, "_sigma_tuner", None)
+            if sigma_tuner is not None:
+                sigma_history = sigma_tuner.get_history(limit=sigma_limit)
+                state = sigma_tuner.get_state()
+                current_sigmas = state.get("detector_sigmas", {})
+                for det, info in current_sigmas.items():
+                    if info.get("current_sigma", 0) >= SIGMA_CLAMP_THRESHOLD:
+                        sigma_clamped.append(det)
+
+            # ── review timeline & queue stats ──
+            confirm_timeline: list[dict] = []
+            queue_stats: dict[str, Any] = {}
+            review_queue = getattr(engine, "_review_queue", None)
+            if review_queue is not None:
+                confirm_timeline = review_queue.get_review_history(limit=review_limit)
+                queue_stats = review_queue.get_stats()
+
+            # ── tuner stats (suppressed/trusted pairs) ──
+            suppressed_pairs: list[dict] = []
+            trusted_pairs: list[dict] = []
+            tuner_stats: dict[str, Any] = {}
+            overall_fp_rate = 0.0
+            tuner = getattr(engine, "_anomaly_tuner", None)
+            if tuner is not None:
+                tuner_stats = tuner.get_stats()
+                suppressed_pairs = tuner_stats.get("suppressed_pairs", [])
+                trusted_pairs = tuner_stats.get("trusted_pairs", [])
+                total_fb = tuner_stats.get("total_feedback", 0)
+                confirmed_fb = tuner_stats.get("confirmed", 0)
+                overall_fp_rate = (
+                    1.0 - confirmed_fb / total_fb if total_fb > 0 else 0.0
+                )
+
+            # ── health ──
+            issues: list[str] = []
+            if sigma_clamped:
+                issues.append(f"σ上限付近: {', '.join(sigma_clamped)}")
+            total_fb = tuner_stats.get("total_feedback", 0)
+            if overall_fp_rate > HIGH_FP_THRESHOLD and total_fb >= MIN_FEEDBACK_FOR_FP_ALERT:
+                issues.append(f"高FP率: {overall_fp_rate:.0%}")
+            pending_backlog = queue_stats.get("pending_count", 0)
+            if pending_backlog > BACKLOG_ALERT_THRESHOLD:
+                issues.append(f"レビュー積滞: {pending_backlog}件")
+
+            h_status = (
+                "ok" if not issues
+                else ("warning" if len(issues) == 1 else "degraded")
+            )
+            health = LearningHealthStatus(
+                status=h_status,
+                issues=issues,
+                sigma_clamped_detectors=sigma_clamped,
+                pending_backlog=pending_backlog,
+                overall_fp_rate=round(overall_fp_rate, 4),
+                total_feedback=total_fb,
+            )
+
+            return LearningDashboardResponse(
+                health=health,
+                sigma_history=sigma_history,
+                confirm_timeline=confirm_timeline,
+                current_sigmas=current_sigmas,
+                suppressed_pairs=suppressed_pairs,
+                trusted_pairs=trusted_pairs,
+                queue_stats=queue_stats,
+                tuner_stats=tuner_stats,
+            )
+
+        return await run_in_threadpool(_build)
+
+    # ── Phase 15: Early Warning Risk Score ────────────────────────
+
+    @router.get("/early-warning")
+    async def get_early_warning(request: Request) -> dict:
+        """予兆検知リスクスコアを返す (Phase 15)。
+
+        detector ごとに σドリフト速度 + FP率 + 異常バースト頻度から
+        リスクスコア [0, 1] を計算する。エンジン未起動時はゼロ状態を返す。
+        """
+        engine = _get_perception_engine(request)
+
+        def _get() -> dict:
+            tuner_stats = None
+            tuner = getattr(engine, "_anomaly_tuner", None)
+            if tuner is not None:
+                try:
+                    tuner_stats = tuner.get_stats()
+                except Exception:
+                    pass
+            state = engine.get_early_warning_state(tuner_stats)
+            if state is None:
+                return {
+                    "overall_risk": 0.0,
+                    "overall_level": "low",
+                    "detectors": {},
+                    "note": "EarlyWarningEngine not available",
+                }
+            return state
+
+        return await run_in_threadpool(_get)
 
     # ── Phase 12B: Shift Report ────────────────────────────────────
 

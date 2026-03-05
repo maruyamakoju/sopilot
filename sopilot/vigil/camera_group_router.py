@@ -58,6 +58,22 @@ def _get_repo(request: Request):
     return repo
 
 
+def _get_learning_store(request: Request):
+    """Get the GroupLearningStore from app state. Returns None if not available."""
+    return getattr(request.app.state, "group_learning_store", None)
+
+
+def _get_engine_optional(request: Request):
+    """Return PerceptionEngine if perception backend is active, else None."""
+    try:
+        vlm = request.app.state.vigil_pipeline._vlm
+        if hasattr(vlm, "_engine"):
+            return vlm._engine
+    except Exception:
+        pass
+    return None
+
+
 # ── Router factory ───────────────────────────────────────────────────────────
 
 
@@ -234,6 +250,133 @@ def build_camera_group_router() -> APIRouter:
         result = await run_in_threadpool(_apply)
         if result is None:
             raise HTTPException(status_code=404, detail=f"Group {group_id} not found")
+        return result
+
+    # ── Phase 14B: Cross-Camera Federated Learning ─────────────────────
+
+    @router.get("/learning/compare")
+    async def compare_group_learning(request: Request) -> dict:
+        """全グループのσ値を比較し、フェデレーテッドラーニング推奨を返す (Phase 14B)。
+
+        グループ間でσ値の差が大きい detector に対して推奨インサイトを生成する。
+        """
+        store = _get_learning_store(request)
+        if store is None:
+            return {"groups": [], "recommendations": [], "note": "learning store not available"}
+
+        def _compare():
+            return store.compare()
+
+        return await run_in_threadpool(_compare)
+
+    @router.get("/{group_id}/learning")
+    async def get_group_learning(group_id: int, request: Request) -> dict:
+        """グループの保存済み学習スナップショットを返す (Phase 14B)。
+
+        スナップショットがなければ 404 を返す。
+        """
+        store = _get_learning_store(request)
+        if store is None:
+            raise HTTPException(status_code=503, detail="Group learning store not available")
+
+        def _load():
+            return store.load(group_id)
+
+        snap = await run_in_threadpool(_load)
+        if snap is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No learning snapshot for group {group_id}. Use /export to create one.",
+            )
+        return snap
+
+    @router.post("/{group_id}/learning/export")
+    async def export_group_learning(group_id: int, request: Request) -> dict:
+        """現在のエンジン学習状態をグループにエクスポートする (Phase 14B)。
+
+        SigmaTuner.get_state() + AnomalyTuner.get_stats() を取得してグループに保存する。
+        エンジンが起動していない場合はベースライン値 (sigma=2.0) で保存する。
+        """
+        repo = _get_repo(request)
+        store = _get_learning_store(request)
+        if store is None:
+            raise HTTPException(status_code=503, detail="Group learning store not available")
+
+        def _export():
+            group = repo.get(group_id)
+            if group is None:
+                return None
+            engine = _get_engine_optional(request)
+            # Sigma state
+            sigma_state: dict[str, Any] = {"base_sigma": 2.0, "total_adjustments": 0,
+                                            "detector_sigmas": {}, "recent_adjustments": []}
+            if engine is not None:
+                st = getattr(engine, "_sigma_tuner", None)
+                if st is not None:
+                    sigma_state = st.get_state()
+            # Tuner stats
+            tuner_stats: dict[str, Any] = {"total_feedback": 0, "overall_confirm_rate": 0.0,
+                                            "suppressed_pairs": [], "trusted_pairs": []}
+            if engine is not None:
+                at = getattr(engine, "_anomaly_tuner", None)
+                if at is not None:
+                    tuner_stats = at.get_stats()
+            snap = store.save(
+                group_id=group_id,
+                group_name=group.get("name", f"group_{group_id}"),
+                sigma_state=sigma_state,
+                tuner_stats=tuner_stats,
+            )
+            return snap
+
+        result = await run_in_threadpool(_export)
+        if result is None:
+            raise HTTPException(status_code=404, detail=f"Group {group_id} not found")
+        return {"status": "ok", "snapshot": result}
+
+    @router.post("/{group_id}/learning/import")
+    async def import_group_learning(group_id: int, request: Request) -> dict:
+        """グループの保存済みσ値を現在のエンジンに適用する (Phase 14B)。
+
+        保存されたスナップショットの detector_sigmas を SigmaTuner に一括適用する。
+        エンジンが起動していない場合は 400 を返す。
+        """
+        store = _get_learning_store(request)
+        if store is None:
+            raise HTTPException(status_code=503, detail="Group learning store not available")
+
+        engine = _get_engine_optional(request)
+        if engine is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Perception engine not active. Set VIGIL_VLM_BACKEND=perception",
+            )
+
+        def _import():
+            snap = store.load(group_id)
+            if snap is None:
+                return None
+            sigma_tuner = getattr(engine, "_sigma_tuner", None)
+            if sigma_tuner is None:
+                return {"applied": [], "note": "SigmaTuner not initialized"}
+            applied = sigma_tuner.apply_detector_sigmas(
+                snap.get("detector_sigmas", {})
+            )
+            return {
+                "status": "ok",
+                "group_id": group_id,
+                "group_name": snap.get("group_name", ""),
+                "applied_detectors": applied,
+                "detector_sigmas": snap.get("detector_sigmas", {}),
+                "source_saved_at": snap.get("saved_at"),
+            }
+
+        result = await run_in_threadpool(_import)
+        if result is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No learning snapshot for group {group_id}. Use /export first.",
+            )
         return result
 
     return router

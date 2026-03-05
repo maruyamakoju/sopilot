@@ -24,6 +24,7 @@ from sopilot.services.video_processor import VideoProcessor
 from sopilot.vigil import build_vigil_router
 from sopilot.vigil.camera_group_repository import CameraGroupRepository
 from sopilot.vigil.camera_group_router import build_camera_group_router
+from sopilot.vigil.group_learning import GroupLearningStore
 from sopilot.vigil.perception_router import build_perception_router
 from sopilot.vigil.pipeline import VigilPipeline
 from sopilot.vigil.repository import VigilRepository
@@ -134,6 +135,7 @@ def create_app() -> FastAPI:
     )
 
     camera_group_repo = CameraGroupRepository(settings.database_path)
+    group_learning_store = GroupLearningStore(Path(settings.data_dir) / "group_learning")
 
     app.state.sopilot_service = service
     app.state.score_queue = queue
@@ -143,6 +145,7 @@ def create_app() -> FastAPI:
     app.state.vigil_webhook_repo = vigil_webhook_repo
     app.state.vigil_pipeline = vigil_pipeline
     app.state.camera_group_repo = camera_group_repo
+    app.state.group_learning_store = group_learning_store
     app.include_router(build_vigil_router())
     app.include_router(build_perception_router())
     app.include_router(build_camera_group_router())

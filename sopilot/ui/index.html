@@ -1409,6 +1409,8 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
               </div>
               <button class="btn btn-secondary" style="width:100%;font-size:10px;padding:4px 0;margin-top:6px"
                       onclick="applyAnomalyTuning()">チューニング適用</button>
+              <button class="btn btn-secondary" style="width:100%;font-size:10px;padding:4px 0;margin-top:4px;background:rgba(96,165,250,.15);border-color:rgba(96,165,250,.4)"
+                      onclick="openLearningDashboard()">📊 学習ダッシュボード</button>
             </div>
           </div>
         </div>
@@ -1546,6 +1548,22 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
         <div class="perc-card" id="percMultiAgentCard" style="display:none">
           <div class="perc-card-title">&#x1F578;&#xFE0F; マルチエージェント協調</div>
           <div id="multiAgentState" style="font-size:11px;color:var(--muted)"></div>
+        </div>
+
+        <!-- Phase 15: 予兆検知 Early Warning Risk Score -->
+        <div class="perc-card" id="percEarlyWarningCard" style="display:none">
+          <div class="perc-card-title">&#x26A0;&#xFE0F; 予兆検知 (Phase 15)</div>
+          <!-- Overall risk badge -->
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:10px;color:var(--muted)">総合リスク:</span>
+            <span id="ewOverallBadge" style="font-size:13px;font-weight:700;padding:2px 8px;border-radius:4px;background:rgba(74,222,128,.2);color:#4ade80">LOW</span>
+            <span id="ewOverallScore" style="font-size:12px;color:var(--muted)">0.00</span>
+          </div>
+          <!-- Per-detector risk bars -->
+          <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Detector リスク</div>
+          <div id="ewDetectorBars" style="display:flex;flex-direction:column;gap:4px"></div>
+          <!-- Footer note -->
+          <div id="ewFooter" style="font-size:9px;color:var(--muted);margin-top:6px"></div>
         </div>
       </div>
     </div>
@@ -5291,7 +5309,20 @@ function renderCameraGroupList(groups){
       </div>
       ${g.location?`<div style="font-size:10px;color:var(--muted);margin-top:2px">${g.location}</div>`:""}
       ${g.description?`<div style="font-size:10px;color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${g.description}</div>`:""}
-    </div>`).join("");
+    </div>`).join("")
+  + `<div style="padding:10px 14px;border-top:1px solid rgba(255,255,255,.08)">
+      <button onclick="toggleCgCompare()" style="width:100%;font-size:10px;background:rgba(96,165,250,.1);border:1px solid rgba(96,165,250,.3);color:#60a5fa;border-radius:6px;padding:5px 0;cursor:pointer">📊 グループ間σ比較</button>
+      <div id="cgComparePanel" style="display:none;margin-top:8px">
+        <div id="cgCompareContent" style="font-size:10px"></div>
+      </div>
+    </div>`;
+}
+
+function toggleCgCompare(){
+  const p=document.getElementById("cgComparePanel");
+  if(!p)return;
+  if(p.style.display==="none"){p.style.display="";_cgLoadCompare();}
+  else p.style.display="none";
 }
 
 async function createCameraGroup(){
@@ -5325,6 +5356,8 @@ async function selectCameraGroup(groupId){
   try{
     const overview=await api(`/vigil/camera-groups/${groupId}/overview`);
     _renderGroupDetail(overview);
+    // Phase 14B: load learning snapshot after detail renders
+    setTimeout(()=>_cgLoadLearningSnap(groupId),50);
   }catch(e){console.warn("selectCameraGroup",e);}
 }
 
@@ -5369,6 +5402,15 @@ function _renderGroupDetail(overview){
       <span style="font-size:11px;color:var(--muted);flex-shrink:0">異常プロファイル適用:</span>
       <input id="cgProfileName" value="${g.anomaly_profile_name||""}" placeholder="プロファイル名" style="flex:1;font-size:11px;min-width:120px"/>
       <button onclick="applyProfileToGroup(${g.id})" class="btn btn-secondary btn-sm">適用</button>
+    </div>
+    <!-- Phase 14B: グループ学習 -->
+    <div id="cgLearningPanel_${g.id}" style="background:rgba(96,165,250,.05);border:1px solid rgba(96,165,250,.2);border-radius:8px;padding:12px;margin-bottom:14px">
+      <div style="font-size:11px;font-weight:700;color:#60a5fa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">🎓 横断学習 (Phase 14B)</div>
+      <div id="cgLearningSnap_${g.id}" style="font-size:10px;color:var(--muted);margin-bottom:8px">読み込み中...</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <button onclick="exportGroupLearning(${g.id})" class="btn btn-secondary btn-sm" style="font-size:10px">📤 現在の学習をエクスポート</button>
+        <button onclick="importGroupLearning(${g.id})" class="btn btn-secondary btn-sm" style="font-size:10px;background:rgba(96,165,250,.15);border-color:rgba(96,165,250,.4)">📥 グループ学習をインポート</button>
+      </div>
     </div>
     <!-- Sessions in group -->
     <div style="background:rgba(15,23,42,.6);border:1px solid rgba(255,255,255,.07);border-radius:8px;padding:14px;margin-bottom:14px">
@@ -5441,6 +5483,91 @@ async function applyProfileToGroup(groupId){
     const res=await api(`/vigil/camera-groups/${groupId}/apply-profile`,"POST",{profile_name:name.trim()});
     toast(`プロファイル "${name}" を ${res.sessions_updated} セッションに適用しました`,"success");
   }catch(e){toast("適用に失敗しました","error");console.warn(e);}
+}
+
+// ─── Phase 14B: グループ横断学習 ──────────────────────────────────────────────
+
+async function _cgLoadLearningSnap(groupId){
+  const el=document.getElementById(`cgLearningSnap_${groupId}`);
+  if(!el)return;
+  try{
+    const snap=await fetch(`/vigil/camera-groups/${groupId}/learning`).then(r=>r.ok?r.json():null).catch(()=>null);
+    if(!snap){
+      el.textContent="保存済スナップショットなし — エクスポートで作成";
+      return;
+    }
+    const d=new Date(snap.saved_at*1000).toLocaleString("ja-JP");
+    const rows=Object.entries(snap.detector_sigmas||{}).map(([det,sig])=>{
+      const delta=sig-(snap.base_sigma||2.0);
+      const c=delta>0.1?"#fbbf24":delta<-0.1?"#60a5fa":"var(--muted)";
+      return `<span style="color:var(--muted)">${det}:</span><span style="color:${c};font-weight:600">${sig.toFixed(2)}σ</span>`;
+    }).join(" &nbsp;");
+    el.innerHTML=`<div style="margin-bottom:4px;color:var(--muted)">保存: ${d} / FB: ${snap.total_feedback} / 調整: ${snap.total_adjustments}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;font-size:10px">${rows}</div>
+      ${snap.suppressed_pairs&&snap.suppressed_pairs.length?`<div style="margin-top:3px;font-size:9px;color:#f87171">抑制: ${snap.suppressed_pairs.join(", ")}</div>`:""}
+      ${snap.trusted_pairs&&snap.trusted_pairs.length?`<div style="margin-top:1px;font-size:9px;color:#4ade80">信頼: ${snap.trusted_pairs.join(", ")}</div>`:""}`;
+  }catch(e){el.textContent="読み込みエラー";}
+}
+
+async function exportGroupLearning(groupId){
+  try{
+    await api(`/vigil/camera-groups/${groupId}/learning/export`,"POST");
+    toast("学習状態をエクスポートしました","success");
+    _cgLoadLearningSnap(groupId);
+    // Refresh compare panel if visible
+    const cp=document.getElementById("cgComparePanel");
+    if(cp&&cp.style.display!=="none") _cgLoadCompare();
+  }catch(e){toast("エクスポートに失敗: "+e.message,"error");}
+}
+
+async function importGroupLearning(groupId){
+  if(!confirm(`グループ ${groupId} の保存済みσ値を現在のエンジンに適用します。\nよろしいですか？`))return;
+  try{
+    const res=await api(`/vigil/camera-groups/${groupId}/learning/import`,"POST");
+    toast(`インポート完了: ${(res.applied_detectors||[]).join(", ")} を更新`,"success");
+  }catch(e){toast("インポートに失敗: "+e.message,"error");}
+}
+
+async function _cgLoadCompare(){
+  const el=document.getElementById("cgCompareContent");
+  if(!el)return;
+  try{
+    const data=await fetch("/vigil/camera-groups/learning/compare").then(r=>r.ok?r.json():null).catch(()=>null);
+    if(!data||!data.groups||data.groups.length===0){
+      el.innerHTML=`<div style="color:var(--muted);font-size:11px;padding:10px">まだスナップショットがありません。各グループで「エクスポート」を実行してください。</div>`;
+      return;
+    }
+    const DETS=["behavioral","spatial","temporal","interaction"];
+    // Table header
+    let html=`<table style="width:100%;border-collapse:collapse;font-size:10px">
+      <thead><tr style="border-bottom:1px solid rgba(255,255,255,.1)">
+        <th style="text-align:left;padding:4px 6px;color:var(--muted)">グループ</th>
+        ${DETS.map(d=>`<th style="text-align:center;padding:4px 6px;color:var(--muted)">${d.substring(0,4)}</th>`).join("")}
+        <th style="text-align:center;padding:4px 6px;color:var(--muted)">FB</th>
+      </tr></thead><tbody>`;
+    data.groups.forEach(g=>{
+      const base=g.base_sigma||2.0;
+      html+=`<tr style="border-bottom:1px solid rgba(255,255,255,.04)">
+        <td style="padding:4px 6px;color:var(--text);font-weight:600">${g.group_name}</td>
+        ${DETS.map(d=>{
+          const sig=(g.detector_sigmas||{})[d]||base;
+          const delta=sig-base;
+          const c=delta>0.15?"#fbbf24":delta<-0.15?"#60a5fa":"var(--text)";
+          return `<td style="text-align:center;padding:4px 6px;color:${c}">${sig.toFixed(2)}</td>`;
+        }).join("")}
+        <td style="text-align:center;padding:4px 6px;color:var(--muted)">${g.total_feedback||0}</td>
+      </tr>`;
+    });
+    html+=`</tbody></table>`;
+    // Recommendations
+    if(data.recommendations&&data.recommendations.length){
+      html+=`<div style="margin-top:10px;font-size:10px;font-weight:600;color:#fbbf24;margin-bottom:4px">💡 推奨インサイト</div>`;
+      html+=data.recommendations.map(r=>
+        `<div style="background:rgba(251,191,36,.07);border:1px solid rgba(251,191,36,.2);border-radius:5px;padding:6px 8px;margin-bottom:4px;font-size:10px;color:var(--text)">${r.note_ja}</div>`
+      ).join("");
+    }
+    el.innerHTML=html;
+  }catch(e){if(el)el.innerHTML=`<div style="color:#f87171;font-size:10px">読み込みエラー</div>`;}
 }
 
 // ── VIGIL: Analytics Dashboard ──
@@ -5823,7 +5950,7 @@ function resetPerceptionPanels(){
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -5842,7 +5969,7 @@ async function _percFetchAll(sessionId){
     $("perceptionStatusBar").classList.remove("active");
     $("percInactive").classList.add("show");
     $("perceptionPanels").classList.remove("show");
-    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard"].forEach(id=>{
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard"].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.style.display="none";
     });
@@ -5858,7 +5985,7 @@ async function _percFetchAll(sessionId){
   _percUpdateStatusBar(stateData);
 
   // Fetch all perception data in parallel
-  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData, sceneData, spatialData, adaptiveData, attentionData, anticData, clipData, multiAgentData, selfLearnRes, reviewQueueRes, sigmaRes] = await Promise.allSettled([
+  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData, sceneData, spatialData, adaptiveData, attentionData, anticData, clipData, multiAgentData, selfLearnRes, reviewQueueRes, sigmaRes, ewRes] = await Promise.allSettled([
     fetch(`/vigil/perception/narration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:_percNarrationStyle})}).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/activities`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/predictions`).then(r=>r.ok?r.json():null).catch(()=>null),
@@ -5881,6 +6008,7 @@ async function _percFetchAll(sessionId){
     fetch(`/vigil/perception/anomaly-learning-state`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/review-queue?n=20`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/sigma-state`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/early-warning`).then(r=>r.ok?r.json():null).catch(()=>null),
   ]);
 
   _percRenderNarration(narData.status==="fulfilled"?narData.value:null);
@@ -5907,6 +6035,7 @@ async function _percFetchAll(sessionId){
   _percRenderSelfLearning(selfLearnRes?.status==="fulfilled"?selfLearnRes.value:null);
   _percRenderReviewQueue(reviewQueueRes?.status==="fulfilled"?reviewQueueRes.value:null);
   _percRenderSigmaState(sigmaRes?.status==="fulfilled"?sigmaRes.value:null);
+  _percRenderEarlyWarning(ewRes?.status==="fulfilled"?ewRes.value:null);
 
   // Show query card (always visible when perception is active)
   const qcard=document.getElementById("percQueryCard");
@@ -6321,6 +6450,52 @@ function _percRenderSigmaState(data){
   }).join("");
 }
 
+function _percRenderEarlyWarning(data){
+  const card=document.getElementById("percEarlyWarningCard");
+  if(!card)return;
+  if(!data){card.style.display="none";return;}
+  card.style.display="block";
+
+  const overall=data.overall_risk||0;
+  const level=(data.overall_level||"low").toUpperCase();
+  const levelColors={LOW:"rgba(74,222,128,.2)",MEDIUM:"rgba(251,191,36,.2)",HIGH:"rgba(248,113,113,.2)"};
+  const levelText={LOW:"#4ade80",MEDIUM:"#fbbf24",HIGH:"#f87171"};
+  const badge=document.getElementById("ewOverallBadge");
+  if(badge){
+    badge.textContent=level;
+    badge.style.background=levelColors[level]||levelColors.LOW;
+    badge.style.color=levelText[level]||levelText.LOW;
+  }
+  const scoreEl=document.getElementById("ewOverallScore");
+  if(scoreEl)scoreEl.textContent=(overall*100).toFixed(1)+"%";
+
+  const barsEl=document.getElementById("ewDetectorBars");
+  if(barsEl){
+    const dets=data.detectors||{};
+    const detOrder=["behavioral","spatial","temporal","interaction"];
+    barsEl.innerHTML=detOrder.map(det=>{
+      const d=dets[det];
+      if(!d)return"";
+      const pct=Math.round((d.risk_score||0)*100);
+      const lv=(d.risk_level||"low");
+      const barColor=lv==="high"?"#f87171":lv==="medium"?"#fbbf24":"#4ade80";
+      return `<div style="display:flex;align-items:center;gap:6px;font-size:9px">
+        <span style="width:60px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${det}</span>
+        <div style="flex:1;height:6px;background:rgba(255,255,255,.08);border-radius:3px;overflow:hidden">
+          <div style="height:100%;width:${pct}%;background:${barColor};border-radius:3px;transition:width .3s"></div>
+        </div>
+        <span style="width:28px;text-align:right;color:${barColor};font-weight:600">${pct}%</span>
+      </div>`;
+    }).join("");
+  }
+
+  const footEl=document.getElementById("ewFooter");
+  if(footEl){
+    const win=data.burst_window_seconds||300;
+    footEl.textContent=`バースト窓: ${win}s | 更新: ${new Date((data.computed_at||0)*1000).toLocaleTimeString()}`;
+  }
+}
+
 function _percRenderSelfLearning(data){
   const panel=document.getElementById("anomalySelfLearning");
   if(!panel)return;
@@ -6381,6 +6556,168 @@ async function applyAnomalyTuning(){
     const lr=await fetch("/vigil/perception/anomaly-learning-state").then(x=>x.ok?x.json():null).catch(()=>null);
     _percRenderSelfLearning(lr);
   }catch(e){alert("エラー: "+e.message);}
+}
+
+// ─── Phase 14A: 自己学習モニタリングダッシュボード ────────────────────────────
+
+let _ldTimer=null;
+
+function openLearningDashboard(){
+  const m=document.getElementById("learningDashboardModal");
+  if(!m)return;
+  m.style.display="flex";
+  _ldRefresh();
+  _ldTimer=setInterval(_ldRefresh,5000);
+}
+
+function closeLearningDashboard(){
+  const m=document.getElementById("learningDashboardModal");
+  if(m)m.style.display="none";
+  if(_ldTimer){clearInterval(_ldTimer);_ldTimer=null;}
+}
+
+async function _ldRefresh(){
+  try{
+    const r=await fetch("/vigil/perception/learning-dashboard?sigma_limit=100&review_limit=50");
+    if(!r.ok)return;
+    const d=await r.json();
+    _ldRenderHealth(d.health);
+    _ldRenderSigmaCharts(d.sigma_history,d.current_sigmas);
+    _ldRenderConfirmTimeline(d.confirm_timeline);
+    _ldRenderPairs(d.suppressed_pairs,d.trusted_pairs);
+    _ldRenderFooter(d);
+  }catch(e){console.debug("learning dashboard error",e);}
+}
+
+function _ldRenderHealth(h){
+  const el=document.getElementById("ldHealthRow");
+  if(!el||!h)return;
+  const color=h.status==="ok"?"#4ade80":h.status==="warning"?"#fbbf24":"#f87171";
+  const icon=h.status==="ok"?"✓":h.status==="warning"?"⚠":"✗";
+  let html=`<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.07);border:1px solid ${color}40;border-radius:6px;padding:4px 10px;font-size:10px">
+    <span style="color:${color};font-weight:700">${icon}</span>
+    <span style="color:${color};font-weight:600">${h.status.toUpperCase()}</span>
+  </div>`;
+  html+=`<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);border-radius:6px;padding:4px 10px;font-size:10px;color:var(--muted)">
+    FB: <b style="color:var(--text)">${h.total_feedback}</b>
+  </div>`;
+  const fpColor=h.overall_fp_rate>0.6?"#f87171":h.overall_fp_rate>0.4?"#fbbf24":"#4ade80";
+  html+=`<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);border-radius:6px;padding:4px 10px;font-size:10px;color:var(--muted)">
+    FP率: <b style="color:${fpColor}">${(h.overall_fp_rate*100).toFixed(0)}%</b>
+  </div>`;
+  if(h.pending_backlog>0){
+    html+=`<div style="display:inline-flex;align-items:center;gap:5px;background:rgba(255,255,255,.05);border-radius:6px;padding:4px 10px;font-size:10px;color:var(--muted)">
+      積滞: <b style="color:#fbbf24">${h.pending_backlog}</b>
+    </div>`;
+  }
+  if(h.issues&&h.issues.length){
+    html+=h.issues.map(i=>`<div style="font-size:9px;color:#f87171;background:rgba(248,113,113,.1);border-radius:4px;padding:3px 8px">${i}</div>`).join("");
+  }
+  el.innerHTML=html;
+}
+
+function _ldRenderSigmaCharts(history,currentSigmas){
+  const el=document.getElementById("ldSigmaCharts");
+  if(!el)return;
+  const DETS=["behavioral","spatial","temporal","interaction"];
+  const SIGMA_MIN=1.0,SIGMA_MAX=6.0;
+  const W=200,H=44;
+
+  el.innerHTML=DETS.map(det=>{
+    const entries=history.filter(h=>h.detector===det);
+    const info=(currentSigmas&&currentSigmas[det])||{};
+    const curSigma=typeof info.current_sigma==="number"?info.current_sigma:2.0;
+    const baseSigma=typeof info.base_sigma==="number"?info.base_sigma:2.0;
+    const delta=typeof info.delta==="number"?info.delta:0;
+    const deltaColor=delta>0.05?"#fbbf24":delta<-0.05?"#60a5fa":"var(--muted)";
+    const deltaStr=(delta>=0?"+":"")+delta.toFixed(2);
+
+    // Build SVG polyline
+    let svgContent="";
+    // baseline
+    const baseY=H-((baseSigma-SIGMA_MIN)/(SIGMA_MAX-SIGMA_MIN))*H;
+    svgContent+=`<line x1="0" y1="${baseY.toFixed(1)}" x2="${W}" y2="${baseY.toFixed(1)}" stroke="rgba(255,255,255,.15)" stroke-width="1" stroke-dasharray="4,3"/>`;
+
+    if(entries.length===0){
+      // just a flat line at base
+      svgContent+=`<text x="${W/2}" y="${H/2+4}" text-anchor="middle" fill="rgba(255,255,255,.3)" font-size="9">調整なし</text>`;
+    } else {
+      const tMin=entries[0].timestamp;
+      const tMax=entries[entries.length-1].timestamp||tMin+1;
+      const tRange=Math.max(tMax-tMin,1);
+      const pts=[];
+      // start from base_sigma
+      pts.push({x:0,y:H-((baseSigma-SIGMA_MIN)/(SIGMA_MAX-SIGMA_MIN))*H});
+      entries.forEach(e=>{
+        const x=((e.timestamp-tMin)/tRange)*W;
+        const y=H-((e.new_sigma-SIGMA_MIN)/(SIGMA_MAX-SIGMA_MIN))*H;
+        pts.push({x,y});
+      });
+      const polyStr=pts.map(p=>`${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(" ");
+      svgContent+=`<polyline points="${polyStr}" fill="none" stroke="#fbbf24" stroke-width="1.5" stroke-linejoin="round"/>`;
+      const last=pts[pts.length-1];
+      svgContent+=`<circle cx="${last.x.toFixed(1)}" cy="${last.y.toFixed(1)}" r="3" fill="#fbbf24"/>`;
+    }
+
+    return `<div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:7px 8px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:4px">
+        <span style="font-size:9px;color:var(--muted);text-transform:capitalize">${det}</span>
+        <span style="font-size:10px;font-weight:600;color:var(--text)">${curSigma.toFixed(2)}σ <span style="color:${deltaColor};font-size:9px">(${deltaStr})</span></span>
+      </div>
+      <svg width="${W}" height="${H}" style="display:block;overflow:visible">${svgContent}</svg>
+    </div>`;
+  }).join("");
+}
+
+function _ldRenderConfirmTimeline(timeline){
+  const el=document.getElementById("ldConfirmTimeline");
+  const meta=document.getElementById("ldConfirmMeta");
+  if(!el)return;
+  if(!timeline||timeline.length===0){
+    el.innerHTML=`<span style="font-size:9px;color:var(--muted)">レビュー履歴なし</span>`;
+    if(meta)meta.textContent="";
+    return;
+  }
+  const confirmed=timeline.filter(t=>t.confirmed===true).length;
+  const total=timeline.length;
+  const rate=total>0?((confirmed/total)*100).toFixed(0):0;
+  if(meta)meta.textContent=`— 直近${total}件 / 確認率 ${rate}%`;
+  el.innerHTML=timeline.map(t=>{
+    const c=t.confirmed===true?"#4ade80":t.confirmed===false?"#f87171":"#94a3b8";
+    const tt=t.detector+(t.metric?"/"+t.metric:"")+(t.confirmed===true?" ✓":" ✗");
+    return `<span title="${tt}" style="width:10px;height:10px;border-radius:50%;background:${c};display:inline-block;flex-shrink:0"></span>`;
+  }).join("");
+}
+
+function _ldRenderPairs(suppressed,trusted){
+  function _render(pairs,elId){
+    const el=document.getElementById(elId);
+    if(!el)return;
+    if(!pairs||pairs.length===0){el.innerHTML=`<span style="color:var(--muted)">なし</span>`;return;}
+    el.innerHTML=pairs.slice(0,8).map(p=>{
+      const rate=typeof p.confirmation_rate==="number"?(p.confirmation_rate*100).toFixed(0)+"%" : "-";
+      return `<div style="display:flex;justify-content:space-between;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.05)">
+        <span style="color:var(--text)">${p.detector}/${p.metric}</span>
+        <span style="color:var(--muted)">${rate} (${p.total||0})</span>
+      </div>`;
+    }).join("");
+  }
+  _render(suppressed,"ldSuppressedPairs");
+  _render(trusted,"ldTrustedPairs");
+}
+
+function _ldRenderFooter(d){
+  const el=document.getElementById("ldFooterStats");
+  if(!el)return;
+  const qs=d.queue_stats||{};
+  const ts=d.tuner_stats||{};
+  el.innerHTML=[
+    `確認済: <b style="color:#4ade80">${qs.confirmed_count||0}</b>`,
+    `FPとして棄却: <b style="color:#f87171">${qs.denied_count||0}</b>`,
+    `σ調整回数: <b style="color:#fbbf24">${(d.sigma_history||[]).length}</b>`,
+    `抑制ペア: <b style="color:#f87171">${(d.suppressed_pairs||[]).length}</b>`,
+    `信頼ペア: <b style="color:#4ade80">${(d.trusted_pairs||[]).length}</b>`,
+  ].map(s=>`<span>${s}</span>`).join("");
 }
 
 let _anomalyProfilesLoaded=false;
@@ -6449,11 +6786,18 @@ function _percRenderReviewQueue(data){
   listEl.innerHTML=data.items.map(item=>{
     const zStr=item.z_score.toFixed(2);
     const desc=item.description_ja||`${item.detector}/${item.metric}`;
+    const thumbHtml=`<img src="/vigil/perception/review/${item.review_id}/frame"
+      style="width:60px;height:45px;object-fit:cover;border-radius:4px;cursor:pointer;flex-shrink:0"
+      onerror="this.style.display='none'"
+      onclick="openVigilLightbox(this.src)">`;
     return `<div class="review-item" id="rv-${item.review_id}">
-      <div class="review-item-header">
-        <span style="font-weight:600;color:#fbbf24">z=${zStr}</span>
-        <span style="color:var(--text)">${desc}</span>
-        <span style="color:var(--muted)">#${item.entity_id>=0?item.entity_id:"scene"}</span>
+      <div class="review-item-header" style="display:flex;align-items:center;gap:6px">
+        ${thumbHtml}
+        <div style="flex:1;min-width:0">
+          <div><span style="font-weight:600;color:#fbbf24">z=${zStr}</span>
+          <span style="color:var(--text)">${desc}</span>
+          <span style="color:var(--muted)">#${item.entity_id>=0?item.entity_id:"scene"}</span></div>
+        </div>
       </div>
       <div class="review-item-actions">
         <button class="review-btn-ok" onclick="submitReview('${item.review_id}',true)">✓ 本物</button>
@@ -7126,6 +7470,45 @@ function _percRenderMultimodal(data){
 <!-- Vigil frame lightbox overlay -->
 <div id="vigilLightbox" onclick="closeVigilLightbox()">
   <img src="" alt="frame" onclick="event.stopPropagation()"/>
+</div>
+
+<!-- Phase 14A: 学習ダッシュボード Modal -->
+<div id="learningDashboardModal" style="display:none;position:fixed;inset:0;z-index:1300;background:rgba(0,0,0,.75);display:none;align-items:center;justify-content:center;overflow-y:auto;padding:20px">
+  <div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,rgba(255,255,255,.12));border-radius:10px;width:min(720px,96%);max-height:90vh;overflow-y:auto;padding:0">
+    <!-- header -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border,rgba(255,255,255,.12))">
+      <span style="font-size:13px;font-weight:700;color:var(--text,#e2e8f0)">📊 自己学習モニタリングダッシュボード</span>
+      <button onclick="closeLearningDashboard()" style="background:none;border:none;color:var(--muted,#94a3b8);font-size:18px;cursor:pointer;padding:0 4px">×</button>
+    </div>
+    <!-- body -->
+    <div style="padding:14px 16px">
+      <!-- health row -->
+      <div id="ldHealthRow" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px"></div>
+      <!-- σ drift -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;font-weight:600;color:var(--muted,#94a3b8);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px">σ 調整履歴</div>
+        <div id="ldSigmaCharts" style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px"></div>
+      </div>
+      <!-- confirm timeline -->
+      <div style="margin-bottom:14px">
+        <div style="font-size:10px;font-weight:600;color:var(--muted,#94a3b8);text-transform:uppercase;letter-spacing:.08em;margin-bottom:6px">レビュー確認率タイムライン <span id="ldConfirmMeta" style="font-size:9px;color:var(--muted);text-transform:none"></span></div>
+        <div id="ldConfirmTimeline" style="display:flex;flex-wrap:wrap;gap:3px;min-height:16px"></div>
+      </div>
+      <!-- pairs -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
+        <div>
+          <div style="font-size:10px;font-weight:600;color:#f87171;margin-bottom:5px">抑制ペア</div>
+          <div id="ldSuppressedPairs" style="font-size:9px"></div>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:600;color:#4ade80;margin-bottom:5px">信頼ペア</div>
+          <div id="ldTrustedPairs" style="font-size:9px"></div>
+        </div>
+      </div>
+      <!-- footer stats -->
+      <div id="ldFooterStats" style="font-size:9px;color:var(--muted,#94a3b8);border-top:1px solid rgba(255,255,255,.08);padding-top:8px;display:flex;gap:16px;flex-wrap:wrap"></div>
+    </div>
+  </div>
 </div>
 
 </body>

@@ -12,8 +12,13 @@ detector ごとの FP 率を集計し、sigma_threshold を自動調整する。
 
 from __future__ import annotations
 
+import json
+import logging
 import time
+from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -59,6 +64,7 @@ class SigmaTuner:
         min_samples: int = MIN_SAMPLES,
         sigma_min: float = SIGMA_MIN,
         sigma_max: float = SIGMA_MAX,
+        state_path: "Path | str | None" = None,
     ) -> None:
         self._base_sigma = base_sigma
         self._target_fp_rate = target_fp_rate
@@ -68,11 +74,47 @@ class SigmaTuner:
         self._min_samples = min_samples
         self._sigma_min = sigma_min
         self._sigma_max = sigma_max
+        self._state_path = Path(state_path) if state_path else None
 
         # detector → adjusted sigma (absent = use base_sigma)
         self._detector_sigmas: dict[str, float] = {}
         self._adjustment_history: list[dict[str, Any]] = []
         self._total_adjustments: int = 0
+
+        self._load()
+
+    # ------------------------------------------------------------------
+    # Persistence
+    # ------------------------------------------------------------------
+
+    def _save(self) -> None:
+        """状態を JSON ファイルに保存する (best-effort)。"""
+        if self._state_path is None:
+            return
+        try:
+            self._state_path.parent.mkdir(parents=True, exist_ok=True)
+            data = {
+                "detector_sigmas": self._detector_sigmas,
+                "total_adjustments": self._total_adjustments,
+                "adjustment_history": self._adjustment_history,
+            }
+            self._state_path.write_text(json.dumps(data, indent=2), encoding="utf-8")
+        except Exception:
+            logger.exception("SigmaTuner: failed to save state to %s", self._state_path)
+
+    def _load(self) -> None:
+        """JSON ファイルから状態を復元する。ファイルがなければ何もしない。"""
+        if self._state_path is None or not self._state_path.exists():
+            return
+        try:
+            data = json.loads(self._state_path.read_text(encoding="utf-8"))
+            self._detector_sigmas = {
+                str(k): float(v) for k, v in data.get("detector_sigmas", {}).items()
+            }
+            self._total_adjustments = int(data.get("total_adjustments", 0))
+            self._adjustment_history = list(data.get("adjustment_history", []))
+        except Exception:
+            logger.exception("SigmaTuner: failed to load state from %s", self._state_path)
 
     # ------------------------------------------------------------------
     # Public API
@@ -149,6 +191,9 @@ class SigmaTuner:
             self._total_adjustments += 1
             changes.append(change)
 
+        if changes:
+            self._save()
+
         return changes
 
     def get_state(self) -> dict[str, Any]:
@@ -171,8 +216,33 @@ class SigmaTuner:
             "recent_adjustments": self._adjustment_history[-5:],
         }
 
+    def apply_detector_sigmas(self, sigmas: dict[str, float]) -> list[str]:
+        """外部スナップショット (グループ学習等) からσ値を一括適用する。
+
+        Args:
+            sigmas: {detector: sigma_value} dict。不明なdetectorはスキップ。
+
+        Returns:
+            適用されたdetectorのリスト。
+        """
+        applied: list[str] = []
+        for det, val in sigmas.items():
+            clamped = max(self._sigma_min, min(self._sigma_max, float(val)))
+            self._detector_sigmas[det] = round(clamped, 4)
+            applied.append(det)
+        if applied:
+            self._save()
+        return applied
+
+    def get_history(self, limit: int = 100) -> list[dict[str, Any]]:
+        """σ調整履歴を返す (最新 limit 件)。limit=0 で全件。"""
+        if limit <= 0:
+            return list(self._adjustment_history)
+        return self._adjustment_history[-limit:]
+
     def reset(self) -> None:
         """全 sigma をベースラインに戻し、履歴もクリアする。"""
         self._detector_sigmas.clear()
         self._adjustment_history.clear()
         self._total_adjustments = 0
+        self._save()

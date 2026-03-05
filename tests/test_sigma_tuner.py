@@ -430,5 +430,96 @@ class TestSigmaStateEndpoints(unittest.TestCase):
         self.assertEqual(r.status_code, 200)
 
 
+# ===========================================================================
+# Phase 13: SigmaTuner persistence tests
+# ===========================================================================
+
+
+class TestSigmaTunerPersistence(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self._tmp = tempfile.TemporaryDirectory()
+        self._state_path = f"{self._tmp.name}/sigma_state.json"
+
+    def tearDown(self):
+        self._tmp.cleanup()
+
+    def _make(self, **kw):
+        from sopilot.perception.sigma_tuner import SigmaTuner
+        return SigmaTuner(state_path=self._state_path, **kw)
+
+    def test_save_creates_json_file(self):
+        import os
+        st = self._make()
+        ps = _make_pair_stats(total=10, confirmed=0, denied=10)
+        st.compute_and_apply(_make_tuner_stats([ps]))
+        self.assertTrue(os.path.exists(self._state_path))
+
+    def test_load_restores_detector_sigmas(self):
+        st1 = self._make()
+        ps = _make_pair_stats(total=10, confirmed=0, denied=10)
+        st1.compute_and_apply(_make_tuner_stats([ps]))
+        saved_sigma = st1.get_sigma("behavioral")
+
+        from sopilot.perception.sigma_tuner import SigmaTuner
+        st2 = SigmaTuner(state_path=self._state_path)
+        self.assertAlmostEqual(st2.get_sigma("behavioral"), saved_sigma, places=3)
+
+    def test_load_restores_adjustment_history(self):
+        st1 = self._make()
+        ps = _make_pair_stats(total=10, confirmed=0, denied=10)
+        st1.compute_and_apply(_make_tuner_stats([ps]))
+
+        from sopilot.perception.sigma_tuner import SigmaTuner
+        st2 = SigmaTuner(state_path=self._state_path)
+        self.assertGreater(st2._total_adjustments, 0)
+        self.assertGreater(len(st2._adjustment_history), 0)
+
+    def test_load_from_nonexistent_path_is_graceful(self):
+        from sopilot.perception.sigma_tuner import SigmaTuner
+        # Should not raise
+        st = SigmaTuner(state_path=f"{self._tmp.name}/nonexistent.json")
+        self.assertAlmostEqual(st.get_sigma("behavioral"), 2.0)
+
+    def test_save_called_after_compute_and_apply(self):
+        import os
+        st = self._make()
+        self.assertFalse(os.path.exists(self._state_path))  # not saved yet
+        ps = _make_pair_stats(total=10, confirmed=0, denied=10)
+        st.compute_and_apply(_make_tuner_stats([ps]))
+        self.assertTrue(os.path.exists(self._state_path))
+
+    def test_reset_saves_empty_state(self):
+        import json as _json
+        st = self._make()
+        ps = _make_pair_stats(total=10, confirmed=0, denied=10)
+        st.compute_and_apply(_make_tuner_stats([ps]))
+        st.reset()
+        data = _json.loads(open(self._state_path).read())
+        self.assertEqual(data["detector_sigmas"], {})
+        self.assertEqual(data["total_adjustments"], 0)
+
+    def test_no_file_written_when_state_path_none(self):
+        from sopilot.perception.sigma_tuner import SigmaTuner
+        import tempfile, os
+        st = SigmaTuner(state_path=None)
+        ps = _make_pair_stats(total=10, confirmed=0, denied=10)
+        st.compute_and_apply(_make_tuner_stats([ps]))
+        # No file created (state_path=None → no-op)
+        self.assertIsNone(st._state_path)
+
+    def test_roundtrip_save_load(self):
+        st1 = self._make()
+        ps_b = _make_pair_stats("behavioral", total=10, confirmed=0, denied=10)
+        ps_s = _make_pair_stats("spatial", total=10, confirmed=10, denied=0)
+        st1.compute_and_apply(_make_tuner_stats([ps_b, ps_s]))
+
+        from sopilot.perception.sigma_tuner import SigmaTuner
+        st2 = SigmaTuner(state_path=self._state_path)
+        self.assertAlmostEqual(st2.get_sigma("behavioral"), st1.get_sigma("behavioral"), places=3)
+        self.assertAlmostEqual(st2.get_sigma("spatial"), st1.get_sigma("spatial"), places=3)
+        self.assertEqual(st2._total_adjustments, st1._total_adjustments)
+
+
 if __name__ == "__main__":
     unittest.main()

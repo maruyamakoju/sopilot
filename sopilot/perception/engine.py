@@ -254,6 +254,9 @@ class PerceptionEngine:
         self._last_sigma_feedback_count = 0
         self._sigma_apply_interval = getattr(config, "sigma_apply_interval", 10)
 
+        # Phase 15: Early Warning Engine
+        self._early_warning = None
+
         # Phase 11B: Frame ring buffer (JPEG snapshots)
         from collections import deque as _deque
         _ring_size = getattr(config, "frame_ring_buffer_size", 50)
@@ -525,10 +528,18 @@ class PerceptionEngine:
             # ── Stage 6i: 能動的クエリ (Active Query) ────────────────────────
             if self._review_queue is not None and world_state.events:
                 try:
+                    _frame_jpeg = self._frame_ring[-1][1] if self._frame_ring else None
                     for _ev in world_state.events:
                         if hasattr(_ev.event_type, "name") and _ev.event_type.name == "ANOMALY":
                             _z = float(_ev.details.get("z_score", 0.0)) if _ev.details else 0.0
-                            self._review_queue.maybe_add(_ev, _z, tuner=self._anomaly_tuner)
+                            self._review_queue.maybe_add(
+                                _ev, _z, tuner=self._anomaly_tuner, frame_jpeg=_frame_jpeg
+                            )
+                            # Phase 15: Early Warning — observe anomaly burst
+                            if self._early_warning is not None and _ev.details:
+                                _det = _ev.details.get("detector", "")
+                                if _det:
+                                    self._early_warning.observe_anomaly(_det, timestamp)
                 except Exception:
                     logger.debug("Active query stage failed", exc_info=True)
 
@@ -538,8 +549,17 @@ class PerceptionEngine:
                     cur = len(self._anomaly_tuner._records)
                     if (cur - self._last_sigma_feedback_count) >= self._sigma_apply_interval:
                         stats = self._anomaly_tuner.get_stats()
-                        self._sigma_tuner.compute_and_apply(stats)
+                        _sigma_changes = self._sigma_tuner.compute_and_apply(stats)
                         self._last_sigma_feedback_count = cur
+                        # Phase 15: Early Warning — observe sigma drift from each change
+                        if _sigma_changes and self._early_warning is not None:
+                            for _ch in _sigma_changes:
+                                self._early_warning.observe_sigma_change(
+                                    _ch["detector"],
+                                    _ch["old_sigma"],
+                                    _ch["new_sigma"],
+                                    _ch.get("timestamp"),
+                                )
                 except Exception:
                     pass
 
@@ -903,6 +923,17 @@ class PerceptionEngine:
             return None
         try:
             return self._sigma_tuner.get_state()
+        except Exception:
+            return None
+
+    def get_early_warning_state(
+        self, tuner_stats: dict | None = None
+    ) -> dict | None:
+        """Return EarlyWarningEngine state dict, or None if not initialized (Phase 15)."""
+        if self._early_warning is None:
+            return None
+        try:
+            return self._early_warning.get_state(tuner_stats)
         except Exception:
             return None
 
@@ -2237,6 +2268,8 @@ def build_perception_engine(
             z_threshold=getattr(config, "review_z_threshold", 2.5),
             max_pending=getattr(config, "review_queue_max_pending", 50),
             dedup_seconds=getattr(config, "review_dedup_seconds", 60.0),
+            persist_path=Path("data/review_queue.json"),
+            frames_root=Path("data/review_frames"),
         )
         logger.info("ReviewQueue (Phase 11A) initialized")
     except ImportError:
@@ -2249,11 +2282,22 @@ def build_perception_engine(
         from sopilot.perception.sigma_tuner import SigmaTuner as _ST
         engine._sigma_tuner = _ST(
             base_sigma=getattr(config, "anomaly_sigma_threshold", 2.0),
+            state_path=Path("data/sigma_state.json"),
         )
         logger.info("SigmaTuner (Phase 12A) initialized")
     except ImportError:
         logger.debug("SigmaTuner module not available")
     except Exception:
         logger.exception("Failed to initialize SigmaTuner")
+
+    # ── Phase 15: EarlyWarningEngine 注入 ────────────────────────────────────
+    try:
+        from sopilot.perception.early_warning import EarlyWarningEngine as _EW
+        engine._early_warning = _EW()
+        logger.info("EarlyWarningEngine (Phase 15) initialized")
+    except ImportError:
+        logger.debug("EarlyWarning module not available")
+    except Exception:
+        logger.exception("Failed to initialize EarlyWarningEngine")
 
     return engine

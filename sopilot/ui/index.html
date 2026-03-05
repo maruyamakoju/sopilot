@@ -756,6 +756,7 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
 .sse-toast-violation{border-color:rgba(251,191,36,.45);background:rgba(40,35,12,.88)}
 .sse-toast-goal{border-color:rgba(96,165,250,.45)}
 .sse-toast-deliberation{border-color:rgba(139,92,246,.45)}
+.sse-toast-early-warning{border-color:rgba(251,146,60,.7);background:rgba(40,20,5,.92);border-width:2px}
 @keyframes sseFadeIn{from{opacity:0;transform:translateX(20px)}to{opacity:1;transform:translateX(0)}}
 .sse-status-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:4px}
 .sse-connected{background:#4ade80}
@@ -1550,9 +1551,17 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           <div id="multiAgentState" style="font-size:11px;color:var(--muted)"></div>
         </div>
 
-        <!-- Phase 15: 予兆検知 Early Warning Risk Score -->
+        <!-- Phase 15/16/18: 予兆検知 + 自律対応 + ヘルススコア -->
         <div class="perc-card" id="percEarlyWarningCard" style="display:none">
-          <div class="perc-card-title">&#x26A0;&#xFE0F; 予兆検知 (Phase 15)</div>
+          <div class="perc-card-title">&#x26A0;&#xFE0F; 予兆検知 &amp; 自律対応</div>
+          <!-- Phase 18: Health Score badge -->
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,.04)">
+            <span style="font-size:10px;color:var(--muted);flex-shrink:0">システム健康度:</span>
+            <span id="healthGradeBadge" style="font-size:18px;font-weight:900;padding:2px 10px;border-radius:6px;background:rgba(74,222,128,.2);color:#4ade80;letter-spacing:.05em">A</span>
+            <span id="healthScoreVal" style="font-size:22px;font-weight:900;color:#4ade80;line-height:1">100</span>
+            <span style="font-size:10px;color:var(--muted)">/100</span>
+            <div id="healthFactorMini" style="flex:1;font-size:9px;color:var(--muted);text-align:right;line-height:1.5"></div>
+          </div>
           <!-- Overall risk badge -->
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
             <span style="font-size:10px;color:var(--muted)">総合リスク:</span>
@@ -1561,9 +1570,15 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           </div>
           <!-- Per-detector risk bars -->
           <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">Detector リスク</div>
-          <div id="ewDetectorBars" style="display:flex;flex-direction:column;gap:4px"></div>
+          <div id="ewDetectorBars" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px"></div>
+          <!-- Response history feed -->
+          <div style="font-size:9px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:4px">自律対応履歴</div>
+          <div id="ewResponseFeed" style="max-height:80px;overflow-y:auto;margin-bottom:6px;font-size:9px;color:var(--muted)">対応なし</div>
+          <!-- Trigger button -->
+          <button class="btn btn-secondary" style="width:100%;font-size:10px;padding:4px 0;background:rgba(248,113,113,.15);border-color:rgba(248,113,113,.4);color:#f87171"
+                  onclick="triggerEarlyWarningResponse()">&#x1F6A8; 自律対応を実行</button>
           <!-- Footer note -->
-          <div id="ewFooter" style="font-size:9px;color:var(--muted);margin-top:6px"></div>
+          <div id="ewFooter" style="font-size:9px;color:var(--muted);margin-top:4px"></div>
         </div>
       </div>
     </div>
@@ -5985,7 +6000,7 @@ async function _percFetchAll(sessionId){
   _percUpdateStatusBar(stateData);
 
   // Fetch all perception data in parallel
-  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData, sceneData, spatialData, adaptiveData, attentionData, anticData, clipData, multiAgentData, selfLearnRes, reviewQueueRes, sigmaRes, ewRes] = await Promise.allSettled([
+  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData, sceneData, spatialData, adaptiveData, attentionData, anticData, clipData, multiAgentData, selfLearnRes, reviewQueueRes, sigmaRes, ewRes, healthScoreRes] = await Promise.allSettled([
     fetch(`/vigil/perception/narration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:_percNarrationStyle})}).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/activities`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/predictions`).then(r=>r.ok?r.json():null).catch(()=>null),
@@ -6009,6 +6024,7 @@ async function _percFetchAll(sessionId){
     fetch(`/vigil/perception/review-queue?n=20`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/sigma-state`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/early-warning`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/health-score`).then(r=>r.ok?r.json():null).catch(()=>null),
   ]);
 
   _percRenderNarration(narData.status==="fulfilled"?narData.value:null);
@@ -6036,6 +6052,7 @@ async function _percFetchAll(sessionId){
   _percRenderReviewQueue(reviewQueueRes?.status==="fulfilled"?reviewQueueRes.value:null);
   _percRenderSigmaState(sigmaRes?.status==="fulfilled"?sigmaRes.value:null);
   _percRenderEarlyWarning(ewRes?.status==="fulfilled"?ewRes.value:null);
+  _percRenderHealthScore(healthScoreRes?.status==="fulfilled"?healthScoreRes.value:null);
 
   // Show query card (always visible when perception is active)
   const qcard=document.getElementById("percQueryCard");
@@ -6494,6 +6511,73 @@ function _percRenderEarlyWarning(data){
     const win=data.burst_window_seconds||300;
     footEl.textContent=`バースト窓: ${win}s | 更新: ${new Date((data.computed_at||0)*1000).toLocaleTimeString()}`;
   }
+
+  // Also refresh response history
+  fetch("/vigil/perception/early-warning/response-history")
+    .then(r=>r.ok?r.json():null).catch(()=>null)
+    .then(h=>{_ewRenderResponseFeed(h);});
+}
+
+function _ewRenderResponseFeed(data){
+  const el=document.getElementById("ewResponseFeed");
+  if(!el)return;
+  const items=(data?.recent_responses)||[];
+  if(items.length===0){el.textContent="対応なし";return;}
+  el.innerHTML=items.map(a=>{
+    const t=new Date((a.triggered_at||0)*1000).toLocaleTimeString();
+    const col=a.risk_level==="high"?"#f87171":a.risk_level==="medium"?"#fbbf24":"#4ade80";
+    return `<div style="border-left:2px solid ${col};padding-left:4px;margin-bottom:4px">
+      <div style="color:${col};font-weight:600">${a.detector} (${Math.round((a.risk_score||0)*100)}%) ${t}</div>
+      <div style="color:var(--text);line-height:1.4">${a.explanation_ja||""}</div>
+    </div>`;
+  }).join("");
+}
+
+async function triggerEarlyWarningResponse(){
+  try{
+    const r=await fetch("/vigil/perception/early-warning/respond",{method:"POST"});
+    if(!r.ok){alert("対応実行失敗: "+r.status);return;}
+    const d=await r.json();
+    const n=d.total_triggered||0;
+    if(n===0){
+      alert("現在 HIGH リスクの detector はありません（クールダウン中の可能性あり）");
+    }else{
+      const dets=(d.triggered||[]).map(a=>a.detector).join(", ");
+      alert(`自律対応を ${n}件 実行しました: ${dets}`);
+    }
+    // Refresh feed
+    const h=await fetch("/vigil/perception/early-warning/response-history").then(x=>x.ok?x.json():null).catch(()=>null);
+    _ewRenderResponseFeed(h);
+  }catch(e){alert("エラー: "+e.message);}
+}
+
+function _percRenderHealthScore(data){
+  const badge=document.getElementById("healthGradeBadge");
+  const scoreEl=document.getElementById("healthScoreVal");
+  const mini=document.getElementById("healthFactorMini");
+  if(!badge||!scoreEl)return;
+  if(!data){return;}
+
+  const score=data.score??100;
+  const grade=data.grade||"A";
+
+  // Color scheme: A/B=green, C=yellow, D/F=red
+  const col=grade==="A"||grade==="B"?"#4ade80":grade==="C"?"#fbbf24":"#f87171";
+  const bg=grade==="A"||grade==="B"?"rgba(74,222,128,.18)":grade==="C"?"rgba(251,191,36,.18)":"rgba(248,113,113,.18)";
+  badge.textContent=grade;
+  badge.style.color=col;
+  badge.style.background=bg;
+  scoreEl.textContent=score;
+  scoreEl.style.color=col;
+
+  // Mini factor breakdown (top 2 penalty contributors)
+  if(mini&&data.factors){
+    const sorted=Object.entries(data.factors)
+      .sort((a,b)=>(b[1].penalty||0)-(a[1].penalty||0))
+      .slice(0,2);
+    const labelMap={early_warning:"予兆",fp_rate:"FP率",sigma_drift:"σ",anomaly_burst:"バースト",review_backlog:"待機"};
+    mini.textContent=sorted.map(([k,v])=>`${labelMap[k]||k} −${Math.round(v.penalty||0)}`).join("  ");
+  }
 }
 
 function _percRenderSelfLearning(data){
@@ -6863,14 +6947,15 @@ function _sseShowToast(evt){
 
   const sevMap={CRITICAL:"🔴",WARNING:"🟡",INFO:"🔵"};
   const sev=(evt.severity||"").toUpperCase();
-  const icon=sevMap[sev]||"⚪";
-  const typeLabel={ANOMALY:"異常",RULE_VIOLATION:"違反",GOAL_DETECTED:"意図検出",DELIBERATION_RESULT:"推論",EPISODE_CLOSED:"エピソード終了",NL_TASK_TRIGGERED:"タスク発火"}[type]||type;
-  const desc=evt.description_ja||evt.action_ja||"";
+  const icon=type==="EARLY_WARNING_RESPONSE"?"🚨":sevMap[sev]||"⚪";
+  const typeLabel={ANOMALY:"異常",RULE_VIOLATION:"違反",GOAL_DETECTED:"意図検出",DELIBERATION_RESULT:"推論",EPISODE_CLOSED:"エピソード終了",NL_TASK_TRIGGERED:"タスク発火",EARLY_WARNING_RESPONSE:"自律対応"}[type]||type;
+  const desc=evt.explanation_ja||evt.description_ja||evt.action_ja||"";
 
   const cls=type==="ANOMALY"?"sse-toast-anomaly":
              type==="RULE_VIOLATION"?"sse-toast-violation":
              type==="GOAL_DETECTED"?"sse-toast-goal":
-             type==="DELIBERATION_RESULT"?"sse-toast-deliberation":"";
+             type==="DELIBERATION_RESULT"?"sse-toast-deliberation":
+             type==="EARLY_WARNING_RESPONSE"?"sse-toast-early-warning":"";
 
   const el=document.createElement("div");
   el.className=`sse-toast ${cls}`;

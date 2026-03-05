@@ -257,6 +257,9 @@ class PerceptionEngine:
         # Phase 15: Early Warning Engine
         self._early_warning = None
 
+        # Phase 16: Autonomous Response
+        self._early_warning_responder = None
+
         # Phase 11B: Frame ring buffer (JPEG snapshots)
         from collections import deque as _deque
         _ring_size = getattr(config, "frame_ring_buffer_size", 50)
@@ -560,6 +563,21 @@ class PerceptionEngine:
                                     _ch["new_sigma"],
                                     _ch.get("timestamp"),
                                 )
+                except Exception:
+                    pass
+
+            # ── Stage 6k: Early Warning 自律対応 ─────────────────────────────────
+            if self._early_warning is not None and self._early_warning_responder is not None:
+                try:
+                    ew_state = self._early_warning.get_state()
+                    _triggered = self._early_warning_responder.evaluate(
+                        ew_state,
+                        sigma_tuner=self._sigma_tuner,
+                        review_queue=self._review_queue,
+                    )
+                    # Phase 17: SSE broadcast to all connected UI sessions
+                    if _triggered:
+                        self._push_early_warning_responses(_triggered)
                 except Exception:
                     pass
 
@@ -936,6 +954,28 @@ class PerceptionEngine:
             return self._early_warning.get_state(tuner_stats)
         except Exception:
             return None
+
+    def get_early_warning_responder_state(self) -> dict | None:
+        """Return EarlyWarningResponder state dict, or None if not initialized (Phase 16)."""
+        if self._early_warning_responder is None:
+            return None
+        try:
+            return self._early_warning_responder.get_state()
+        except Exception:
+            return None
+
+    def get_health_score(self) -> dict:
+        """Return composite Perception Engine health score (Phase 18).
+
+        Returns:
+            dict with keys: score (0-100), grade (A-F), factors, computed_at.
+        """
+        try:
+            from sopilot.perception.perception_health import PerceptionHealthScorer
+            return PerceptionHealthScorer().compute(self)
+        except Exception:
+            logger.exception("PerceptionHealthScorer failed")
+            return {"score": 0, "grade": "F", "factors": {}, "computed_at": 0.0}
 
     def get_latest_frame_jpeg(self) -> bytes | None:
         """最新のフレーム JPEG バイト列を返す (Phase 11B)。バッファが空なら None。"""
@@ -1491,6 +1531,26 @@ class PerceptionEngine:
             pass
         except Exception:
             logger.debug("SSE push failed", exc_info=True)
+
+    def _push_early_warning_responses(self, actions: list) -> None:
+        """Broadcast EarlyWarningResponder triggers to all SSE sessions (Phase 17).
+
+        Unlike _push_events_to_sse (per-session), early warning alerts are
+        camera-level events relevant to all connected UI clients.
+        """
+        try:
+            from sopilot.perception import sse_events
+            sessions = sse_events.list_sessions()
+            if not sessions:
+                return
+            for action in actions:
+                payload = action.to_dict()
+                for sid in sessions:
+                    sse_events.push_event(sid, "EARLY_WARNING_RESPONSE", payload)
+        except ImportError:
+            pass
+        except Exception:
+            logger.debug("SSE early warning broadcast failed", exc_info=True)
 
     def _run_pose_estimation(self, frame: np.ndarray) -> list:
         """Run pose estimation, returning empty list on failure."""
@@ -2299,5 +2359,15 @@ def build_perception_engine(
         logger.debug("EarlyWarning module not available")
     except Exception:
         logger.exception("Failed to initialize EarlyWarningEngine")
+
+    # ── Phase 16: EarlyWarningResponder 注入 ─────────────────────────────────
+    try:
+        from sopilot.perception.early_warning_responder import EarlyWarningResponder as _EWR
+        engine._early_warning_responder = _EWR()
+        logger.info("EarlyWarningResponder (Phase 16) initialized")
+    except ImportError:
+        logger.debug("EarlyWarningResponder module not available")
+    except Exception:
+        logger.exception("Failed to initialize EarlyWarningResponder")
 
     return engine

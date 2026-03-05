@@ -1352,6 +1352,79 @@ def build_perception_router() -> APIRouter:
 
         return await run_in_threadpool(_get)
 
+    # ── Phase 16: Autonomous Response ─────────────────────────────
+
+    @router.post("/early-warning/respond")
+    async def trigger_early_warning_response(request: Request) -> dict:
+        """HIGH リスク detector に対して自律対応を実行する (Phase 16)。
+
+        EarlyWarningEngine の現在状態を評価し、リスク閾値超過 detector に対して
+        - 日本語説明生成 (なぜリスクが高いか)
+        - 推奨アクションリスト生成
+        - クールダウン管理 (同一 detector の連続対応を防止)
+        を実行し、発火した ResponseAction 一覧を返す。
+        """
+        engine = _get_perception_engine(request)
+
+        def _respond() -> dict:
+            responder = getattr(engine, "_early_warning_responder", None)
+            ew = getattr(engine, "_early_warning", None)
+            if responder is None or ew is None:
+                return {"triggered": [], "note": "EarlyWarningResponder not available"}
+
+            tuner_stats = None
+            tuner = getattr(engine, "_anomaly_tuner", None)
+            if tuner is not None:
+                try:
+                    tuner_stats = tuner.get_stats()
+                except Exception:
+                    pass
+
+            ew_state = ew.get_state(tuner_stats)
+            actions = responder.evaluate(
+                ew_state,
+                sigma_tuner=getattr(engine, "_sigma_tuner", None),
+                review_queue=getattr(engine, "_review_queue", None),
+            )
+            return {
+                "triggered": [a.to_dict() for a in actions],
+                "total_triggered": len(actions),
+            }
+
+        return await run_in_threadpool(_respond)
+
+    @router.get("/early-warning/response-history")
+    async def get_early_warning_response_history(
+        request: Request, n: int = 20
+    ) -> dict:
+        """自律対応の実行履歴を返す (Phase 16)。"""
+        engine = _get_perception_engine(request)
+
+        def _get() -> dict:
+            state = engine.get_early_warning_responder_state()
+            if state is None:
+                return {"total_responses": 0, "recent_responses": []}
+            return state
+
+        return await run_in_threadpool(_get)
+
+    # ── Phase 18: Perception Health Score ─────────────────────────
+
+    @router.get("/health-score")
+    async def get_perception_health_score(request: Request) -> dict:
+        """Perception Engine 総合ヘルススコアを返す (Phase 18).
+
+        Returns:
+            score (0-100), grade (A-F), factors (per-signal breakdown),
+            computed_at (Unix timestamp).
+        """
+        engine = _get_perception_engine(request)
+
+        def _get() -> dict:
+            return engine.get_health_score()
+
+        return await run_in_threadpool(_get)
+
     # ── Phase 12B: Shift Report ────────────────────────────────────
 
     @router.get("/shift-report/{session_id}", response_model=ShiftReportResponse)

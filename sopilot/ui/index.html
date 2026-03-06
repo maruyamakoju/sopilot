@@ -1221,6 +1221,7 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
       <button id="vigilTabSessions" class="btn btn-sm" style="background:rgba(13,148,136,.25);color:#4fd1c5;border:1px solid rgba(13,148,136,.4);border-radius:6px;padding:3px 12px;cursor:pointer;font-size:11px;font-weight:600" onclick="switchVigilTab('sessions')">監視</button>
       <button id="vigilTabAnalytics" class="btn btn-sm" style="background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:3px 12px;cursor:pointer;font-size:11px;font-weight:600" onclick="switchVigilTab('analytics')">分析</button>
       <button id="vigilTabGroups" class="btn btn-sm" style="background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:3px 12px;cursor:pointer;font-size:11px;font-weight:600" onclick="switchVigilTab('groups')">グループ</button>
+      <button id="vigilTabStream" class="btn btn-sm" style="background:transparent;color:var(--muted);border:1px solid rgba(255,255,255,.1);border-radius:6px;padding:3px 12px;cursor:pointer;font-size:11px;font-weight:600" onclick="switchVigilTab('stream')">&#128249; ライブ</button>
     </div>
     <div class="top-spacer"></div>
     <span id="vigilStatus" style="font-size:11px;color:var(--muted)"></span>
@@ -1589,6 +1590,69 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
                   onclick="triggerEarlyWarningResponse()">&#x1F6A8; 自律対応を実行</button>
           <!-- Footer note -->
           <div id="ewFooter" style="font-size:9px;color:var(--muted);margin-top:4px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- Live Stream Panel (toggled by ライブ tab) -->
+  <div id="vigilStreamPanel" style="display:none;flex:1;overflow-y:auto;padding:20px;background:rgba(5,10,21,.7)">
+    <div style="display:grid;grid-template-columns:1fr 340px;gap:16px;height:100%">
+      <!-- Left: canvas preview -->
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-size:13px;font-weight:700;color:var(--text)">ライブカメラプレビュー</span>
+          <span id="streamStatus" style="font-size:10px;padding:2px 8px;border-radius:999px;background:rgba(148,163,184,.12);color:#94a3b8;border:1px solid rgba(148,163,184,.2)">未接続</span>
+          <span id="streamFps" style="font-size:10px;color:var(--muted)"></span>
+        </div>
+        <canvas id="streamCanvas" width="640" height="480"
+          style="width:100%;border-radius:8px;border:1px solid var(--glass-border);background:#0a0f1e;max-height:calc(100vh - 280px);object-fit:contain"></canvas>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-primary btn-sm" onclick="startLiveStream()" id="streamStartBtn">カメラ開始</button>
+          <button class="btn btn-secondary btn-sm" onclick="stopLiveStream()" id="streamStopBtn" disabled>停止</button>
+          <select id="streamSessionSelect" style="font-size:11px;flex:1;max-width:260px">
+            <option value="">— セッション選択 —</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="refreshStreamSessions()">更新</button>
+        </div>
+        <!-- Violation feed -->
+        <div style="flex:1;background:rgba(15,23,42,.8);border:1px solid var(--glass-border);border-radius:8px;padding:12px;overflow-y:auto;max-height:180px">
+          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">違反アラート</div>
+          <div id="streamViolationFeed" style="display:flex;flex-direction:column;gap:4px">
+            <div style="font-size:11px;color:var(--muted)">違反なし</div>
+          </div>
+        </div>
+      </div>
+      <!-- Right: session form + stats -->
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <!-- Create session form -->
+        <div style="background:rgba(15,23,42,.8);border:1px solid var(--glass-border);border-radius:8px;padding:14px">
+          <div class="panel-title">新規ライブセッション</div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <input id="streamNewName" placeholder="セッション名 (例: 玄関カメラ)" style="font-size:12px"/>
+            <textarea id="streamNewRules" rows="4"
+              style="background:rgba(30,41,59,.6);border:1px solid var(--glass-border);border-radius:8px;padding:7px 10px;color:var(--text);font:inherit;font-size:11px;resize:vertical;outline:none"
+              placeholder="監視ルール (1行1件)&#10;例: ヘルメット未着用&#10;例: 立入禁止エリア侵入"></textarea>
+            <button class="btn btn-primary btn-sm" onclick="createStreamSession()" style="width:100%">セッション作成</button>
+          </div>
+        </div>
+        <!-- Frame stats -->
+        <div style="background:rgba(15,23,42,.8);border:1px solid var(--glass-border);border-radius:8px;padding:14px">
+          <div class="panel-title">推論ステータス</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div class="vigil-kpi-card"><div class="vigil-kpi-val" id="streamFrameCount">0</div><div class="vigil-kpi-lbl">フレーム数</div></div>
+            <div class="vigil-kpi-card"><div class="vigil-kpi-val" id="streamLatencyMs">--</div><div class="vigil-kpi-lbl">推論 ms</div></div>
+            <div class="vigil-kpi-card" style="border-color:rgba(239,68,68,.3)"><div class="vigil-kpi-val" id="streamViolationCount" style="color:#f87171">0</div><div class="vigil-kpi-lbl">違反件数</div></div>
+            <div class="vigil-kpi-card"><div class="vigil-kpi-val" id="streamDetectionCount">0</div><div class="vigil-kpi-lbl">検出数</div></div>
+          </div>
+        </div>
+        <!-- Active sessions list -->
+        <div style="background:rgba(15,23,42,.8);border:1px solid var(--glass-border);border-radius:8px;padding:14px;flex:1;overflow-y:auto">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+            <div class="panel-title" style="margin-bottom:0">アクティブセッション</div>
+          </div>
+          <div id="streamSessionList" style="display:flex;flex-direction:column;gap:6px">
+            <div style="font-size:11px;color:var(--muted)">セッションなし</div>
+          </div>
         </div>
       </div>
     </div>
@@ -5281,9 +5345,11 @@ function switchVigilTab(tab){
   const gridEl=$("vigilSessionsGrid");
   const analyticsPanel=$("vigilAnalyticsPanel");
   const groupsPanel=$("vigilGroupsPanel");
+  const streamPanel=$("vigilStreamPanel");
   const tabSessions=$("vigilTabSessions");
   const tabAnalytics=$("vigilTabAnalytics");
   const tabGroups=$("vigilTabGroups");
+  const tabStream=$("vigilTabStream");
   const _activeStyle="rgba(13,148,136,.25)";const _activeColor="#4fd1c5";const _activeBorder="rgba(13,148,136,.4)";
   const _inactiveStyle="transparent";const _inactiveColor="var(--muted)";const _inactiveBorder="rgba(255,255,255,.1)";
 
@@ -5291,7 +5357,8 @@ function switchVigilTab(tab){
   if(gridEl)gridEl.style.display="none";
   if(analyticsPanel)analyticsPanel.style.display="none";
   if(groupsPanel)groupsPanel.style.display="none";
-  [tabSessions,tabAnalytics,tabGroups].forEach(t=>{if(t){t.style.background=_inactiveStyle;t.style.color=_inactiveColor;t.style.borderColor=_inactiveBorder;}});
+  if(streamPanel)streamPanel.style.display="none";
+  [tabSessions,tabAnalytics,tabGroups,tabStream].forEach(t=>{if(t){t.style.background=_inactiveStyle;t.style.color=_inactiveColor;t.style.borderColor=_inactiveBorder;}});
 
   if(tab==="analytics"){
     if(analyticsPanel)analyticsPanel.style.display="block";
@@ -5302,6 +5369,10 @@ function switchVigilTab(tab){
     if(groupsPanel)groupsPanel.style.display="flex";
     if(tabGroups){tabGroups.style.background=_activeStyle;tabGroups.style.color=_activeColor;tabGroups.style.borderColor=_activeBorder;}
     loadCameraGroups();
+  }else if(tab==="stream"){
+    if(streamPanel)streamPanel.style.display="flex";
+    if(tabStream){tabStream.style.background=_activeStyle;tabStream.style.color=_activeColor;tabStream.style.borderColor=_activeBorder;}
+    refreshStreamSessions();
   }else{
     if(gridEl)gridEl.style.display="";
     if(tabSessions){tabSessions.style.background=_activeStyle;tabSessions.style.color=_activeColor;tabSessions.style.borderColor=_activeBorder;}
@@ -7646,6 +7717,183 @@ function _percRenderMultimodal(data){
     </div>
   </div>
 </div>
+
+
+<script>
+// ── Phase 27: Live Stream UI ──────────────────────────────────────────────────
+
+let _streamWs = null;
+let _streamActive = false;
+let _streamMediaStream = null;
+let _streamCanvas = null;
+let _streamCtx = null;
+let _streamCaptureInterval = null;
+let _streamViolationCount = 0;
+let _streamFrameCount = 0;
+let _streamCurrentSid = null;
+
+function _streamEl(id){return document.getElementById(id);}
+
+async function createStreamSession(){
+  const name = (_streamEl("streamNewName")||{}).value||"";
+  const rulesRaw = (_streamEl("streamNewRules")||{}).value||"";
+  if(!name.trim()){toast("セッション名を入力してください","warning");return;}
+  const rules = rulesRaw.split("\n").map(r=>r.trim()).filter(Boolean);
+  try{
+    const r=await fetch("/vigil/stream/sessions",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({name,rules})});
+    if(!r.ok){const e=await r.json().catch(()=>({}));toast("セッション作成失敗: "+(e.detail||r.status),"error");return;}
+    const s=await r.json();
+    toast("セッション作成: "+s.name,"success");
+    await refreshStreamSessions();
+    // Auto-select the new session
+    const sel=_streamEl("streamSessionSelect");
+    if(sel){sel.value=s.session_id;}
+    _streamCurrentSid=s.session_id;
+  }catch(e){toast("エラー: "+e.message,"error");}
+}
+
+async function refreshStreamSessions(){
+  try{
+    const r=await fetch("/vigil/stream/sessions");
+    if(!r.ok)return;
+    const sessions=await r.json();
+    const sel=_streamEl("streamSessionSelect");
+    const listEl=_streamEl("streamSessionList");
+    if(sel){
+      const prev=sel.value;
+      sel.innerHTML='<option value="">— セッション選択 —</option>';
+      sessions.forEach(s=>{
+        const opt=document.createElement("option");
+        opt.value=s.session_id;
+        opt.textContent=s.name+(s.is_active?" (アクティブ)":" (停止)");
+        sel.appendChild(opt);
+      });
+      if(prev)sel.value=prev;
+    }
+    if(listEl){
+      if(!sessions.length){listEl.innerHTML='<div style="font-size:11px;color:var(--muted)">セッションなし</div>';return;}
+      listEl.innerHTML=sessions.map(s=>`
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 8px;background:rgba(13,148,136,.06);border-radius:6px;border:1px solid rgba(13,148,136,.12)">
+          <div>
+            <div style="font-size:11px;font-weight:600;color:var(--text)">${escHtml(s.name)}</div>
+            <div style="font-size:9px;color:var(--muted)">フレーム: ${s.frame_count} · ルール: ${s.rules.length}</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" style="font-size:9px;padding:2px 7px" onclick="deleteStreamSession('${s.session_id}')">削除</button>
+        </div>`).join("");
+    }
+  }catch(e){console.error("refreshStreamSessions error",e);}
+}
+
+async function deleteStreamSession(sid){
+  try{
+    await fetch("/vigil/stream/sessions/"+sid,{method:"DELETE"});
+    if(_streamCurrentSid===sid)stopLiveStream();
+    await refreshStreamSessions();
+  }catch(e){toast("削除失敗: "+e.message,"error");}
+}
+
+async function startLiveStream(){
+  const sel=_streamEl("streamSessionSelect");
+  const sid=(sel||{}).value||_streamCurrentSid||"";
+  if(!sid){toast("セッションを選択してください","warning");return;}
+  _streamCurrentSid=sid;
+
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia){
+    toast("カメラAPIはHTTPS接続でのみ利用可能です","error");return;
+  }
+  try{
+    _streamMediaStream=await navigator.mediaDevices.getUserMedia({video:{width:640,height:480},audio:false});
+  }catch(e){toast("カメラアクセス拒否: "+e.message,"error");return;}
+
+  _streamCanvas=_streamEl("streamCanvas");
+  _streamCtx=_streamCanvas?_streamCanvas.getContext("2d"):null;
+
+  // Setup webcam video element (hidden)
+  let vid=document.getElementById("_streamHiddenVideo");
+  if(!vid){vid=document.createElement("video");vid.id="_streamHiddenVideo";vid.style.display="none";vid.autoplay=true;vid.muted=true;document.body.appendChild(vid);}
+  vid.srcObject=_streamMediaStream;
+  await new Promise(res=>{vid.onloadedmetadata=()=>{vid.play();res();};});
+
+  // WebSocket connection
+  const wsProto=location.protocol==="https:"?"wss:":"ws:";
+  _streamWs=new WebSocket(`${wsProto}//${location.host}/vigil/stream/sessions/${sid}/ws`);
+  _streamWs.binaryType="blob";
+
+  _streamWs.onopen=()=>{
+    _streamActive=true;
+    _streamViolationCount=0;_streamFrameCount=0;
+    _setStreamStatus("接続中","rgba(16,185,129,.12)","#10b981");
+    _streamEl("streamStartBtn").disabled=true;
+    _streamEl("streamStopBtn").disabled=false;
+    _startCapture(vid);
+  };
+  _streamWs.onmessage=(ev)=>{
+    ev.data.text().then(txt=>{
+      try{
+        const d=JSON.parse(txt);
+        if(d.type==="ping"||d.type==="keepalive")return;
+        _streamFrameCount=d.frame_count||_streamFrameCount;
+        _onStreamResult(d);
+      }catch(_){}
+    });
+  };
+  _streamWs.onerror=()=>{toast("WebSocket エラー","error");stopLiveStream();};
+  _streamWs.onclose=()=>{if(_streamActive)stopLiveStream();};
+}
+
+function _startCapture(vid){
+  const targetFps=10;
+  let lastTs=0;
+  _streamCaptureInterval=setInterval(()=>{
+    if(!_streamActive||!_streamWs||_streamWs.readyState!==WebSocket.OPEN)return;
+    const c=_streamCanvas;const ctx=_streamCtx;
+    if(!c||!ctx)return;
+    ctx.drawImage(vid,0,0,c.width,c.height);
+    c.toBlob(blob=>{
+      if(blob&&_streamWs.readyState===WebSocket.OPEN)_streamWs.send(blob);
+    },"image/jpeg",0.75);
+  },1000/targetFps);
+}
+
+function _onStreamResult(data){
+  const frameEl=_streamEl("streamFrameCount");if(frameEl)frameEl.textContent=data.frame_count||0;
+  const msEl=_streamEl("streamLatencyMs");if(msEl)msEl.textContent=(data.frame_ms||0).toFixed(1);
+  const detEl=_streamEl("streamDetectionCount");if(detEl)detEl.textContent=(data.detections||[]).length;
+
+  const violations=data.violations||[];
+  if(violations.length){
+    _streamViolationCount+=violations.length;
+    const vcEl=_streamEl("streamViolationCount");if(vcEl)vcEl.textContent=_streamViolationCount;
+    const feed=_streamEl("streamViolationFeed");
+    if(feed){
+      const ts=new Date().toLocaleTimeString("ja-JP",{hour12:false});
+      violations.forEach(v=>{
+        const item=document.createElement("div");
+        item.style.cssText="font-size:10px;color:#f87171;padding:3px 6px;background:rgba(239,68,68,.08);border-radius:4px;border-left:2px solid #ef4444";
+        item.textContent=`${ts} — ${v}`;
+        feed.prepend(item);
+        if(feed.children.length>30)feed.lastChild.remove();
+      });
+    }
+  }
+}
+
+function stopLiveStream(){
+  _streamActive=false;
+  clearInterval(_streamCaptureInterval);_streamCaptureInterval=null;
+  if(_streamWs){try{_streamWs.close();}catch(_){}}_streamWs=null;
+  if(_streamMediaStream){_streamMediaStream.getTracks().forEach(t=>t.stop());_streamMediaStream=null;}
+  _setStreamStatus("停止","rgba(148,163,184,.12)","#94a3b8");
+  const startBtn=_streamEl("streamStartBtn");if(startBtn)startBtn.disabled=false;
+  const stopBtn=_streamEl("streamStopBtn");if(stopBtn)stopBtn.disabled=true;
+}
+
+function _setStreamStatus(text,bg,color){
+  const el=_streamEl("streamStatus");
+  if(!el)return;
+  el.textContent=text;el.style.background=bg;el.style.color=color;el.style.borderColor=color+"4d";
+}
+</script>
 
 </body>
 </html>

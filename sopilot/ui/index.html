@@ -1554,13 +1554,23 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
         <!-- Phase 15/16/18: 予兆検知 + 自律対応 + ヘルススコア -->
         <div class="perc-card" id="percEarlyWarningCard" style="display:none">
           <div class="perc-card-title">&#x26A0;&#xFE0F; 予兆検知 &amp; 自律対応</div>
-          <!-- Phase 18: Health Score badge -->
-          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;padding:6px 8px;border-radius:6px;background:rgba(255,255,255,.04)">
-            <span style="font-size:10px;color:var(--muted);flex-shrink:0">システム健康度:</span>
-            <span id="healthGradeBadge" style="font-size:18px;font-weight:900;padding:2px 10px;border-radius:6px;background:rgba(74,222,128,.2);color:#4ade80;letter-spacing:.05em">A</span>
-            <span id="healthScoreVal" style="font-size:22px;font-weight:900;color:#4ade80;line-height:1">100</span>
-            <span style="font-size:10px;color:var(--muted)">/100</span>
-            <div id="healthFactorMini" style="flex:1;font-size:9px;color:var(--muted);text-align:right;line-height:1.5"></div>
+          <!-- Phase 18/19: Health Score badge + sparkline -->
+          <div style="padding:6px 8px;border-radius:6px;background:rgba(255,255,255,.04);margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:10px;color:var(--muted);flex-shrink:0">システム健康度:</span>
+              <span id="healthGradeBadge" style="font-size:18px;font-weight:900;padding:2px 10px;border-radius:6px;background:rgba(74,222,128,.2);color:#4ade80;letter-spacing:.05em">A</span>
+              <span id="healthScoreVal" style="font-size:22px;font-weight:900;color:#4ade80;line-height:1">100</span>
+              <span style="font-size:10px;color:var(--muted)">/100</span>
+              <div id="healthFactorMini" style="flex:1;font-size:9px;color:var(--muted);text-align:right;line-height:1.5"></div>
+            </div>
+            <!-- Phase 19: 7-day sparkline -->
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:9px;color:var(--muted);flex-shrink:0">7日推移:</span>
+              <svg id="healthSparkline" width="100%" height="24" style="flex:1;max-width:200px">
+                <text x="50%" y="16" text-anchor="middle" font-size="9" fill="#6b7280">データなし</text>
+              </svg>
+              <span id="healthTrendLabel" style="font-size:9px;color:var(--muted);white-space:nowrap"></span>
+            </div>
           </div>
           <!-- Overall risk badge -->
           <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
@@ -6000,7 +6010,7 @@ async function _percFetchAll(sessionId){
   _percUpdateStatusBar(stateData);
 
   // Fetch all perception data in parallel
-  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData, sceneData, spatialData, adaptiveData, attentionData, anticData, clipData, multiAgentData, selfLearnRes, reviewQueueRes, sigmaRes, ewRes, healthScoreRes] = await Promise.allSettled([
+  const [narData, actData, predData, anomData, healthData, goalsData, delibData, episData, ltmData, nlTaskData, actionData, fusionData, sceneData, spatialData, adaptiveData, attentionData, anticData, clipData, multiAgentData, selfLearnRes, reviewQueueRes, sigmaRes, ewRes, healthScoreRes, healthHistoryRes] = await Promise.allSettled([
     fetch(`/vigil/perception/narration`,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({style:_percNarrationStyle})}).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/activities`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/predictions`).then(r=>r.ok?r.json():null).catch(()=>null),
@@ -6025,6 +6035,7 @@ async function _percFetchAll(sessionId){
     fetch(`/vigil/perception/sigma-state`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/early-warning`).then(r=>r.ok?r.json():null).catch(()=>null),
     fetch(`/vigil/perception/health-score`).then(r=>r.ok?r.json():null).catch(()=>null),
+    fetch(`/vigil/perception/health-score/history?days=7`).then(r=>r.ok?r.json():null).catch(()=>null),
   ]);
 
   _percRenderNarration(narData.status==="fulfilled"?narData.value:null);
@@ -6053,6 +6064,7 @@ async function _percFetchAll(sessionId){
   _percRenderSigmaState(sigmaRes?.status==="fulfilled"?sigmaRes.value:null);
   _percRenderEarlyWarning(ewRes?.status==="fulfilled"?ewRes.value:null);
   _percRenderHealthScore(healthScoreRes?.status==="fulfilled"?healthScoreRes.value:null);
+  _percRenderHealthHistory(healthHistoryRes?.status==="fulfilled"?healthHistoryRes.value:null);
 
   // Show query card (always visible when perception is active)
   const qcard=document.getElementById("percQueryCard");
@@ -6577,6 +6589,45 @@ function _percRenderHealthScore(data){
       .slice(0,2);
     const labelMap={early_warning:"予兆",fp_rate:"FP率",sigma_drift:"σ",anomaly_burst:"バースト",review_backlog:"待機"};
     mini.textContent=sorted.map(([k,v])=>`${labelMap[k]||k} −${Math.round(v.penalty||0)}`).join("  ");
+  }
+}
+
+function _percRenderHealthHistory(data){
+  const svg=document.getElementById("healthSparkline");
+  const trendEl=document.getElementById("healthTrendLabel");
+  if(!svg)return;
+
+  const sparkline=(data?.sparkline)||[];
+  const trend=data?.trend||{};
+
+  if(sparkline.length<2){
+    svg.innerHTML=`<text x="50%" y="16" text-anchor="middle" font-size="9" fill="#6b7280">データなし</text>`;
+    if(trendEl)trendEl.textContent="";
+    return;
+  }
+
+  const W=svg.clientWidth||120, H=24, pad=2;
+  const scores=sparkline.map(p=>p.score);
+  const minS=Math.min(...scores), maxS=Math.max(...scores);
+  const range=maxS-minS||1;
+  const pts=scores.map((s,i)=>{
+    const x=pad+(i/(scores.length-1))*(W-2*pad);
+    const y=H-pad-(s-minS)/range*(H-2*pad);
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(" ");
+
+  // Color by last score
+  const last=scores[scores.length-1]||100;
+  const lineCol=last>=75?"#4ade80":last>=60?"#fbbf24":"#f87171";
+
+  svg.innerHTML=`<polyline points="${pts}" fill="none" stroke="${lineCol}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>`;
+
+  // Trend label
+  if(trendEl&&trend.improvement!=null){
+    const imp=trend.improvement;
+    const sign=imp>=0?"▲":"▼";
+    const col=imp>=0?"#4ade80":"#f87171";
+    trendEl.innerHTML=`<span style="color:${col}">${sign}${Math.abs(imp)}</span> vs 7日前`;
   }
 }
 

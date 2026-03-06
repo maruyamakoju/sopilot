@@ -260,6 +260,9 @@ class PerceptionEngine:
         # Phase 16: Autonomous Response
         self._early_warning_responder = None
 
+        # Phase 19: Health History
+        self._health_history = None
+
         # Phase 11B: Frame ring buffer (JPEG snapshots)
         from collections import deque as _deque
         _ring_size = getattr(config, "frame_ring_buffer_size", 50)
@@ -964,18 +967,67 @@ class PerceptionEngine:
         except Exception:
             return None
 
-    def get_health_score(self) -> dict:
+    def get_health_score(self, *, record: bool = True) -> dict:
         """Return composite Perception Engine health score (Phase 18).
+
+        Args:
+            record: If True, auto-record the score in HealthHistoryStore (rate-limited).
 
         Returns:
             dict with keys: score (0-100), grade (A-F), factors, computed_at.
         """
         try:
             from sopilot.perception.perception_health import PerceptionHealthScorer
-            return PerceptionHealthScorer().compute(self)
+            result = PerceptionHealthScorer().compute(self)
         except Exception:
             logger.exception("PerceptionHealthScorer failed")
             return {"score": 0, "grade": "F", "factors": {}, "computed_at": 0.0}
+
+        # Phase 19: auto-record into history (rate-limited to 1/hour by default)
+        if record and self._health_history is not None:
+            try:
+                self._health_history.record(
+                    score=result["score"],
+                    grade=result["grade"],
+                    factors=result.get("factors", {}),
+                    total_penalty=result.get("total_penalty", 0.0),
+                )
+            except Exception:
+                logger.debug("HealthHistoryStore.record() failed", exc_info=True)
+
+        return result
+
+    def get_daily_report(self) -> dict:
+        """Generate a 24-hour intelligence report (Phase 20).
+
+        Returns:
+            Structured report dict with sections: summary, anomalies,
+            early_warning, responses, recommendations, metadata.
+        """
+        try:
+            from sopilot.perception.daily_report import DailyReportGenerator
+            return DailyReportGenerator().generate(self)
+        except Exception:
+            logger.exception("DailyReportGenerator failed")
+            return {"error": "Report generation failed", "metadata": {"generated_at": 0.0}}
+
+    def get_health_history(self, days: float = 7.0) -> dict:
+        """Return health score history + trend for the last N days (Phase 19).
+
+        Returns:
+            dict with keys: history (list), trend (dict), sparkline (list).
+        """
+        if self._health_history is None:
+            return {"history": [], "trend": {}, "sparkline": []}
+        try:
+            return {
+                "history": self._health_history.get_history(days=days),
+                "trend": self._health_history.get_trend(days=days),
+                "sparkline": self._health_history.get_sparkline_data(days=days),
+            }
+        except Exception:
+            logger.debug("get_health_history failed", exc_info=True)
+            return {"history": [], "trend": {}, "sparkline": []}
 
     def get_latest_frame_jpeg(self) -> bytes | None:
         """最新のフレーム JPEG バイト列を返す (Phase 11B)。バッファが空なら None。"""
@@ -2369,5 +2421,17 @@ def build_perception_engine(
         logger.debug("EarlyWarningResponder module not available")
     except Exception:
         logger.exception("Failed to initialize EarlyWarningResponder")
+
+    # ── Phase 19: HealthHistoryStore 注入 ────────────────────────────────────
+    try:
+        from sopilot.perception.health_history import HealthHistoryStore as _HHS
+        engine._health_history = _HHS(
+            state_path=Path("data/health_history.json"),
+        )
+        logger.info("HealthHistoryStore (Phase 19) initialized")
+    except ImportError:
+        logger.debug("HealthHistoryStore module not available")
+    except Exception:
+        logger.exception("Failed to initialize HealthHistoryStore")
 
     return engine

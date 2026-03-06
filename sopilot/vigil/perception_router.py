@@ -1425,6 +1425,45 @@ def build_perception_router() -> APIRouter:
 
         return await run_in_threadpool(_get)
 
+    # ── Phase 19: Health Score History ────────────────────────────
+
+    @router.get("/health-score/history")
+    async def get_health_score_history(
+        request: Request, days: float = 7.0
+    ) -> dict:
+        """ヘルスヒストリと 30 日トレンドを返す (Phase 19).
+
+        Args:
+            days: 過去何日分を返すか (デフォルト 7 日、最大 30 日).
+
+        Returns:
+            history (list), trend (dict), sparkline (list).
+        """
+        engine = _get_perception_engine(request)
+        days = max(0.1, min(float(days), 30.0))
+
+        def _get() -> dict:
+            return engine.get_health_history(days=days)
+
+        return await run_in_threadpool(_get)
+
+    # ── Phase 20: Daily Intelligence Report ───────────────────────
+
+    @router.get("/daily-report")
+    async def get_daily_report(request: Request) -> dict:
+        """過去 24 時間の知覚パイプライン活動サマリーを返す (Phase 20).
+
+        Returns:
+            summary, anomalies, early_warning, responses,
+            recommendations, metadata セクションからなる構造化レポート。
+        """
+        engine = _get_perception_engine(request)
+
+        def _get() -> dict:
+            return engine.get_daily_report()
+
+        return await run_in_threadpool(_get)
+
     # ── Phase 12B: Shift Report ────────────────────────────────────
 
     @router.get("/shift-report/{session_id}", response_model=ShiftReportResponse)

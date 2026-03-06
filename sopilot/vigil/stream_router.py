@@ -24,6 +24,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, WebSocket, WebSocketDisconnect
@@ -157,6 +158,57 @@ def _run_reid(request: Request, session: StreamSession, frame_bytes: bytes, dete
         logger.debug("ReID update skipped", exc_info=True)
 
 
+def _get_tracker(request: Request, session_id: str) -> "PersonTracker":
+    """Return (or lazily create) the PersonTracker for a session."""
+    from sopilot.vigil.person_tracker import PersonTracker
+
+    if not hasattr(request.app.state, "stream_trackers"):
+        request.app.state.stream_trackers = {}
+    trackers = request.app.state.stream_trackers
+    if session_id not in trackers:
+        trackers[session_id] = PersonTracker()
+    return trackers[session_id]
+
+
+def _run_tracker(
+    request: Request,
+    session: StreamSession,
+    detections: list,
+    timestamp: float,
+) -> None:
+    """Update person tracker + fire behavior events into the SSE queue. Best-effort."""
+    try:
+        from sopilot.vigil.behavior_detector import BehaviorDetector
+
+        tracker = _get_tracker(request, session.session_id)
+        tracks = tracker.update(detections, timestamp=timestamp)
+
+        # Shared (stateless) behavior detector
+        if not hasattr(request.app.state, "stream_behavior_detector"):
+            request.app.state.stream_behavior_detector = BehaviorDetector()
+        detector: BehaviorDetector = request.app.state.stream_behavior_detector
+
+        if not hasattr(request.app.state, "stream_behavior_events"):
+            request.app.state.stream_behavior_events = {}
+        events_store = request.app.state.stream_behavior_events
+        if session.session_id not in events_store:
+            events_store[session.session_id] = []
+
+        event_list = events_store[session.session_id]
+        for track in tracks:
+            if track.status != "active":
+                continue
+            for ev in detector.analyze(track, session.session_id):
+                ev_dict = ev.to_dict()
+                event_list.append(ev_dict)
+                session.push_result({"type": "BEHAVIOR_EVENT", **ev_dict})
+        # Cap at 200 entries
+        if len(event_list) > 200:
+            events_store[session.session_id] = event_list[-200:]
+    except Exception:
+        logger.debug("Tracker update skipped", exc_info=True)
+
+
 def _session_to_response(session: StreamSession) -> SessionResponse:
     return SessionResponse(**session.to_dict())
 
@@ -241,8 +293,12 @@ def build_stream_router() -> APIRouter:
             **session.last_result,
         }
         session.push_result(sse_payload)
+        frame_ts = time.time()
         await run_in_threadpool(
             _run_reid, request, session, frame_bytes, result["detections"]
+        )
+        await run_in_threadpool(
+            _run_tracker, request, session, result["detections"], frame_ts
         )
 
         return FrameResultResponse(**sse_payload)
@@ -285,8 +341,12 @@ def build_stream_router() -> APIRouter:
                     **session.last_result,
                 }
                 session.push_result(sse_payload)
+                ws_ts = time.time()
                 await run_in_threadpool(
                     _run_reid, websocket, session, frame_bytes, result["detections"]
+                )
+                await run_in_threadpool(
+                    _run_tracker, websocket, session, result["detections"], ws_ts
                 )
 
                 await websocket.send_text(json.dumps(sse_payload))

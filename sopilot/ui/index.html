@@ -1614,11 +1614,19 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           </select>
           <button class="btn btn-secondary btn-sm" onclick="refreshStreamSessions()">更新</button>
         </div>
-        <!-- Violation feed -->
-        <div style="flex:1;background:rgba(15,23,42,.8);border:1px solid var(--glass-border);border-radius:8px;padding:12px;overflow-y:auto;max-height:180px">
-          <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">違反アラート</div>
-          <div id="streamViolationFeed" style="display:flex;flex-direction:column;gap:4px">
-            <div style="font-size:11px;color:var(--muted)">違反なし</div>
+        <!-- Violation + behavior feeds side by side -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <div style="background:rgba(15,23,42,.8);border:1px solid var(--glass-border);border-radius:8px;padding:10px;overflow-y:auto;max-height:160px">
+            <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">&#9888;&#65039; 違反アラート</div>
+            <div id="streamViolationFeed" style="display:flex;flex-direction:column;gap:3px">
+              <div style="font-size:11px;color:var(--muted)">違反なし</div>
+            </div>
+          </div>
+          <div style="background:rgba(15,23,42,.8);border:1px solid var(--glass-border);border-radius:8px;padding:10px;overflow-y:auto;max-height:160px">
+            <div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:5px">&#129504; 行動異常検知</div>
+            <div id="streamBehaviorFeed" style="display:flex;flex-direction:column;gap:3px">
+              <div style="font-size:11px;color:var(--muted)" data-placeholder="true">検知なし</div>
+            </div>
           </div>
         </div>
       </div>
@@ -1643,6 +1651,18 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
             <div class="vigil-kpi-card"><div class="vigil-kpi-val" id="streamLatencyMs">--</div><div class="vigil-kpi-lbl">推論 ms</div></div>
             <div class="vigil-kpi-card" style="border-color:rgba(239,68,68,.3)"><div class="vigil-kpi-val" id="streamViolationCount" style="color:#f87171">0</div><div class="vigil-kpi-lbl">違反件数</div></div>
             <div class="vigil-kpi-card"><div class="vigil-kpi-val" id="streamDetectionCount">0</div><div class="vigil-kpi-lbl">検出数</div></div>
+            <div class="vigil-kpi-card" style="border-color:rgba(34,211,238,.3)"><div class="vigil-kpi-val" id="streamActiveTrackCount" style="color:#22d3ee">0</div><div class="vigil-kpi-lbl">追跡人物</div></div>
+            <div class="vigil-kpi-card" style="border-color:rgba(251,146,60,.3)"><div class="vigil-kpi-val" id="streamBehaviorEventCount" style="color:#fb923c">0</div><div class="vigil-kpi-lbl">行動異常</div></div>
+          </div>
+        </div>
+        <!-- Re-ID cross-camera events -->
+        <div style="background:rgba(15,23,42,.8);border:1px solid var(--glass-border);border-radius:8px;padding:12px;max-height:160px;overflow-y:auto">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+            <div class="panel-title" style="margin-bottom:0;font-size:10px">&#128100; Re-ID クロスカメラ</div>
+            <button class="btn btn-secondary btn-sm" style="font-size:9px;padding:1px 6px" onclick="refreshReidEvents()">更新</button>
+          </div>
+          <div id="streamReidFeed" style="display:flex;flex-direction:column;gap:3px">
+            <div style="font-size:11px;color:var(--muted)" data-placeholder="true">イベントなし</div>
           </div>
         </div>
         <!-- Active sessions list -->
@@ -7731,6 +7751,8 @@ let _streamCaptureInterval = null;
 let _streamViolationCount = 0;
 let _streamFrameCount = 0;
 let _streamCurrentSid = null;
+let _streamBehaviorEventCount = 0;
+let _streamTrackPollInterval = null;
 
 function _streamEl(id){return document.getElementById(id);}
 
@@ -7821,17 +7843,21 @@ async function startLiveStream(){
 
   _streamWs.onopen=()=>{
     _streamActive=true;
-    _streamViolationCount=0;_streamFrameCount=0;
+    _streamViolationCount=0;_streamFrameCount=0;_streamBehaviorEventCount=0;
+    const bec=_streamEl("streamBehaviorEventCount");if(bec)bec.textContent="0";
+    const atc=_streamEl("streamActiveTrackCount");if(atc)atc.textContent="0";
     _setStreamStatus("接続中","rgba(16,185,129,.12)","#10b981");
     _streamEl("streamStartBtn").disabled=true;
     _streamEl("streamStopBtn").disabled=false;
     _startCapture(vid);
+    _startTrackPoll(sid);
   };
   _streamWs.onmessage=(ev)=>{
     ev.data.text().then(txt=>{
       try{
         const d=JSON.parse(txt);
         if(d.type==="ping"||d.type==="keepalive")return;
+        if(d.type==="BEHAVIOR_EVENT"){_addBehaviorEvent(d);return;}
         _streamFrameCount=d.frame_count||_streamFrameCount;
         _onStreamResult(d);
       }catch(_){}
@@ -7866,6 +7892,7 @@ function _onStreamResult(data){
     const vcEl=_streamEl("streamViolationCount");if(vcEl)vcEl.textContent=_streamViolationCount;
     const feed=_streamEl("streamViolationFeed");
     if(feed){
+      const ph=feed.querySelector("[data-placeholder]");if(ph)ph.remove();
       const ts=new Date().toLocaleTimeString("ja-JP",{hour12:false});
       violations.forEach(v=>{
         const item=document.createElement("div");
@@ -7876,11 +7903,75 @@ function _onStreamResult(data){
       });
     }
   }
+
+  // Behavior events from inference response
+  (data.behavior_events||[]).forEach(ev=>_addBehaviorEvent(ev));
+}
+
+function _addBehaviorEvent(ev){
+  _streamBehaviorEventCount++;
+  const cntEl=_streamEl("streamBehaviorEventCount");if(cntEl)cntEl.textContent=_streamBehaviorEventCount;
+  const feed=_streamEl("streamBehaviorFeed");if(!feed)return;
+  const ph=feed.querySelector("[data-placeholder]");if(ph)ph.remove();
+  const ts=new Date().toLocaleTimeString("ja-JP",{hour12:false});
+  const sevMap={alert:{bg:"rgba(239,68,68,.12)",border:"#ef4444",color:"#f87171"},
+                warning:{bg:"rgba(251,146,60,.10)",border:"#f97316",color:"#fb923c"},
+                info:{bg:"rgba(34,211,238,.08)",border:"#22d3ee",color:"#67e8f9"}};
+  const sc=sevMap[ev.severity]||sevMap.info;
+  const icons={loitering:"🕐",running:"🏃",fall:"⚠️"};
+  const icon=icons[ev.behavior_type]||"🔵";
+  const item=document.createElement("div");
+  item.style.cssText=`font-size:10px;padding:3px 6px;background:${sc.bg};border-radius:4px;border-left:2px solid ${sc.border};color:${sc.color}`;
+  item.innerHTML=`<span style="opacity:.6">${ts}</span> ${icon} <strong>${ev.behavior_type||""}</strong> ${escHtml(ev.description||"")}`;
+  feed.prepend(item);
+  if(feed.children.length>40)feed.lastChild.remove();
+}
+
+async function refreshReidEvents(){
+  try{
+    const r=await fetch("/vigil/reid/events/recent?limit=8");
+    if(!r.ok)return;
+    const data=await r.json();
+    const feed=_streamEl("streamReidFeed");if(!feed)return;
+    if(!data.events||!data.events.length){
+      feed.innerHTML='<div style="font-size:11px;color:var(--muted)" data-placeholder="true">イベントなし</div>';return;
+    }
+    feed.innerHTML=data.events.slice(0,8).map(ev=>{
+      const ts=new Date((ev.timestamp||0)*1000).toLocaleTimeString("ja-JP",{hour12:false});
+      const sim=((ev.similarity||0)*100).toFixed(0);
+      return `<div class="reid-track-item reid-track-cross" style="font-size:10px">
+        <span style="opacity:.6">${ts}</span> <code style="font-size:9px;color:#4ade80">#${(ev.person_id||"").slice(0,6)}</code>
+        ${escHtml((ev.from_session_id||"").slice(0,8))}→${escHtml((ev.to_session_id||"").slice(0,8))}
+        <span style="opacity:.5">${sim}%</span>
+      </div>`;
+    }).join("");
+  }catch(e){console.error("refreshReidEvents error",e);}
+}
+
+function _startTrackPoll(sid){
+  _stopTrackPoll();
+  _streamTrackPollInterval=setInterval(async()=>{
+    if(!_streamActive||!sid)return;
+    try{
+      const r=await fetch(`/vigil/tracker/${sid}/stats`);
+      if(!r.ok)return;
+      const d=await r.json();
+      const el=_streamEl("streamActiveTrackCount");
+      if(el)el.textContent=d.active_tracks||0;
+    }catch(_){}
+    // Also refresh Re-ID events periodically
+    refreshReidEvents();
+  },3000);
+}
+
+function _stopTrackPoll(){
+  if(_streamTrackPollInterval){clearInterval(_streamTrackPollInterval);_streamTrackPollInterval=null;}
 }
 
 function stopLiveStream(){
   _streamActive=false;
   clearInterval(_streamCaptureInterval);_streamCaptureInterval=null;
+  _stopTrackPoll();
   if(_streamWs){try{_streamWs.close();}catch(_){}}_streamWs=null;
   if(_streamMediaStream){_streamMediaStream.getTracks().forEach(t=>t.stop());_streamMediaStream=null;}
   _setStreamStatus("停止","rgba(148,163,184,.12)","#94a3b8");

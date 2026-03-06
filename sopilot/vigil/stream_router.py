@@ -70,6 +70,7 @@ class FrameResultResponse(BaseModel):
     detections: list[dict]
     violations: list[str]
     frame_ms: float
+    behavior_events: list[dict] = []
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -170,13 +171,58 @@ def _get_tracker(request: Request, session_id: str) -> "PersonTracker":
     return trackers[session_id]
 
 
+def _annotate_tracks(session: StreamSession, tracker: Any) -> None:
+    """Overlay track IDs + behavior flags onto session.last_frame_jpeg. Best-effort."""
+    if not session.last_frame_jpeg:
+        return
+    try:
+        import cv2
+        import numpy as np
+
+        arr = np.frombuffer(session.last_frame_jpeg, dtype=np.uint8)
+        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if frame is None:
+            return
+
+        h, w = frame.shape[:2]
+        for track in tracker._tracks.values():
+            if track.status != "active" or not track.trajectory:
+                continue
+            last = track.trajectory[-1]
+            x1 = int(last["x1"] * w)
+            y1 = int(last["y1"] * h)
+            x2 = int(last["x2"] * w)
+            y2 = int(last["y2"] * h)
+
+            # Cyan track box
+            cv2.rectangle(frame, (x1, y1), (x2, y2), (0, 220, 220), 2)
+
+            # Label: short ID + behavior flags
+            short_id = track.track_id[:6]
+            flags = ",".join(sorted(track.behavior_flags))
+            label = f"#{short_id}" + (f" [{flags}]" if flags else "")
+
+            (lw, lh), _ = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.4, 1)
+            ly = max(0, y1 - 18)
+            cv2.rectangle(frame, (x1, ly), (x1 + lw + 4, y1), (0, 180, 180), -1)
+            cv2.putText(
+                frame, label, (x1 + 2, y1 - 4),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 0), 1,
+            )
+
+        _, jpeg = cv2.imencode(".jpg", frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        session.last_frame_jpeg = jpeg.tobytes()
+    except Exception:
+        logger.debug("Track annotation failed", exc_info=True)
+
+
 def _run_tracker(
     request: Request,
     session: StreamSession,
     detections: list,
     timestamp: float,
-) -> None:
-    """Update person tracker + fire behavior events into the SSE queue. Best-effort."""
+) -> list[dict]:
+    """Update person tracker + fire behavior events. Returns new behavior event dicts."""
     try:
         from sopilot.vigil.behavior_detector import BehaviorDetector
 
@@ -195,18 +241,25 @@ def _run_tracker(
             events_store[session.session_id] = []
 
         event_list = events_store[session.session_id]
+        new_events: list[dict] = []
         for track in tracks:
             if track.status != "active":
                 continue
             for ev in detector.analyze(track, session.session_id):
                 ev_dict = ev.to_dict()
                 event_list.append(ev_dict)
+                new_events.append(ev_dict)
                 session.push_result({"type": "BEHAVIOR_EVENT", **ev_dict})
         # Cap at 200 entries
         if len(event_list) > 200:
             events_store[session.session_id] = event_list[-200:]
+
+        # Annotate track boxes onto the last frame
+        _annotate_tracks(session, tracker)
+        return new_events
     except Exception:
         logger.debug("Tracker update skipped", exc_info=True)
+        return []
 
 
 def _session_to_response(session: StreamSession) -> SessionResponse:
@@ -297,9 +350,10 @@ def build_stream_router() -> APIRouter:
         await run_in_threadpool(
             _run_reid, request, session, frame_bytes, result["detections"]
         )
-        await run_in_threadpool(
+        behavior_evts = await run_in_threadpool(
             _run_tracker, request, session, result["detections"], frame_ts
         )
+        sse_payload["behavior_events"] = behavior_evts or []
 
         return FrameResultResponse(**sse_payload)
 
@@ -345,9 +399,10 @@ def build_stream_router() -> APIRouter:
                 await run_in_threadpool(
                     _run_reid, websocket, session, frame_bytes, result["detections"]
                 )
-                await run_in_threadpool(
+                behavior_evts = await run_in_threadpool(
                     _run_tracker, websocket, session, result["detections"], ws_ts
                 )
+                sse_payload["behavior_events"] = behavior_evts or []
 
                 await websocket.send_text(json.dumps(sse_payload))
 

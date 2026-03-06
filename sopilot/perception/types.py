@@ -535,3 +535,16 @@ class PerceptionConfig:
     # Item 4: ONNX inference
     use_onnx: bool = False                    # use ONNX runtime instead of ultralytics
     onnx_model_dir: str = "data/models"       # directory containing .onnx model files
+
+    # Phase 31: Model Orchestrator
+    orchestrator_enabled: bool = False        # enable VRAM-aware model orchestration
+    orchestrator_vram_budget_gb: float = 22.0 # max VRAM for all loaded models
+
+    # Phase 32: DINOv2 Feature Backbone
+    dinov2_enabled: bool = False              # enable DINOv2 universal backbone
+    dinov2_variant: str = "dinov2_vitb14"     # PyTorch Hub model name
+
+    # Phase 33: Confidence Cascade
+    cascade_enabled: bool = False             # use cascade detector (YOLO→DINO→VLM)
+    cascade_stage1_threshold: float = 0.7     # YOLO confidence to accept without escalation
+    cascade_stage2_threshold: float = 0.3     # Grounding DINO minimum to accept

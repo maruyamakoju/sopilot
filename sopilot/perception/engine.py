@@ -219,6 +219,10 @@ class PerceptionEngine:
         self._metacognitive_monitor = metacognitive_monitor
         self._causal_graph = causal_graph
 
+        # Phase 31–33: Model Orchestrator + DINOv2 Backbone
+        self._orchestrator: Any | None = None
+        self._dinov2_backbone: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -1978,6 +1982,37 @@ def build_perception_engine(
     """
     config = config or PerceptionConfig()
 
+    # ── Phase 31: Build Model Orchestrator (optional) ─────────────────
+    orchestrator = None
+    if config.orchestrator_enabled:
+        try:
+            from sopilot.perception.orchestrator import ModelOrchestrator
+            orchestrator = ModelOrchestrator(
+                vram_budget_gb=config.orchestrator_vram_budget_gb,
+                device=config.device,
+            )
+            logger.info("ModelOrchestrator initialized (budget=%.1f GB)", config.orchestrator_vram_budget_gb)
+        except ImportError:
+            logger.debug("Orchestrator module not available")
+        except Exception:
+            logger.exception("Failed to initialize ModelOrchestrator")
+
+    # ── Phase 32: Build DINOv2 Backbone (optional) ────────────────────
+    dinov2_backbone = None
+    if config.dinov2_enabled:
+        try:
+            from sopilot.perception.dinov2_backbone import DINOv2Backbone
+            dinov2_backbone = DINOv2Backbone(
+                orchestrator=orchestrator,
+                variant=config.dinov2_variant,
+                device=config.device,
+            )
+            logger.info("DINOv2Backbone initialized (variant=%s)", config.dinov2_variant)
+        except ImportError:
+            logger.debug("DINOv2 backbone module not available")
+        except Exception:
+            logger.exception("Failed to initialize DINOv2Backbone")
+
     # ── Build detector ────────────────────────────────────────────────
     detector = None
     try:
@@ -2015,6 +2050,16 @@ def build_perception_engine(
             else:
                 from sopilot.perception.detector import YOLOWorldDetector
                 detector = YOLOWorldDetector(config=config)
+        elif config.detector_backend == "cascade":
+            # Phase 33: Confidence Cascade (YOLO → Grounding DINO → VLM)
+            from sopilot.perception.cascade_detector import CascadeDetector
+            detector = CascadeDetector(
+                orchestrator=orchestrator,
+                vlm_client=vlm_client,
+                config=config,
+                stage1_threshold=config.cascade_stage1_threshold,
+                stage2_threshold=config.cascade_stage2_threshold,
+            )
         else:
             logger.warning("Unknown detector backend: %s", config.detector_backend)
         if detector:
@@ -2307,6 +2352,10 @@ def build_perception_engine(
         metacognitive_monitor=metacognitive_monitor,
         causal_graph=causal_graph,
     )
+
+    # Phase 31–33: Orchestrator + DINOv2 backbone
+    engine._orchestrator = orchestrator
+    engine._dinov2_backbone = dinov2_backbone
 
     # Apply Phase 6 components (set after construction to keep __init__ clean)
     engine._nl_task_manager = nl_task_manager

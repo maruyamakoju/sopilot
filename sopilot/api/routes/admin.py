@@ -7,6 +7,7 @@ from fastapi import APIRouter, Query, Request
 from starlette.concurrency import run_in_threadpool
 
 from sopilot.api.error_handling import service_errors
+from sopilot.api.oauth2 import require_role
 from sopilot.api.routes._helpers import get_service
 
 
@@ -63,5 +64,29 @@ def build_admin_router() -> APIRouter:
             dry_run=dry_run,
         )
         return result
+
+    @router.get(
+        "/admin/audit-log",
+        summary="Query audit log (admin only)",
+        description="Returns the last N mutating requests with client identity and timing.",
+    )
+    @service_errors
+    async def get_audit_log(
+        request: Request,
+        limit: int = Query(100, ge=1, le=1000, description="Max rows to return"),
+        offset: int = Query(0, ge=0),
+        client_id: str | None = Query(None, description="Filter by client ID"),
+        _auth: Any = require_role("admin"),
+    ) -> dict[str, Any]:
+        from sopilot.repositories.audit_repository import AuditRepository
+
+        # Reuse the main service DB connection — no new Database object.
+        service = get_service(request)
+        repo = AuditRepository(service.database.connect)
+        entries = await run_in_threadpool(
+            repo.list_audit_log, limit=limit, offset=offset, client_id=client_id
+        )
+        total = await run_in_threadpool(repo.count_audit_log, client_id=client_id)
+        return {"total": total, "limit": limit, "offset": offset, "entries": entries}
 
     return router

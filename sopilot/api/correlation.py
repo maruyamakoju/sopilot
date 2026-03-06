@@ -33,6 +33,13 @@ _SECURITY_HEADERS = {
 class CorrelationIDMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
         request_id = request.headers.get(_HEADER) or uuid.uuid4().hex
+        # Annotate the active OTel span with the request ID for cross-signal correlation.
+        try:
+            from opentelemetry import trace as _otel_trace
+            span = _otel_trace.get_current_span()
+            span.set_attribute("http.request_id", request_id)
+        except Exception:
+            pass  # OTel not installed or no active span — safe to ignore
         with log_context(request_id=request_id):
             response = await call_next(request)
         response.headers[_HEADER] = request_id

@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "sopilot"
-version = "1.6.0"
+version = "4.0.0"
 description = "On-prem SOP evaluation service powered by video embeddings."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -19,6 +19,8 @@ dependencies = [
     "pydantic>=2.7.0",
     "jinja2>=3.1.0",
     "fpdf2>=2.7.0",
+    "python-jose[cryptography]>=3.3.0",
+    "passlib[bcrypt]>=1.7.4",
 ]
 
 [project.optional-dependencies]
@@ -34,6 +36,7 @@ dev = [
     "pytest>=8.2.0",
     "httpx>=0.28.0",
     "mypy>=1.10.0",
+    "locust>=2.29.0",
 ]
 research = [
     "torch>=2.7.0",
@@ -43,6 +46,27 @@ research = [
 ]
 yolo_world = [
     "ultralytics>=8.0.0",
+]
+otel = [
+    "opentelemetry-api>=1.24",
+    "opentelemetry-sdk>=1.24",
+    "opentelemetry-instrumentation-fastapi>=0.45b0",
+    "opentelemetry-instrumentation-httpx>=0.45b0",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.24",
+]
+postgres = [
+    "psycopg2-binary>=2.9.9",
+]
+onnx = [
+    "onnxruntime>=1.18.0",
+]
+all = [
+    "sopilot[otel,postgres,onnx,vjepa2,yolo_world,speed]",
+]
+
+[tool.pytest.ini_options]
+markers = [
+    "performance: latency/throughput benchmarks (deselect with -m 'not performance')",
 ]
 
 [tool.ruff]

@@ -1993,8 +1993,28 @@ def build_perception_engine(
                 device=config.device,
             )
         elif config.detector_backend == "yolo_world":
-            from sopilot.perception.detector import YOLOWorldDetector
-            detector = YOLOWorldDetector(config=config)
+            # ONNX path (Item 4): use OnnxYOLOWorldDetector if use_onnx=True and model exists
+            if config.use_onnx:
+                from pathlib import Path as _Path
+                onnx_path = _Path(config.onnx_model_dir) / "yolov8s-worldv2.onnx"
+                if onnx_path.exists():
+                    from sopilot.perception.onnx_detector import OnnxYOLOWorldDetector
+                    detector = OnnxYOLOWorldDetector(  # type: ignore[assignment]
+                        str(onnx_path),
+                        confidence_threshold=config.yolo_confidence_threshold,
+                        nms_threshold=config.detection_nms_threshold,
+                    )
+                    logger.info("OnnxYOLOWorldDetector loaded from %s", onnx_path)
+                else:
+                    logger.warning(
+                        "use_onnx=True but %s not found; falling back to YOLOWorldDetector",
+                        onnx_path,
+                    )
+                    from sopilot.perception.detector import YOLOWorldDetector
+                    detector = YOLOWorldDetector(config=config)
+            else:
+                from sopilot.perception.detector import YOLOWorldDetector
+                detector = YOLOWorldDetector(config=config)
         else:
             logger.warning("Unknown detector backend: %s", config.detector_backend)
         if detector:
@@ -2128,14 +2148,38 @@ def build_perception_engine(
     pose_estimator = None
     if config.pose_enabled:
         try:
-            from sopilot.perception.pose import PoseEstimator
-            pose_estimator = PoseEstimator(
-                model_name=config.pose_model,
-                confidence_threshold=config.pose_confidence_threshold,
-                keypoint_confidence=config.pose_keypoint_confidence,
-            )
+            # ONNX path (Item 4)
+            if config.use_onnx:
+                from pathlib import Path as _Path
+                onnx_pose_path = _Path(config.onnx_model_dir) / "yolov8s-pose.onnx"
+                if onnx_pose_path.exists():
+                    from sopilot.perception.onnx_pose import OnnxPoseEstimator
+                    pose_estimator = OnnxPoseEstimator(  # type: ignore[assignment]
+                        str(onnx_pose_path),
+                        confidence_threshold=config.pose_confidence_threshold,
+                        keypoint_confidence=config.pose_keypoint_confidence,
+                    )
+                    logger.info("OnnxPoseEstimator loaded from %s", onnx_pose_path)
+                else:
+                    logger.warning(
+                        "use_onnx=True but %s not found; falling back to PoseEstimator",
+                        onnx_pose_path,
+                    )
+                    from sopilot.perception.pose import PoseEstimator
+                    pose_estimator = PoseEstimator(
+                        model_name=config.pose_model,
+                        confidence_threshold=config.pose_confidence_threshold,
+                        keypoint_confidence=config.pose_keypoint_confidence,
+                    )
+            else:
+                from sopilot.perception.pose import PoseEstimator
+                pose_estimator = PoseEstimator(
+                    model_name=config.pose_model,
+                    confidence_threshold=config.pose_confidence_threshold,
+                    keypoint_confidence=config.pose_keypoint_confidence,
+                )
             logger.info(
-                "PoseEstimator initialized (model=%s)", config.pose_model
+                "PoseEstimator initialized (model=%s, onnx=%s)", config.pose_model, config.use_onnx
             )
         except ImportError:
             logger.warning(

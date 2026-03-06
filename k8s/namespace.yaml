@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: sopilot
+  labels:
+    app.kubernetes.io/name: sopilot
+    app.kubernetes.io/managed-by: kubectl

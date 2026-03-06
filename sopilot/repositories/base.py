@@ -16,7 +16,8 @@ from contextlib import AbstractContextManager
 from typing import Any
 
 # Type alias for the connect callable shared across all repositories.
-ConnectFactory = Callable[[], AbstractContextManager[sqlite3.Connection]]
+# Widened to Any to support both SQLite and PostgreSQL backends (Item 2).
+ConnectFactory = Callable[[], AbstractContextManager[Any]]
 
 
 class RepositoryBase:

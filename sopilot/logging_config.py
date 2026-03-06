@@ -44,6 +44,9 @@ _EXTRA_KEYS = frozenset(
         "score",
         "status",
         "video_path",
+        # OpenTelemetry trace correlation (Item 1)
+        "trace_id",
+        "span_id",
     }
 )
 
@@ -107,7 +110,7 @@ class log_context:
             _LOG_CONTEXT.reset(self._token)
 
 
-def setup_logging(level: str = "INFO", use_json: bool = True) -> None:
+def setup_logging(level: str = "INFO", use_json: bool = True, attach_otel_filter: bool = True) -> None:
     """Configure the root logger.
 
     Parameters
@@ -124,6 +127,13 @@ def setup_logging(level: str = "INFO", use_json: bool = True) -> None:
 
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
+
+    if attach_otel_filter:
+        try:
+            from sopilot.telemetry import OtelLogFilter
+            handler.addFilter(OtelLogFilter())
+        except Exception:
+            pass  # OTel not available — no-op
 
     root = logging.getLogger()
     root.handlers.clear()

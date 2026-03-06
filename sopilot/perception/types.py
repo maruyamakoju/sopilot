@@ -531,3 +531,7 @@ class PerceptionConfig:
     review_dedup_seconds: float = 60.0        # 同一 (detector, metric) の重複抑制時間
     # Phase 11B: Frame ring buffer
     frame_ring_buffer_size: int = 50          # 保持するフレーム数 (JPEG圧縮済み)
+
+    # Item 4: ONNX inference
+    use_onnx: bool = False                    # use ONNX runtime instead of ultralytics
+    onnx_model_dir: str = "data/models"       # directory containing .onnx model files

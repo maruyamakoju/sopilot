@@ -114,6 +114,38 @@ services:
         max-file: "3"
 
 # ---------------------------------------------------------------------------
+# PostgreSQL option (Item 2 — uncomment to enable)
+# ---------------------------------------------------------------------------
+# To use PostgreSQL instead of SQLite:
+# 1. Uncomment the postgres service below
+# 2. Set SOPILOT_DATABASE_URL in .env:
+#    SOPILOT_DATABASE_URL=postgresql://sopilot:password@postgres:5432/sopilot
+# 3. Run migrations: python migrations/postgres/run_pg_migrations.py $SOPILOT_DATABASE_URL
+#
+# services:
+#   postgres:
+#     image: postgres:16-alpine
+#     container_name: sopilot_postgres
+#     environment:
+#       POSTGRES_DB: sopilot
+#       POSTGRES_USER: sopilot
+#       POSTGRES_PASSWORD: "${POSTGRES_PASSWORD}"
+#     volumes:
+#       - postgres_data:/var/lib/postgresql/data
+#     networks:
+#       - sopilot_net
+#     restart: always
+
+# ---------------------------------------------------------------------------
+# Kubernetes Helm equivalent (reference)
+# ---------------------------------------------------------------------------
+# helm upgrade --install sopilot ./helm/sopilot \
+#   --namespace sopilot --create-namespace \
+#   --set image.tag=4.0.0 \
+#   --set secrets.apiKey=$SOPILOT_API_KEY \
+#   --set secrets.jwtSecret=$SOPILOT_JWT_SECRET
+
+# ---------------------------------------------------------------------------
 # Networks
 # ---------------------------------------------------------------------------
 networks:

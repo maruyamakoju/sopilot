@@ -48,6 +48,14 @@ jobs:
 
       - name: Run tests
         run: python -m pytest --tb=short -q
+
+      - name: ONNX export smoke test (dry-run)
+        run: python scripts/export_onnx.py --dry-run
+
+      - name: Helm lint
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+          helm lint helm/sopilot/ --strict
         env:
           # Disable any network calls or VLM inference during CI
           SOPILOT_EMBEDDER_BACKEND: color-motion

@@ -47,6 +47,16 @@ class Settings:
     rate_limit_rpm: int = 120
     rate_limit_burst: int = 20
     webhook_url: str | None = None
+    # PostgreSQL (Item 2)
+    database_url: str | None = None
+    # OpenTelemetry (Item 1)
+    otel_enabled: bool = True
+    otel_endpoint: str | None = None
+    otel_service_name: str = "sopilot"
+    # OAuth2 + JWT (Item 3)
+    jwt_secret: str = "change-me-in-production"
+    jwt_expire_minutes: int = 60
+    oauth_clients_json: str = "[]"
 
     def __post_init__(self) -> None:
         """Validate cross-field constraints at construction time."""
@@ -121,4 +131,11 @@ class Settings:
             rate_limit_rpm=max(0, int(os.getenv("SOPILOT_RATE_LIMIT_RPM", "120"))),
             rate_limit_burst=max(0, int(os.getenv("SOPILOT_RATE_LIMIT_BURST", "20"))),
             webhook_url=os.getenv("SOPILOT_WEBHOOK_URL", "").strip() or None,
+            database_url=os.getenv("SOPILOT_DATABASE_URL", "").strip() or None,
+            otel_enabled=_env_bool("SOPILOT_OTEL_ENABLED", True),
+            otel_endpoint=os.getenv("SOPILOT_OTEL_ENDPOINT", "").strip() or None,
+            otel_service_name=os.getenv("SOPILOT_OTEL_SERVICE_NAME", "sopilot").strip() or "sopilot",
+            jwt_secret=os.getenv("SOPILOT_JWT_SECRET", "change-me-in-production").strip() or "change-me-in-production",
+            jwt_expire_minutes=max(1, int(os.getenv("SOPILOT_JWT_EXPIRE_MINUTES", "60"))),
+            oauth_clients_json=os.getenv("SOPILOT_OAUTH_CLIENTS", "[]").strip() or "[]",
         )

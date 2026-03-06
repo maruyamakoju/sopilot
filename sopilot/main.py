@@ -10,12 +10,16 @@ from fastapi.responses import FileResponse
 
 from sopilot import __version__
 from sopilot.api.auth import ApiKeyMiddleware
+from sopilot.api.audit_middleware import AuditMiddleware
 from sopilot.api.correlation import CorrelationIDMiddleware
+from sopilot.api.oauth2 import build_oauth2_router
 from sopilot.api.rate_limit import RateLimitMiddleware
 from sopilot.api.routes import build_router
 from sopilot.config import Settings
 from sopilot.database import Database
 from sopilot.logging_config import setup_logging
+from sopilot.services.audit_worker import AuditWorker
+from sopilot.telemetry import instrument_app, setup_telemetry, shutdown_telemetry
 from sopilot.services.embedder import build_embedder
 from sopilot.services.score_queue import ScoreJobQueue
 from sopilot.services.sopilot_service import SOPilotService
@@ -37,7 +41,17 @@ logger = logging.getLogger(__name__)
 def create_app() -> FastAPI:
     settings = Settings.from_env()
     setup_logging(level=settings.log_level, use_json=settings.log_json)
-    database = Database(settings.database_path)
+
+    # OpenTelemetry (Item 1) — must run after logging so OtelLogFilter is attached
+    if settings.otel_enabled:
+        setup_telemetry(settings.otel_service_name, settings.otel_endpoint)
+
+    # Database selection: PostgreSQL if SOPILOT_DATABASE_URL is set (Item 2)
+    if settings.database_url and "postgresql" in settings.database_url:
+        from sopilot.database_pg import DatabasePG
+        database: Database | DatabasePG = DatabasePG(settings.database_url)  # type: ignore[assignment]
+    else:
+        database = Database(settings.database_path)
     embedder = build_embedder(settings)
     video_processor = VideoProcessor(
         sample_fps=settings.sample_fps,
@@ -53,6 +67,8 @@ def create_app() -> FastAPI:
         video_processor=video_processor,
     )
     queue = ScoreJobQueue(service, worker_count=settings.score_worker_threads, max_retries=settings.score_job_max_retries)
+    # AuditWorker reuses the main DB's connect factory — no extra file handles.
+    audit_worker = AuditWorker(database.connect)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI) -> AsyncIterator[None]:
@@ -70,12 +86,19 @@ def create_app() -> FastAPI:
             "configured" if settings.api_key else "disabled",
         )
         queue.start()
+        audit_worker.start()
         try:
             yield
         finally:
             queue.stop()
+            audit_worker.stop()
             database.close()
+            if settings.otel_enabled:
+                shutdown_telemetry()
             logger.info("SOPilot v%s shutdown complete", __version__)
+
+    # Instrument app with OTel after construction (before route mounting)
+    # (FastAPIInstrumentor needs the app object — called after FastAPI() below)
 
     app = FastAPI(
         title="SOPilot",
@@ -105,6 +128,7 @@ def create_app() -> FastAPI:
         requests_per_minute=settings.rate_limit_rpm,
         burst=settings.rate_limit_burst,
     )
+    app.add_middleware(AuditMiddleware, audit_worker=audit_worker)
     app.add_middleware(ApiKeyMiddleware, api_key=settings.api_key)
     app.add_middleware(
         CORSMiddleware,
@@ -137,6 +161,10 @@ def create_app() -> FastAPI:
     camera_group_repo = CameraGroupRepository(settings.database_path)
     group_learning_store = GroupLearningStore(Path(settings.data_dir) / "group_learning")
 
+    # OTel instrumentation (must happen after app creation)
+    if settings.otel_enabled:
+        instrument_app(app)
+
     app.state.sopilot_service = service
     app.state.score_queue = queue
     app.state.settings = settings
@@ -146,6 +174,8 @@ def create_app() -> FastAPI:
     app.state.vigil_pipeline = vigil_pipeline
     app.state.camera_group_repo = camera_group_repo
     app.state.group_learning_store = group_learning_store
+    # OAuth2 router (public — no auth prefix)
+    app.include_router(build_oauth2_router(settings))
     app.include_router(build_vigil_router())
     app.include_router(build_perception_router())
     app.include_router(build_camera_group_router())

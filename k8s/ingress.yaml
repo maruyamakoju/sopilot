@@ -1,0 +1,26 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: sopilot
+  namespace: sopilot
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "512m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: sopilot.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sopilot
+                port:
+                  number: 8000
+  # Uncomment for TLS:
+  # tls:
+  #   - hosts:
+  #       - sopilot.example.com
+  #     secretName: sopilot-tls

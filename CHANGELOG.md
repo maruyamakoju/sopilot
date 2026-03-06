@@ -4,6 +4,68 @@ All notable changes to SOPilot are documented in this file.
 
 ---
 
+## [4.0.0] — 2026-03-06 — Production Infrastructure Upgrade
+
+### Added — Phase 21: OpenTelemetry Distributed Tracing
+- `sopilot/telemetry.py` — `setup_telemetry()`, `get_tracer()`, `OtelLogFilter`, `instrument_app()`
+- `OtelLogFilter` injects `trace_id` / `span_id` from active OTel span into every JSON log record
+- OTLP gRPC exporter when `SOPILOT_OTEL_ENDPOINT` is set; `ConsoleSpanExporter` otherwise (zero-config default)
+- `FastAPIInstrumentor` + `HTTPXClientInstrumentor` attached at app startup
+- `CorrelationIDMiddleware` annotates active span with `http.request_id`
+- New config fields: `otel_enabled`, `otel_endpoint`, `otel_service_name`
+- New optional dependency group: `pip install sopilot[otel]`
+
+### Added — Phase 22: PostgreSQL Migration Path
+- `sopilot/database_pg.py` — `DatabasePG` (psycopg2 `ThreadedConnectionPool`) + `PostgresConnectionAdapter` (? → %s translation)
+- `migrations/postgres/001_initial_schema.sql` — core tables (SERIAL, BOOLEAN, DOUBLE PRECISION)
+- `migrations/postgres/002_vigil_schema.sql` — VigilPilot tables
+- `migrations/postgres/003_audit_schema.sql` — audit_log table
+- `migrations/postgres/run_pg_migrations.py` — one-shot DDL runner
+- Automatic backend selection via `SOPILOT_DATABASE_URL` env var; SQLite remains default
+- Repositories require **zero changes** — ConnectFactory widened to `Any`
+- New optional dependency: `pip install sopilot[postgres]`
+
+### Added — Phase 23: OAuth2 + Audit Logging
+- `sopilot/api/oauth2.py` — `POST /auth/token` (JWT HS256), `decode_token()`, `require_role()` dependency
+- `sopilot/repositories/audit_repository.py` — `AuditRepository` (append + query audit_log)
+- `sopilot/api/audit_middleware.py` — `AuditMiddleware`: captures POST/PUT/PATCH/DELETE → async queue
+- `sopilot/services/audit_worker.py` — daemon thread draining audit queue into DB (never blocks requests)
+- `GET /admin/audit-log` — admin-only endpoint with pagination + client_id filter
+- New config fields: `jwt_secret`, `jwt_expire_minutes`, `oauth_clients_json`
+- Additive: existing X-API-Key auth unchanged; Bearer JWT is a parallel auth path
+
+### Added — Phase 24: ONNX Inference Pipeline
+- `sopilot/perception/onnx_detector.py` — `OnnxYOLOWorldDetector`: onnxruntime inference + NMS
+- `sopilot/perception/onnx_pose.py` — `OnnxPoseEstimator`: 17 COCO keypoints + PPE heuristics
+- `scripts/export_onnx.py` — one-time YOLO-World + YOLOv8-pose ONNX export script
+- `scripts/benchmark_onnx.py` — p50/p95/p99 latency comparison (PyTorch vs ONNX)
+- Engine (`engine.py`) selects ONNX backend automatically when `use_onnx=True` and model file exists
+- New `PerceptionConfig` fields: `use_onnx`, `onnx_model_dir`
+- New optional dependency: `pip install sopilot[onnx]`
+
+### Added — Phase 25: Locust Load Testing
+- `tests/load/locustfile.py` — `SOPilotUser` with 9 weighted tasks (realistic traffic mix)
+- `tests/load/scenarios.py` — `SpikeScenario`, `SoakScenario`, `StressScenario` Locust shapes
+- `tests/load/README.md` — usage documentation
+- `tests/test_performance.py` — 7 pytest benchmarks (JSON, NMS, BBox.iou, log_context, Settings, SQL translation, AuditWorker queue)
+- `scripts/run_load_test.sh` — automated server-start → load-test → HTML report pipeline
+- New dev dependency: `locust>=2.29.0`
+
+### Added — Phase 26: Kubernetes + Helm
+- `helm/sopilot/` — complete Helm chart (v4.0.0): Chart.yaml, values.yaml, 8 templates
+- `k8s/` — raw Kubernetes manifests + kustomization.yaml for quick deploys
+- HPA (CPU target 70%), PVC (10Gi ReadWriteOnce), ConfigMap + Secret separation
+- GPU node selector support via `gpu.enabled=true`
+- PostgreSQL sub-chart integration via `postgresql.enabled=true`
+- CI: `helm lint helm/sopilot/ --strict` + ONNX dry-run smoke test added to `test` job
+
+### Changed
+- Version bump: v3.3.0 → **v4.0.0**
+- `pyproject.toml`: added `[otel]`, `[postgres]`, `[onnx]`, `[all]` optional-dep groups; `locust` added to `[dev]`; `python-jose[cryptography]` + `passlib[bcrypt]` added to core deps
+- Test count: 3,557 → **~3,680+** (120+ new tests across 6 new test files)
+
+---
+
 ## [1.1.0] — 2026-03-02
 
 ### Added

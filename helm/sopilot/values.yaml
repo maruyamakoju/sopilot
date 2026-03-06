@@ -1,0 +1,131 @@
+# =============================================================================
+# SOPilot Helm Chart — Default Values
+# =============================================================================
+# Override with: helm install sopilot ./helm/sopilot -f my-values.yaml
+# =============================================================================
+
+# -- Image configuration
+image:
+  repository: ghcr.io/maruyamakoju/sopilot
+  tag: "4.0.0"
+  pullPolicy: IfNotPresent
+
+# -- Number of replicas (use 1 with SQLite; scale with PostgreSQL)
+replicaCount: 1
+
+# -- Resource requests and limits
+resources:
+  requests:
+    memory: "256Mi"
+    cpu: "250m"
+  limits:
+    memory: "4Gi"
+    cpu: "2000m"
+
+# -- Liveness and readiness probes
+livenessProbe:
+  httpGet:
+    path: /health
+    port: 8000
+  initialDelaySeconds: 30
+  periodSeconds: 15
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /readiness
+    port: 8000
+  initialDelaySeconds: 10
+  periodSeconds: 10
+  failureThreshold: 3
+
+# -- Horizontal Pod Autoscaler
+# WARNING: Enable only with PostgreSQL; SQLite requires single pod.
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 70
+
+# -- Persistent volume for /app/data (SQLite DB + uploaded videos)
+persistence:
+  enabled: true
+  size: 10Gi
+  storageClass: ""      # use cluster default storage class
+  accessMode: ReadWriteOnce
+
+# -- Service
+service:
+  type: ClusterIP
+  port: 8000
+
+# -- Ingress
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations: {}
+    # nginx.ingress.kubernetes.io/proxy-body-size: "512m"
+  hosts:
+    - host: sopilot.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  # - secretName: sopilot-tls
+  #   hosts:
+  #     - sopilot.example.com
+
+# -- Service Account
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# -- PostgreSQL (bitnami/postgresql sub-chart)
+# When enabled, SOPILOT_DATABASE_URL is injected from the postgres Secret.
+postgresql:
+  enabled: false
+  auth:
+    username: sopilot
+    password: ""          # set via --set postgresql.auth.password=<pass>
+    database: sopilot
+
+# -- GPU support (adds nvidia.com/gpu resource + nodeSelector)
+gpu:
+  enabled: false
+  count: 1
+
+# -- Node selector, tolerations, affinity
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# -- Application configuration (non-secret env vars → ConfigMap)
+config:
+  logLevel: "INFO"
+  logJson: "true"
+  corsOrigins: ""
+  rateLimitRpm: "120"
+  rateLimitBurst: "20"
+  maxUploadMb: "500"
+  embedderBackend: "color-motion"
+  allowEmbedderFallback: "true"
+  primaryTaskId: "pilot_task"
+  primaryTaskName: "PoC Primary Task"
+  enforcePrimaryTask: "true"
+  scoreWorkers: "2"
+  scoreJobMaxRetries: "2"
+  defaultPassScore: "60.0"
+  defaultRetainScore: "50.0"
+  otelEnabled: "false"
+  otelEndpoint: ""
+  otelServiceName: "sopilot"
+  vigilVlmBackend: "claude"
+
+# -- Secret values (set via --set or external Secret store)
+secrets:
+  apiKey: ""
+  jwtSecret: "change-me-in-production"
+  oauthClientsJson: "[]"
+  anthropicApiKey: ""
+  vigilVlmApiKey: ""

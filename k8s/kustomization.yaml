@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: sopilot
+
+resources:
+  - namespace.yaml
+  - configmap.yaml
+  - pvc.yaml
+  - deployment.yaml
+  - service.yaml
+  # Uncomment as needed:
+  # - ingress.yaml
+  # - secret.yaml    # create separately (never commit real secrets)
+
+commonLabels:
+  app.kubernetes.io/name: sopilot
+  app.kubernetes.io/version: "4.0.0"

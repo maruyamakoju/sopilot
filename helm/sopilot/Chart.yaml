@@ -1,0 +1,18 @@
+apiVersion: v2
+name: sopilot
+description: On-prem SOP evaluation service + VigilPilot surveillance AI
+type: application
+version: 4.0.0
+appVersion: "4.0.0"
+keywords:
+  - sop
+  - video
+  - surveillance
+  - ai
+  - perception
+home: https://github.com/maruyamakoju/sopilot
+sources:
+  - https://github.com/maruyamakoju/sopilot
+maintainers:
+  - name: maruyamakoju
+    url: https://github.com/maruyamakoju

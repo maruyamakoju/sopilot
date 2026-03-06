@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "sopilot.fullname" . }}-config
+  labels:
+    {{- include "sopilot.labels" . | nindent 4 }}
+data:
+  SOPILOT_LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  SOPILOT_LOG_JSON: {{ .Values.config.logJson | quote }}
+  SOPILOT_CORS_ORIGINS: {{ .Values.config.corsOrigins | quote }}
+  SOPILOT_RATE_LIMIT_RPM: {{ .Values.config.rateLimitRpm | quote }}
+  SOPILOT_RATE_LIMIT_BURST: {{ .Values.config.rateLimitBurst | quote }}
+  SOPILOT_MAX_UPLOAD_MB: {{ .Values.config.maxUploadMb | quote }}
+  SOPILOT_EMBEDDER_BACKEND: {{ .Values.config.embedderBackend | quote }}
+  SOPILOT_ALLOW_EMBEDDER_FALLBACK: {{ .Values.config.allowEmbedderFallback | quote }}
+  SOPILOT_PRIMARY_TASK_ID: {{ .Values.config.primaryTaskId | quote }}
+  SOPILOT_PRIMARY_TASK_NAME: {{ .Values.config.primaryTaskName | quote }}
+  SOPILOT_ENFORCE_PRIMARY_TASK: {{ .Values.config.enforcePrimaryTask | quote }}
+  SOPILOT_SCORE_WORKERS: {{ .Values.config.scoreWorkers | quote }}
+  SOPILOT_SCORE_JOB_MAX_RETRIES: {{ .Values.config.scoreJobMaxRetries | quote }}
+  SOPILOT_DEFAULT_PASS_SCORE: {{ .Values.config.defaultPassScore | quote }}
+  SOPILOT_DEFAULT_RETRAIN_SCORE: {{ .Values.config.defaultRetainScore | quote }}
+  SOPILOT_OTEL_ENABLED: {{ .Values.config.otelEnabled | quote }}
+  SOPILOT_OTEL_ENDPOINT: {{ .Values.config.otelEndpoint | quote }}
+  SOPILOT_OTEL_SERVICE_NAME: {{ .Values.config.otelServiceName | quote }}
+  VIGIL_VLM_BACKEND: {{ .Values.config.vigilVlmBackend | quote }}
+  SOPILOT_DATA_DIR: "/app/data"

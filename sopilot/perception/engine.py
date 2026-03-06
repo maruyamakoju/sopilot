@@ -223,6 +223,15 @@ class PerceptionEngine:
         self._orchestrator: Any | None = None
         self._dinov2_backbone: Any | None = None
 
+        # Phase 34: SAM Segmenter
+        self._sam_segmenter: Any | None = None
+
+        # Phase 35: Temporal Fusion
+        self._temporal_fusion: Any | None = None
+
+        # Phase 36: Online Learner
+        self._online_learner: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -1088,6 +1097,33 @@ class PerceptionEngine:
         except Exception:
             return None
 
+    def get_sam_state(self) -> dict | None:
+        """Return SAM segmenter stats, or None if not initialized (Phase 34)."""
+        if self._sam_segmenter is None:
+            return None
+        try:
+            return self._sam_segmenter.get_stats()
+        except Exception:
+            return None
+
+    def get_temporal_state(self) -> dict | None:
+        """Return temporal fusion engine stats, or None if not initialized (Phase 35)."""
+        if self._temporal_fusion is None:
+            return None
+        try:
+            return self._temporal_fusion.get_stats()
+        except Exception:
+            return None
+
+    def get_online_learner_state(self) -> dict | None:
+        """Return online learner stats, or None if not initialized (Phase 36)."""
+        if self._online_learner is None:
+            return None
+        try:
+            return self._online_learner.get_stats()
+        except Exception:
+            return None
+
     def reset(self) -> None:
         """Reset all stateful components to their initial state.
 
@@ -1165,6 +1201,20 @@ class PerceptionEngine:
         if self._pose_estimator is not None:
             try:
                 self._pose_estimator.close()
+            except (AttributeError, Exception):
+                pass
+
+        # Phase 34: SAM segmenter
+        if self._sam_segmenter is not None:
+            try:
+                self._sam_segmenter.close()
+            except (AttributeError, Exception):
+                pass
+
+        # Phase 36: Online learner persistence
+        if self._online_learner is not None:
+            try:
+                self._online_learner.save()
             except (AttributeError, Exception):
                 pass
 
@@ -2356,6 +2406,51 @@ def build_perception_engine(
     # Phase 31–33: Orchestrator + DINOv2 backbone
     engine._orchestrator = orchestrator
     engine._dinov2_backbone = dinov2_backbone
+
+    # ── Phase 34: SAM Segmenter (optional) ───────────────────────────
+    if config.sam_enabled:
+        try:
+            from sopilot.perception.sam_segmenter import SAMSegmenter
+            engine._sam_segmenter = SAMSegmenter(
+                orchestrator=orchestrator,
+                dinov2_backbone=dinov2_backbone,
+                model_variant=config.sam_model_variant,
+                device=config.device,
+            )
+            logger.info("SAMSegmenter initialized (variant=%s)", config.sam_model_variant)
+        except ImportError:
+            logger.debug("SAM segmenter module not available")
+        except Exception:
+            logger.exception("Failed to initialize SAMSegmenter")
+
+    # ── Phase 35: Temporal Fusion Engine (optional) ──────────────────
+    if config.temporal_fusion_enabled:
+        try:
+            from sopilot.perception.temporal_fusion import TemporalFusionEngine
+            engine._temporal_fusion = TemporalFusionEngine(
+                window_size=config.temporal_window_size,
+                scene_change_threshold=config.temporal_scene_change_threshold,
+            )
+            logger.info("TemporalFusionEngine initialized (window=%d)", config.temporal_window_size)
+        except ImportError:
+            logger.debug("Temporal fusion module not available")
+        except Exception:
+            logger.exception("Failed to initialize TemporalFusionEngine")
+
+    # ── Phase 36: Online Learner (optional) ──────────────────────────
+    if config.online_learning_enabled:
+        try:
+            from sopilot.perception.online_learner import OnlineLearner
+            engine._online_learner = OnlineLearner(
+                distance_threshold=config.online_learning_distance_threshold,
+                min_exemplars_for_prediction=config.online_learning_min_exemplars,
+                persist_path=Path("data/online_learner.json"),
+            )
+            logger.info("OnlineLearner initialized")
+        except ImportError:
+            logger.debug("Online learner module not available")
+        except Exception:
+            logger.exception("Failed to initialize OnlineLearner")
 
     # Apply Phase 6 components (set after construction to keep __init__ clean)
     engine._nl_task_manager = nl_task_manager

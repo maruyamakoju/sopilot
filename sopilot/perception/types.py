@@ -548,3 +548,18 @@ class PerceptionConfig:
     cascade_enabled: bool = False             # use cascade detector (YOLO→DINO→VLM)
     cascade_stage1_threshold: float = 0.7     # YOLO confidence to accept without escalation
     cascade_stage2_threshold: float = 0.3     # Grounding DINO minimum to accept
+
+    # Phase 34: SAM Segmenter
+    sam_enabled: bool = False                 # enable SAM precision segmentation
+    sam_model_variant: str = "sam2_hiera_small"  # SAM 2 model variant
+    sam_attention_guided: bool = True         # use DINOv2 attention maps as point prompts
+
+    # Phase 35: Temporal Fusion
+    temporal_fusion_enabled: bool = False     # enable multi-frame temporal reasoning
+    temporal_window_size: int = 16            # number of frames in temporal buffer
+    temporal_scene_change_threshold: float = 0.3  # cosine distance for scene change
+
+    # Phase 36: Online Learning
+    online_learning_enabled: bool = False     # enable deployment-adaptive few-shot learning
+    online_learning_distance_threshold: float = 0.65  # novelty detection threshold
+    online_learning_min_exemplars: int = 3    # min exemplars before prediction

@@ -32,6 +32,7 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 
 from sopilot.vigil.frame_inferrer import FrameInferrer
+from sopilot.vigil.reid_extractor import ReIDExtractor
 from sopilot.vigil.stream_session import StreamSession, create_session
 
 logger = logging.getLogger(__name__)
@@ -106,6 +107,54 @@ def _get_inferrer(request: Request) -> FrameInferrer:
             pass
         request.app.state.stream_inferrer = FrameInferrer(detector=detector)
     return request.app.state.stream_inferrer  # type: ignore[return-value]
+
+
+def _get_extractor(request: Request) -> ReIDExtractor:
+    """Return a cached ReIDExtractor on app.state."""
+    if not hasattr(request.app.state, "reid_extractor"):
+        request.app.state.reid_extractor = ReIDExtractor()
+    return request.app.state.reid_extractor  # type: ignore[return-value]
+
+
+def _run_reid(request: Request, session: StreamSession, frame_bytes: bytes, detections: list) -> None:
+    """Feed person detections into the Re-ID gallery (best-effort, non-blocking)."""
+    gallery = getattr(request.app.state, "reid_gallery", None)
+    if gallery is None or not detections:
+        return
+    persons = [d for d in detections if d["label"].lower() in ("person", "人", "人物")]
+    if not persons:
+        return
+    try:
+        import cv2
+        import numpy as np
+        from dataclasses import dataclass
+
+        arr = np.frombuffer(frame_bytes, dtype=np.uint8)
+        frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+        if frame is None:
+            return
+
+        @dataclass
+        class _BBox:
+            x1: float; y1: float; x2: float; y2: float
+
+        @dataclass
+        class _Det:
+            label: str; confidence: float; bbox: _BBox
+
+        extractor = _get_extractor(request)
+        fake_dets = [
+            _Det(
+                label=d["label"],
+                confidence=d["confidence"],
+                bbox=_BBox(**d["bbox"]),
+            )
+            for d in persons
+        ]
+        embeddings = [extractor.extract(frame, det.bbox) for det in fake_dets]
+        gallery.update(session.session_id, session.name, fake_dets, embeddings)
+    except Exception:
+        logger.debug("ReID update skipped", exc_info=True)
 
 
 def _session_to_response(session: StreamSession) -> SessionResponse:
@@ -192,6 +241,9 @@ def build_stream_router() -> APIRouter:
             **session.last_result,
         }
         session.push_result(sse_payload)
+        await run_in_threadpool(
+            _run_reid, request, session, frame_bytes, result["detections"]
+        )
 
         return FrameResultResponse(**sse_payload)
 
@@ -233,6 +285,9 @@ def build_stream_router() -> APIRouter:
                     **session.last_result,
                 }
                 session.push_result(sse_payload)
+                await run_in_threadpool(
+                    _run_reid, websocket, session, frame_bytes, result["detections"]
+                )
 
                 await websocket.send_text(json.dumps(sse_payload))
 

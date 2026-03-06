@@ -31,6 +31,8 @@ from sopilot.vigil.camera_group_router import build_camera_group_router
 from sopilot.vigil.group_learning import GroupLearningStore
 from sopilot.vigil.perception_router import build_perception_router
 from sopilot.vigil.stream_router import build_stream_router
+from sopilot.vigil.reid_router import build_reid_router
+from sopilot.vigil.reid_gallery import ReIDGallery
 from sopilot.vigil.pipeline import VigilPipeline
 from sopilot.vigil.repository import VigilRepository
 from sopilot.vigil.vlm import build_vlm_client
@@ -176,12 +178,14 @@ def create_app() -> FastAPI:
     app.state.camera_group_repo = camera_group_repo
     app.state.group_learning_store = group_learning_store
     app.state.stream_sessions = {}  # dict[str, StreamSession] — live streaming sessions
+    app.state.reid_gallery = ReIDGallery()  # cross-camera person Re-ID gallery
     # OAuth2 router (public — no auth prefix)
     app.include_router(build_oauth2_router(settings))
     app.include_router(build_vigil_router())
     app.include_router(build_perception_router())
     app.include_router(build_camera_group_router())
     app.include_router(build_stream_router())
+    app.include_router(build_reid_router())
     app.include_router(build_router(), prefix="/api/v1")
     # Backward-compatible: mount same routes at root for existing clients
     app.include_router(build_router())

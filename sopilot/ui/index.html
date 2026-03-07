@@ -1829,31 +1829,67 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           </div>
         </div>
 
-        <!-- Phase 46: Spatial Intelligence (Floor Map + Zone Analysis) -->
+        <!-- Phase 46/49: Spatial Intelligence — Live Floor Map -->
         <div class="perc-card" id="percFloorMapCard" style="display:none">
-          <div class="perc-card-title">&#x1F5FA; 空間インテリジェンス (Phase 46)</div>
+          <div class="perc-card-title">&#x1F5FA; フロアマップ (Phase 49)</div>
           <div style="font-size:11px">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
-              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
-                <div style="font-size:9px;color:var(--muted)">カメラ数</div>
-                <div id="fmCameraCount" style="font-weight:700;color:#22d3ee">0</div>
+            <!-- Stats row -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">カメラ</div>
+                <div id="fmCameraCount" style="font-weight:700;color:#22d3ee;font-size:13px">0</div>
               </div>
-              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
-                <div style="font-size:9px;color:var(--muted)">点群</div>
-                <div id="fmPointCount" style="font-weight:700;color:#22d3ee">0</div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">点群</div>
+                <div id="fmPointCount" style="font-weight:700;color:#22d3ee;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">ゾーン</div>
+                <div id="fmZoneCount" style="font-weight:700;color:#fb923c;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">イベント</div>
+                <div id="fmZoneEvents" style="font-weight:700;color:#fb923c;font-size:13px">0</div>
               </div>
             </div>
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
-              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
-                <div style="font-size:9px;color:var(--muted)">ゾーン数</div>
-                <div id="fmZoneCount" style="font-weight:700;color:#fb923c">0</div>
-              </div>
-              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
-                <div style="font-size:9px;color:var(--muted)">ゾーンイベント</div>
-                <div id="fmZoneEvents" style="font-weight:700;color:#fb923c">0</div>
-              </div>
+            <!-- Live floor map canvas -->
+            <div style="position:relative;margin-bottom:6px">
+              <canvas id="fmCanvas" width="220" height="140"
+                style="width:100%;height:auto;border-radius:4px;background:#0f172a;display:block;cursor:crosshair"
+                title="ライブフロアマップ — 青点:人物 / 色ゾーン:エリア / 熱色:占有密度"></canvas>
+              <div id="fmCanvasEmpty" style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:9px;color:var(--muted);pointer-events:none;display:none">データなし</div>
             </div>
-            <div id="fmFloorSize" style="font-size:9px;color:var(--muted)">フロア: - m × - m</div>
+            <!-- Zone type legend -->
+            <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">
+              <span style="font-size:8px;color:#f87171">&#x25A0; 立入禁止</span>
+              <span style="font-size:8px;color:#4ade80">&#x25A0; 安全</span>
+              <span style="font-size:8px;color:#fbbf24">&#x25A0; 出入口</span>
+              <span style="font-size:8px;color:#22d3ee">&#x25A0; 監視</span>
+              <span style="font-size:8px;color:#a78bfa">&#x25A0; その他</span>
+            </div>
+            <!-- Zone event feed -->
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">ゾーンイベント (最新5件)</div>
+            <div id="fmEventFeed" style="display:flex;flex-direction:column;gap:2px;max-height:80px;overflow-y:auto">
+              <div style="font-size:9px;color:var(--muted)">—</div>
+            </div>
+            <!-- Floor info & add zone panel -->
+            <div id="fmFloorSize" style="font-size:9px;color:var(--muted);margin-top:4px">フロア: - m × - m</div>
+            <!-- Zone add form (collapsed by default) -->
+            <details style="margin-top:6px">
+              <summary style="font-size:9px;color:var(--muted);cursor:pointer;user-select:none">ゾーン追加 ▶</summary>
+              <div style="margin-top:4px;display:flex;flex-direction:column;gap:4px">
+                <input id="fmZoneName" placeholder="ゾーン名 (例: 入口A)" style="font-size:9px;padding:3px 5px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;width:100%;box-sizing:border-box">
+                <select id="fmZoneType" style="font-size:9px;padding:3px 5px;border-radius:3px;background:rgba(30,41,59,1);border:1px solid rgba(255,255,255,.12);color:#e2e8f0">
+                  <option value="monitoring">監視</option>
+                  <option value="safe">安全</option>
+                  <option value="entry_exit">出入口</option>
+                  <option value="restricted">立入禁止</option>
+                </select>
+                <textarea id="fmZonePolygon" rows="2" placeholder="ポリゴン JSON: [[x,y],...]" style="font-size:8px;padding:3px 5px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;width:100%;box-sizing:border-box;resize:vertical"></textarea>
+                <button onclick="_fmAddZone()" style="font-size:9px;padding:3px 8px;border-radius:3px;background:rgba(34,211,238,.15);border:1px solid rgba(34,211,238,.3);color:#22d3ee;cursor:pointer">登録</button>
+                <div id="fmZoneAddMsg" style="font-size:9px;color:var(--muted)"></div>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -8520,23 +8556,26 @@ async function _refreshOrchestrationPanels(){
         }
       }
     }
-    // Phase 46: Spatial Intelligence (Floor Map + Zone Analysis)
+    // Phase 46/49: Spatial Intelligence — Live Floor Map
     const fmEl=document.getElementById("percFloorMapCard");
     if(fmEl&&fmEl.style.display!=="none"){
-      const r=await fetch("/vigil/perception/spatial/stats").catch(()=>null);
-      if(r&&r.ok){
-        const d=await r.json();
-        if(d.enabled===false){fmEl.style.display="none";}
+      // Stats
+      const rs=await fetch("/vigil/perception/spatial/stats").catch(()=>null);
+      if(rs&&rs.ok){
+        const ds=await rs.json();
+        if(ds.enabled===false){fmEl.style.display="none";}
         else{
           const cc=document.getElementById("fmCameraCount");
-          if(cc)cc.textContent=d.registered_cameras||0;
+          if(cc)cc.textContent=ds.registered_cameras||0;
           const pc=document.getElementById("fmPointCount");
-          if(pc)pc.textContent=d.recent_points||0;
+          if(pc)pc.textContent=ds.recent_points||0;
           const fs=document.getElementById("fmFloorSize");
-          if(fs)fs.textContent=`フロア: ${d.floor_width_m||0}m × ${d.floor_height_m||0}m`;
+          if(fs)fs.textContent=`フロア: ${ds.floor_width_m||0}m × ${ds.floor_height_m||0}m`;
         }
       }
+      // Zone analyzer stats
       const rz=await fetch("/vigil/perception/spatial/zone-analyzer/stats").catch(()=>null);
+      let zones=[];
       if(rz&&rz.ok){
         const dz=await rz.json();
         if(dz.enabled!==false){
@@ -8545,6 +8584,38 @@ async function _refreshOrchestrationPanels(){
           const ze=document.getElementById("fmZoneEvents");
           if(ze)ze.textContent=dz.events_total||0;
         }
+      }
+      // Zones list (for canvas drawing)
+      const rzl=await fetch("/vigil/perception/spatial/zones").catch(()=>null);
+      if(rzl&&rzl.ok){const dz=await rzl.json();zones=dz.zones||[];}
+      // Map data (point cloud + occupancy grid)
+      const rm=await fetch("/vigil/perception/spatial/map?cols=40&rows=30").catch(()=>null);
+      if(rm&&rm.ok){
+        const dm=await rm.json();
+        if(dm.enabled!==false){_fmDrawCanvas(dm,zones);}
+      }else{
+        // No map data — show empty canvas
+        const cv=document.getElementById("fmCanvas");
+        if(cv){const ctx=cv.getContext("2d");ctx.clearRect(0,0,cv.width,cv.height);}
+        const emp=document.getElementById("fmCanvasEmpty");
+        if(emp)emp.style.display="";
+      }
+      // Zone event feed
+      const rev=await fetch("/vigil/perception/spatial/zones/events?limit=5").catch(()=>null);
+      if(rev&&rev.ok){
+        const dev=await rev.json();
+        const feed=document.getElementById("fmEventFeed");
+        if(feed&&dev.events&&dev.events.length>0){
+          const _typeColor={enter:"#4ade80",exit:"#f87171",dwell:"#fbbf24"};
+          feed.innerHTML=dev.events.map(e=>{
+            const col=_typeColor[e.event_type]||"#94a3b8";
+            return `<div style="font-size:8px;display:flex;gap:4px;align-items:center">
+              <span style="color:${col};font-weight:700">${e.event_type.toUpperCase()}</span>
+              <span style="color:#e2e8f0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${e.zone_name||e.zone_id}</span>
+              <span style="color:var(--muted)">${e.person_id?e.person_id.substring(0,6):""}</span>
+            </div>`;
+          }).join("");
+        }else if(feed){feed.innerHTML='<div style="font-size:9px;color:var(--muted)">—</div>';}
       }
     }
     // Phase 48: SLA Observatory
@@ -8578,6 +8649,109 @@ async function _refreshOrchestrationPanels(){
       }
     }
   }catch(e){console.debug("orch panels error",e);}
+}
+
+// Phase 49: Floor Map canvas renderer
+function _fmDrawCanvas(mapData,zones){
+  const cv=document.getElementById("fmCanvas");
+  if(!cv)return;
+  const ctx=cv.getContext("2d");
+  const W=cv.width,H=cv.height;
+  const fw=(mapData.floor&&mapData.floor.width_m)||20;
+  const fh=(mapData.floor&&mapData.floor.height_m)||15;
+  const sx=W/fw,sy=H/fh;
+  const emp=document.getElementById("fmCanvasEmpty");
+  // Background
+  ctx.fillStyle="#0f172a";
+  ctx.fillRect(0,0,W,H);
+  // Grid lines (5m increments)
+  ctx.strokeStyle="rgba(255,255,255,0.04)";
+  ctx.lineWidth=1;
+  for(let x=0;x<=fw;x+=5){ctx.beginPath();ctx.moveTo(x*sx,0);ctx.lineTo(x*sx,H);ctx.stroke();}
+  for(let y=0;y<=fh;y+=5){ctx.beginPath();ctx.moveTo(0,y*sy);ctx.lineTo(W,y*sy);ctx.stroke();}
+  // Border
+  ctx.strokeStyle="rgba(255,255,255,0.1)";
+  ctx.strokeRect(0,0,W,H);
+  // Occupancy heat map
+  const grid=mapData.occupancy_grid;
+  if(grid&&grid.data&&grid.cols&&grid.rows){
+    const cw=W/grid.cols,ch=H/grid.rows;
+    for(let r=0;r<grid.rows;r++){
+      for(let c=0;c<grid.cols;c++){
+        const v=grid.data[r][c];
+        if(v>0.05){
+          ctx.fillStyle=`rgba(34,211,238,${v*0.35})`;
+          ctx.fillRect(c*cw,r*ch,cw,ch);
+        }
+      }
+    }
+  }
+  // Zone polygons
+  const _ZONE_COLORS={restricted:"#f87171",safe:"#4ade80",entry_exit:"#fbbf24",monitoring:"#22d3ee"};
+  for(const z of (zones||[])){
+    const poly=z.polygon||[];
+    if(poly.length<3)continue;
+    const col=_ZONE_COLORS[z.zone_type]||"#a78bfa";
+    ctx.beginPath();
+    poly.forEach(([px,py],i)=>{i===0?ctx.moveTo(px*sx,py*sy):ctx.lineTo(px*sx,py*sy);});
+    ctx.closePath();
+    ctx.globalAlpha=0.12;
+    ctx.fillStyle=col;
+    ctx.fill();
+    ctx.globalAlpha=0.75;
+    ctx.strokeStyle=col;
+    ctx.lineWidth=1.5;
+    ctx.stroke();
+    ctx.globalAlpha=1.0;
+    // Zone label at centroid
+    if(z.name||z.zone_id){
+      const cx=poly.reduce((s,[x])=>s+x,0)/poly.length*sx;
+      const cy=poly.reduce((s,[,y])=>s+y,0)/poly.length*sy;
+      ctx.fillStyle=col;
+      ctx.font="bold 8px monospace";
+      ctx.textAlign="center";
+      ctx.textBaseline="middle";
+      ctx.fillText((z.name||z.zone_id).substring(0,12),cx,cy);
+    }
+  }
+  // Person dots
+  const pts=mapData.points||[];
+  ctx.fillStyle="#22d3ee";
+  ctx.shadowColor="#22d3ee";
+  ctx.shadowBlur=4;
+  for(const pt of pts){
+    const px=pt.world_x*sx,py=pt.world_y*sy;
+    if(px<0||px>W||py<0||py>H)continue;
+    ctx.beginPath();
+    ctx.arc(px,py,3,0,Math.PI*2);
+    ctx.fill();
+  }
+  ctx.shadowBlur=0;
+  ctx.textAlign="left";
+  ctx.textBaseline="alphabetic";
+  if(emp)emp.style.display="none";
+}
+
+// Phase 49: Add zone from UI form
+async function _fmAddZone(){
+  const msgEl=document.getElementById("fmZoneAddMsg");
+  const name=document.getElementById("fmZoneName")?.value.trim()||"";
+  const ztype=document.getElementById("fmZoneType")?.value||"monitoring";
+  const polyRaw=document.getElementById("fmZonePolygon")?.value.trim()||"";
+  if(msgEl)msgEl.textContent="送信中...";
+  let polygon;
+  try{polygon=JSON.parse(polyRaw);}catch(_){
+    if(msgEl)msgEl.textContent="ポリゴンJSON形式エラー";return;
+  }
+  try{
+    const r=await fetch("/vigil/perception/spatial/zones",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({name,zone_type:ztype,polygon})
+    });
+    const d=await r.json();
+    if(msgEl)msgEl.textContent=d.success?`登録完了: ${d.zone_id||"ok"}`:`エラー: ${d.message||"unknown"}`;
+  }catch(e){if(msgEl)msgEl.textContent=`エラー: ${e.message}`;}
 }
 
 async function _ragQuery(){

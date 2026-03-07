@@ -624,3 +624,10 @@ class PerceptionConfig:
     spatial_floor_height_m: float = 15.0          # floor plan height in metres
     spatial_max_age_seconds: float = 60.0         # point expiry window for occupancy grid
     spatial_zone_dwell_alert_s: float = 30.0      # loitering threshold for restricted zones
+
+    # Phase 50: Crowd Flow Analytics
+    crowd_analytics_enabled: bool = False          # enable CrowdAnalytics
+    crowd_grid_cols: int = 20                      # density-grid columns
+    crowd_grid_rows: int = 15                      # density-grid rows
+    crowd_congestion_threshold: float = 0.7        # normalised density for congestion alert
+    crowd_history_frames: int = 10                 # frames kept for flow-vector computation

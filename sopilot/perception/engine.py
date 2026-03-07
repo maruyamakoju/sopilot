@@ -268,6 +268,9 @@ class PerceptionEngine:
         # Phase 48: SLA Observatory
         self._sla_monitor: Any | None = None
 
+        # Phase 50: Crowd Flow Analytics
+        self._crowd_analytics: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -793,6 +796,14 @@ class PerceptionEngine:
                     _reg.record_event(event_type=_ev.event_type.name if hasattr(_ev.event_type, "name") else str(_ev.event_type))
             except Exception:
                 pass
+
+            # Phase 50: Crowd Analytics — update with current spatial points
+            if self._crowd_analytics is not None and self._spatial_mapper is not None:
+                try:
+                    _crowd_pts = self._spatial_mapper.get_recent_points()
+                    self._crowd_analytics.update(_crowd_pts)
+                except Exception:
+                    pass
 
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug(
@@ -1398,6 +1409,15 @@ class PerceptionEngine:
             return None
         try:
             return self._zone_analyzer.get_stats()
+        except Exception:
+            return None
+
+    def get_crowd_analytics_state(self) -> dict | None:
+        """Return crowd analytics stats (Phase 50)."""
+        if self._crowd_analytics is None:
+            return None
+        try:
+            return self._crowd_analytics.get_stats()
         except Exception:
             return None
 
@@ -3027,6 +3047,24 @@ def build_perception_engine(
             logger.debug("SLA monitor module not available")
         except Exception:
             logger.exception("Failed to initialize SLAMonitor")
+
+    # ── Phase 50: Crowd Flow Analytics (optional) ──────────────────────────
+    if getattr(config, "crowd_analytics_enabled", False):
+        try:
+            from sopilot.perception.crowd_analytics import CrowdAnalytics
+            engine._crowd_analytics = CrowdAnalytics(
+                floor_width_m=config.spatial_floor_width_m,
+                floor_height_m=config.spatial_floor_height_m,
+                grid_cols=getattr(config, "crowd_grid_cols", 20),
+                grid_rows=getattr(config, "crowd_grid_rows", 15),
+                congestion_threshold=getattr(config, "crowd_congestion_threshold", 0.7),
+                history_frames=getattr(config, "crowd_history_frames", 10),
+            )
+            logger.info("CrowdAnalytics initialized (grid=%dx%d)", config.crowd_grid_cols, config.crowd_grid_rows)
+        except ImportError:
+            logger.debug("crowd_analytics module not available")
+        except Exception:
+            logger.exception("Failed to initialize CrowdAnalytics")
 
     # Apply Phase 6 components (set after construction to keep __init__ clean)
     engine._nl_task_manager = nl_task_manager

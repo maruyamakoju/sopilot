@@ -1801,6 +1801,58 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           </div>
         </div>
 
+        <!-- Phase 50: Crowd Flow Analytics -->
+        <div class="perc-card" id="percCrowdCard" style="display:none">
+          <div class="perc-card-title">&#x1F465; 群衆フロー解析 (Phase 50)</div>
+          <div style="font-size:11px">
+            <!-- Stats row -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">人数</div>
+                <div id="crowdPersons" style="font-weight:700;color:#22d3ee;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">密度</div>
+                <div id="crowdDensity" style="font-weight:700;color:#22d3ee;font-size:13px">0.00</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">輻輳</div>
+                <div id="crowdCongestion" style="font-weight:700;color:#f87171;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">フロー</div>
+                <div id="crowdFlowCount" style="font-weight:700;color:#a78bfa;font-size:13px">0</div>
+              </div>
+            </div>
+            <!-- Flow direction panel -->
+            <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:5px;margin-bottom:6px">
+              <div style="font-size:9px;color:var(--muted);margin-bottom:3px">支配移動方向</div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <canvas id="crowdFlowArrow" width="40" height="40" style="flex-shrink:0;border-radius:50%;background:rgba(15,23,42,0.8)"></canvas>
+                <div>
+                  <div id="crowdFlowDeg" style="font-size:14px;font-weight:700;color:#a78bfa">—°</div>
+                  <div id="crowdFlowSpeed" style="font-size:9px;color:var(--muted)">速度: — m/s</div>
+                </div>
+              </div>
+            </div>
+            <!-- Capacity alerts -->
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">収容量アラート</div>
+            <div id="crowdAlertFeed" style="display:flex;flex-direction:column;gap:2px;max-height:70px;overflow-y:auto;margin-bottom:6px">
+              <div style="font-size:9px;color:var(--muted)">—</div>
+            </div>
+            <!-- Capacity set form -->
+            <details style="margin-top:4px">
+              <summary style="font-size:9px;color:var(--muted);cursor:pointer;user-select:none">収容上限設定 ▶</summary>
+              <div style="margin-top:4px;display:flex;flex-direction:column;gap:4px">
+                <input id="crowdCapZoneId" placeholder="ゾーンID" style="font-size:9px;padding:3px 5px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;width:100%;box-sizing:border-box">
+                <input id="crowdCapMax" type="number" min="1" value="20" placeholder="最大人数" style="font-size:9px;padding:3px 5px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;width:100%;box-sizing:border-box">
+                <button onclick="_crowdSetCapacity()" style="font-size:9px;padding:3px 8px;border-radius:3px;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);color:#a78bfa;cursor:pointer">設定</button>
+                <div id="crowdCapMsg" style="font-size:9px;color:var(--muted)"></div>
+              </div>
+            </details>
+          </div>
+        </div>
+
         <!-- Phase 48: SLA Observatory -->
         <div class="perc-card" id="percSLACard" style="display:none">
           <div class="perc-card-title">&#x1F4CA; SLA Observatory (Phase 48)</div>
@@ -6394,7 +6446,7 @@ async function loadPerceptionData(sessionId){
   // Connect SSE for real-time events
   _sseConnect(String(sessionId));
   // Show Phase 31-39 orchestration panels (poll will hide if not enabled)
-  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard"].forEach(id=>{
+  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="";
   });
@@ -6415,7 +6467,7 @@ function resetPerceptionPanels(){
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -8648,6 +8700,55 @@ async function _refreshOrchestrationPanels(){
         }
       }
     }
+    // Phase 50: Crowd Flow Analytics
+    const crEl=document.getElementById("percCrowdCard");
+    if(crEl&&crEl.style.display!=="none"){
+      const rc=await fetch("/vigil/perception/crowd/stats").catch(()=>null);
+      if(rc&&rc.ok){
+        const dc=await rc.json();
+        if(dc.enabled===false){crEl.style.display="none";}
+        else{
+          const cp=document.getElementById("crowdPersons");
+          if(cp)cp.textContent=dc.total_persons||0;
+          const cd=document.getElementById("crowdDensity");
+          if(cd)cd.textContent=(dc.mean_density||0).toFixed(3);
+          const cc=document.getElementById("crowdCongestion");
+          if(cc)cc.textContent=dc.congestion_cells||0;
+          const cf=document.getElementById("crowdFlowCount");
+          if(cf)cf.textContent=dc.flow_vectors||0;
+        }
+      }
+      // Flow direction
+      const rf=await fetch("/vigil/perception/crowd/flow").catch(()=>null);
+      if(rf&&rf.ok){
+        const df=await rf.json();
+        if(df.enabled!==false){
+          const deg=document.getElementById("crowdFlowDeg");
+          if(deg)deg.textContent=df.dominant_direction_deg!=null?`${df.dominant_direction_deg}°`:"—°";
+          const spd=document.getElementById("crowdFlowSpeed");
+          if(spd)spd.textContent=`速度: ${(df.mean_speed_ms||0).toFixed(3)} m/f`;
+          _drawFlowArrow(df.dominant_direction_deg);
+        }
+      }
+      // Capacity alerts
+      const ra=await fetch("/vigil/perception/crowd/alerts").catch(()=>null);
+      if(ra&&ra.ok){
+        const da=await ra.json();
+        const feed=document.getElementById("crowdAlertFeed");
+        if(feed&&da.alerts&&da.alerts.length>0){
+          const _ac={warning:"#fbbf24",critical:"#f87171"};
+          feed.innerHTML=da.alerts.map(a=>{
+            const col=_ac[a.alert_level]||"#94a3b8";
+            const pct=Math.round((a.utilisation||0)*100);
+            return `<div style="font-size:8px;display:flex;gap:4px;align-items:center">
+              <span style="color:${col};font-weight:700">${a.alert_level.toUpperCase()}</span>
+              <span style="color:#e2e8f0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${a.zone_name}</span>
+              <span style="color:${col}">${a.current_count}/${a.max_capacity} (${pct}%)</span>
+            </div>`;
+          }).join("");
+        }else if(feed){feed.innerHTML='<div style="font-size:9px;color:var(--muted)">アラートなし</div>';}
+      }
+    }
   }catch(e){console.debug("orch panels error",e);}
 }
 
@@ -8730,6 +8831,47 @@ function _fmDrawCanvas(mapData,zones){
   ctx.textAlign="left";
   ctx.textBaseline="alphabetic";
   if(emp)emp.style.display="none";
+}
+
+// Phase 50: Draw flow direction arrow on canvas
+function _drawFlowArrow(deg){
+  const cv=document.getElementById("crowdFlowArrow");
+  if(!cv)return;
+  const ctx=cv.getContext("2d");
+  const W=cv.width,H=cv.height,cx=W/2,cy=H/2,r=W/2-3;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle="rgba(15,23,42,0.8)";
+  ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();
+  if(deg==null)return;
+  const rad=deg*Math.PI/180;
+  const ax=cx+Math.cos(rad)*(r-4),ay=cy+Math.sin(rad)*(r-4);
+  ctx.strokeStyle="#a78bfa";ctx.lineWidth=2.5;ctx.lineCap="round";
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.lineTo(ax,ay);ctx.stroke();
+  ctx.fillStyle="#a78bfa";
+  const ha=Math.atan2(ay-cy,ax-cx);
+  ctx.beginPath();
+  ctx.moveTo(ax,ay);
+  ctx.lineTo(ax-7*Math.cos(ha-0.4),ay-7*Math.sin(ha-0.4));
+  ctx.lineTo(ax-7*Math.cos(ha+0.4),ay-7*Math.sin(ha+0.4));
+  ctx.closePath();ctx.fill();
+}
+
+// Phase 50: Set zone capacity from UI form
+async function _crowdSetCapacity(){
+  const msgEl=document.getElementById("crowdCapMsg");
+  const zid=document.getElementById("crowdCapZoneId")?.value.trim()||"";
+  const maxP=parseInt(document.getElementById("crowdCapMax")?.value)||10;
+  if(!zid){if(msgEl)msgEl.textContent="ゾーンIDを入力してください";return;}
+  if(msgEl)msgEl.textContent="送信中...";
+  try{
+    const r=await fetch("/vigil/perception/crowd/capacity",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({zone_id:zid,max_persons:maxP,zone_name:zid})
+    });
+    const d=await r.json();
+    if(msgEl)msgEl.textContent=d.success?`設定完了: ${d.zone_id} → ${d.max_persons}人`:`エラー: ${d.message||"unknown"}`;
+  }catch(e){if(msgEl)msgEl.textContent=`エラー: ${e.message}`;}
 }
 
 // Phase 49: Add zone from UI form

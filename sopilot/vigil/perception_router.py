@@ -2823,4 +2823,65 @@ def build_perception_router() -> APIRouter:
             return {"enabled": False, "message": "ZoneAnalyzer not initialized"}
         return {"enabled": True, **state}
 
+    # ── Phase 50: Crowd Flow Analytics endpoints ──────────────────────────
+
+    @router.get("/crowd/stats")
+    async def get_crowd_stats(request: Request) -> dict:
+        """群衆解析統計 — 人数・密度・輻輳セル数・フローベクトル数。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_crowd_analytics_state()
+        if state is None:
+            return {"enabled": False, "message": "CrowdAnalytics not initialized (crowd_analytics_enabled=False)"}
+        return state
+
+    @router.get("/crowd/state")
+    async def get_crowd_state(request: Request) -> dict:
+        """群衆解析フルスナップショット — 密度グリッド・フローベクトル・輻輳ゾーン。"""
+        engine = _get_perception_engine(request)
+        if engine._crowd_analytics is None:
+            return {"enabled": False}
+        def _get():
+            return {"enabled": True, **engine._crowd_analytics.get_state()}
+        return await run_in_threadpool(_get)
+
+    @router.get("/crowd/flow")
+    async def get_crowd_flow(request: Request) -> dict:
+        """群衆移動方向サマリー — 支配方向・平均速度・最大速度。"""
+        engine = _get_perception_engine(request)
+        if engine._crowd_analytics is None:
+            return {"enabled": False}
+        def _get():
+            return {"enabled": True, **engine._crowd_analytics.get_flow_summary()}
+        return await run_in_threadpool(_get)
+
+    @router.get("/crowd/alerts")
+    async def get_crowd_alerts(request: Request, active_only: bool = True) -> dict:
+        """ゾーン収容量アラート (警告 / 危険)。"""
+        engine = _get_perception_engine(request)
+        if engine._crowd_analytics is None:
+            return {"enabled": False, "alerts": []}
+        def _get():
+            return {
+                "enabled": True,
+                "alerts": engine._crowd_analytics.get_capacity_alerts(active_only=active_only),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.post("/crowd/capacity")
+    async def set_zone_capacity(request: Request) -> dict:
+        """ゾーン収容人数上限を設定 (zone_id, max_persons, zone_name?)。"""
+        engine = _get_perception_engine(request)
+        if engine._crowd_analytics is None:
+            return {"success": False, "message": "CrowdAnalytics not initialized"}
+        body = await request.json()
+        zone_id = body.get("zone_id", "")
+        max_persons = int(body.get("max_persons", 10))
+        zone_name = body.get("zone_name", zone_id)
+        if not zone_id:
+            return {"success": False, "message": "zone_id required"}
+        def _set():
+            engine._crowd_analytics.set_zone_capacity(zone_id, max_persons, zone_name)
+            return {"success": True, "zone_id": zone_id, "max_persons": max_persons}
+        return await run_in_threadpool(_set)
+
     return router

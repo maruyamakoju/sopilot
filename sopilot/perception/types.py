@@ -568,3 +568,15 @@ class PerceptionConfig:
     video_foundation_enabled: bool = False        # enable video foundation model
     video_foundation_backend: str = "mock"        # "vjepa", "internvideo", "mock"
     video_foundation_buffer_size: int = 16        # frames in temporal buffer
+
+    # Phase 38: LLaVA-NeXT VLM Client
+    llava_enabled: bool = False                   # enable LLaVA-NeXT for cascade Stage 3
+    llava_model_id: str = "llava-hf/llava-v1.6-mistral-7b-hf"  # HuggingFace model ID
+    llava_max_new_tokens: int = 256               # max tokens per VLM response
+    llava_load_in_8bit: bool = True               # 8-bit quantization (~8 GB VRAM)
+
+    # Phase 39: Grounding DINO 1.5
+    grounding_dino_15_enabled: bool = False       # enable Grounding DINO 1.5 for cascade Stage 2
+    grounding_dino_15_variant: str = "1.5-pro"   # "1.5-pro", "1.5-edge", "1.0"
+    grounding_dino_box_threshold: float = 0.35   # box confidence threshold
+    grounding_dino_text_threshold: float = 0.25  # text alignment threshold

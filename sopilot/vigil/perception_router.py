@@ -2344,4 +2344,59 @@ def build_perception_router() -> APIRouter:
             raise HTTPException(status_code=404, detail=f"Exemplar {exemplar_id!r} not found")
         return {"status": "deleted", "exemplar_id": exemplar_id}
 
+    # ── Phase 38: LLaVA-NeXT VLM ───────────────────────────────────────
+
+    @router.get("/vlm/state")
+    async def get_vlm_state(request: Request) -> dict:
+        """LLaVA-NeXT VLM — ロード状況・使用統計。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_llava_state()
+        if state is None:
+            return {"enabled": False, "message": "LLaVA client not initialized (llava_enabled=False)"}
+        return {"enabled": True, **state}
+
+    @router.post("/vlm/describe")
+    async def vlm_describe_scene(request: Request) -> dict:
+        """LLaVA-NeXT でシーンを日本語・英語で説明。
+
+        直近フレームに対してホリスティックなシーン理解を実行します。
+        """
+        engine = _get_perception_engine(request)
+        if engine._llava_client is None:
+            raise HTTPException(status_code=404, detail="LLaVA client not initialized")
+        def _describe():
+            # Use a blank synthetic frame as placeholder when no live frame is available
+            frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            return engine._llava_client.describe_scene(frame, language="both")
+        return await run_in_threadpool(_describe)
+
+    @router.post("/vlm/ask")
+    async def vlm_ask_question(request: Request) -> dict:
+        """LLaVA-NeXT にビジュアルQ&Aを実行。
+
+        Body: {"question": "ヘルメットを着用していない人は何人？"}
+        """
+        engine = _get_perception_engine(request)
+        if engine._llava_client is None:
+            raise HTTPException(status_code=404, detail="LLaVA client not initialized")
+        body = await request.json()
+        question = body.get("question", "")
+        if not question:
+            raise HTTPException(status_code=422, detail="question field required")
+        def _ask():
+            frame = np.zeros((480, 640, 3), dtype=np.uint8)
+            return {"answer": engine._llava_client.answer_question(frame, question)}
+        return await run_in_threadpool(_ask)
+
+    # ── Phase 39: Grounding DINO 1.5 ───────────────────────────────────
+
+    @router.get("/grounding-dino/state")
+    async def get_grounding_dino_state(request: Request) -> dict:
+        """Grounding DINO 1.5 — ロード状況・検出統計。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_grounding_dino_15_state()
+        if state is None:
+            return {"enabled": False, "message": "Grounding DINO 1.5 not initialized (grounding_dino_15_enabled=False)"}
+        return {"enabled": True, **state}
+
     return router

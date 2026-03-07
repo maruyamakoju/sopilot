@@ -235,6 +235,12 @@ class PerceptionEngine:
         # Phase 37: Video Foundation Model
         self._video_foundation: Any | None = None
 
+        # Phase 38: LLaVA-NeXT VLM Client
+        self._llava_client: Any | None = None
+
+        # Phase 39: Grounding DINO 1.5
+        self._grounding_dino_15: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -1195,6 +1201,24 @@ class PerceptionEngine:
         except Exception:
             return None
 
+    def get_llava_state(self) -> dict | None:
+        """Return LLaVA-NeXT VLM client stats (Phase 38)."""
+        if self._llava_client is None:
+            return None
+        try:
+            return self._llava_client.get_stats()
+        except Exception:
+            return None
+
+    def get_grounding_dino_15_state(self) -> dict | None:
+        """Return Grounding DINO 1.5 detector stats (Phase 39)."""
+        if self._grounding_dino_15 is None:
+            return None
+        try:
+            return self._grounding_dino_15.get_stats()
+        except Exception:
+            return None
+
     def reset(self) -> None:
         """Reset all stateful components to their initial state.
 
@@ -1286,6 +1310,20 @@ class PerceptionEngine:
         if self._online_learner is not None:
             try:
                 self._online_learner.save()
+            except (AttributeError, Exception):
+                pass
+
+        # Phase 38: LLaVA-NeXT client
+        if self._llava_client is not None:
+            try:
+                self._llava_client.close()
+            except (AttributeError, Exception):
+                pass
+
+        # Phase 39: Grounding DINO 1.5
+        if self._grounding_dino_15 is not None:
+            try:
+                self._grounding_dino_15.close()
             except (AttributeError, Exception):
                 pass
 
@@ -2542,6 +2580,64 @@ def build_perception_engine(
             logger.debug("Video foundation module not available")
         except Exception:
             logger.exception("Failed to initialize VideoTemporalAnalyzer")
+
+    # ── Phase 38: LLaVA-NeXT VLM Client (optional) ────────────────────────
+    if config.llava_enabled:
+        try:
+            from sopilot.perception.llava_client import build_llava_client
+            llava_client = build_llava_client(
+                model_id=config.llava_model_id,
+                orchestrator=orchestrator,
+                device=config.device,
+                max_new_tokens=config.llava_max_new_tokens,
+                backend="auto",
+            )
+            engine._llava_client = llava_client
+            # Inject into cascade Stage 3 if cascade detector is active
+            _det = engine._detector
+            if _det is not None and hasattr(_det, "_vlm"):
+                _det._vlm = llava_client
+                logger.info(
+                    "LLaVAClient injected into CascadeDetector Stage 3 (model=%s)",
+                    config.llava_model_id,
+                )
+            else:
+                logger.info("LLaVAClient initialized (no cascade detector to inject into)")
+        except ImportError:
+            logger.debug("LLaVA client module not available")
+        except Exception:
+            logger.exception("Failed to initialize LLaVAClient")
+
+    # ── Phase 39: Grounding DINO 1.5 (optional) ───────────────────────────
+    if config.grounding_dino_15_enabled:
+        try:
+            from sopilot.perception.grounding_dino import build_grounding_dino
+            gd15 = build_grounding_dino(
+                variant=config.grounding_dino_15_variant,
+                orchestrator=orchestrator,
+                config=config,
+                box_threshold=config.grounding_dino_box_threshold,
+                text_threshold=config.grounding_dino_text_threshold,
+                device=config.device,
+                backend="auto",
+            )
+            engine._grounding_dino_15 = gd15
+            # Inject into cascade Stage 2 if cascade detector is active
+            _det = engine._detector
+            if _det is not None and hasattr(_det, "_dino"):
+                _det._dino = gd15
+                logger.info(
+                    "Grounding DINO 1.5 (%s) injected into CascadeDetector Stage 2",
+                    config.grounding_dino_15_variant,
+                )
+            else:
+                logger.info(
+                    "Grounding DINO 1.5 initialized (no cascade detector to inject into)"
+                )
+        except ImportError:
+            logger.debug("Grounding DINO 1.5 module not available")
+        except Exception:
+            logger.exception("Failed to initialize Grounding DINO 1.5")
 
     # Apply Phase 6 components (set after construction to keep __init__ clean)
     engine._nl_task_manager = nl_task_manager

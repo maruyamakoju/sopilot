@@ -1631,6 +1631,61 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           </div>
         </div>
 
+        <!-- Phase 38: LLaVA-NeXT VLM -->
+        <div class="perc-card" id="percVLMCard" style="display:none">
+          <div class="perc-card-title">&#x1F9E0; LLaVA-NeXT VLM (Phase 38)</div>
+          <div style="font-size:11px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:10px;color:var(--muted)">モデル:</span>
+              <span id="vlmModelId" style="font-weight:700;color:#a78bfa;font-size:9px">-</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">総呼出</div>
+                <div id="vlmTotalCalls" style="font-weight:700;color:#a78bfa">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">平均遅延</div>
+                <div id="vlmAvgLatency" style="font-weight:700;color:#a78bfa">-</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">エラー</div>
+                <div id="vlmErrors" style="font-weight:700;color:#f87171">0</div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <span style="font-size:9px;color:var(--muted)">分析:</span><span id="vlmAnalyzeCalls" style="color:#a78bfa;font-size:9px">0</span>
+              <span style="font-size:9px;color:var(--muted)">説明:</span><span id="vlmDescribeCalls" style="color:#a78bfa;font-size:9px">0</span>
+              <span style="font-size:9px;color:var(--muted)">Q&amp;A:</span><span id="vlmQACalls" style="color:#a78bfa;font-size:9px">0</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase 39: Grounding DINO 1.5 -->
+        <div class="perc-card" id="percGroundingDINOCard" style="display:none">
+          <div class="perc-card-title">&#x1F50D; Grounding DINO 1.5 (Phase 39)</div>
+          <div style="font-size:11px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:10px;color:var(--muted)">バリアント:</span>
+              <span id="gdVariant" style="font-weight:700;color:#34d399">-</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:4px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">処理フレーム</div>
+                <div id="gdTotalFrames" style="font-weight:700;color:#34d399">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">平均遅延</div>
+                <div id="gdAvgLatency" style="font-weight:700;color:#34d399">-</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">検出/frame</div>
+                <div id="gdAvgDets" style="font-weight:700;color:#34d399">-</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <!-- Phase 15/16/18: 予兆検知 + 自律対応 + ヘルススコア -->
         <div class="perc-card" id="percEarlyWarningCard" style="display:none">
           <div class="perc-card-title">&#x26A0;&#xFE0F; 予兆検知 &amp; 自律対応</div>
@@ -6131,8 +6186,8 @@ async function loadPerceptionData(sessionId){
   if(_percRefreshTimer){clearInterval(_percRefreshTimer);_percRefreshTimer=null;}
   // Connect SSE for real-time events
   _sseConnect(String(sessionId));
-  // Show Phase 31-36 orchestration panels (poll will hide if not enabled)
-  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard"].forEach(id=>{
+  // Show Phase 31-39 orchestration panels (poll will hide if not enabled)
+  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="";
   });
@@ -6153,7 +6208,7 @@ function resetPerceptionPanels(){
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -6172,7 +6227,7 @@ async function _percFetchAll(sessionId){
     $("perceptionStatusBar").classList.remove("active");
     $("percInactive").classList.add("show");
     $("perceptionPanels").classList.remove("show");
-    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard"].forEach(id=>{
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard"].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.style.display="none";
     });
@@ -8140,6 +8195,50 @@ async function _refreshOrchestrationPanels(){
           if(list&&d.categories&&d.categories.length){
             list.innerHTML=d.categories.map(c=>`<div style="margin-bottom:2px"><span style="color:#f472b6;font-weight:600">${c.category}</span> <span style="color:var(--muted)">${c.exemplar_count}件</span>${c.accuracy>0?` <span style="color:#4ade80">${(c.accuracy*100).toFixed(0)}%</span>`:""}</div>`).join("");
           }else if(list){list.textContent="カテゴリ未登録";}
+        }
+      }
+    }
+    // Phase 38: LLaVA-NeXT VLM
+    const vlmEl=document.getElementById("percVLMCard");
+    if(vlmEl&&vlmEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/vlm/state").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){vlmEl.style.display="none";}
+        else{
+          const mId=document.getElementById("vlmModelId");
+          if(mId)mId.textContent=d.model_id||"-";
+          const tc=document.getElementById("vlmTotalCalls");
+          if(tc)tc.textContent=d.total_calls||0;
+          const al=document.getElementById("vlmAvgLatency");
+          if(al)al.textContent=d.avg_latency_ms!=null?d.avg_latency_ms.toFixed(0)+" ms":"-";
+          const err=document.getElementById("vlmErrors");
+          if(err)err.textContent=d.errors||0;
+          const ac=document.getElementById("vlmAnalyzeCalls");
+          if(ac)ac.textContent=d.analyze_calls||0;
+          const dc=document.getElementById("vlmDescribeCalls");
+          if(dc)dc.textContent=d.describe_calls||0;
+          const qc=document.getElementById("vlmQACalls");
+          if(qc)qc.textContent=d.qa_calls||0;
+        }
+      }
+    }
+    // Phase 39: Grounding DINO 1.5
+    const gdEl=document.getElementById("percGroundingDINOCard");
+    if(gdEl&&gdEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/grounding-dino/state").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){gdEl.style.display="none";}
+        else{
+          const vr=document.getElementById("gdVariant");
+          if(vr)vr.textContent=d.variant||"-";
+          const tf=document.getElementById("gdTotalFrames");
+          if(tf)tf.textContent=d.total_frames||0;
+          const al=document.getElementById("gdAvgLatency");
+          if(al)al.textContent=d.avg_latency_ms!=null?d.avg_latency_ms.toFixed(0)+" ms":"-";
+          const ad=document.getElementById("gdAvgDets");
+          if(ad)ad.textContent=d.avg_detections_per_frame!=null?d.avg_detections_per_frame.toFixed(1):"-";
         }
       }
     }

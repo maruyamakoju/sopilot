@@ -2487,4 +2487,155 @@ def build_perception_router() -> APIRouter:
             }
         return await run_in_threadpool(_get)
 
+    # ── Phase 43: Video Memory + RAG ────────────────────────────────────────
+
+    @router.get("/memory/stats")
+    async def get_memory_stats(request: Request) -> dict:
+        """ビデオメモリ統計 — インデックス済みフレーム数・語彙サイズ。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_video_memory_state()
+        if state is None:
+            return {"enabled": False, "message": "Video memory not initialized (video_memory_enabled=False)"}
+        rag_state = engine.get_rag_engine_state() or {}
+        return {"enabled": True, "memory": state, "rag": rag_state}
+
+    @router.post("/memory/query")
+    async def query_memory(request: Request) -> dict:
+        """RAGクエリ — 自然言語でビデオメモリを検索し、LLaVA回答を生成。
+
+        Request body: {"query": "ヘルメット未着用を探して", "top_k": 5,
+                        "camera_filter": null, "time_after": null, "time_before": null}
+        """
+        engine = _get_perception_engine(request)
+        if engine._rag_engine is None:
+            return {"enabled": False, "message": "RAG engine not initialized (rag_enabled=False)"}
+        body = await request.json()
+        query_text = body.get("query", "")
+        top_k = int(body.get("top_k", 10))
+        camera_filter = body.get("camera_filter")
+        time_after = body.get("time_after")
+        time_before = body.get("time_before")
+        if not query_text:
+            return {"error": "query must not be empty"}
+        rag = engine._rag_engine
+        def _query():
+            return rag.full_query(
+                query_text=query_text,
+                top_k=top_k,
+                camera_filter=camera_filter,
+                time_after=float(time_after) if time_after else None,
+                time_before=float(time_before) if time_before else None,
+            )
+        return await run_in_threadpool(_query)
+
+    # ── Phase 44: Causal Chain Analysis ─────────────────────────────────────
+
+    @router.get("/causal/stats")
+    async def get_causal_stats(request: Request) -> dict:
+        """因果連鎖分析 — バッファ統計・最近の因果チェーン。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_causal_analyzer_state()
+        if state is None:
+            return {"enabled": False, "message": "Causal analyzer not initialized (causal_analysis_enabled=False)"}
+        return {"enabled": True, **state}
+
+    @router.get("/causal/chains")
+    async def get_causal_chains(request: Request, limit: int = 20) -> dict:
+        """最近の因果連鎖チェーン一覧。"""
+        engine = _get_perception_engine(request)
+        if engine._causal_analyzer is None:
+            return {"enabled": False, "chains": []}
+        def _get():
+            return {
+                "enabled": True,
+                "chains": engine._causal_analyzer.get_recent_chains(limit=limit),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.post("/causal/analyze")
+    async def analyze_causal_chain(request: Request) -> dict:
+        """指定インシデントの因果連鎖を即時分析。
+
+        Request body: {"incident_type": "転倒", "camera_id": "cam01",
+                        "lookback_seconds": 30}
+        """
+        engine = _get_perception_engine(request)
+        if engine._causal_analyzer is None:
+            return {"enabled": False, "message": "Causal analyzer not initialized"}
+        body = await request.json()
+        incident_type = body.get("incident_type", "unknown")
+        camera_id = body.get("camera_id")
+        lookback = float(body.get("lookback_seconds", 30.0))
+        def _analyze():
+            chain = engine._causal_analyzer.analyze(
+                incident_type=incident_type,
+                camera_id=camera_id,
+                lookback_seconds=lookback,
+            )
+            return {"enabled": True, "chain": chain.to_dict()}
+        return await run_in_threadpool(_analyze)
+
+    # ── Phase 45: Active Learning Loop ──────────────────────────────────────
+
+    @router.get("/active-learning/stats")
+    async def get_active_learning_stats(request: Request) -> dict:
+        """能動学習ループ統計 — ラベル数・学習更新数・ラベル分布。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_active_loop_state()
+        if state is None:
+            return {"enabled": False, "message": "Active learning loop not initialized (active_loop_enabled=False)"}
+        return {"enabled": True, **state}
+
+    @router.get("/active-learning/queue")
+    async def get_active_learning_queue(request: Request, limit: int = 20) -> dict:
+        """ReviewQueueのラベル待ちフレーム一覧。"""
+        engine = _get_perception_engine(request)
+        if engine._active_loop is None:
+            return {"enabled": False, "pending": []}
+        def _get():
+            return {
+                "enabled": True,
+                "pending": engine._active_loop.get_pending_frames(limit=limit),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.post("/active-learning/label")
+    async def submit_active_label(request: Request) -> dict:
+        """オペレーターラベル提出 → OnlineLearner即時更新。
+
+        Request body: {"frame_id": "uuid", "label": "helmet_violation",
+                        "confidence": 0.95, "operator_id": "op01"}
+        """
+        engine = _get_perception_engine(request)
+        if engine._active_loop is None:
+            return {"enabled": False, "message": "Active learning loop not initialized"}
+        body = await request.json()
+        frame_id = body.get("frame_id", "")
+        label = body.get("label", "")
+        confidence = float(body.get("confidence", 1.0))
+        operator_id = body.get("operator_id", "operator")
+        if not frame_id or not label:
+            return {"error": "frame_id and label are required"}
+        def _submit():
+            return engine._active_loop.submit_label(
+                frame_id=frame_id,
+                label=label,
+                confidence=confidence,
+                operator_id=operator_id,
+            )
+        return await run_in_threadpool(_submit)
+
+    @router.get("/active-learning/labels")
+    async def get_recent_labels(request: Request, limit: int = 20) -> dict:
+        """最近のオペレーターラベル提出履歴。"""
+        engine = _get_perception_engine(request)
+        if engine._active_loop is None:
+            return {"enabled": False, "labels": []}
+        def _get():
+            return {
+                "enabled": True,
+                "labels": engine._active_loop.get_recent_labels(limit=limit),
+            }
+        return await run_in_threadpool(_get)
+
     return router

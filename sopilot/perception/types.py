@@ -596,3 +596,17 @@ class PerceptionConfig:
     # Phase 42: Edge Deployment
     edge_optimization_enabled: bool = False       # enable EdgeOptimizer
     edge_device_profile: str = "jetson_orin"      # "jetson_orin", "jetson_nano", "rpi5_coral", "x86_cpu"
+
+    # Phase 43: Multi-Modal Video RAG
+    video_memory_enabled: bool = False            # enable VideoMemoryStore frame indexing
+    video_memory_max_frames: int = 10_000         # rolling window size
+    rag_enabled: bool = False                     # enable RAGEngine for /query endpoint
+    rag_alpha: float = 0.6                        # visual weight in hybrid score [0=text-only, 1=visual-only]
+
+    # Phase 44: Causal Chain Analysis
+    causal_analysis_enabled: bool = False         # enable CausalAnalyzer
+    causal_lookback_seconds: float = 30.0         # event lookback window for chain reconstruction
+
+    # Phase 45: Active Learning Loop Closure
+    active_loop_enabled: bool = False             # enable ActiveLearningLoop
+    active_loop_min_confidence: float = 0.5       # min operator confidence to update learner

@@ -250,6 +250,17 @@ class PerceptionEngine:
         # Phase 42: Edge Optimizer
         self._edge_optimizer: Any | None = None
 
+        # Phase 43: Video Memory + RAG
+        self._video_memory: Any | None = None
+        self._rag_engine: Any | None = None
+        self._last_cls_features: Any | None = None  # latest DINOv2 CLS token
+
+        # Phase 44: Causal Chain Analyzer
+        self._causal_analyzer: Any | None = None
+
+        # Phase 45: Active Learning Loop
+        self._active_loop: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -508,6 +519,7 @@ class PerceptionEngine:
                         cls_features = self._dinov2_backbone.extract_cls(frame)
                         # Update Mahalanobis baseline
                         self._dinov2_backbone.update_feature_stats(cls_features)
+                        self._last_cls_features = cls_features  # Phase 43: for video memory
                     if self._temporal_fusion is not None:
                         # Collect event flag names for temporal context
                         event_flag_names = [
@@ -582,6 +594,43 @@ class PerceptionEngine:
                         )
                 except Exception:
                     logger.debug("Incident reporter stage failed", exc_info=True)
+
+            # ── Stage 6n: Video Memory — index DINOv2 CLS + caption ──
+            if self._video_memory is not None and self._last_cls_features is not None:
+                try:
+                    _cam = getattr(self, "_session_id", None) or "cam"
+                    _labels = [d.label for d in world_state.detections[:5]]
+                    _caption = "、".join(violations[:3] + _labels[:3]) or "通常状態"
+                    _inc_id = None
+                    if self._incident_reporter is not None:
+                        try:
+                            _recent = self._incident_reporter.get_recent_incidents(1)
+                            if _recent:
+                                _inc_id = _recent[0].get("incident_id")
+                        except Exception:
+                            pass
+                    self._video_memory.add_frame(
+                        visual_embedding=self._last_cls_features,
+                        caption=_caption,
+                        camera_id=_cam,
+                        incident_id=_inc_id,
+                    )
+                except Exception:
+                    logger.debug("Video memory stage failed", exc_info=True)
+
+            # ── Stage 6o: Causal Analyzer — buffer violations + behaviors ──
+            if self._causal_analyzer is not None:
+                try:
+                    _cam = getattr(self, "_session_id", None) or "cam"
+                    for v in violations:
+                        self._causal_analyzer.observe_event(v, camera_id=_cam)
+                    for ev in world_state.events:
+                        if hasattr(ev, "event_type") and hasattr(ev.event_type, "name"):
+                            self._causal_analyzer.observe_event(
+                                ev.event_type.name, camera_id=_cam
+                            )
+                except Exception:
+                    logger.debug("Causal analyzer stage failed", exc_info=True)
 
             # ── Stage 6b: VLM explanation for ANOMALY events ──────
             t_stage = time.perf_counter()
@@ -1266,6 +1315,42 @@ class PerceptionEngine:
         except Exception:
             return None
 
+    def get_video_memory_state(self) -> dict | None:
+        """Return video memory store stats (Phase 43)."""
+        if self._video_memory is None:
+            return None
+        try:
+            return self._video_memory.get_stats()
+        except Exception:
+            return None
+
+    def get_rag_engine_state(self) -> dict | None:
+        """Return RAG engine stats (Phase 43)."""
+        if self._rag_engine is None:
+            return None
+        try:
+            return self._rag_engine.get_stats()
+        except Exception:
+            return None
+
+    def get_causal_analyzer_state(self) -> dict | None:
+        """Return causal analyzer stats (Phase 44)."""
+        if self._causal_analyzer is None:
+            return None
+        try:
+            return self._causal_analyzer.get_stats()
+        except Exception:
+            return None
+
+    def get_active_loop_state(self) -> dict | None:
+        """Return active learning loop stats (Phase 45)."""
+        if self._active_loop is None:
+            return None
+        try:
+            return self._active_loop.get_stats()
+        except Exception:
+            return None
+
     def reset(self) -> None:
         """Reset all stateful components to their initial state.
 
@@ -1378,6 +1463,27 @@ class PerceptionEngine:
         if self._incident_reporter is not None:
             try:
                 self._incident_reporter._save()
+            except (AttributeError, Exception):
+                pass
+
+        # Phase 43: Video Memory (flush to disk)
+        if self._video_memory is not None:
+            try:
+                self._video_memory._save()
+            except (AttributeError, Exception):
+                pass
+
+        # Phase 44: Causal Analyzer (flush chains)
+        if self._causal_analyzer is not None:
+            try:
+                self._causal_analyzer._save()
+            except (AttributeError, Exception):
+                pass
+
+        # Phase 45: Active Loop (flush labels)
+        if self._active_loop is not None:
+            try:
+                self._active_loop._save()
             except (AttributeError, Exception):
                 pass
 
@@ -2759,6 +2865,70 @@ def build_perception_engine(
             logger.debug("Edge optimizer module not available")
         except Exception:
             logger.exception("Failed to initialize EdgeOptimizer")
+
+    # ── Phase 43: Video Memory + RAG Engine (optional) ────────────────────
+    if config.video_memory_enabled:
+        try:
+            from sopilot.perception.video_memory import VideoMemoryStore
+            from sopilot.perception.rag_engine import RAGEngine
+
+            _vm_path = Path("data") / f"video_memory_{session_id or 'default'}.json"
+            engine._video_memory = VideoMemoryStore(
+                max_frames=config.video_memory_max_frames,
+                persist_path=_vm_path if config.video_memory_enabled else None,
+            )
+            if config.rag_enabled:
+                engine._rag_engine = RAGEngine(
+                    memory_store=engine._video_memory,
+                    llava_client=engine._llava_client if hasattr(engine, "_llava_client") else None,
+                    alpha=config.rag_alpha,
+                )
+            logger.info(
+                "VideoMemoryStore initialized (max=%d, rag=%s)",
+                config.video_memory_max_frames,
+                config.rag_enabled,
+            )
+        except ImportError:
+            logger.debug("Video memory module not available")
+        except Exception:
+            logger.exception("Failed to initialize VideoMemoryStore")
+
+    # ── Phase 44: Causal Analyzer (optional) ──────────────────────────────
+    if config.causal_analysis_enabled:
+        try:
+            from sopilot.perception.causal_analyzer import CausalAnalyzer
+
+            _ca_path = Path("data") / "causal_chains.json"
+            engine._causal_analyzer = CausalAnalyzer(
+                lookback_seconds=config.causal_lookback_seconds,
+                llava_client=engine._llava_client if hasattr(engine, "_llava_client") else None,
+                persist_path=_ca_path,
+            )
+            logger.info(
+                "CausalAnalyzer initialized (lookback=%.0fs)", config.causal_lookback_seconds
+            )
+        except ImportError:
+            logger.debug("Causal analyzer module not available")
+        except Exception:
+            logger.exception("Failed to initialize CausalAnalyzer")
+
+    # ── Phase 45: Active Learning Loop (optional) ──────────────────────────
+    if config.active_loop_enabled:
+        try:
+            from sopilot.perception.active_loop import ActiveLearningLoop
+
+            _al_path = Path("data") / "active_loop_labels.json"
+            engine._active_loop = ActiveLearningLoop(
+                review_queue=engine._review_queue if hasattr(engine, "_review_queue") else None,
+                online_learner=engine._online_learner if hasattr(engine, "_online_learner") else None,
+                persist_path=_al_path,
+                min_confidence=config.active_loop_min_confidence,
+            )
+            logger.info("ActiveLearningLoop initialized")
+        except ImportError:
+            logger.debug("Active loop module not available")
+        except Exception:
+            logger.exception("Failed to initialize ActiveLearningLoop")
 
     # Apply Phase 6 components (set after construction to keep __init__ clean)
     engine._nl_task_manager = nl_task_manager

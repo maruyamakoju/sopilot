@@ -1742,6 +1742,65 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           </div>
         </div>
 
+        <!-- Phase 43: Video Memory + RAG -->
+        <div class="perc-card" id="percRAGCard" style="display:none">
+          <div class="perc-card-title">&#x1F50D; ビデオRAG検索 (Phase 43)</div>
+          <div style="font-size:11px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">インデックス</div>
+                <div id="ragFrameCount" style="font-weight:700;color:#38bdf8">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">語彙サイズ</div>
+                <div id="ragVocabSize" style="font-weight:700;color:#38bdf8">0</div>
+              </div>
+            </div>
+            <div style="display:flex;gap:4px;margin-bottom:4px">
+              <input id="ragQueryInput" type="text" placeholder="自然言語で検索..." style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:4px;color:#e2e8f0;font-size:10px;padding:3px 6px;outline:none"/>
+              <button onclick="_ragQuery()" style="background:#0ea5e9;border:none;border-radius:4px;color:#fff;font-size:10px;padding:3px 8px;cursor:pointer">検索</button>
+            </div>
+            <div id="ragAnswer" style="font-size:9px;color:#94a3b8;line-height:1.4;min-height:20px;border-left:2px solid #0ea5e9;padding-left:6px;display:none"></div>
+            <div id="ragQueryMs" style="font-size:9px;color:var(--muted);text-align:right;margin-top:2px"></div>
+          </div>
+        </div>
+
+        <!-- Phase 44: Causal Chain Analysis -->
+        <div class="perc-card" id="percCausalCard" style="display:none">
+          <div class="perc-card-title">&#x1F9E0; 因果連鎖分析 (Phase 44)</div>
+          <div style="font-size:11px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">バッファ</div>
+                <div id="causalBufferEvents" style="font-weight:700;color:#f59e0b">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">チェーン数</div>
+                <div id="causalChainCount" style="font-weight:700;color:#f59e0b">0</div>
+              </div>
+            </div>
+            <div id="causalLatestChain" style="font-size:9px;color:#94a3b8;line-height:1.4;border-left:2px solid #f59e0b;padding-left:6px;display:none"></div>
+          </div>
+        </div>
+
+        <!-- Phase 45: Active Learning Loop -->
+        <div class="perc-card" id="percActiveLoopCard" style="display:none">
+          <div class="perc-card-title">&#x1F3AF; 能動学習ループ (Phase 45)</div>
+          <div style="font-size:11px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">ラベル数</div>
+                <div id="alLabelsCount" style="font-weight:700;color:#a78bfa">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">学習更新</div>
+                <div id="alLearnerUpdates" style="font-weight:700;color:#a78bfa">0</div>
+              </div>
+            </div>
+            <div id="alPendingCount" style="font-size:9px;color:var(--muted)">ラベル待ち: 0件</div>
+          </div>
+        </div>
+
         <!-- Phase 15/16/18: 予兆検知 + 自律対応 + ヘルススコア -->
         <div class="perc-card" id="percEarlyWarningCard" style="display:none">
           <div class="perc-card-title">&#x26A0;&#xFE0F; 予兆検知 &amp; 自律対応</div>
@@ -6243,7 +6302,7 @@ async function loadPerceptionData(sessionId){
   // Connect SSE for real-time events
   _sseConnect(String(sessionId));
   // Show Phase 31-39 orchestration panels (poll will hide if not enabled)
-  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard"].forEach(id=>{
+  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="";
   });
@@ -6264,7 +6323,7 @@ function resetPerceptionPanels(){
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -6283,7 +6342,7 @@ async function _percFetchAll(sessionId){
     $("perceptionStatusBar").classList.remove("active");
     $("percInactive").classList.add("show");
     $("perceptionPanels").classList.remove("show");
-    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard"].forEach(id=>{
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard"].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.style.display="none";
     });
@@ -8358,7 +8417,74 @@ async function _refreshOrchestrationPanels(){
         }
       }
     }
+    // Phase 43: Video Memory + RAG
+    const ragEl=document.getElementById("percRAGCard");
+    if(ragEl&&ragEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/memory/stats").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){ragEl.style.display="none";}
+        else{
+          const fc=document.getElementById("ragFrameCount");
+          if(fc)fc.textContent=(d.memory&&d.memory.frame_count)||0;
+          const vs=document.getElementById("ragVocabSize");
+          if(vs)vs.textContent=(d.memory&&d.memory.vocabulary_size)||0;
+        }
+      }
+    }
+    // Phase 44: Causal Chain Analysis
+    const causalEl=document.getElementById("percCausalCard");
+    if(causalEl&&causalEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/causal/stats").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){causalEl.style.display="none";}
+        else{
+          const be=document.getElementById("causalBufferEvents");
+          if(be)be.textContent=d.buffer_events||0;
+          const cc=document.getElementById("causalChainCount");
+          if(cc)cc.textContent=d.chains_stored||0;
+        }
+      }
+    }
+    // Phase 45: Active Learning Loop
+    const alEl=document.getElementById("percActiveLoopCard");
+    if(alEl&&alEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/active-learning/stats").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){alEl.style.display="none";}
+        else{
+          const lc=document.getElementById("alLabelsCount");
+          if(lc)lc.textContent=d.labels_submitted||0;
+          const lu=document.getElementById("alLearnerUpdates");
+          if(lu)lu.textContent=d.learner_updates||0;
+          const pc=document.getElementById("alPendingCount");
+          if(pc)pc.textContent=`ラベル待ち: ${d.labels_submitted||0}件`;
+        }
+      }
+    }
   }catch(e){console.debug("orch panels error",e);}
+}
+
+async function _ragQuery(){
+  const input=document.getElementById("ragQueryInput");
+  if(!input||!input.value.trim())return;
+  const ansDiv=document.getElementById("ragAnswer");
+  const msDiv=document.getElementById("ragQueryMs");
+  if(ansDiv){ansDiv.style.display="none";ansDiv.textContent="";}
+  try{
+    const r=await fetch("/vigil/perception/memory/query",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({query:input.value.trim(),top_k:5})
+    });
+    if(r.ok){
+      const d=await r.json();
+      if(ansDiv){ansDiv.textContent=d.answer||"";ansDiv.style.display="block";}
+      if(msDiv)msDiv.textContent=`${d.query_time_ms||0}ms / ${d.total_results||0}件`;
+    }
+  }catch(e){console.debug("RAG query error",e);}
 }
 
 function _stopTrackPoll(){

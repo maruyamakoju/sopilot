@@ -611,6 +611,13 @@ class PerceptionConfig:
     active_loop_enabled: bool = False             # enable ActiveLearningLoop
     active_loop_min_confidence: float = 0.5       # min operator confidence to update learner
 
+    # Phase 48: SLA Observatory
+    sla_monitor_enabled: bool = False              # enable SLAMonitor SLO tracking
+    sla_window_size: int = 1000                    # rolling window size per stage
+    sla_frame_p95_threshold_ms: float = 200.0      # frame_total P95 SLO (ms)
+    sla_frame_p99_threshold_ms: float = 500.0      # frame_total P99 SLO (ms)
+    sla_detection_p95_threshold_ms: float = 80.0   # detection stage P95 SLO (ms)
+
     # Phase 46: Spatial Intelligence (2D Floor Map)
     spatial_mapper_enabled: bool = False          # enable SpatialMapper + ZoneAnalyzer
     spatial_floor_width_m: float = 20.0           # floor plan width in metres

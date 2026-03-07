@@ -2638,6 +2638,45 @@ def build_perception_router() -> APIRouter:
             }
         return await run_in_threadpool(_get)
 
+    # ── Phase 48: SLA Observatory endpoints ──────────────────────────────
+
+    @router.get("/sla/stats")
+    async def get_sla_stats(request: Request) -> dict:
+        """SLA監視統計 — 全ステージP50/P95/P99 + SLO違反数。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_sla_state()
+        if state is None:
+            return {"enabled": False, "message": "SLAMonitor not initialized (sla_monitor_enabled=False)"}
+        return {"enabled": True, **state}
+
+    @router.get("/sla/slos")
+    async def get_sla_slos(request: Request) -> dict:
+        """SLO遵守状況一覧 (compliant / violated)。"""
+        engine = _get_perception_engine(request)
+        if engine._sla_monitor is None:
+            return {"enabled": False, "slos": []}
+        def _get():
+            return {
+                "enabled": True,
+                "slos": [s.to_dict() for s in engine._sla_monitor.check_slos()],
+            }
+        return await run_in_threadpool(_get)
+
+    @router.get("/sla/stages")
+    async def get_sla_stages(request: Request) -> dict:
+        """ステージ別レイテンシ統計 (P50/P95/P99/mean/max)。"""
+        engine = _get_perception_engine(request)
+        if engine._sla_monitor is None:
+            # Fallback: PercMetricsRegistry always captures stage latency
+            try:
+                from sopilot.perception.perc_metrics import get_registry
+                return {"enabled": True, "source": "perc_metrics", "stages": get_registry().get_stage_percentiles()}
+            except Exception:
+                return {"enabled": False, "stages": {}}
+        def _get():
+            return {"enabled": True, "source": "sla_monitor", "stages": engine._sla_monitor.get_all_stage_stats()}
+        return await run_in_threadpool(_get)
+
     # ── Phase 46: Spatial Intelligence endpoints ──────────────────────────
 
     @router.get("/spatial/stats")

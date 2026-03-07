@@ -265,6 +265,9 @@ class PerceptionEngine:
         self._spatial_mapper: Any | None = None
         self._zone_analyzer: Any | None = None
 
+        # Phase 48: SLA Observatory
+        self._sla_monitor: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -760,11 +763,23 @@ class PerceptionEngine:
             self._frames_processed += 1
             self._total_processing_ms += elapsed_ms
 
+            # Phase 48: SLA Monitor — record per-stage + total latency
+            if self._sla_monitor is not None:
+                try:
+                    self._sla_monitor.record("frame_total", elapsed_ms)
+                    for _stage_name, _stage_ms in timings.items():
+                        self._sla_monitor.record(_stage_name, _stage_ms)
+                except Exception:
+                    pass
+
             # Record Prometheus-compatible metrics
             try:
                 from sopilot.perception.perc_metrics import get_registry
                 _reg = get_registry()
                 _reg.record_frame(processing_ms=elapsed_ms)
+                _reg.record_stage_latency("frame_total", elapsed_ms)
+                for _stage_name, _stage_ms in timings.items():
+                    _reg.record_stage_latency(_stage_name, _stage_ms)
                 _reg.record_detection(count=len(detections))
                 if self._reasoner._vlm_called_this_frame:
                     _reg.record_vlm_call()
@@ -1352,6 +1367,19 @@ class PerceptionEngine:
             return None
         try:
             return self._active_loop.get_stats()
+        except Exception:
+            return None
+
+    def get_sla_state(self) -> dict | None:
+        """Return SLA monitor stats (Phase 48)."""
+        if self._sla_monitor is None:
+            return None
+        try:
+            return {
+                **self._sla_monitor.get_stats(),
+                "stage_percentiles": self._sla_monitor.get_all_stage_stats(),
+                "slo_statuses": [s.to_dict() for s in self._sla_monitor.check_slos()],
+            }
         except Exception:
             return None
 
@@ -2975,6 +3003,30 @@ def build_perception_engine(
             logger.debug("Spatial mapper module not available")
         except Exception:
             logger.exception("Failed to initialize SpatialMapper/ZoneAnalyzer")
+
+    # ── Phase 48: SLA Monitor (optional) ──────────────────────────────────
+    if config.sla_monitor_enabled:
+        try:
+            from sopilot.perception.sla_monitor import SLAMonitor, SLODefinition
+            _slos = [
+                SLODefinition("frame_total_p95", "frame_total", 0.95,
+                              config.sla_frame_p95_threshold_ms, "Frame P95 SLO"),
+                SLODefinition("frame_total_p99", "frame_total", 0.99,
+                              config.sla_frame_p99_threshold_ms, "Frame P99 SLO"),
+                SLODefinition("detection_p95", "detection_ms", 0.95,
+                              config.sla_detection_p95_threshold_ms, "Detection P95 SLO"),
+                SLODefinition("tracking_p95", "tracking_ms", 0.95, 30.0, "Tracking P95 SLO"),
+                SLODefinition("zone_analysis_p95", "zone_analysis_ms", 0.95, 15.0, "Zone P95 SLO"),
+            ]
+            engine._sla_monitor = SLAMonitor(
+                window_size=config.sla_window_size,
+                slos=_slos,
+            )
+            logger.info("SLAMonitor initialized (window=%d, slos=%d)", config.sla_window_size, len(_slos))
+        except ImportError:
+            logger.debug("SLA monitor module not available")
+        except Exception:
+            logger.exception("Failed to initialize SLAMonitor")
 
     # Apply Phase 6 components (set after construction to keep __init__ clean)
     engine._nl_task_manager = nl_task_manager

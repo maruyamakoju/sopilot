@@ -17,6 +17,22 @@ from __future__ import annotations
 import threading
 
 
+_STAGE_WINDOW_SIZE = 1000  # samples per stage
+
+
+def _percentile(sorted_data: list[float], p: float) -> float:
+    """Linear-interpolation percentile on pre-sorted data."""
+    n = len(sorted_data)
+    if n == 0:
+        return 0.0
+    if n == 1:
+        return sorted_data[0]
+    idx = p * (n - 1)
+    lo = int(idx)
+    hi = min(lo + 1, n - 1)
+    return sorted_data[lo] * (1 - (idx - lo)) + sorted_data[hi] * (idx - lo)
+
+
 class PercMetricsRegistry:
     """Holds all perception-engine metric counters (no external deps)."""
 
@@ -33,6 +49,8 @@ class PercMetricsRegistry:
         self.violations_by_severity: dict[str, int] = {}
         self.anomaly_events_by_detector: dict[str, int] = {}
         self.events_by_type: dict[str, int] = {}
+        # Phase 48: Per-stage latency sliding windows
+        self._stage_windows: dict[str, list[float]] = {}  # stage → list[ms]
 
     def record_frame(self, processing_ms: float = 0.0) -> None:
         with self._lock:
@@ -59,6 +77,36 @@ class PercMetricsRegistry:
     def record_event(self, event_type: str = "unknown") -> None:
         with self._lock:
             self.events_by_type[event_type] = self.events_by_type.get(event_type, 0) + 1
+
+    # Phase 48: Stage latency tracking ─────────────────────────────────────
+
+    def record_stage_latency(self, stage: str, latency_ms: float) -> None:
+        """Record a per-stage latency sample (rolling window of last 1000)."""
+        with self._lock:
+            if stage not in self._stage_windows:
+                self._stage_windows[stage] = []
+            self._stage_windows[stage].append(latency_ms)
+            if len(self._stage_windows[stage]) > _STAGE_WINDOW_SIZE:
+                self._stage_windows[stage] = self._stage_windows[stage][-_STAGE_WINDOW_SIZE:]
+
+    def get_stage_percentiles(self) -> dict[str, dict[str, float]]:
+        """Return P50/P95/P99/mean/max/count per stage."""
+        with self._lock:
+            windows_copy = {s: list(v) for s, v in self._stage_windows.items()}
+        result: dict[str, dict[str, float]] = {}
+        for stage, samples in windows_copy.items():
+            if not samples:
+                continue
+            sorted_s = sorted(samples)
+            result[stage] = {
+                "p50_ms": round(_percentile(sorted_s, 0.50), 3),
+                "p95_ms": round(_percentile(sorted_s, 0.95), 3),
+                "p99_ms": round(_percentile(sorted_s, 0.99), 3),
+                "mean_ms": round(sum(sorted_s) / len(sorted_s), 3),
+                "max_ms": round(sorted_s[-1], 3),
+                "count": len(sorted_s),
+            }
+        return result
 
     def get_processing_seconds_avg(self) -> float:
         with self._lock:
@@ -91,6 +139,7 @@ class PercMetricsRegistry:
             self.violations_by_severity.clear()
             self.anomaly_events_by_detector.clear()
             self.events_by_type.clear()
+            self._stage_windows.clear()
 
 
 _REGISTRY: PercMetricsRegistry | None = None

@@ -182,6 +182,32 @@ def build_health_router() -> APIRouter:
         except ImportError:
             pass
 
+        # Phase 48: Stage latency percentiles (from PercMetricsRegistry)
+        try:
+            from sopilot.perception.perc_metrics import get_registry as _get_reg
+            _stage_pcts = _get_reg().get_stage_percentiles()
+            if _stage_pcts:
+                lines.append("# HELP perception_stage_latency_ms Per-stage processing latency in milliseconds")
+                lines.append("# TYPE perception_stage_latency_ms gauge")
+                for _stage, _pct in sorted(_stage_pcts.items()):
+                    for _qkey, _qval in (("p50_ms", "0.5"), ("p95_ms", "0.95"), ("p99_ms", "0.99")):
+                        lines.append(f'perception_stage_latency_ms{{stage="{_stage}",quantile="{_qval}"}} {_pct.get(_qkey, 0.0):.3f}')
+        except Exception:
+            pass
+
+        # Phase 48: SLA Monitor lines (from engine if available)
+        try:
+            _vigil_pipeline = getattr(request.app.state, "vigil_pipeline", None)
+            _engine = None
+            if _vigil_pipeline is not None:
+                _vlm = getattr(_vigil_pipeline, "_vlm", None)
+                _engine = getattr(_vlm, "_engine", None)
+            if _engine is not None and getattr(_engine, "_sla_monitor", None) is not None:
+                for _line in _engine._sla_monitor.get_prometheus_lines():
+                    lines.append(_line)
+        except Exception:
+            pass
+
         return PlainTextResponse("\n".join(lines), media_type="text/plain; version=0.0.4; charset=utf-8")
 
     return router

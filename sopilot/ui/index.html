@@ -1801,6 +1801,34 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           </div>
         </div>
 
+        <!-- Phase 48: SLA Observatory -->
+        <div class="perc-card" id="percSLACard" style="display:none">
+          <div class="perc-card-title">&#x1F4CA; SLA Observatory (Phase 48)</div>
+          <div style="font-size:11px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">P95 (ms)</div>
+                <div id="slaFrameP95" style="font-weight:700;color:#34d399">—</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">P99 (ms)</div>
+                <div id="slaFrameP99" style="font-weight:700;color:#34d399">—</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">SLO遵守</div>
+                <div id="slaCompliant" style="font-weight:700;color:#34d399">—</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">SLO違反</div>
+                <div id="slaViolated" style="font-weight:700;color:#f87171">—</div>
+              </div>
+            </div>
+            <div id="slaSampleCount" style="font-size:9px;color:var(--muted)">サンプル: 0件</div>
+          </div>
+        </div>
+
         <!-- Phase 46: Spatial Intelligence (Floor Map + Zone Analysis) -->
         <div class="perc-card" id="percFloorMapCard" style="display:none">
           <div class="perc-card-title">&#x1F5FA; 空間インテリジェンス (Phase 46)</div>
@@ -6330,7 +6358,7 @@ async function loadPerceptionData(sessionId){
   // Connect SSE for real-time events
   _sseConnect(String(sessionId));
   // Show Phase 31-39 orchestration panels (poll will hide if not enabled)
-  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard"].forEach(id=>{
+  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="";
   });
@@ -6351,7 +6379,7 @@ function resetPerceptionPanels(){
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -6370,7 +6398,7 @@ async function _percFetchAll(sessionId){
     $("perceptionStatusBar").classList.remove("active");
     $("percInactive").classList.add("show");
     $("perceptionPanels").classList.remove("show");
-    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard"].forEach(id=>{
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard"].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.style.display="none";
     });
@@ -8516,6 +8544,36 @@ async function _refreshOrchestrationPanels(){
           if(zc)zc.textContent=dz.zones_registered||0;
           const ze=document.getElementById("fmZoneEvents");
           if(ze)ze.textContent=dz.events_total||0;
+        }
+      }
+    }
+    // Phase 48: SLA Observatory
+    const slaEl=document.getElementById("percSLACard");
+    if(slaEl&&slaEl.style.display!=="none"){
+      const rs=await fetch("/vigil/perception/sla/stages").catch(()=>null);
+      if(rs&&rs.ok){
+        const ds=await rs.json();
+        if(ds.enabled===false){slaEl.style.display="none";}
+        else{
+          const ft=ds.stages&&ds.stages["frame_total"];
+          const p95El=document.getElementById("slaFrameP95");
+          if(p95El)p95El.textContent=ft?`${ft.p95_ms}`:"—";
+          const p99El=document.getElementById("slaFrameP99");
+          if(p99El)p99El.textContent=ft?`${ft.p99_ms}`:"—";
+          const scEl=document.getElementById("slaSampleCount");
+          if(scEl)scEl.textContent=`サンプル: ${ft?ft.count:0}件`;
+        }
+      }
+      const rl=await fetch("/vigil/perception/sla/slos").catch(()=>null);
+      if(rl&&rl.ok){
+        const dl=await rl.json();
+        if(dl.slos){
+          const compliant=dl.slos.filter(s=>s.compliant).length;
+          const violated=dl.slos.filter(s=>!s.compliant).length;
+          const ecEl=document.getElementById("slaCompliant");
+          if(ecEl)ecEl.textContent=compliant;
+          const evEl=document.getElementById("slaViolated");
+          if(evEl)evEl.textContent=violated;
         }
       }
     }

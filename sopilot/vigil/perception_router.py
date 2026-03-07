@@ -2638,4 +2638,150 @@ def build_perception_router() -> APIRouter:
             }
         return await run_in_threadpool(_get)
 
+    # ── Phase 46: Spatial Intelligence endpoints ──────────────────────────
+
+    @router.get("/spatial/stats")
+    async def get_spatial_stats(request: Request) -> dict:
+        """空間マッパー統計 — カメラ数・点群サイズ・フロアサイズ。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_spatial_mapper_state()
+        if state is None:
+            return {"enabled": False, "message": "SpatialMapper not initialized (spatial_mapper_enabled=False)"}
+        return {"enabled": True, **state}
+
+    @router.get("/spatial/map")
+    async def get_spatial_map(request: Request, cols: int = 40, rows: int = 30, max_age: float = 60.0) -> dict:
+        """フロアマップデータ — 点群・占有グリッド・カメラ一覧。"""
+        engine = _get_perception_engine(request)
+        if engine._spatial_mapper is None:
+            return {"enabled": False, "message": "SpatialMapper not initialized"}
+        def _get():
+            return {
+                "enabled": True,
+                **engine._spatial_mapper.to_map_data(
+                    grid_cols=cols,
+                    grid_rows=rows,
+                    max_age_seconds=max_age,
+                ),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.post("/spatial/cameras/register")
+    async def register_spatial_camera(request: Request) -> dict:
+        """カメラをフロアホモグラフィで登録。
+
+        Request body: {"camera_id": "cam01", "homography": [[...],[...],[...]],
+                        "image_size": [1920, 1080]}
+        homography は 3×3 フラット行列 (リスト of リスト).
+        """
+        engine = _get_perception_engine(request)
+        if engine._spatial_mapper is None:
+            return {"success": False, "message": "SpatialMapper not initialized"}
+        body = await request.json()
+        camera_id = body.get("camera_id", "")
+        H_raw = body.get("homography", None)
+        image_size = tuple(body.get("image_size", [1920, 1080]))
+        if not camera_id or H_raw is None:
+            return {"success": False, "message": "camera_id and homography are required"}
+        import numpy as np
+        H = np.array(H_raw, dtype=np.float64).reshape(3, 3)
+        def _reg():
+            engine._spatial_mapper.register_camera(camera_id, H, image_size)
+            return {"success": True, "camera_id": camera_id, "image_size": list(image_size)}
+        return await run_in_threadpool(_reg)
+
+    @router.get("/spatial/zones")
+    async def list_spatial_zones(request: Request) -> dict:
+        """登録済みゾーン一覧。"""
+        engine = _get_perception_engine(request)
+        if engine._zone_analyzer is None:
+            return {"enabled": False, "zones": []}
+        def _get():
+            return {
+                "enabled": True,
+                "zones": [z.to_dict() for z in engine._zone_analyzer.get_zones()],
+            }
+        return await run_in_threadpool(_get)
+
+    @router.post("/spatial/zones")
+    async def add_spatial_zone(request: Request) -> dict:
+        """ゾーン登録 (polygon, zone_type, name).
+
+        Request body: {"zone_id": "restricted_A", "zone_type": "restricted",
+                        "polygon": [{"x": 0, "y": 0}, ...], "name": "立入禁止区域A"}
+        """
+        engine = _get_perception_engine(request)
+        if engine._zone_analyzer is None:
+            return {"success": False, "message": "ZoneAnalyzer not initialized"}
+        body = await request.json()
+        zone_id = body.get("zone_id", "")
+        zone_type = body.get("zone_type", "normal")
+        polygon_raw = body.get("polygon", [])
+        name = body.get("name", zone_id)
+        if not zone_id or len(polygon_raw) < 3:
+            return {"success": False, "message": "zone_id and polygon (≥3 points) are required"}
+        polygon = [(float(p["x"]), float(p["y"])) for p in polygon_raw]
+        def _add():
+            z = engine._zone_analyzer.add_zone(zone_id, polygon, zone_type, name=name)
+            return {"success": True, "zone": z.to_dict()}
+        return await run_in_threadpool(_add)
+
+    @router.delete("/spatial/zones/{zone_id}")
+    async def remove_spatial_zone(request: Request, zone_id: str) -> dict:
+        """ゾーン削除。"""
+        engine = _get_perception_engine(request)
+        if engine._zone_analyzer is None:
+            return {"success": False, "message": "ZoneAnalyzer not initialized"}
+        removed = engine._zone_analyzer.remove_zone(zone_id)
+        return {"success": removed, "zone_id": zone_id}
+
+    @router.get("/spatial/zones/events")
+    async def get_zone_events(request: Request, limit: int = 50, event_type: str | None = None) -> dict:
+        """ゾーンイベント履歴 (enter/exit/dwell)。"""
+        engine = _get_perception_engine(request)
+        if engine._zone_analyzer is None:
+            return {"enabled": False, "events": []}
+        def _get():
+            return {
+                "enabled": True,
+                "events": engine._zone_analyzer.get_recent_events(limit=limit, event_type=event_type),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.get("/spatial/zones/dwell")
+    async def get_zone_dwell_stats(request: Request) -> dict:
+        """ゾーン別滞在時間統計 (平均・最大・現在占有人数)。"""
+        engine = _get_perception_engine(request)
+        if engine._zone_analyzer is None:
+            return {"enabled": False, "stats": {}}
+        def _get():
+            return {
+                "enabled": True,
+                "stats": engine._zone_analyzer.get_dwell_stats(),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.get("/spatial/zones/flow")
+    async def get_zone_flow(request: Request) -> dict:
+        """ゾーン間移動フロー (from_zone → to_zone)。"""
+        engine = _get_perception_engine(request)
+        if engine._zone_analyzer is None:
+            return {"enabled": False, "flows": []}
+        def _get():
+            return {
+                "enabled": True,
+                "flows": engine._zone_analyzer.get_flow_vectors(),
+                "zone_stats": engine._zone_analyzer.get_stats(),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.get("/spatial/zone-analyzer/stats")
+    async def get_zone_analyzer_stats(request: Request) -> dict:
+        """ゾーン解析エンジン統計。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_zone_analyzer_state()
+        if state is None:
+            return {"enabled": False, "message": "ZoneAnalyzer not initialized"}
+        return {"enabled": True, **state}
+
     return router

@@ -610,3 +610,10 @@ class PerceptionConfig:
     # Phase 45: Active Learning Loop Closure
     active_loop_enabled: bool = False             # enable ActiveLearningLoop
     active_loop_min_confidence: float = 0.5       # min operator confidence to update learner
+
+    # Phase 46: Spatial Intelligence (2D Floor Map)
+    spatial_mapper_enabled: bool = False          # enable SpatialMapper + ZoneAnalyzer
+    spatial_floor_width_m: float = 20.0           # floor plan width in metres
+    spatial_floor_height_m: float = 15.0          # floor plan height in metres
+    spatial_max_age_seconds: float = 60.0         # point expiry window for occupancy grid
+    spatial_zone_dwell_alert_s: float = 30.0      # loitering threshold for restricted zones

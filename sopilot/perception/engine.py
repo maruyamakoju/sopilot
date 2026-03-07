@@ -261,6 +261,10 @@ class PerceptionEngine:
         # Phase 45: Active Learning Loop
         self._active_loop: Any | None = None
 
+        # Phase 46: Spatial Intelligence (2D Floor Map + Zone Analysis)
+        self._spatial_mapper: Any | None = None
+        self._zone_analyzer: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -1348,6 +1352,24 @@ class PerceptionEngine:
             return None
         try:
             return self._active_loop.get_stats()
+        except Exception:
+            return None
+
+    def get_spatial_mapper_state(self) -> dict | None:
+        """Return spatial mapper stats (Phase 46)."""
+        if self._spatial_mapper is None:
+            return None
+        try:
+            return self._spatial_mapper.get_stats()
+        except Exception:
+            return None
+
+    def get_zone_analyzer_state(self) -> dict | None:
+        """Return zone analyzer stats (Phase 46)."""
+        if self._zone_analyzer is None:
+            return None
+        try:
+            return self._zone_analyzer.get_stats()
         except Exception:
             return None
 
@@ -2929,6 +2951,30 @@ def build_perception_engine(
             logger.debug("Active loop module not available")
         except Exception:
             logger.exception("Failed to initialize ActiveLearningLoop")
+
+    # ── Phase 46: Spatial Intelligence (optional) ──────────────────────────
+    if config.spatial_mapper_enabled:
+        try:
+            from sopilot.perception.spatial_mapper import SpatialMapper
+            from sopilot.perception.zone_analyzer import ZoneAnalyzer
+
+            engine._spatial_mapper = SpatialMapper(
+                floor_width_m=config.spatial_floor_width_m,
+                floor_height_m=config.spatial_floor_height_m,
+                max_age_seconds=config.spatial_max_age_seconds,
+            )
+            engine._zone_analyzer = ZoneAnalyzer(
+                dwell_alert_seconds=config.spatial_zone_dwell_alert_s,
+            )
+            logger.info(
+                "SpatialMapper + ZoneAnalyzer initialized (floor=%.1f×%.1fm)",
+                config.spatial_floor_width_m,
+                config.spatial_floor_height_m,
+            )
+        except ImportError:
+            logger.debug("Spatial mapper module not available")
+        except Exception:
+            logger.exception("Failed to initialize SpatialMapper/ZoneAnalyzer")
 
     # Apply Phase 6 components (set after construction to keep __init__ clean)
     engine._nl_task_manager = nl_task_manager

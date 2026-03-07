@@ -1801,6 +1801,34 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           </div>
         </div>
 
+        <!-- Phase 46: Spatial Intelligence (Floor Map + Zone Analysis) -->
+        <div class="perc-card" id="percFloorMapCard" style="display:none">
+          <div class="perc-card-title">&#x1F5FA; 空間インテリジェンス (Phase 46)</div>
+          <div style="font-size:11px">
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">カメラ数</div>
+                <div id="fmCameraCount" style="font-weight:700;color:#22d3ee">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">点群</div>
+                <div id="fmPointCount" style="font-weight:700;color:#22d3ee">0</div>
+              </div>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">ゾーン数</div>
+                <div id="fmZoneCount" style="font-weight:700;color:#fb923c">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">ゾーンイベント</div>
+                <div id="fmZoneEvents" style="font-weight:700;color:#fb923c">0</div>
+              </div>
+            </div>
+            <div id="fmFloorSize" style="font-size:9px;color:var(--muted)">フロア: - m × - m</div>
+          </div>
+        </div>
+
         <!-- Phase 15/16/18: 予兆検知 + 自律対応 + ヘルススコア -->
         <div class="perc-card" id="percEarlyWarningCard" style="display:none">
           <div class="perc-card-title">&#x26A0;&#xFE0F; 予兆検知 &amp; 自律対応</div>
@@ -6302,7 +6330,7 @@ async function loadPerceptionData(sessionId){
   // Connect SSE for real-time events
   _sseConnect(String(sessionId));
   // Show Phase 31-39 orchestration panels (poll will hide if not enabled)
-  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard"].forEach(id=>{
+  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="";
   });
@@ -6323,7 +6351,7 @@ function resetPerceptionPanels(){
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -6342,7 +6370,7 @@ async function _percFetchAll(sessionId){
     $("perceptionStatusBar").classList.remove("active");
     $("percInactive").classList.add("show");
     $("perceptionPanels").classList.remove("show");
-    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard"].forEach(id=>{
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard"].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.style.display="none";
     });
@@ -8461,6 +8489,33 @@ async function _refreshOrchestrationPanels(){
           if(lu)lu.textContent=d.learner_updates||0;
           const pc=document.getElementById("alPendingCount");
           if(pc)pc.textContent=`ラベル待ち: ${d.labels_submitted||0}件`;
+        }
+      }
+    }
+    // Phase 46: Spatial Intelligence (Floor Map + Zone Analysis)
+    const fmEl=document.getElementById("percFloorMapCard");
+    if(fmEl&&fmEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/spatial/stats").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){fmEl.style.display="none";}
+        else{
+          const cc=document.getElementById("fmCameraCount");
+          if(cc)cc.textContent=d.registered_cameras||0;
+          const pc=document.getElementById("fmPointCount");
+          if(pc)pc.textContent=d.recent_points||0;
+          const fs=document.getElementById("fmFloorSize");
+          if(fs)fs.textContent=`フロア: ${d.floor_width_m||0}m × ${d.floor_height_m||0}m`;
+        }
+      }
+      const rz=await fetch("/vigil/perception/spatial/zone-analyzer/stats").catch(()=>null);
+      if(rz&&rz.ok){
+        const dz=await rz.json();
+        if(dz.enabled!==false){
+          const zc=document.getElementById("fmZoneCount");
+          if(zc)zc.textContent=dz.zones_registered||0;
+          const ze=document.getElementById("fmZoneEvents");
+          if(ze)ze.textContent=dz.events_total||0;
         }
       }
     }

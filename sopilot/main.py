@@ -180,6 +180,18 @@ def create_app() -> FastAPI:
     app.state.group_learning_store = group_learning_store
     app.state.stream_sessions = {}  # dict[str, StreamSession] — live streaming sessions
     app.state.reid_gallery = ReIDGallery()  # cross-camera person Re-ID gallery
+    # Neural Re-ID extractor (Phase 32) — opt-in via SOPILOT_NEURAL_REID=true
+    if os.environ.get("SOPILOT_NEURAL_REID", "").lower() in ("1", "true", "yes"):
+        try:
+            from sopilot.perception.dinov2_backbone import DINOv2Backbone
+            from sopilot.perception.neural_reid import NeuralReIDExtractor
+            from sopilot.vigil.reid_extractor import ReIDExtractor
+            _backbone = DINOv2Backbone(orchestrator=None, device="auto")
+            _neural_reid = NeuralReIDExtractor(_backbone)
+            app.state.reid_extractor = ReIDExtractor(embedder=_neural_reid)
+            logger.info("Neural Re-ID extractor initialized (DINOv2 768-dim)")
+        except Exception:
+            logger.warning("Failed to initialize Neural Re-ID extractor; using HSV fallback")
     app.state.stream_trackers = {}  # dict[str, PersonTracker] — per-session trackers
     app.state.stream_behavior_events = {}  # dict[str, list[dict]] — behavior event log
     # OAuth2 router (public — no auth prefix)

@@ -16,6 +16,7 @@ from __future__ import annotations
 import logging
 from typing import Any
 
+import numpy as np
 from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response, StreamingResponse
 from pydantic import BaseModel, Field
@@ -446,6 +447,22 @@ class TimelineRequest(BaseModel):
     zone_id: str | None = None
     event_types: list[str] | None = None
     last_n_minutes: float | None = None
+
+
+# ── Phase 36: Online Learner schemas ──────────────────────────────────────
+
+
+class ExemplarAddRequest(BaseModel):
+    category: str = Field(..., min_length=1, description="カテゴリ名")
+    features: list[float] = Field(..., description="768次元特徴ベクトル (DINOv2 CLS)")
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    source: str = Field(default="operator", pattern="^(operator|auto|feedback)$")
+
+
+class ExemplarAddResponse(BaseModel):
+    exemplar_id: str
+    category: str
+    exemplar_count: int
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────
@@ -2214,5 +2231,117 @@ def build_perception_router() -> APIRouter:
             return info.to_dict()
         except ImportError:
             return {"error": "multi_agent module not available"}
+
+    # ── Phase 31: Model Orchestrator Status ────────────────────────────
+
+    @router.get("/orchestrator/status")
+    async def get_orchestrator_status(request: Request) -> dict:
+        """モデルオーケストレーター — VRAM使用状況・ロード済みモデル一覧。"""
+        engine = _get_perception_engine(request)
+        orchestrator = getattr(engine, "_orchestrator", None)
+        if orchestrator is None:
+            return {"enabled": False, "message": "Model orchestrator not initialized"}
+        def _get():
+            return orchestrator.get_status()
+        return await run_in_threadpool(_get)
+
+    # ── Phase 33: Cascade Detector Stats ───────────────────────────────
+
+    @router.get("/cascade/stats")
+    async def get_cascade_stats(request: Request) -> dict:
+        """カスケード検出器 — 段階別ヒット率・平均レイテンシ。"""
+        engine = _get_perception_engine(request)
+        detector = getattr(engine, "_detector", None)
+        if detector is None or not hasattr(detector, "get_stats"):
+            return {"enabled": False, "message": "Cascade detector not initialized"}
+        def _get():
+            return detector.get_stats()
+        return await run_in_threadpool(_get)
+
+    # ── Phase 34: SAM Segmenter State ──────────────────────────────────
+
+    @router.get("/sam/state")
+    async def get_sam_state(request: Request) -> dict:
+        """SAMセグメンター — セグメンテーション統計。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_sam_state()
+        if state is None:
+            return {"enabled": False, "message": "SAM segmenter not initialized (sam_enabled=False)"}
+        return state
+
+    # ── Phase 35: Temporal Fusion State ────────────────────────────────
+
+    @router.get("/temporal/state")
+    async def get_temporal_state(request: Request) -> dict:
+        """時系列フュージョン — 行動分類・シーン変化・時系列異常。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_temporal_state()
+        if state is None:
+            return {"enabled": False, "message": "Temporal fusion not initialized (temporal_fusion_enabled=False)"}
+        def _get():
+            tf = engine._temporal_fusion
+            action = tf.classify_action()
+            scene_changed, scene_sim = tf.detect_scene_change()
+            anomalous, anomaly_score = tf.detect_temporal_anomaly()
+            trend = tf.get_activity_trend()
+            return {
+                **state,
+                "current_action": action,
+                "scene_changed": scene_changed,
+                "scene_similarity": round(scene_sim, 4),
+                "temporal_anomaly": anomalous,
+                "temporal_anomaly_score": round(anomaly_score, 4),
+                "activity_trend": trend,
+            }
+        return await run_in_threadpool(_get)
+
+    # ── Phase 36: Online Learner Management ────────────────────────────
+
+    @router.get("/online-learner/categories")
+    async def get_online_learner_categories(request: Request) -> dict:
+        """オンライン学習 — 登録カテゴリ一覧・精度統計。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_online_learner_state()
+        if state is None:
+            return {"enabled": False, "message": "Online learner not initialized (online_learning_enabled=False)"}
+        ol = engine._online_learner
+        def _get():
+            return {
+                **state,
+                "categories": ol.get_categories(),
+                "exemplar_count": ol.get_exemplar_count(),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.post("/online-learner/exemplars", response_model=ExemplarAddResponse)
+    async def add_exemplar(body: ExemplarAddRequest, request: Request) -> ExemplarAddResponse:
+        """教師サンプルを登録 — オンライン学習に新カテゴリ特徴を追加。"""
+        engine = _get_perception_engine(request)
+        if engine._online_learner is None:
+            raise HTTPException(status_code=404, detail="Online learner not initialized")
+        features = np.array(body.features, dtype=np.float32)
+        def _add():
+            eid = engine._online_learner.add_exemplar(
+                category=body.category,
+                features=features,
+                confidence=body.confidence,
+                source=body.source,
+            )
+            return eid, engine._online_learner.get_exemplar_count()
+        eid, count = await run_in_threadpool(_add)
+        return ExemplarAddResponse(exemplar_id=eid, category=body.category, exemplar_count=count)
+
+    @router.delete("/online-learner/exemplars/{exemplar_id}")
+    async def remove_exemplar(exemplar_id: str, request: Request) -> dict:
+        """教師サンプルを削除。"""
+        engine = _get_perception_engine(request)
+        if engine._online_learner is None:
+            raise HTTPException(status_code=404, detail="Online learner not initialized")
+        def _remove():
+            return engine._online_learner.remove_exemplar(exemplar_id)
+        ok = await run_in_threadpool(_remove)
+        if not ok:
+            raise HTTPException(status_code=404, detail=f"Exemplar {exemplar_id!r} not found")
+        return {"status": "deleted", "exemplar_id": exemplar_id}
 
     return router

@@ -482,6 +482,44 @@ class PerceptionEngine:
             else:
                 self._last_hazards = []
 
+            # ── Stage 4m: DINOv2 feature extraction + Temporal Fusion ──
+            if self._dinov2_backbone is not None or self._temporal_fusion is not None:
+                try:
+                    cls_features = None
+                    if self._dinov2_backbone is not None:
+                        cls_features = self._dinov2_backbone.extract_cls(frame)
+                        # Update Mahalanobis baseline
+                        self._dinov2_backbone.update_feature_stats(cls_features)
+                    if self._temporal_fusion is not None:
+                        # Collect event flag names for temporal context
+                        event_flag_names = [
+                            ev.event_type.name
+                            for ev in world_state.events
+                            if hasattr(ev.event_type, "name")
+                        ]
+                        _feat = cls_features if cls_features is not None else (
+                            self._temporal_fusion._buffer.latest().cls_features
+                            if self._temporal_fusion._buffer.latest() is not None
+                            else None
+                        )
+                        if _feat is not None:
+                            self._temporal_fusion.observe(
+                                timestamp=timestamp,
+                                frame_number=frame_number,
+                                cls_features=_feat,
+                                detection_count=len(detections),
+                                event_flags=event_flag_names,
+                            )
+                            # Detect scene changes and temporal anomalies
+                            _scene_changed, _scene_sim = self._temporal_fusion.detect_scene_change()
+                            if _scene_changed:
+                                logger.debug(
+                                    "Scene change detected at frame %d (sim=%.3f)",
+                                    frame_number, _scene_sim,
+                                )
+                except Exception:
+                    logger.debug("DINOv2/Temporal Fusion stage failed", exc_info=True)
+
             # ── Stage 5: Evaluate rules (hybrid reasoning) ────────
             t_stage = time.perf_counter()
             violations = self._reasoner.evaluate_rules(
@@ -494,6 +532,20 @@ class PerceptionEngine:
             event_violations = self._events_to_violations(world_state)
             violations.extend(event_violations)
             timings["event_conversion_ms"] = (time.perf_counter() - t_stage) * 1000
+
+            # ── Stage 6l: Online Learner — novel object detection ──────
+            if self._online_learner is not None and self._dinov2_backbone is not None:
+                try:
+                    for det in detections:
+                        if det.embedding is not None:
+                            is_novel, novelty_score = self._online_learner.detect_novel(det.embedding)
+                            if is_novel and novelty_score > 0.8:
+                                logger.debug(
+                                    "Novel object detected: label=%s, novelty=%.3f",
+                                    det.label, novelty_score,
+                                )
+                except Exception:
+                    logger.debug("Online learner stage failed", exc_info=True)
 
             # ── Stage 6b: VLM explanation for ANOMALY events ──────
             t_stage = time.perf_counter()

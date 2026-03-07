@@ -1552,6 +1552,85 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           <div id="multiAgentState" style="font-size:11px;color:var(--muted)"></div>
         </div>
 
+        <!-- Phase 31-33: オーケストレーター + カスケード -->
+        <div class="perc-card" id="percOrchestratorCard" style="display:none">
+          <div class="perc-card-title">&#x1F9E0; モデルオーケストレーター (VRAM)</div>
+          <div id="orchestratorState" style="font-size:11px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+              <span style="font-size:10px;color:var(--muted)">VRAM使用:</span>
+              <div style="flex:1;height:6px;background:rgba(255,255,255,.1);border-radius:3px;overflow:hidden">
+                <div id="orchestratorVramBar" style="height:100%;background:linear-gradient(90deg,#0d9488,#06b6d4);width:0%;transition:width .5s"></div>
+              </div>
+              <span id="orchestratorVramText" style="font-size:10px;color:var(--accent-b);white-space:nowrap">--/-- GB</span>
+            </div>
+            <div id="orchestratorModels" style="font-size:10px;color:var(--muted)">モデル未ロード</div>
+          </div>
+        </div>
+        <div class="perc-card" id="percCascadeCard" style="display:none">
+          <div class="perc-card-title">&#x26A1; カスケード検出器 (YOLO→DINO→VLM)</div>
+          <div id="cascadeState" style="font-size:11px">
+            <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:4px;text-align:center">
+              <div style="background:rgba(16,185,129,.1);border-radius:6px;padding:4px">
+                <div id="cascadeStage1Rate" style="font-size:16px;font-weight:700;color:#10b981">--%</div>
+                <div style="font-size:9px;color:var(--muted)">Stage1 YOLO</div>
+                <div id="cascadeStage1Ms" style="font-size:9px;color:var(--muted)">-- ms</div>
+              </div>
+              <div style="background:rgba(245,158,11,.1);border-radius:6px;padding:4px">
+                <div id="cascadeStage2Rate" style="font-size:16px;font-weight:700;color:#f59e0b">--%</div>
+                <div style="font-size:9px;color:var(--muted)">Stage2 DINO</div>
+                <div id="cascadeStage2Ms" style="font-size:9px;color:var(--muted)">-- ms</div>
+              </div>
+              <div style="background:rgba(239,68,68,.1);border-radius:6px;padding:4px">
+                <div id="cascadeStage3Rate" style="font-size:16px;font-weight:700;color:#ef4444">--%</div>
+                <div style="font-size:9px;color:var(--muted)">Stage3 VLM</div>
+                <div id="cascadeStage3Ms" style="font-size:9px;color:var(--muted)">-- ms</div>
+              </div>
+            </div>
+            <div id="cascadeTotalFrames" style="font-size:9px;color:var(--muted);margin-top:4px;text-align:center"></div>
+          </div>
+        </div>
+
+        <!-- Phase 35: 時系列インテリジェンス -->
+        <div class="perc-card" id="percTemporalCard" style="display:none">
+          <div class="perc-card-title">&#x23F1;&#xFE0F; 時系列インテリジェンス</div>
+          <div id="temporalState" style="font-size:11px">
+            <div style="margin-bottom:6px">
+              <span style="font-size:10px;color:var(--muted)">現在の行動:</span>
+              <span id="temporalAction" style="margin-left:6px;font-weight:700;color:#a78bfa">--</span>
+              <span id="temporalActionConf" style="margin-left:4px;font-size:10px;color:var(--muted)"></span>
+            </div>
+            <div style="display:flex;gap:8px;margin-bottom:4px">
+              <div style="flex:1;text-align:center;padding:3px;background:rgba(255,255,255,.04);border-radius:4px">
+                <div id="temporalSceneChange" style="font-size:11px;font-weight:600;color:#4ade80">安定</div>
+                <div style="font-size:9px;color:var(--muted)">シーン状態</div>
+              </div>
+              <div style="flex:1;text-align:center;padding:3px;background:rgba(255,255,255,.04);border-radius:4px">
+                <div id="temporalAnomaly" style="font-size:11px;font-weight:600;color:#4ade80">正常</div>
+                <div style="font-size:9px;color:var(--muted)">時系列異常</div>
+              </div>
+              <div style="flex:1;text-align:center;padding:3px;background:rgba(255,255,255,.04);border-radius:4px">
+                <div id="temporalBufferSize" style="font-size:11px;font-weight:600">0</div>
+                <div style="font-size:9px;color:var(--muted)">バッファ</div>
+              </div>
+            </div>
+            <div id="temporalActionBar" style="font-size:9px;color:var(--muted)"></div>
+          </div>
+        </div>
+
+        <!-- Phase 36: オンライン学習 -->
+        <div class="perc-card" id="percOnlineLearnerCard" style="display:none">
+          <div class="perc-card-title">&#x1F9EC; オンライン学習 (Few-Shot)</div>
+          <div id="onlineLearnerState" style="font-size:11px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:10px;color:var(--muted)">サンプル数:</span>
+              <span id="onlineLearnerCount" style="font-weight:700;color:#f472b6">0</span>
+              <span style="font-size:10px;color:var(--muted)">カテゴリ:</span>
+              <span id="onlineLearnerCategories" style="font-weight:700;color:#f472b6">0</span>
+            </div>
+            <div id="onlineLearnerList" style="font-size:10px;color:var(--muted)">カテゴリ未登録</div>
+          </div>
+        </div>
+
         <!-- Phase 15/16/18: 予兆検知 + 自律対応 + ヘルススコア -->
         <div class="perc-card" id="percEarlyWarningCard" style="display:none">
           <div class="perc-card-title">&#x26A0;&#xFE0F; 予兆検知 &amp; 自律対応</div>
@@ -6052,6 +6131,13 @@ async function loadPerceptionData(sessionId){
   if(_percRefreshTimer){clearInterval(_percRefreshTimer);_percRefreshTimer=null;}
   // Connect SSE for real-time events
   _sseConnect(String(sessionId));
+  // Show Phase 31-36 orchestration panels (poll will hide if not enabled)
+  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard"].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el)el.style.display="";
+  });
+  // Start orchestration panel polling
+  _startOrchestrationPoll();
   // Do an initial load
   await _percFetchAll(sessionId);
   // Schedule auto-refresh every 5 seconds
@@ -6062,11 +6148,12 @@ async function loadPerceptionData(sessionId){
 function resetPerceptionPanels(){
   _percActiveSession=null;
   if(_percRefreshTimer){clearInterval(_percRefreshTimer);_percRefreshTimer=null;}
+  _stopOrchestrationPoll();
   _sseDisconnect();
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -6085,7 +6172,7 @@ async function _percFetchAll(sessionId){
     $("perceptionStatusBar").classList.remove("active");
     $("percInactive").classList.add("show");
     $("perceptionPanels").classList.remove("show");
-    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard"].forEach(id=>{
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard"].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.style.display="none";
     });
@@ -7962,6 +8049,101 @@ function _startTrackPoll(sid){
     // Also refresh Re-ID events periodically
     refreshReidEvents();
   },3000);
+}
+
+// ─── Phase 31-36: Orchestration Intelligence Panels ───────────────────────
+let _orchPollInterval=null;
+function _startOrchestrationPoll(){
+  _stopOrchestrationPoll();
+  _orchPollInterval=setInterval(_refreshOrchestrationPanels,5000);
+  _refreshOrchestrationPanels();
+}
+function _stopOrchestrationPoll(){
+  if(_orchPollInterval){clearInterval(_orchPollInterval);_orchPollInterval=null;}
+}
+async function _refreshOrchestrationPanels(){
+  try{
+    // Orchestrator
+    const orchEl=document.getElementById("percOrchestratorCard");
+    if(orchEl&&orchEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/orchestrator/status").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){orchEl.style.display="none";}
+        else{
+          const used=d.vram_used_mb||0,budget=d.vram_budget_mb||22528;
+          const pct=Math.min(100,Math.round(used/budget*100));
+          const bar=document.getElementById("orchestratorVramBar");
+          if(bar)bar.style.width=pct+"%";
+          const txt=document.getElementById("orchestratorVramText");
+          if(txt)txt.textContent=`${(used/1024).toFixed(1)}/${(budget/1024).toFixed(0)} GB`;
+          const mods=document.getElementById("orchestratorModels");
+          if(mods&&d.models){
+            mods.innerHTML=(d.models||[]).map(m=>`<span style="margin-right:6px;color:${m.loaded?"#4ade80":"#6b7280"}">${m.loaded?"●":"○"} ${m.name}${m.loaded?" "+m.vram_estimate_mb+"MB":""}</span>`).join(" ");
+          }
+        }
+      }
+    }
+    // Cascade
+    const cascEl=document.getElementById("percCascadeCard");
+    if(cascEl&&cascEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/cascade/stats").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){cascEl.style.display="none";}
+        else{
+          const pct=v=>d.total_frames>0?Math.round(v*100)+"%" : "--%" ;
+          document.getElementById("cascadeStage1Rate").textContent=pct(d.stage1_rate||0);
+          document.getElementById("cascadeStage2Rate").textContent=pct(d.stage2_rate||0);
+          document.getElementById("cascadeStage3Rate").textContent=pct(d.stage3_rate||0);
+          document.getElementById("cascadeStage1Ms").textContent=(d.avg_stage1_ms||0).toFixed(1)+" ms";
+          document.getElementById("cascadeStage2Ms").textContent=(d.avg_stage2_ms||0).toFixed(1)+" ms";
+          document.getElementById("cascadeStage3Ms").textContent=(d.avg_stage3_ms||0).toFixed(1)+" ms";
+          document.getElementById("cascadeTotalFrames").textContent=`合計 ${d.total_frames||0} フレーム処理済`;
+        }
+      }
+    }
+    // Temporal
+    const tempEl=document.getElementById("percTemporalCard");
+    if(tempEl&&tempEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/temporal/state").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){tempEl.style.display="none";}
+        else{
+          const actions=d.current_action||{};
+          const topAction=Object.entries(actions).sort((a,b)=>b[1]-a[1])[0];
+          document.getElementById("temporalAction").textContent=topAction?topAction[0]:"--";
+          document.getElementById("temporalActionConf").textContent=topAction?`(${(topAction[1]*100).toFixed(0)}%)`:"";
+          const scEl=document.getElementById("temporalSceneChange");
+          if(scEl){scEl.textContent=d.scene_changed?"⚠ 変化あり":"安定";scEl.style.color=d.scene_changed?"#f59e0b":"#4ade80";}
+          const anEl=document.getElementById("temporalAnomaly");
+          if(anEl){anEl.textContent=d.temporal_anomaly?"⚠ 異常":"正常";anEl.style.color=d.temporal_anomaly?"#ef4444":"#4ade80";}
+          document.getElementById("temporalBufferSize").textContent=d.buffer_size||0;
+          // Top 3 actions mini bar
+          const topActions=Object.entries(actions).sort((a,b)=>b[1]-a[1]).slice(0,3);
+          document.getElementById("temporalActionBar").innerHTML=topActions.map(([k,v])=>`<span style="margin-right:8px">${k} <strong>${(v*100).toFixed(0)}%</strong></span>`).join("");
+        }
+      }
+    }
+    // Online Learner
+    const olEl=document.getElementById("percOnlineLearnerCard");
+    if(olEl&&olEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/online-learner/categories").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){olEl.style.display="none";}
+        else{
+          document.getElementById("onlineLearnerCount").textContent=d.exemplar_count||0;
+          document.getElementById("onlineLearnerCategories").textContent=(d.categories||[]).length;
+          const list=document.getElementById("onlineLearnerList");
+          if(list&&d.categories&&d.categories.length){
+            list.innerHTML=d.categories.map(c=>`<div style="margin-bottom:2px"><span style="color:#f472b6;font-weight:600">${c.category}</span> <span style="color:var(--muted)">${c.exemplar_count}件</span>${c.accuracy>0?` <span style="color:#4ade80">${(c.accuracy*100).toFixed(0)}%</span>`:""}</div>`).join("");
+          }else if(list){list.textContent="カテゴリ未登録";}
+        }
+      }
+    }
+  }catch(e){console.debug("orch panels error",e);}
 }
 
 function _stopTrackPoll(){

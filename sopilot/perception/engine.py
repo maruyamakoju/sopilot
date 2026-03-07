@@ -232,6 +232,9 @@ class PerceptionEngine:
         # Phase 36: Online Learner
         self._online_learner: Any | None = None
 
+        # Phase 37: Video Foundation Model
+        self._video_foundation: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -519,6 +522,13 @@ class PerceptionEngine:
                                 )
                 except Exception:
                     logger.debug("DINOv2/Temporal Fusion stage failed", exc_info=True)
+
+            # ── Stage 4n: Video Foundation temporal encoding ────────
+            if self._video_foundation is not None:
+                try:
+                    self._video_foundation.observe(frame, timestamp)
+                except Exception:
+                    logger.debug("Video foundation observe failed", exc_info=True)
 
             # ── Stage 5: Evaluate rules (hybrid reasoning) ────────
             t_stage = time.perf_counter()
@@ -1173,6 +1183,15 @@ class PerceptionEngine:
             return None
         try:
             return self._online_learner.get_stats()
+        except Exception:
+            return None
+
+    def get_video_foundation_state(self) -> dict | None:
+        """Return video foundation model state (Phase 37)."""
+        if self._video_foundation is None:
+            return None
+        try:
+            return self._video_foundation.get_stats()
         except Exception:
             return None
 
@@ -2503,6 +2522,26 @@ def build_perception_engine(
             logger.debug("Online learner module not available")
         except Exception:
             logger.exception("Failed to initialize OnlineLearner")
+
+    # ── Phase 37: Video Foundation Model (optional) ───────────────────────
+    if config.video_foundation_enabled:
+        try:
+            from sopilot.perception.video_foundation import build_video_foundation, VideoTemporalAnalyzer
+            _vf_backend = build_video_foundation(
+                backend=config.video_foundation_backend,
+                orchestrator=orchestrator,
+                device=config.device,
+            )
+            engine._video_foundation = VideoTemporalAnalyzer(
+                backend=_vf_backend,
+                buffer_size=config.video_foundation_buffer_size,
+                orchestrator=orchestrator,
+            )
+            logger.info("VideoTemporalAnalyzer initialized (backend=%s)", config.video_foundation_backend)
+        except ImportError:
+            logger.debug("Video foundation module not available")
+        except Exception:
+            logger.exception("Failed to initialize VideoTemporalAnalyzer")
 
     # Apply Phase 6 components (set after construction to keep __init__ clean)
     engine._nl_task_manager = nl_task_manager

@@ -563,3 +563,8 @@ class PerceptionConfig:
     online_learning_enabled: bool = False     # enable deployment-adaptive few-shot learning
     online_learning_distance_threshold: float = 0.65  # novelty detection threshold
     online_learning_min_exemplars: int = 3    # min exemplars before prediction
+
+    # Phase 37: Video Foundation Model
+    video_foundation_enabled: bool = False        # enable video foundation model
+    video_foundation_backend: str = "mock"        # "vjepa", "internvideo", "mock"
+    video_foundation_buffer_size: int = 16        # frames in temporal buffer

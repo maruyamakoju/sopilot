@@ -241,6 +241,15 @@ class PerceptionEngine:
         # Phase 39: Grounding DINO 1.5
         self._grounding_dino_15: Any | None = None
 
+        # Phase 40: Incident Intelligence
+        self._incident_reporter: Any | None = None
+
+        # Phase 41: Federated Re-ID
+        self._federated_reid: Any | None = None
+
+        # Phase 42: Edge Optimizer
+        self._edge_optimizer: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -562,6 +571,17 @@ class PerceptionEngine:
                                 )
                 except Exception:
                     logger.debug("Online learner stage failed", exc_info=True)
+
+            # ── Stage 6m: Incident Reporter — autonomous report + webhook ──
+            if self._incident_reporter is not None and violations:
+                try:
+                    _session = getattr(self, "_session_id", None) or "cam01"
+                    for v in violations:
+                        self._incident_reporter.report_violation(
+                            v, frame, world_state, _session
+                        )
+                except Exception:
+                    logger.debug("Incident reporter stage failed", exc_info=True)
 
             # ── Stage 6b: VLM explanation for ANOMALY events ──────
             t_stage = time.perf_counter()
@@ -1219,6 +1239,33 @@ class PerceptionEngine:
         except Exception:
             return None
 
+    def get_incident_reporter_state(self) -> dict | None:
+        """Return incident reporter stats (Phase 40)."""
+        if self._incident_reporter is None:
+            return None
+        try:
+            return self._incident_reporter.get_stats()
+        except Exception:
+            return None
+
+    def get_federated_reid_state(self) -> dict | None:
+        """Return federated Re-ID store stats (Phase 41)."""
+        if self._federated_reid is None:
+            return None
+        try:
+            return self._federated_reid.get_stats()
+        except Exception:
+            return None
+
+    def get_edge_optimizer_state(self) -> dict | None:
+        """Return edge optimizer stats (Phase 42)."""
+        if self._edge_optimizer is None:
+            return None
+        try:
+            return self._edge_optimizer.get_stats()
+        except Exception:
+            return None
+
     def reset(self) -> None:
         """Reset all stateful components to their initial state.
 
@@ -1324,6 +1371,13 @@ class PerceptionEngine:
         if self._grounding_dino_15 is not None:
             try:
                 self._grounding_dino_15.close()
+            except (AttributeError, Exception):
+                pass
+
+        # Phase 40: Incident reporter (flush persisted log)
+        if self._incident_reporter is not None:
+            try:
+                self._incident_reporter._save()
             except (AttributeError, Exception):
                 pass
 
@@ -2638,6 +2692,73 @@ def build_perception_engine(
             logger.debug("Grounding DINO 1.5 module not available")
         except Exception:
             logger.exception("Failed to initialize Grounding DINO 1.5")
+
+    # ── Phase 40: Incident Reporter (optional) ────────────────────────────
+    if config.incident_reporting_enabled:
+        try:
+            from sopilot.perception.incident_reporter import IncidentReporter
+            from sopilot.perception.webhook_client import build_webhook_client
+
+            _webhook_urls = [
+                u.strip()
+                for u in config.incident_webhook_urls.split(",")
+                if u.strip()
+            ]
+            _webhook = build_webhook_client(_webhook_urls) if _webhook_urls else None
+            engine._incident_reporter = IncidentReporter(
+                llava_client=engine._llava_client if config.incident_use_llava else None,
+                webhook_client=_webhook,
+                cooldown_seconds=config.incident_cooldown_seconds,
+                min_severity=config.incident_min_severity,
+                persist_path=Path("data/incidents.json"),
+            )
+            logger.info(
+                "IncidentReporter initialized (webhooks=%d, llava=%s)",
+                len(_webhook_urls),
+                config.incident_use_llava,
+            )
+        except ImportError:
+            logger.debug("Incident reporter module not available")
+        except Exception:
+            logger.exception("Failed to initialize IncidentReporter")
+
+    # ── Phase 41: Federated Re-ID (optional) ──────────────────────────────
+    if config.federated_reid_enabled:
+        try:
+            from sopilot.perception.federated_reid import FederatedReIDStore
+
+            _session_id = session_id or "cam01"
+            engine._federated_reid = FederatedReIDStore(
+                privacy_epsilon=config.federated_reid_epsilon,
+                privacy_delta=config.federated_reid_delta,
+                camera_id=_session_id,
+                persist_path=Path(f"data/federated_reid_{_session_id}.json"),
+            )
+            logger.info(
+                "FederatedReIDStore initialized (ε=%.2f, δ=%.0e, camera=%s)",
+                config.federated_reid_epsilon,
+                config.federated_reid_delta,
+                _session_id,
+            )
+        except ImportError:
+            logger.debug("Federated Re-ID module not available")
+        except Exception:
+            logger.exception("Failed to initialize FederatedReIDStore")
+
+    # ── Phase 42: Edge Optimizer (optional) ───────────────────────────────
+    if config.edge_optimization_enabled:
+        try:
+            from sopilot.perception.edge_optimizer import EdgeOptimizer, EdgeProfile
+
+            _edge_profile = EdgeProfile.for_device(config.edge_device_profile)
+            engine._edge_optimizer = EdgeOptimizer(_edge_profile)
+            logger.info(
+                "EdgeOptimizer initialized (device=%s)", config.edge_device_profile
+            )
+        except ImportError:
+            logger.debug("Edge optimizer module not available")
+        except Exception:
+            logger.exception("Failed to initialize EdgeOptimizer")
 
     # Apply Phase 6 components (set after construction to keep __init__ clean)
     engine._nl_task_manager = nl_task_manager

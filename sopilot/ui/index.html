@@ -1686,6 +1686,62 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           </div>
         </div>
 
+        <!-- Phase 40: Incident Intelligence -->
+        <div class="perc-card" id="percIncidentCard" style="display:none">
+          <div class="perc-card-title">&#x1F6A8; インシデント自動報告 (Phase 40)</div>
+          <div style="font-size:11px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+              <span style="font-size:10px;color:var(--muted)">総報告数:</span>
+              <span id="incidentTotal" style="font-weight:700;color:#f87171">0</span>
+              <span style="font-size:10px;color:var(--muted)">Webhook:</span>
+              <span id="incidentWebhook" style="font-weight:700;color:#4ade80">-</span>
+            </div>
+            <div id="incidentList" style="font-size:9px;max-height:80px;overflow-y:auto;color:var(--muted)">インシデントなし</div>
+          </div>
+        </div>
+
+        <!-- Phase 41: Federated Re-ID -->
+        <div class="perc-card" id="percFederatedReIDCard" style="display:none">
+          <div class="perc-card-title">&#x1F310; 連合Re-ID + DP (Phase 41)</div>
+          <div style="font-size:11px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:10px;color:var(--muted)">ローカル:</span>
+              <span id="fedLocalCount" style="font-weight:700;color:#60a5fa">0</span>
+              <span style="font-size:10px;color:var(--muted)">インポート:</span>
+              <span id="fedImportCount" style="font-weight:700;color:#60a5fa">0</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:9px;color:var(--muted)">ε残余:</span>
+              <span id="fedEpsilonRemaining" style="font-weight:700;color:#fbbf24;font-size:9px">-</span>
+              <span style="font-size:9px;color:var(--muted)">σノイズ:</span>
+              <span id="fedNoiseSigma" style="font-weight:700;color:#fbbf24;font-size:9px">-</span>
+            </div>
+            <div id="fedPeerCameras" style="font-size:9px;color:var(--muted)">接続カメラなし</div>
+          </div>
+        </div>
+
+        <!-- Phase 42: Edge Deployment -->
+        <div class="perc-card" id="percEdgeCard" style="display:none">
+          <div class="perc-card-title">&#x26A1; エッジ展開最適化 (Phase 42)</div>
+          <div style="font-size:11px">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+              <span style="font-size:10px;color:var(--muted)">デバイス:</span>
+              <span id="edgeDevice" style="font-weight:700;color:#c084fc">-</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">目標FPS</div>
+                <div id="edgeTargetFPS" style="font-weight:700;color:#c084fc">-</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
+                <div style="font-size:9px;color:var(--muted)">最大遅延</div>
+                <div id="edgeMaxLatency" style="font-weight:700;color:#c084fc">-</div>
+              </div>
+            </div>
+            <div id="edgeExports" style="font-size:9px;color:var(--muted);margin-top:4px">ONNXエクスポート: 0件</div>
+          </div>
+        </div>
+
         <!-- Phase 15/16/18: 予兆検知 + 自律対応 + ヘルススコア -->
         <div class="perc-card" id="percEarlyWarningCard" style="display:none">
           <div class="perc-card-title">&#x26A0;&#xFE0F; 予兆検知 &amp; 自律対応</div>
@@ -6187,7 +6243,7 @@ async function loadPerceptionData(sessionId){
   // Connect SSE for real-time events
   _sseConnect(String(sessionId));
   // Show Phase 31-39 orchestration panels (poll will hide if not enabled)
-  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard"].forEach(id=>{
+  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="";
   });
@@ -6208,7 +6264,7 @@ function resetPerceptionPanels(){
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -6227,7 +6283,7 @@ async function _percFetchAll(sessionId){
     $("perceptionStatusBar").classList.remove("active");
     $("percInactive").classList.add("show");
     $("perceptionPanels").classList.remove("show");
-    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard"].forEach(id=>{
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard"].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.style.display="none";
     });
@@ -8239,6 +8295,66 @@ async function _refreshOrchestrationPanels(){
           if(al)al.textContent=d.avg_latency_ms!=null?d.avg_latency_ms.toFixed(0)+" ms":"-";
           const ad=document.getElementById("gdAvgDets");
           if(ad)ad.textContent=d.avg_detections_per_frame!=null?d.avg_detections_per_frame.toFixed(1):"-";
+        }
+      }
+    }
+    // Phase 40: Incident Reporter
+    const incEl=document.getElementById("percIncidentCard");
+    if(incEl&&incEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/incidents?limit=5").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){incEl.style.display="none";}
+        else{
+          const tot=document.getElementById("incidentTotal");
+          if(tot)tot.textContent=d.total_reports||0;
+          const wh=document.getElementById("incidentWebhook");
+          if(wh)wh.textContent=d.webhook_enabled?"有効":"なし";
+          const list=document.getElementById("incidentList");
+          if(list&&d.incidents&&d.incidents.length){
+            list.innerHTML=d.incidents.map(inc=>`<div style="margin-bottom:3px;padding:2px 4px;border-left:2px solid ${inc.severity==='critical'?'#ef4444':inc.severity==='warning'?'#f59e0b':'#60a5fa'}"><span style="color:#e2e8f0;font-weight:600">${inc.violation_type||"違反"}</span> <span style="color:var(--muted)">${inc.created_at}</span></div>`).join("");
+          }else if(list){list.textContent="インシデントなし";}
+        }
+      }
+    }
+    // Phase 41: Federated Re-ID
+    const fedEl=document.getElementById("percFederatedReIDCard");
+    if(fedEl&&fedEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/federated-reid/stats").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){fedEl.style.display="none";}
+        else{
+          const lc=document.getElementById("fedLocalCount");
+          if(lc)lc.textContent=d.local_embeddings||0;
+          const ic=document.getElementById("fedImportCount");
+          if(ic)ic.textContent=d.imported_embeddings||0;
+          const pb=d.privacy_budget||{};
+          const er=document.getElementById("fedEpsilonRemaining");
+          if(er)er.textContent=pb.remaining_budget!=null?pb.remaining_budget.toFixed(3):"-";
+          const ns=document.getElementById("fedNoiseSigma");
+          if(ns)ns.textContent=pb.noise_scale!=null?"σ="+pb.noise_scale.toFixed(3):"-";
+          const pc=document.getElementById("fedPeerCameras");
+          if(pc)pc.textContent=(d.peer_cameras||[]).length>0?"接続: "+(d.peer_cameras||[]).join(", "):"接続カメラなし";
+        }
+      }
+    }
+    // Phase 42: Edge Optimizer
+    const edgeEl=document.getElementById("percEdgeCard");
+    if(edgeEl&&edgeEl.style.display!=="none"){
+      const r=await fetch("/vigil/perception/edge/profile").catch(()=>null);
+      if(r&&r.ok){
+        const d=await r.json();
+        if(d.enabled===false){edgeEl.style.display="none";}
+        else{
+          const dev=document.getElementById("edgeDevice");
+          if(dev)dev.textContent=d.device||"-";
+          const tfps=document.getElementById("edgeTargetFPS");
+          if(tfps)tfps.textContent=(d.target_fps||"-")+" FPS";
+          const ml=document.getElementById("edgeMaxLatency");
+          if(ml)ml.textContent=(d.max_latency_ms||"-")+" ms";
+          const exp=document.getElementById("edgeExports");
+          if(exp)exp.textContent=`ONNXエクスポート: ${d.exports_done||0}件`;
         }
       }
     }

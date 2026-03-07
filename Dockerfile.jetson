@@ -1,0 +1,102 @@
+# SOPilot — Jetson Orin ARM64 Docker Image
+#
+# Base: NVIDIA L4T PyTorch (JetPack 6.x, CUDA 12.2, Python 3.11)
+# Target: NVIDIA Jetson AGX Orin (12 GB LPDDR5)
+#
+# Build:
+#   docker buildx build --platform linux/arm64 -t sopilot:jetson -f Dockerfile.jetson .
+#
+# Run:
+#   docker run --runtime nvidia --gpus all -p 8000:8000 sopilot:jetson
+
+FROM nvcr.io/nvidia/l4t-pytorch:r36.2.0-pth2.1-py3
+
+LABEL maintainer="SOPilot <noreply@sopilot.ai>" \
+      description="SOPilot Perception Engine — Jetson Orin (ARM64/CUDA)" \
+      version="5.0.0"
+
+# --------------------------------------------------------------------------
+# System dependencies
+# --------------------------------------------------------------------------
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3-pip \
+    python3-dev \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    libgomp1 \
+    git \
+    wget \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# --------------------------------------------------------------------------
+# Python dependencies
+# --------------------------------------------------------------------------
+WORKDIR /app
+
+COPY requirements.txt ./requirements.txt
+
+# Install CPU/CUDA packages; skip torch (already in base image)
+RUN pip3 install --no-cache-dir --upgrade pip && \
+    pip3 install --no-cache-dir \
+        fastapi==0.115.0 \
+        uvicorn[standard]==0.32.0 \
+        pydantic==2.9.2 \
+        numpy \
+        opencv-python-headless \
+        pillow \
+        aiofiles \
+        httpx \
+        onnxruntime-gpu \
+    && pip3 install --no-cache-dir \
+        "tensorrt>=10.0,<11.0" || true
+
+# TorchVision for Jetson (build from source or install wheel)
+# For JetPack 6 / L4T r36.x: use the prebuilt wheel from Jetson Zoo
+RUN pip3 install --no-cache-dir \
+    "https://pypi.ngc.nvidia.com/torchvision/torchvision-0.18.0a0+6a2ee7a-cp311-cp311-linux_aarch64.whl" || \
+    pip3 install --no-cache-dir torchvision || true
+
+# --------------------------------------------------------------------------
+# Copy application
+# --------------------------------------------------------------------------
+COPY sopilot/ ./sopilot/
+COPY data/ ./data/
+COPY scripts/ ./scripts/
+
+# --------------------------------------------------------------------------
+# ONNX model export (pre-deploy step, optional)
+# --------------------------------------------------------------------------
+# Uncomment to export models at image build time:
+# RUN python3 scripts/export_edge_models.py --device jetson_orin --output /app/models/
+
+# --------------------------------------------------------------------------
+# Environment
+# --------------------------------------------------------------------------
+ENV SOPILOT_DATABASE_URL="" \
+    SOPILOT_ENV="production" \
+    SOPILOT_LOG_LEVEL="INFO" \
+    PERCEPTION_ENGINE_ENABLED="true" \
+    EDGE_DEVICE_PROFILE="jetson_orin" \
+    CUDA_VISIBLE_DEVICES="0" \
+    OMP_NUM_THREADS="4" \
+    PYTHONPATH="/app"
+
+# --------------------------------------------------------------------------
+# Health check
+# --------------------------------------------------------------------------
+HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+    CMD curl -f http://localhost:8000/health || exit 1
+
+# --------------------------------------------------------------------------
+# Expose port + run
+# --------------------------------------------------------------------------
+EXPOSE 8000
+
+CMD ["python3", "-m", "uvicorn", "sopilot.main:app", \
+     "--host", "0.0.0.0", "--port", "8000", \
+     "--workers", "1", "--loop", "uvloop", "--http", "h11"]

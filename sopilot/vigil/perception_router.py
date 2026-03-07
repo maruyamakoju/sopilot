@@ -2399,4 +2399,92 @@ def build_perception_router() -> APIRouter:
             return {"enabled": False, "message": "Grounding DINO 1.5 not initialized (grounding_dino_15_enabled=False)"}
         return {"enabled": True, **state}
 
+    # ── Phase 40: Incident Intelligence ────────────────────────────────
+
+    @router.get("/incidents")
+    async def get_incidents(request: Request, limit: int = 20) -> dict:
+        """インシデント一覧 — 直近の自動生成インシデントレポート。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_incident_reporter_state()
+        if state is None:
+            return {"enabled": False, "message": "Incident reporter not initialized (incident_reporting_enabled=False)"}
+        def _get():
+            incidents = engine._incident_reporter.get_recent_incidents(limit=limit)
+            return {"enabled": True, **state, "incidents": incidents}
+        return await run_in_threadpool(_get)
+
+    @router.post("/incidents/webhook/test")
+    async def test_webhook(request: Request) -> dict:
+        """Webhook疎通確認 — 設定済みWebhookにテスト送信。"""
+        engine = _get_perception_engine(request)
+        if engine._incident_reporter is None:
+            raise HTTPException(status_code=404, detail="Incident reporter not initialized")
+        webhook = engine._incident_reporter._webhook
+        if webhook is None:
+            return {"status": "no_webhook", "message": "Webhook not configured"}
+        body = await request.json() if request.headers.get("content-type", "").startswith("application/json") else {}
+        url = body.get("url", "")
+        def _test():
+            if url:
+                return webhook.test_webhook(url)
+            return {"status": "ok", "message": "No URL provided for test"}
+        return await run_in_threadpool(_test)
+
+    # ── Phase 41: Federated Re-ID ───────────────────────────────────────
+
+    @router.get("/federated-reid/stats")
+    async def get_federated_reid_stats(request: Request) -> dict:
+        """連合Re-ID — プライバシー予算・カメラ間統計。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_federated_reid_state()
+        if state is None:
+            return {"enabled": False, "message": "Federated Re-ID not initialized (federated_reid_enabled=False)"}
+        return {"enabled": True, **state}
+
+    @router.post("/federated-reid/export")
+    async def export_federated_embeddings(request: Request) -> dict:
+        """差分プライバシー付き埋め込みをエクスポート — 他カメラへの共有用。"""
+        engine = _get_perception_engine(request)
+        if engine._federated_reid is None:
+            raise HTTPException(status_code=404, detail="Federated Re-ID not initialized")
+        def _export():
+            try:
+                return engine._federated_reid.export_private()
+            except RuntimeError as e:
+                raise HTTPException(status_code=429, detail=str(e))
+        return await run_in_threadpool(_export)
+
+    @router.post("/federated-reid/import")
+    async def import_federated_embeddings(request: Request) -> dict:
+        """他カメラからエクスポートされた埋め込みをインポート。"""
+        engine = _get_perception_engine(request)
+        if engine._federated_reid is None:
+            raise HTTPException(status_code=404, detail="Federated Re-ID not initialized")
+        body = await request.json()
+        source_camera = body.get("source_camera", "unknown")
+        def _import():
+            count = engine._federated_reid.import_from_camera(source_camera, body)
+            return {"imported": count, "source_camera": source_camera}
+        return await run_in_threadpool(_import)
+
+    # ── Phase 42: Edge Optimizer ────────────────────────────────────────
+
+    @router.get("/edge/profile")
+    async def get_edge_profile(request: Request) -> dict:
+        """エッジ最適化 — デバイスプロファイル・最適化推奨。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_edge_optimizer_state()
+        if state is None:
+            return {"enabled": False, "message": "Edge optimizer not initialized (edge_optimization_enabled=False)"}
+        optimizer = engine._edge_optimizer
+        def _get():
+            return {
+                "enabled": True,
+                **state,
+                "device_profile": optimizer._profile.to_dict(),
+                "quantization_int8": optimizer.generate_quantization_config("int8"),
+                "quantization_fp16": optimizer.generate_quantization_config("fp16"),
+            }
+        return await run_in_threadpool(_get)
+
     return router

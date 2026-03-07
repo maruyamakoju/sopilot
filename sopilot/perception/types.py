@@ -580,3 +580,19 @@ class PerceptionConfig:
     grounding_dino_15_variant: str = "1.5-pro"   # "1.5-pro", "1.5-edge", "1.0"
     grounding_dino_box_threshold: float = 0.35   # box confidence threshold
     grounding_dino_text_threshold: float = 0.25  # text alignment threshold
+
+    # Phase 40: Incident Intelligence
+    incident_reporting_enabled: bool = False      # enable autonomous incident reports
+    incident_webhook_urls: str = ""               # comma-separated webhook URLs
+    incident_cooldown_seconds: float = 300.0      # min seconds between same violation type
+    incident_min_severity: str = "warning"        # "info", "warning", "critical"
+    incident_use_llava: bool = True               # use LLaVA for description when available
+
+    # Phase 41: Federated Re-ID (Differential Privacy)
+    federated_reid_enabled: bool = False          # enable DP cross-camera Re-ID federation
+    federated_reid_epsilon: float = 1.0           # privacy budget ε (lower = more private)
+    federated_reid_delta: float = 1e-5            # DP failure probability δ
+
+    # Phase 42: Edge Deployment
+    edge_optimization_enabled: bool = False       # enable EdgeOptimizer
+    edge_device_profile: str = "jetson_orin"      # "jetson_orin", "jetson_nano", "rpi5_coral", "x86_cpu"

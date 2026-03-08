@@ -672,3 +672,14 @@ class PerceptionConfig:
     multi_agent_entity_merge_distance: float = 0.1  # spatial distance for cross-camera entity merge
     multi_agent_agent_timeout_seconds: float = 30.0  # inactive agent timeout
 
+    # Phase 53: Causal Inference Engine
+    causal_inference_enabled: bool = False         # enable CausalInferenceEngine (Granger + DAG)
+    causal_inference_window_seconds: float = 60.0  # primary Granger window
+    causal_inference_min_strength: float = 0.25    # minimum edge strength to include in DAG
+    causal_inference_min_samples: int = 3          # minimum co-occurrence samples
+
+    # Phase 54: Long-Horizon Safety Planner
+    safety_planner_enabled: bool = False           # enable SafetyPlanner
+    safety_planner_horizon_seconds: float = 3600.0 # default planning horizon (1 hour)
+    safety_planner_max_plans: int = 20             # maximum concurrent plans
+

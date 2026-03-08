@@ -2469,6 +2469,189 @@ def build_perception_router() -> APIRouter:
         except ImportError:
             return {"ok": False}
 
+    # ── Phase 53: Causal Inference Engine ──────────────────────────────────
+
+    @router.get("/causal/inference/stats")
+    async def get_causal_inference_stats(request: Request) -> dict:
+        """因果推論エンジン — バッファ統計・発見済みエッジ数 (Phase 53)。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_causal_inference_state()
+        if state is None:
+            return {"enabled": False, "message": "CausalInferenceEngine not initialized (causal_inference_enabled=False)"}
+        return {"enabled": True, **state}
+
+    @router.get("/causal/inference/graph")
+    async def get_causal_graph(request: Request) -> dict:
+        """因果グラフ — Granger因果エッジ一覧 (Phase 53)。"""
+        engine = _get_perception_engine(request)
+        cie = getattr(engine, "_causal_inference_engine", None)
+        if cie is None:
+            return {"enabled": False, "edges": []}
+        def _get():
+            edges = cie.compute_causal_graph(force=False)
+            return {
+                "enabled": True,
+                "edge_count": len(edges),
+                "edges": [e.to_dict() for e in edges],
+                "event_types": cie.get_event_types(),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.post("/causal/inference/intervention")
+    async def query_causal_intervention(request: Request) -> dict:
+        """介入シミュレーション — 指定イベント防止時の連鎖効果を推定 (Phase 53)。
+
+        Request body: {"prevent_event": "PPE未着用", "camera_id": "cam01"}
+        """
+        engine = _get_perception_engine(request)
+        cie = getattr(engine, "_causal_inference_engine", None)
+        if cie is None:
+            return {"enabled": False, "message": "CausalInferenceEngine not initialized"}
+        body = await request.json()
+        prevent_event = body.get("prevent_event", "")
+        camera_id = body.get("camera_id")
+        if not prevent_event:
+            return {"error": "prevent_event is required"}
+        def _query():
+            result = cie.query_intervention(prevent_event=prevent_event, camera_id=camera_id)
+            return {"enabled": True, "result": result.to_dict()}
+        return await run_in_threadpool(_query)
+
+    @router.post("/causal/inference/observe")
+    async def observe_causal_event(request: Request) -> dict:
+        """イベントを因果推論バッファに追加 (Phase 53)。
+
+        Request body: {"event_type": "PPE未着用", "camera_id": "cam01", "confidence": 0.9}
+        """
+        engine = _get_perception_engine(request)
+        cie = getattr(engine, "_causal_inference_engine", None)
+        if cie is None:
+            return {"enabled": False, "message": "CausalInferenceEngine not initialized"}
+        body = await request.json()
+        event_type = body.get("event_type", "")
+        camera_id = body.get("camera_id", "api")
+        confidence = float(body.get("confidence", 1.0))
+        if not event_type:
+            return {"error": "event_type is required"}
+        cie.observe(event_type=event_type, camera_id=camera_id, confidence=confidence)
+        return {"ok": True, "event_type": event_type, "camera_id": camera_id}
+
+    # ── Phase 54: Long-Horizon Safety Planner ──────────────────────────────
+
+    @router.get("/planner/stats")
+    async def get_planner_stats(request: Request) -> dict:
+        """安全プランナー統計 (Phase 54)。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_safety_planner_state()
+        if state is None:
+            return {"enabled": False, "message": "SafetyPlanner not initialized (safety_planner_enabled=False)"}
+        return {"enabled": True, **state}
+
+    @router.post("/planner/goals")
+    async def submit_planner_goal(request: Request) -> dict:
+        """安全目標を提出してプランを生成 (Phase 54)。
+
+        Request body::
+
+            {
+              "description": "倉庫エリアのPPEコンプライアンスを確保",
+              "priority": 2,
+              "camera_ids": ["cam01", "cam02"],
+              "horizon_seconds": 3600
+            }
+        """
+        engine = _get_perception_engine(request)
+        planner = getattr(engine, "_safety_planner", None)
+        if planner is None:
+            return {"enabled": False, "message": "SafetyPlanner not initialized"}
+        body = await request.json()
+        description = body.get("description", "")
+        if not description:
+            return {"error": "description is required"}
+        priority = int(body.get("priority", 2))
+        camera_ids = body.get("camera_ids") or None
+        horizon_seconds = body.get("horizon_seconds")
+        def _submit():
+            plan_id = planner.submit_goal(
+                description=description,
+                priority=priority,
+                camera_ids=camera_ids,
+                horizon_seconds=float(horizon_seconds) if horizon_seconds else None,
+            )
+            plan = planner.get_plan(plan_id)
+            return {"ok": True, "plan_id": plan_id, "plan": plan.to_dict() if plan else None}
+        return await run_in_threadpool(_submit)
+
+    @router.get("/planner/plans")
+    async def get_planner_plans(request: Request, status: str = "all", limit: int = 20) -> dict:
+        """プラン一覧 (Phase 54)。status: all | running | completed | expired"""
+        engine = _get_perception_engine(request)
+        planner = getattr(engine, "_safety_planner", None)
+        if planner is None:
+            return {"enabled": False, "plans": []}
+        def _get():
+            if status == "running":
+                plans = planner.get_active_plans()
+            else:
+                plans = planner.get_all_plans(limit=limit)
+            return {"enabled": True, "count": len(plans), "plans": [p.to_dict() for p in plans]}
+        return await run_in_threadpool(_get)
+
+    @router.get("/planner/plans/{plan_id}")
+    async def get_planner_plan(request: Request, plan_id: str) -> dict:
+        """特定プランの詳細 (Phase 54)。"""
+        engine = _get_perception_engine(request)
+        planner = getattr(engine, "_safety_planner", None)
+        if planner is None:
+            return {"enabled": False, "message": "SafetyPlanner not initialized"}
+        plan = planner.get_plan(plan_id)
+        if plan is None:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=404, detail=f"Plan {plan_id} not found")
+        return {"enabled": True, "plan": plan.to_dict()}
+
+    @router.post("/planner/plans/{plan_id}/cancel")
+    async def cancel_planner_plan(request: Request, plan_id: str) -> dict:
+        """プランをキャンセル (Phase 54)。"""
+        engine = _get_perception_engine(request)
+        planner = getattr(engine, "_safety_planner", None)
+        if planner is None:
+            return {"enabled": False, "message": "SafetyPlanner not initialized"}
+        def _cancel():
+            ok = planner.cancel_plan(plan_id)
+            return {"ok": ok, "plan_id": plan_id}
+        return await run_in_threadpool(_cancel)
+
+    @router.get("/planner/tasks")
+    async def get_planner_tasks(request: Request, camera_id: str | None = None) -> dict:
+        """保留中・実行中のサブタスク一覧 (Phase 54)。"""
+        engine = _get_perception_engine(request)
+        planner = getattr(engine, "_safety_planner", None)
+        if planner is None:
+            return {"enabled": False, "tasks": []}
+        def _get():
+            tasks = planner.get_pending_tasks(camera_id=camera_id)
+            return {"enabled": True, "count": len(tasks), "tasks": [t.to_dict() for t in tasks]}
+        return await run_in_threadpool(_get)
+
+    @router.post("/planner/tasks/{task_id}/complete")
+    async def complete_planner_task(request: Request, task_id: str) -> dict:
+        """タスク完了を報告 (Phase 54)。
+
+        Request body: {"success": true, "result": {…}}
+        """
+        engine = _get_perception_engine(request)
+        planner = getattr(engine, "_safety_planner", None)
+        if planner is None:
+            return {"enabled": False, "message": "SafetyPlanner not initialized"}
+        body = await request.json()
+        success = bool(body.get("success", True))
+        result = body.get("result")
+        def _complete():
+            ok = planner.report_task_complete(task_id=task_id, success=success, result=result)
+            return {"ok": ok, "task_id": task_id, "success": success}
+        return await run_in_threadpool(_complete)
+
     # ── Phase 31: Model Orchestrator Status ────────────────────────────
 
     @router.get("/orchestrator/status")

@@ -276,6 +276,12 @@ class PerceptionEngine:
         # Phase 52: Multi-Agent Coordinator
         self._multi_agent_coordinator: Any | None = None
 
+        # Phase 53: Causal Inference Engine
+        self._causal_inference_engine: Any | None = None
+
+        # Phase 54: Long-Horizon Safety Planner
+        self._safety_planner: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -720,6 +726,40 @@ class PerceptionEngine:
                     self._multi_agent_coordinator.heartbeat(_cam)
                 except Exception:
                     logger.debug("Multi-agent stage failed", exc_info=True)
+
+            # ── Stage 6q: Causal Inference Engine — buffer all violations ──
+            if self._causal_inference_engine is not None:
+                try:
+                    _cam = getattr(self, "_session_id", None) or "cam"
+                    for v in violations:
+                        self._causal_inference_engine.observe(
+                            v.rule if hasattr(v, "rule") else str(v),
+                            camera_id=_cam,
+                            confidence=float(v.confidence) if hasattr(v, "confidence") else 1.0,
+                        )
+                    for ev in world_state.events:
+                        if hasattr(ev, "event_type") and hasattr(ev.event_type, "name"):
+                            self._causal_inference_engine.observe(
+                                ev.event_type.name, camera_id=_cam
+                            )
+                except Exception:
+                    logger.debug("Causal inference stage failed", exc_info=True)
+
+            # ── Stage 6r: Safety Planner — tick with current violations ──
+            if self._safety_planner is not None:
+                try:
+                    _cam = getattr(self, "_session_id", None) or "cam"
+                    _obs = {
+                        "violations": [
+                            v.rule if hasattr(v, "rule") else str(v)
+                            for v in violations
+                        ],
+                        "camera_id": _cam,
+                        "timestamp": frame_ts,
+                    }
+                    self._safety_planner.tick(_obs)
+                except Exception:
+                    logger.debug("Safety planner stage failed", exc_info=True)
 
             # ── Convert Hazards to Violations (Urgency integration) ──
             if hasattr(self, "_last_hazards") and self._last_hazards:
@@ -1534,6 +1574,24 @@ class PerceptionEngine:
             return None
         try:
             return self._multi_agent_coordinator.get_state_dict()
+        except Exception:
+            return None
+
+    def get_causal_inference_state(self) -> dict | None:
+        """Return causal inference engine stats (Phase 53)."""
+        if self._causal_inference_engine is None:
+            return None
+        try:
+            return self._causal_inference_engine.get_stats()
+        except Exception:
+            return None
+
+    def get_safety_planner_state(self) -> dict | None:
+        """Return safety planner stats (Phase 54)."""
+        if self._safety_planner is None:
+            return None
+        try:
+            return self._safety_planner.get_stats()
         except Exception:
             return None
 
@@ -3286,6 +3344,36 @@ def build_perception_engine(
             logger.debug("multi_agent module not available")
         except Exception:
             logger.exception("Failed to initialize MultiAgentCoordinator")
+
+    # ── Phase 53: Causal Inference Engine (optional) ───────────────────────
+    if getattr(config, "causal_inference_enabled", False):
+        try:
+            from sopilot.perception.causal_inference import CausalInferenceEngine
+            engine._causal_inference_engine = CausalInferenceEngine(
+                window_seconds=getattr(config, "causal_inference_window_seconds", 60.0),
+                min_granger_strength=getattr(config, "causal_inference_min_strength", 0.25),
+                min_samples=getattr(config, "causal_inference_min_samples", 3),
+            )
+            logger.info("CausalInferenceEngine initialized (window=%.0fs)", config.causal_inference_window_seconds)
+        except ImportError:
+            logger.debug("causal_inference module not available")
+        except Exception:
+            logger.exception("Failed to initialize CausalInferenceEngine")
+
+    # ── Phase 54: Safety Planner (optional) ────────────────────────────────
+    if getattr(config, "safety_planner_enabled", False):
+        try:
+            from sopilot.perception.safety_planner import SafetyPlanner
+            engine._safety_planner = SafetyPlanner(
+                default_horizon_seconds=getattr(config, "safety_planner_horizon_seconds", 3600.0),
+                max_plans=getattr(config, "safety_planner_max_plans", 20),
+                causal_engine=engine._causal_inference_engine,
+            )
+            logger.info("SafetyPlanner initialized (horizon=%.0fs)", config.safety_planner_horizon_seconds)
+        except ImportError:
+            logger.debug("safety_planner module not available")
+        except Exception:
+            logger.exception("Failed to initialize SafetyPlanner")
 
     # Apply Phase 6 components (set after construction to keep __init__ clean)
     engine._nl_task_manager = nl_task_manager

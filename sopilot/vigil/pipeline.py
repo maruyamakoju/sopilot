@@ -29,6 +29,7 @@ def _fire_webhook(
     event_id: int,
     timestamp: float,
     violations_above_threshold: list[dict],
+    deliberation: dict | None = None,
 ) -> None:
     """Fire a webhook notification for a violation event in a daemon thread."""
     row = repo.get_session(session_id)
@@ -44,15 +45,23 @@ def _fire_webhook(
     if not should_fire:
         return
 
+    urgency = deliberation.get("urgency", "LOW") if deliberation else "LOW"
+    action_ja = deliberation.get("action_ja", "") if deliberation else ""
+
     def _fire() -> None:
         try:
             httpx.post(
                 webhook_url,
                 json={
+                    "event": "violation",
                     "session_id": session_id,
                     "event_id": event_id,
                     "timestamp_sec": timestamp,
+                    "severity": violations_above_threshold[0].get("severity", "warning"),
+                    "urgency": urgency,
+                    "action_ja": action_ja,
                     "violations": violations_above_threshold,
+                    "iot_trigger": urgency in ("HIGH", "CRITICAL"),
                 },
                 timeout=5,
             )
@@ -164,6 +173,7 @@ class VigilPipeline:
         event_id: int,
         timestamp_sec: float,
         violations: list[dict],
+        deliberation: dict | None = None,
     ) -> None:
         """Dispatch violation to all registered global webhooks (fire-and-forget).
 
@@ -184,16 +194,27 @@ class VigilPipeline:
                 default=None,
             )
             severity = top_sev.get("severity", "warning") if top_sev else "warning"
+            
+            # Incorporate Urgency and Action from deliberation
+            urgency = deliberation.get("urgency", "LOW") if deliberation else "LOW"
+            action_ja = deliberation.get("action_ja", "") if deliberation else ""
+            confidence = deliberation.get("overall_confidence", 0.0) if deliberation else 0.0
+
             from datetime import UTC, datetime
             payload = {
                 "event": "violation",
                 "session_id": session_id,
                 "event_id": event_id,
                 "severity": severity,
+                "urgency": urgency,
+                "confidence": confidence,
+                "action_ja": action_ja,
                 "timestamp_sec": timestamp_sec,
                 "violations": violations,
+                "deliberation": deliberation,
                 "timestamp": datetime.now(UTC).isoformat(),
                 "source": "sopilot-vigil",
+                "iot_trigger": urgency in ("HIGH", "CRITICAL"), # IoT trigger flag
             }
             self._webhook_dispatcher.dispatch_violation(payload, webhooks, self._webhook_repo)
         except Exception:
@@ -254,15 +275,16 @@ class VigilPipeline:
                             frame_number=frame_num,
                             violations=filtered,
                             frame_path=str(frame_path),
+                            deliberation=result.deliberation,
                         )
                         violation_count += len(filtered)
                         logger.info(
                             "vigil rtsp session=%d  frame=%d  ts=%.1fs  violations=%d",
                             session_id, frame_num, ts_sec, len(filtered),
                         )
-                        _fire_webhook(self._repo, session_id, event_id, ts_sec, filtered)
+                        _fire_webhook(self._repo, session_id, event_id, ts_sec, filtered, result.deliberation)
                         self._dispatch_global_webhooks(
-                            session_id, event_id, ts_sec, filtered
+                            session_id, event_id, ts_sec, filtered, result.deliberation
                         )
 
             self._repo.update_session_status(
@@ -340,15 +362,16 @@ class VigilPipeline:
                             frame_number=frame_num,
                             violations=filtered,
                             frame_path=str(frame_path),
+                            deliberation=result.deliberation,
                         )
                         violation_count += len(filtered)
                         logger.info(
                             "vigil session=%d  frame=%d  ts=%.1fs  violations=%d",
                             session_id, frame_num, ts_sec, len(filtered),
                         )
-                        _fire_webhook(self._repo, session_id, event_id, ts_sec, filtered)
+                        _fire_webhook(self._repo, session_id, event_id, ts_sec, filtered, result.deliberation)
                         self._dispatch_global_webhooks(
-                            session_id, event_id, ts_sec, filtered
+                            session_id, event_id, ts_sec, filtered, result.deliberation
                         )
 
             self._repo.update_session_status(

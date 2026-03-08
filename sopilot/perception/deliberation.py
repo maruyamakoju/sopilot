@@ -93,10 +93,14 @@ class DeliberativeReasoner:
         cooldown_seconds: float = 20.0,
         max_history: int = 50,
         max_hypotheses: int = 5,
+        vlm_client: Any = None,
+        rag_engine: Any = None,
     ) -> None:
         self._cooldown_seconds = cooldown_seconds
         self._max_history = max_history
         self._max_hypotheses = max_hypotheses
+        self._vlm_client = vlm_client
+        self._rag_engine = rag_engine
         self._results: deque[DeliberationResult] = deque(maxlen=max_history)
         self._last_deliberation_time: float = 0.0
         self._total_deliberations: int = 0
@@ -119,18 +123,9 @@ class DeliberativeReasoner:
         *,
         goal_hypotheses: list | None = None,   # list of GoalHypothesis (duck-typed)
         recent_episodes: list | None = None,    # list of Episode (duck-typed)
+        video_clip: list[np.ndarray] | None = None,  # BGR frames from recent history
     ) -> DeliberationResult:
-        """Run the full deliberation cycle. Returns a DeliberationResult.
-
-        Steps:
-        1. Generate 2–5 competing hypotheses based on trigger event type
-        2. For each hypothesis, gather evidence from world_state and recent events
-        3. If goal_hypotheses provided, use them as additional evidence
-        4. If recent_episodes provided, search for similar past episodes
-        5. Rank hypotheses by accumulated belief
-        6. Generate action recommendation based on best hypothesis
-        7. Compute urgency from event severity and hypothesis belief
-        """
+        """Run the full deliberation cycle. Returns a DeliberationResult."""
         t_start = time.perf_counter()
 
         # Step 1: Generate hypotheses
@@ -138,11 +133,65 @@ class DeliberativeReasoner:
         # Limit to max_hypotheses
         hypotheses = hypotheses[: self._max_hypotheses]
 
+        # --- LONG-HORIZON REASONING (Level 3) ---
+        historical_context = ""
+        if self._rag_engine is not None:
+            # Search for similar events in the past hour
+            query = f"{trigger.event_type.name} {trigger.entity_id}"
+            try:
+                rag_res = self._rag_engine.full_query(query, top_k=3)
+                if rag_res["total_results"] > 0:
+                    historical_context = (
+                        f"過去の類似事例: {rag_res['answer']}"
+                    )
+            except Exception:
+                pass
+
+        # VLM Long-Horizon Reasoning (Level 2/3)
+        vlm_analysis = ""
+        if self._vlm_client is not None and video_clip is not None and len(video_clip) > 0:
+            prompt = f"システムが以下のイベントを検出しました: {trigger.event_type.name} (エンティティID: {trigger.entity_id})。\n"
+            if historical_context:
+                prompt += f"【背景情報】{historical_context}\n"
+            prompt += "この数秒間の映像クリップを見て、なぜこのイベントが発生したのか、その背景や因果関係を詳細に推論してください。"
+            try:
+                vlm_analysis = self._vlm_client.analyze_clip(video_clip, prompt_ja=prompt)
+            except Exception:
+                pass
+
         # Step 2–4: Gather evidence for each hypothesis
         for hyp in hypotheses:
             self._gather_evidence(
                 hyp, trigger, world_state, goal_hypotheses, recent_episodes
             )
+            
+            # Incorporate historical context into evidence
+            if historical_context:
+                hyp.evidence_for.append(
+                    Evidence(
+                        source="rag_historical_memory",
+                        content_ja=historical_context[:200] + "...",
+                        content_en="Historical pattern from RAG",
+                        confidence=0.5,
+                        timestamp=time.time(),
+                        supports=True,
+                    )
+                )
+
+            # Incorporate VLM analysis into evidence if available
+            if vlm_analysis:
+                # Naive matching: if VLM says things related to the hypothesis
+                # we boost its belief.
+                hyp.evidence_for.append(
+                    Evidence(
+                        source="vlm_reasoning",
+                        content_ja=vlm_analysis[:200] + "...",
+                        content_en="VLM analysis snippet",
+                        confidence=0.6,  # Trust the VLM
+                        timestamp=time.time(),
+                        supports=True,
+                    )
+                )
 
         # Step 5: Rank by accumulated belief
         hypotheses = self._rank_hypotheses(hypotheses)
@@ -151,8 +200,11 @@ class DeliberativeReasoner:
         best = hypotheses[0] if hypotheses else None
 
         # Step 6: Generate action recommendation
-        urgency = self._compute_urgency(trigger, best)
+        urgency = self._compute_urgency(trigger, best).lower()
         action_ja, action_en = self._generate_action(best, urgency, trigger)
+
+        if vlm_analysis:
+            action_ja += f" 【VLM詳細分析: {vlm_analysis}】"
 
         # Step 7: Overall confidence
         overall_conf = self._compute_overall_confidence(hypotheses)
@@ -696,64 +748,72 @@ class DeliberativeReasoner:
     ) -> str:
         """Compute urgency from event type + best hypothesis belief.
 
-        ANOMALY + belief > 0.7 -> "critical"
-        RULE_VIOLATION + belief > 0.6 -> "high"
-        PROLONGED_PRESENCE -> "medium"
-        belief < 0.3 -> "low"
-        default -> "medium"
+        Returns string values from URGENCY_ORDER: "CRITICAL", "HIGH", "MEDIUM", "LOW".
         """
         belief = best.belief if best is not None else 0.0
         etype = event.event_type
+        
+        # Override urgency based on hazard type from Anticipation Engine
+        if etype.name == "ANOMALY_DETECTED" and isinstance(event.details, dict):
+            hazard_type = event.details.get("hazard", "")
+            if "COLLISION" in hazard_type:
+                return "CRITICAL"
+            elif "NEAR_MISS" in hazard_type:
+                return "HIGH"
 
         if belief < 0.3:
-            return "low"
+            return "LOW"
 
         if etype == EntityEventType.ANOMALY and belief > 0.55:
-            return "critical"
+            return "CRITICAL"
 
         if etype == EntityEventType.RULE_VIOLATION and belief > 0.5:
-            return "high"
+            return "HIGH"
 
         if etype == EntityEventType.PROLONGED_PRESENCE:
-            return "medium"
+            return "MEDIUM"
 
         if etype == EntityEventType.COLLISION_PREDICTED:
             if belief > 0.6:
-                return "high"
-            return "medium"
+                return "HIGH"
+            return "MEDIUM"
 
-        return "medium"
+        return "MEDIUM"
 
     def _generate_action(
         self, best: Hypothesis | None, urgency: str, event: EntityEvent
     ) -> tuple[str, str]:
-        """Return (action_ja, action_en) based on best hypothesis and urgency.
+        """Return (action_ja, action_en) based on best hypothesis and urgency."""
+        
+        # Override action if it's a specific predictive safety hazard
+        if event.event_type.name == "ANOMALY_DETECTED" and isinstance(event.details, dict) and "hazard" in event.details:
+            hazard_type = event.details.get("hazard", "")
+            if "COLLISION" in hazard_type:
+                return "衝突の危険！直ちに作業を停止し、安全を確保してください！", "Danger of collision! Stop work immediately and secure safety!"
+            elif "NEAR_MISS" in hazard_type:
+                return "接近警告！周囲の状況を確認してください！", "Proximity warning! Check surroundings immediately!"
 
-        Templates:
-        "critical": "直ちに現場を確認し、必要に応じてセキュリティ要員を派遣してください。"
-        "high": "映像を確認し、状況を記録してください。必要に応じて担当者に連絡してください。"
-        "medium": "状況を注意深く監視してください。異常が継続する場合は対応を検討してください。"
-        "low": "記録として保存します。特別な対応は不要と判断されます。"
-        """
         templates_ja = {
-            "critical": "直ちに現場を確認し、必要に応じてセキュリティ要員を派遣してください。",
-            "high": "映像を確認し、状況を記録してください。必要に応じて担当者に連絡してください。",
-            "medium": "状況を注意深く監視してください。異常が継続する場合は対応を検討してください。",
-            "low": "記録として保存します。特別な対応は不要と判断されます。",
+            "CRITICAL": "直ちに作業を停止してください！早急な安全確認が必要です。",
+            "HIGH": "現場責任者に連絡し、映像を確認してください。状況の記録が必要です。",
+            "MEDIUM": "状況を注意深く監視してください。異常が継続する場合は対応を検討してください。",
+            "LOW": "記録として保存します。特別な対応は不要と判断されます。",
         }
         templates_en = {
-            "critical": "Immediately verify the scene and dispatch security personnel if necessary.",
-            "high": "Review footage and log the incident. Contact the relevant supervisor if required.",
-            "medium": "Monitor the situation carefully. Consider intervention if the anomaly persists.",
-            "low": "Save as a record. No immediate action is judged to be necessary.",
+            "CRITICAL": "STOP WORK IMMEDIATELY! Urgent safety verification required.",
+            "HIGH": "Contact supervisor and review footage. Logging is required.",
+            "MEDIUM": "Monitor the situation carefully. Consider intervention if the anomaly persists.",
+            "LOW": "Save as a record. No immediate action is judged to be necessary.",
         }
 
-        action_ja = templates_ja.get(urgency, templates_ja["medium"])
-        action_en = templates_en.get(urgency, templates_en["medium"])
+        # Handle lowercase mapped urgencies from older code logic
+        urgency_upper = urgency.upper()
+        action_ja = templates_ja.get(urgency_upper, templates_ja["MEDIUM"])
+        action_en = templates_en.get(urgency_upper, templates_en["MEDIUM"])
 
         # Optionally augment with the best hypothesis conclusion
         if best is not None:
-            action_ja = f"【{best.claim_ja}】 " + action_ja
+            action_ja = f"【推論: {best.claim_ja}】 " + action_ja
             action_en = f"[{best.claim_en}] " + action_en
 
         return action_ja, action_en

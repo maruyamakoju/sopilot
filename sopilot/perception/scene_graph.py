@@ -383,21 +383,59 @@ def compute_spatial_relations(
             )
 
     # ── Containment: INSIDE / CONTAINS ──────────────────────────────────
-    if b2.contains(b1):
-        relations.append(
-            Relation(subject_id=e1.entity_id, predicate=SpatialRelation.INSIDE, object_id=e2.entity_id, confidence=round(pair_confidence, 3))
-        )
-    elif b1.contains(b2):
-        relations.append(
-            Relation(subject_id=e1.entity_id, predicate=SpatialRelation.CONTAINS, object_id=e2.entity_id, confidence=round(pair_confidence, 3))
-        )
+    if getattr(e1, "mask", None) is not None and getattr(e2, "mask", None) is not None:
+        e1_area = e1.mask.sum()
+        e2_area = e2.mask.sum()
+        intersection = (e1.mask & e2.mask).sum()
+        if e1_area > 0 and intersection / e1_area > 0.9:
+            relations.append(
+                Relation(subject_id=e1.entity_id, predicate=SpatialRelation.INSIDE, object_id=e2.entity_id, confidence=round(pair_confidence, 3))
+            )
+        elif e2_area > 0 and intersection / e2_area > 0.9:
+            relations.append(
+                Relation(subject_id=e1.entity_id, predicate=SpatialRelation.CONTAINS, object_id=e2.entity_id, confidence=round(pair_confidence, 3))
+            )
+    else:
+        if b2.contains(b1):
+            relations.append(
+                Relation(subject_id=e1.entity_id, predicate=SpatialRelation.INSIDE, object_id=e2.entity_id, confidence=round(pair_confidence, 3))
+            )
+        elif b1.contains(b2):
+            relations.append(
+                Relation(subject_id=e1.entity_id, predicate=SpatialRelation.CONTAINS, object_id=e2.entity_id, confidence=round(pair_confidence, 3))
+            )
 
     # ── Overlap: OVERLAPS ───────────────────────────────────────────────
-    iou = b1.iou(b2)
+    if getattr(e1, "mask", None) is not None and getattr(e2, "mask", None) is not None:
+        intersection = (e1.mask & e2.mask).sum()
+        union = (e1.mask | e2.mask).sum()
+        iou = intersection / union if union > 0 else 0.0
+    else:
+        iou = b1.iou(b2)
+        
     if iou >= config.scene_overlap_threshold:
         relations.append(
             Relation(subject_id=e1.entity_id, predicate=SpatialRelation.OVERLAPS, object_id=e2.entity_id, confidence=round(pair_confidence * iou, 3))
         )
+
+    # ── Depth (3D): IN_FRONT_OF / BEHIND ────────────────────────────────
+    d1 = e1.attributes.get("depth_relative")
+    d2 = e2.attributes.get("depth_relative")
+    if d1 is not None and d2 is not None:
+        depth_diff = d1 - d2
+        # Use a threshold to avoid noise, e.g., 0.1 normalized depth difference
+        depth_threshold = getattr(config, "scene_depth_threshold", 0.1)
+        if abs(depth_diff) > depth_threshold:
+            if depth_diff < 0:
+                # e1 has smaller depth value -> e1 is closer
+                relations.append(
+                    Relation(subject_id=e1.entity_id, predicate=SpatialRelation.IN_FRONT_OF, object_id=e2.entity_id, confidence=round(pair_confidence, 3))
+                )
+            else:
+                # e1 has larger depth value -> e1 is further
+                relations.append(
+                    Relation(subject_id=e1.entity_id, predicate=SpatialRelation.BEHIND, object_id=e2.entity_id, confidence=round(pair_confidence, 3))
+                )
 
     return relations
 
@@ -463,6 +501,8 @@ class SceneGraphBuilder:
         frame_shape: tuple[int, int],
         timestamp: float,
         frame_number: int,
+        spatial_mapper: Any = None,
+        camera_id: str = "cam",
     ) -> SceneGraph:
         """Build a scene graph from the current set of tracks.
 
@@ -479,6 +519,10 @@ class SceneGraphBuilder:
             Timestamp in seconds (e.g. from video clock).
         frame_number:
             Absolute frame index.
+        spatial_mapper:
+            Optional SpatialMapper instance for world-coordinate projection.
+        camera_id:
+            Source camera ID for spatial mapping.
 
         Returns
         -------
@@ -487,6 +531,24 @@ class SceneGraphBuilder:
         """
         # Step 1: Create entities from confirmed tracks.
         entities = self._create_entities(tracks, zones)
+
+        # Step 1.5: Project to world coordinates if mapper is available.
+        if spatial_mapper is not None:
+            for entity in entities:
+                # Use bottom-center of bbox for floor projection (feet/base)
+                u = (entity.bbox.x1 + entity.bbox.x2) / 2.0
+                v = entity.bbox.y2
+                world = spatial_mapper.project_point(camera_id, u, v)
+                if world:
+                    entity.world_coords = world
+                    # Also record in mapper history for heatmaps
+                    spatial_mapper.add_detection(
+                        camera_id, entity.bbox, 
+                        person_id=str(entity.entity_id),
+                        label=entity.label,
+                        confidence=entity.confidence,
+                        timestamp=timestamp
+                    )
 
         logger.debug(
             "SceneGraph frame=%d: %d entities from %d tracks",
@@ -540,6 +602,7 @@ class SceneGraphBuilder:
                 label=track.label,
                 bbox=track.bbox,
                 confidence=track.confidence,
+                mask=getattr(track, "mask", None),
                 attributes=dict(track.attributes),  # shallow copy
             )
 

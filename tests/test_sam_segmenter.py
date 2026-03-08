@@ -467,16 +467,18 @@ class TestSegmentFrame:
         ])
         dets = [_make_detection(label="person"), _make_detection(label="car")]
         result = seg.segment_frame(_make_frame(), dets)
-        # Only the first mask is valid
-        assert len(result) == 1
-        assert result[0].label == "person"
+        # Phase 51: segment_frame returns list[SegmentationMask | None] per detection
+        valid = [r for r in result if r is not None]
+        assert len(valid) == 1
+        assert valid[0].label == "person"
 
     def test_all_failures_returns_empty(self) -> None:
         seg = self._make_segmenter()
         seg._run_sam = MagicMock(return_value=[])  # type: ignore[assignment]
         dets = [_make_detection(), _make_detection()]
         result = seg.segment_frame(_make_frame(), dets)
-        assert result == []
+        # Phase 51: returns None per detection when SAM has no results
+        assert all(r is None for r in result)
 
     def test_total_frames_incremented(self) -> None:
         seg = self._make_segmenter()

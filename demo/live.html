@@ -604,6 +604,7 @@
           VigilPilot — リアルタイム安全監視
         </div>
         <div style="display:flex;align-items:center;gap:10px;">
+          <button class="btn btn-ghost btn-sm" onclick="generateDossier()" id="btn-dossier" style="border-color:rgba(124,58,237,0.3); color:#c4b5fd;">📄 AI日報生成</button>
           <div class="section-meta">
             最終更新: <span id="last-refreshed">--</span>
           </div>
@@ -642,6 +643,52 @@
         <div class="score-card"><div class="skeleton" style="width:60px;height:36px;margin:0 auto 8px;"></div><div class="skeleton" style="width:50px;height:20px;margin:0 auto;"></div></div>
       </div>
       <div id="dist-chart"></div>
+    </div>
+
+    <div class="section-sep"></div>
+
+    <!-- Section C: Floor Map (BEV) -->
+    <div id="floor-map-section">
+      <div class="section-header">
+        <div class="section-title">
+          <div class="section-icon green" style="font-size:0.8rem; background:rgba(16,185,129,0.15);">🗺</div>
+          Digital Twin — 3D空間マッピング (BEV)
+        </div>
+        <div class="section-meta">
+          リアルタイム俯瞰図 | スケール: <span id="map-scale">--</span>
+        </div>
+      </div>
+      <div style="position:relative; background:var(--bg3); border:1px solid var(--border); border-radius:12px; height:300px; overflow:hidden; display:flex; align-items:center; justify-content:center;">
+        <canvas id="floor-map-canvas" width="600" height="400" style="max-width:100%; max-height:100%;"></canvas>
+        <div id="map-no-data" style="position:absolute; font-size:0.75rem; color:var(--muted);">空間データ待機中...</div>
+      </div>
+    </div>
+
+    <div class="section-sep"></div>
+
+    <!-- Section D: SOP Analysis -->
+    <div id="sop-analysis-section">
+      <div class="section-header">
+        <div class="section-title">
+          <div class="section-icon purple" style="font-size:0.8rem; background:rgba(167,139,250,0.15);">📋</div>
+          SOP Pilot — 標準作業手順解析
+        </div>
+        <div class="section-meta" id="sop-status-meta">ステータス: 待機中</div>
+      </div>
+      <div class="card" style="border-color:rgba(167,139,250,0.2); background:rgba(167,139,250,0.03);">
+        <div id="sop-progress-container">
+          <div style="font-size:0.85rem; font-weight:700; color:var(--text); margin-bottom:10px; display:flex; justify-content:space-between;">
+            <span id="sop-current-step-name">現在の工程: ---</span>
+            <span id="sop-percent" style="color:#a78bfa;">0%</span>
+          </div>
+          <div style="height:8px; background:rgba(255,255,255,0.05); border-radius:4px; overflow:hidden; margin-bottom:15px;">
+            <div id="sop-progress-bar" style="width:0%; height:100%; background:linear-gradient(90deg, #7c3aed, #a78bfa); transition:width 0.5s ease;"></div>
+          </div>
+          <div id="sop-steps-list" style="display:flex; flex-direction:column; gap:8px;">
+            <div class="perc-empty">SOPエンジンが無効、またはデータがありません</div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Perception Engine Live Panel -->
@@ -1073,6 +1120,31 @@ function renderEvents(events, el, sessionId) {
     return;
   }
   el.innerHTML = events.map(ev => {
+    // Deliberation HTML (System 2)
+    let delibHtml = '';
+    if (ev.deliberation) {
+      const d = ev.deliberation;
+      const hyp = d.best_hypothesis;
+      const confPct = Math.round(d.overall_confidence * 100);
+      const urgencyCls = d.urgency === 'CRITICAL' ? 'badge-red' : d.urgency === 'HIGH' ? 'badge-orange' : 'badge-muted';
+      
+      delibHtml = `
+        <div style="margin-top:10px; padding:10px; background:rgba(124,58,237,0.08); border:1px solid rgba(124,58,237,0.15); border-radius:8px;">
+          <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px;">
+            <span style="font-size:0.65rem; font-weight:700; color:#a78bfa; text-transform:uppercase; letter-spacing:0.05em;">🤖 AI思考プロセス (System 2)</span>
+            <span class="badge ${urgencyCls}" style="font-size:0.6rem;">緊急度: ${d.urgency}</span>
+          </div>
+          ${hyp ? `<div style="font-size:0.78rem; font-weight:600; color:var(--text); margin-bottom:4px;">有力な仮説: ${escapeHtml(hyp.claim_ja)}</div>` : ''}
+          <div style="font-size:0.75rem; color:#c4b5fd; line-height:1.4;">推奨アクション: ${escapeHtml(d.action_ja)}</div>
+          <div style="margin-top:6px; font-size:0.68rem; color:var(--muted); display:flex; align-items:center; gap:8px;">
+            <span>推論確信度: ${confPct}%</span>
+            <div style="flex:1; height:2px; background:rgba(255,255,255,0.05); border-radius:1px;">
+              <div style="width:${confPct}%; height:2px; background:#7c3aed; border-radius:1px;"></div>
+            </div>
+          </div>
+        </div>`;
+    }
+
     return (ev.violations || []).map(v => {
       const sevIcon = v.severity === 'critical' ? '🔴' : v.severity === 'warning' ? '🟠' : '🔵';
       const sevColor = v.severity === 'critical' ? 'var(--red)' : v.severity === 'warning' ? 'var(--orange)' : '#3b82f6';
@@ -1081,24 +1153,63 @@ function renderEvents(events, el, sessionId) {
       const ackHtml = acked
         ? `<span class="ack-done">確認済み ✓</span>`
         : `<button class="ack-btn" onclick="ackEvent(${ev.event_id}, ${sessionId})">確認する</button>`;
+      
       return `
         <div class="event-row fade-in" id="erow-${ev.event_id}">
           <div class="event-sev-icon">${sevIcon}</div>
           <div class="event-body">
-            <div class="event-meta">t=${fmt(ev.timestamp_sec, 1)}s &nbsp;|&nbsp; フレーム #${ev.frame_number}</div>
-            <div class="event-rule">${escapeHtml(v.rule)}</div>
-            <div class="event-desc">${escapeHtml(v.description_ja || '')}</div>
-            <div class="conf-bar-wrap">
-              <div class="conf-bar-bg">
-                <div class="conf-bar-fill" style="width:${confPct}%;background:${sevColor};"></div>
+            <div style="display:flex; gap:12px; align-items:flex-start;">
+              ${ev.frame_url ? `
+                <div style="flex-shrink:0; width:120px; position:relative;">
+                  <img src="${SERVER}${ev.frame_url}" style="width:100%; border-radius:6px; border:1px solid var(--border); cursor:zoom-in;" onclick="window.open(this.src)">
+                  <div style="position:absolute; bottom:4px; right:4px; font-size:9px; background:rgba(0,0,0,0.6); padding:1px 4px; border-radius:3px;">#${ev.frame_number}</div>
+                </div>` : ''}
+              <div style="flex:1; min-width:0;">
+                <div class="event-meta">t=${fmt(ev.timestamp_sec, 1)}s &nbsp;|&nbsp; イベント #${ev.event_id}</div>
+                <div class="event-rule" style="font-weight:700;">${escapeHtml(v.rule)}</div>
+                <div class="event-desc">${escapeHtml(v.description_ja || '')}</div>
+                <div class="conf-bar-wrap">
+                  <div class="conf-bar-bg">
+                    <div class="conf-bar-fill" style="width:${confPct}%;background:${sevColor};"></div>
+                  </div>
+                  <span class="conf-pct">検出信頼度 ${confPct}%</span>
+                </div>
               </div>
-              <span class="conf-pct">信頼度 ${confPct}%</span>
+            </div>
+            
+            ${delibHtml}
+
+            <div style="margin-top:10px; display:flex; gap:8px; align-items:center;">
+              <span style="font-size:0.65rem; color:var(--muted);">AIを教育:</span>
+              <button class="btn btn-ghost btn-sm" style="padding:2px 8px; font-size:0.65rem; border-color:rgba(16,185,129,0.2);" onclick="sendFeedback(${ev.event_id}, true, this)">👍 正解</button>
+              <button class="btn btn-ghost btn-sm" style="padding:2px 8px; font-size:0.65rem; border-color:rgba(239,68,68,0.2);" onclick="sendFeedback(${ev.event_id}, false, this)">👎 誤検知</button>
             </div>
           </div>
           <div class="event-actions">${ackHtml}</div>
         </div>`;
     }).join('');
   }).join('');
+}
+
+// ── SEND FEEDBACK ─────────────────────────────────────────────────────────
+async function sendFeedback(eventId, confirmed, btn) {
+  try {
+    const r = await fetch(`${SERVER}/vigil/events/${eventId}/feedback`, {
+      method: 'POST',
+      headers: headers(true),
+      body: JSON.stringify({ confirmed }),
+    });
+    if (r.ok) {
+      const parent = btn.parentElement;
+      parent.innerHTML = `<span style="font-size:0.65rem; color:var(--green); font-weight:600;">フィードバックを記録しました ✓</span>`;
+      // Visual feedback: briefly highlight the whole event row
+      const row = document.getElementById(`erow-${eventId}`);
+      if (row) {
+        row.style.background = confirmed ? 'rgba(16,185,129,0.05)' : 'rgba(239,68,68,0.05)';
+        setTimeout(() => row.style.background = 'transparent', 1000);
+      }
+    }
+  } catch(e) { console.error('feedback failed', e); }
 }
 
 // ── ACKNOWLEDGE EVENT ─────────────────────────────────────────────────────
@@ -1486,10 +1597,12 @@ async function _percFetchAll() {
     if (!stateR.ok) { stopPercPolling(); return; }
     const state = await stateR.json();
     _percUpdateStatusBar(state);
-    const [narrRes, actRes, predRes] = await Promise.allSettled([
+    const [narrRes, actRes, predRes, mapRes, sopRes] = await Promise.allSettled([
       fetch(`${SERVER}/vigil/perception/narration`, {method:'POST', headers: headers(true), body: JSON.stringify({style: _percNarrStyle, language:'ja'})}),
       fetch(`${SERVER}/vigil/perception/activities`, {headers: headers(false)}),
       fetch(`${SERVER}/vigil/perception/predictions`, {headers: headers(false)}),
+      fetch(`${SERVER}/vigil/perception/spatial/map`, {headers: headers(false)}),
+      fetch(`${SERVER}/vigil/perception/sop/state`, {headers: headers(false)}),
     ]);
     if (narrRes.status==='fulfilled' && narrRes.value.ok) {
       const d = await narrRes.value.json();
@@ -1503,7 +1616,142 @@ async function _percFetchAll() {
       const d = await predRes.value.json();
       _percRenderPredictions(d);
     }
+    if (mapRes.status==='fulfilled' && mapRes.value.ok) {
+      const d = await mapRes.value.json();
+      _renderFloorMap(d);
+    }
+    if (sopRes.status==='fulfilled' && sopRes.value.ok) {
+      const d = await sopRes.value.json();
+      _renderSOPState(d);
+    }
   } catch(e) { console.warn('perception fetch', e); }
+}
+
+function _renderSOPState(data) {
+  const listEl = document.getElementById('sop-steps-list');
+  const barEl = document.getElementById('sop-progress-bar');
+  const pctEl = document.getElementById('sop-percent');
+  const currentNameEl = document.getElementById('sop-current-step-name');
+  const statusMeta = document.getElementById('sop-status-meta');
+
+  if (!data || !data.enabled || !data.steps || data.steps.length === 0) {
+    listEl.innerHTML = '<div class="perc-empty">SOPデータ待機中...</div>';
+    return;
+  }
+
+  // Update Progress
+  const pct = Math.round(data.percent_complete);
+  barEl.style.width = `${pct}%`;
+  pctEl.textContent = `${pct}%`;
+  statusMeta.textContent = `ステータス: ${pct === 100 ? '全行程完了' : '進行中'}`;
+  
+  if (data.action_suggestion) {
+    currentNameEl.textContent = data.action_suggestion;
+  }
+
+  // Update Steps List
+  listEl.innerHTML = data.steps.map(s => {
+    const icon = s.is_completed ? '✅' : (s.is_current ? '➡️' : '⚪');
+    const color = s.is_completed ? 'var(--green)' : (s.is_current ? '#a78bfa' : 'var(--muted)');
+    const weight = s.is_current ? '700' : '400';
+    return `
+      <div style="display:flex; align-items:center; gap:10px; font-size:0.75rem; color:${color}; font-weight:${weight};">
+        <span>${icon}</span>
+        <span style="flex:1;">${s.name}</span>
+        <span style="font-size:0.65rem; opacity:0.7;">${s.description}</span>
+      </div>`;
+  }).join('');
+}
+
+function _renderFloorMap(data) {
+  const canvas = document.getElementById('floor-map-canvas');
+  const ctx = canvas.getContext('2d');
+  const noData = document.getElementById('map-no-data');
+  const scaleEl = document.getElementById('map-scale');
+  
+  if (!data || !data.floor) {
+    noData.style.display = 'block';
+    return;
+  }
+  noData.style.display = 'none';
+  scaleEl.textContent = `${data.floor.width_m}m × ${data.floor.height_m}m`;
+
+  const w = canvas.width;
+  const h = canvas.height;
+  const fw = data.floor.width_m;
+  const fh = data.floor.height_m;
+  const scale = Math.min(w / fw, h / fh) * 0.9;
+  const offsetX = (w - fw * scale) / 2;
+  const offsetY = (h - fh * scale) / 2;
+
+  // Clear
+  ctx.clearRect(0, 0, w, h);
+
+  // Draw Grid
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 1;
+  for (let x = 0; x <= fw; x += 2) {
+    ctx.beginPath();
+    ctx.moveTo(offsetX + x * scale, offsetY);
+    ctx.lineTo(offsetX + x * scale, offsetY + fh * scale);
+    ctx.stroke();
+  }
+  for (let y = 0; y <= fh; y += 2) {
+    ctx.beginPath();
+    ctx.moveTo(offsetX, offsetY + y * scale);
+    ctx.lineTo(offsetX + fw * scale, offsetY + y * scale);
+    ctx.stroke();
+  }
+
+  // Draw Boundary
+  ctx.strokeStyle = 'rgba(0,212,255,0.3)';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(offsetX, offsetY, fw * scale, fh * scale);
+
+  // Draw Heatmap (Occupancy Grid)
+  if (data.occupancy_grid && data.occupancy_grid.data) {
+    const grid = data.occupancy_grid.data;
+    const rows = data.occupancy_grid.rows;
+    const cols = data.occupancy_grid.cols;
+    const cw = (fw * scale) / cols;
+    const ch = (fh * scale) / rows;
+
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const val = grid[r][c];
+        if (val > 0.01) {
+          ctx.fillStyle = `rgba(124,58,237, ${val * 0.4})`;
+          ctx.fillRect(offsetX + c * cw, offsetY + r * ch, cw, ch);
+        }
+      }
+    }
+  }
+
+  // Draw Points (Live Entities)
+  if (data.points) {
+    data.points.forEach(p => {
+      const px = offsetX + p.world_x * scale;
+      const py = offsetY + p.world_y * scale;
+      const isPerson = p.label.toLowerCase() === 'person';
+      
+      // Point
+      ctx.fillStyle = isPerson ? 'var(--cyan)' : 'var(--orange)';
+      ctx.beginPath();
+      ctx.arc(px, py, 4, 0, Math.PI * 2);
+      ctx.fill();
+      
+      // Glow
+      ctx.shadowBlur = 10;
+      ctx.shadowColor = isPerson ? 'var(--cyan)' : 'var(--orange)';
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Label
+      ctx.fillStyle = 'rgba(255,255,255,0.8)';
+      ctx.font = '9px var(--mono)';
+      ctx.fillText(`ID:${p.person_id}`, px + 6, py + 3);
+    });
+  }
 }
 
 function _percUpdateStatusBar(state) {
@@ -1570,6 +1818,30 @@ async function runPercQuery() {
     answer.textContent = d.answer || '—';
   } catch(e) {
     answer.textContent = 'エラー: ' + e.message;
+  }
+}
+
+// ── GENERATE DOSSIER ──────────────────────────────────────────────────────
+async function generateDossier() {
+  const btn = document.getElementById('btn-dossier');
+  if (!btn) return;
+  btn.disabled = true;
+  const originalText = btn.textContent;
+  btn.textContent = '生成中...';
+  
+  try {
+    const r = await fetch(`${SERVER}/vigil/dossier/generate`, {
+      method: 'POST',
+      headers: headers(false)
+    });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    alert(`日報が生成されました:\n${d.report_path}`);
+  } catch(e) {
+    alert('日報の生成に失敗しました: ' + e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalText;
   }
 }
 

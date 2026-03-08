@@ -141,11 +141,28 @@ class TrajectoryHazardAnalyzer:
         frame_number: int = 0,
         timestamp: float = 0.0,
     ) -> HazardAssessment | None:
-        """Assess collision risk between two entities."""
-        pos_a = (_cx(entity_a), _cy(entity_a))
-        pos_b = (_cx(entity_b), _cy(entity_b))
-
-        dist = math.hypot(pos_b[0] - pos_a[0], pos_b[1] - pos_a[1])
+        """Assess collision risk between two entities.
+        
+        Prioritizes world coordinates (metres) if available on both entities.
+        """
+        world_a = getattr(entity_a, "world_coords", None)
+        world_b = getattr(entity_b, "world_coords", None)
+        
+        using_world = world_a is not None and world_b is not None
+        
+        if using_world:
+            pos_a = world_a
+            pos_b = world_b
+            # For world coords, we expect velocities to be in m/frame or similar
+            # If not available, we use the estimated pixel-velocity scaled roughly
+            dist = math.hypot(pos_b[0] - pos_a[0], pos_b[1] - pos_a[1])
+            # Threshold in metres (e.g. 2.0m)
+            collision_dist = 2.0 
+        else:
+            pos_a = (_cx(entity_a), _cy(entity_a))
+            pos_b = (_cx(entity_b), _cy(entity_b))
+            dist = math.hypot(pos_b[0] - pos_a[0], pos_b[1] - pos_a[1])
+            collision_dist = self.collision_distance_norm
 
         speed_a = math.hypot(*vel_a)
         speed_b = math.hypot(*vel_b)
@@ -154,20 +171,22 @@ class TrajectoryHazardAnalyzer:
 
         ttc = self.compute_ttc(pos_a, vel_a, pos_b, vel_b)
 
-        if ttc is None and dist > self.collision_distance_norm * 3:
+        if ttc is None and dist > collision_dist * 3:
             return None
 
         if ttc is not None and ttc <= self.ttc_horizon_s:
             hazard_type = HAZARD_COLLISION if ttc < 2.0 else HAZARD_NEAR_MISS
             probability = min(1.0, (self.ttc_horizon_s - ttc) / self.ttc_horizon_s)
             severity = _ttc_severity(ttc)
-            desc = f"衝突リスク: {_label(entity_a)}と{_label(entity_b)} TTC={ttc:.1f}s"
-        elif dist <= self.collision_distance_norm:
+            unit = "m" if using_world else "px"
+            desc = f"衝突リスク: {_label(entity_a)}と{_label(entity_b)} TTC={ttc:.1f}s (距離={dist:.1f}{unit})"
+        elif dist <= collision_dist:
             hazard_type = HAZARD_NEAR_MISS
             probability = 0.6
             severity = SEVERITY_WARNING
             ttc = None
-            desc = f"接近警告: {_label(entity_a)}と{_label(entity_b)} 距離={dist:.3f}"
+            unit = "m" if using_world else "px"
+            desc = f"接近警告: {_label(entity_a)}と{_label(entity_b)} 距離={dist:.2f}{unit}"
         else:
             return None
 
@@ -182,7 +201,12 @@ class TrajectoryHazardAnalyzer:
             description_ja=desc,
             frame_number=frame_number,
             timestamp=timestamp,
-            details={"dist": round(dist, 4), "speed_a": round(speed_a, 4), "speed_b": round(speed_b, 4)},
+            details={
+                "dist": round(dist, 4), 
+                "speed_a": round(speed_a, 4), 
+                "speed_b": round(speed_b, 4),
+                "using_world_coords": using_world
+            },
         )
 
     def analyze_zone_boundary(
@@ -335,12 +359,17 @@ class AnticipationEngine:
             # Update velocity estimates
             velocities: dict[int, tuple[float, float]] = {}
             for ent in entities:
-                cx, cy = _cx(ent), _cy(ent)
-                # Use details vx/vy if available, else estimate from position delta
-                vx = ent.details.get("vx", None) if hasattr(ent, "details") else None
-                vy = ent.details.get("vy", None) if hasattr(ent, "details") else None
-                if vx is None or vy is None:
-                    vx, vy = self._velocity_estimator.update(_eid(ent), cx, cy)
+                # Use world coordinates for more accurate velocity estimation if available
+                world_pos = getattr(ent, "world_coords", None)
+                if world_pos is not None:
+                    vx, vy = self._velocity_estimator.update(_eid(ent), world_pos[0], world_pos[1])
+                else:
+                    cx, cy = _cx(ent), _cy(ent)
+                    # Use details vx/vy if available, else estimate from position delta
+                    vx = ent.details.get("vx", None) if hasattr(ent, "details") else None
+                    vy = ent.details.get("vy", None) if hasattr(ent, "details") else None
+                    if vx is None or vy is None:
+                        vx, vy = self._velocity_estimator.update(_eid(ent), cx, cy)
                 velocities[_eid(ent)] = (float(vx), float(vy))
 
             # Pairwise collision analysis (O(N^2), N typically < 50)

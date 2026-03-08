@@ -441,7 +441,7 @@ class TestRepositoryWebhookMethods(unittest.TestCase):
         self.repo.set_webhook(sid, "https://example.com/wh", "warning")
         result = self.repo.get_webhook(sid)
         self.assertIsNotNone(result)
-        url, min_sev = result  # type: ignore[misc]
+        url, min_sev = result[0], result[1]  # type: ignore[misc]
         self.assertEqual(url, "https://example.com/wh")
         self.assertEqual(min_sev, "warning")
 

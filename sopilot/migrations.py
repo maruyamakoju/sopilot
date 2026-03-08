@@ -144,6 +144,21 @@ MIGRATIONS: list[Migration] = [
         CREATE INDEX IF NOT EXISTS idx_vigil_sessions_group ON vigil_sessions(camera_group_id);
         """,
     ),
+    Migration(
+        version=10,
+        description="VigilPilot: add deliberation_json to vigil_events",
+        sql="""
+        ALTER TABLE vigil_events ADD COLUMN deliberation_json TEXT;
+        """,
+    ),
+    Migration(
+        version=11,
+        description="VigilPilot: add min_urgency to vigil_sessions and vigil_webhooks for IoT/Action triggering",
+        sql="""
+        ALTER TABLE vigil_sessions ADD COLUMN webhook_min_urgency TEXT DEFAULT 'LOW';
+        ALTER TABLE vigil_webhooks ADD COLUMN min_urgency TEXT DEFAULT 'LOW';
+        """,
+    ),
 ]
 
 

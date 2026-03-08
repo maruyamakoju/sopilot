@@ -1,20 +1,20 @@
-"""Phase 12B: 自動シフトレポート (Automated Shift Report).
+"""Vigil Shift Report + Daily Dossier Generator.
 
-ShiftReportGenerator は vigil セッション + 学習状態から
-構造化レポートを生成する。
+Phase 12B: Session-based ShiftReport (ShiftReportGenerator)
+Phase 51: Date-based daily dossier (generate_daily_dossier)
 
-レポート内容:
-    - セッション概要 (期間、総イベント数、severity 別件数)
-    - 検知パターン (detector 別、rule 別 top-10)
-    - 学習進捗 (FP率、sigma 調整数、ドリフト検出、再調整)
-    - 推奨アクション (ルールベース、自動生成)
+Aggregates events, VLM deliberations, and spatial map history into unified
+management reports.
 """
 
 from __future__ import annotations
 
+import json
 import time
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import datetime, UTC, timedelta
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
@@ -22,7 +22,7 @@ if TYPE_CHECKING:
 
 
 # ---------------------------------------------------------------------------
-# Data classes
+# Data classes (Phase 12B)
 # ---------------------------------------------------------------------------
 
 
@@ -107,7 +107,7 @@ class ShiftReport:
 
 
 # ---------------------------------------------------------------------------
-# Generator
+# Generator (Phase 12B)
 # ---------------------------------------------------------------------------
 
 
@@ -127,16 +127,7 @@ class ShiftReportGenerator:
         anomaly_tuner: Any | None = None,
         review_queue: Any | None = None,
     ) -> ShiftReport:
-        """ShiftReport を生成して返す。
-
-        Args:
-            session_id:   vigil セッション ID。
-            vigil_repo:   VigilRepository インスタンス。
-            engine:       PerceptionEngine (オプション、学習状態取得用)。
-            sigma_tuner:  SigmaTuner (オプション)。
-            anomaly_tuner: AnomalyTuner (オプション)。
-            review_queue: ReviewQueue (オプション)。
-        """
+        """ShiftReport を生成して返す。"""
         # ── Session metadata ─────────────────────────────────────────
         session = vigil_repo.get_session(session_id)
         if session is None:
@@ -151,14 +142,9 @@ class ShiftReportGenerator:
         duration: float | None = None
         if created_at and updated_at:
             try:
-                from datetime import datetime
-                fmt = "%Y-%m-%dT%H:%M:%S.%f%z"
-                try:
-                    t0 = datetime.fromisoformat(created_at)
-                    t1 = datetime.fromisoformat(updated_at)
-                    duration = (t1 - t0).total_seconds()
-                except Exception:
-                    pass
+                t0 = datetime.fromisoformat(created_at)
+                t1 = datetime.fromisoformat(updated_at)
+                duration = (t1 - t0).total_seconds()
             except Exception:
                 pass
 
@@ -166,7 +152,6 @@ class ShiftReportGenerator:
         events = vigil_repo.list_events(session_id)
         total_events = len(events)
 
-        # severity counts
         sev_counter: Counter = Counter()
         rule_counter: Counter = Counter()
         detector_counter: Counter = Counter()
@@ -180,7 +165,6 @@ class ShiftReportGenerator:
                     rule_counter[rule] += 1
                 det = (viol.get("evidence") or {}).get("detector", "")
                 if not det:
-                    # check source
                     src = viol.get("source", "")
                     if src in ("anomaly", "pose"):
                         det = src
@@ -193,14 +177,12 @@ class ShiftReportGenerator:
             for rule, count in rule_counter.most_common(10)
         ]
 
-        # Detector summaries (without FP/TP here; filled from tuner below)
         detector_summaries: dict[str, DetectorSummary] = {
             det: DetectorSummary(detector=det, event_count=count)
             for det, count in detector_counter.most_common(8)
         }
 
         # ── Learning state ───────────────────────────────────────────
-        # Try engine first
         tuner_stats: dict[str, Any] = {}
         sigma_state: dict[str, Any] = {}
         al_state: dict[str, Any] = {}
@@ -219,7 +201,6 @@ class ShiftReportGenerator:
             if review_queue is None:
                 review_queue = getattr(engine, "_review_queue", None)
 
-        # Fallback to direct object calls
         if not tuner_stats and anomaly_tuner is not None:
             try:
                 tuner_stats = anomaly_tuner.get_stats()
@@ -238,19 +219,16 @@ class ShiftReportGenerator:
         drift_events = al_state.get("drift_count", 0)
         recalibrations = al_state.get("recalibration_count", 0)
 
-        # Fill FP/TP per detector from pair_stats
         for ps in tuner_stats.get("pair_stats", []):
             det = ps.get("detector", "")
             if det in detector_summaries:
                 detector_summaries[det].fp_count += ps.get("denied", 0)
                 detector_summaries[det].tp_count += ps.get("confirmed", 0)
 
-        # Sigma snapshot
         det_sigmas: dict[str, float] = {}
         for det, info in sigma_state.get("detector_sigmas", {}).items():
             det_sigmas[det] = info.get("current_sigma", sigma_state.get("base_sigma", 2.0))
 
-        # Review queue stats
         rq_pending = rq_confirmed = rq_denied = 0
         if review_queue is not None:
             try:
@@ -261,7 +239,6 @@ class ShiftReportGenerator:
             except Exception:
                 pass
 
-        # ── Recommendations ──────────────────────────────────────────
         recommendations = _build_recommendations(
             events_by_severity=events_by_severity,
             tuner_stats=tuner_stats,
@@ -309,12 +286,10 @@ def _build_recommendations(
 ) -> list[str]:
     recs: list[str] = []
 
-    # Critical events
     crit = events_by_severity.get("critical", 0)
     if crit >= 5:
         recs.append(f"重大な違反が {crit} 件検出されました。現場確認を推奨します。")
 
-    # High FP rate per detector
     for ds in detector_summaries:
         if ds.fp_rate >= 0.7 and (ds.fp_count + ds.tp_count) >= 5:
             recs.append(
@@ -322,20 +297,16 @@ def _build_recommendations(
                 f" sigma 閾値が自動引き上げ中です。"
             )
 
-    # Sigma adjustments
     adj = sigma_state.get("total_adjustments", 0)
     if adj >= 3:
         recs.append(f"sigma が {adj} 回自動調整されました。安定稼働しています。")
 
-    # Concept drift
     if drift_events >= 2:
         recs.append(f"概念ドリフトが {drift_events} 回検出されました。プロファイル再保存を検討してください。")
 
-    # Pending reviews
     if review_pending >= 5:
         recs.append(f"確認待ちの異常が {review_pending} 件あります。レビューキューの確認を推奨します。")
 
-    # Low total feedback
     total_fb = tuner_stats.get("total_feedback", 0)
     if total_fb == 0:
         recs.append("フィードバックが 0 件です。オペレーターのレビューで学習精度が向上します。")
@@ -346,3 +317,91 @@ def _build_recommendations(
         recs.append("異常なし。システムは正常稼働中です。")
 
     return recs
+
+
+# ---------------------------------------------------------------------------
+# Daily Dossier (Phase 51)
+# ---------------------------------------------------------------------------
+
+
+def generate_daily_dossier(
+    repo: Any,
+    date_str: str | None = None,
+    output_dir: Path | None = None,
+) -> str:
+    """Generate a markdown report for a specific day.
+
+    Aggregates events, VLM deliberations, and spatial map history into a
+    unified management report saved as markdown.
+
+    Args:
+        repo: VigilRepository instance.
+        date_str: Date in 'YYYY-MM-DD' format (defaults to today UTC).
+        output_dir: Directory to save the report (defaults to results/reports/).
+
+    Returns:
+        Path to the generated markdown file.
+    """
+    if not output_dir:
+        output_dir = Path("results/reports")
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    if not date_str:
+        date_str = datetime.now(UTC).strftime("%Y-%m-%d")
+
+    start_time = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=UTC)
+    end_time = start_time + timedelta(days=1)
+
+    report_md = f"# SOPilot 現場安全レポート: {date_str}\n\n"
+    report_md += "## 本日のサマリー\n\n"
+
+    with repo._connect() as conn:
+        total_events = conn.execute(
+            "SELECT COUNT(*) FROM vigil_events WHERE created_at >= ? AND created_at < ?",
+            (start_time.isoformat(), end_time.isoformat()),
+        ).fetchone()[0]
+
+        report_md += f"- **総違反・警告件数:** {total_events}件\n"
+
+        if total_events == 0:
+            report_md += "\n本日は記録された違反や警告はありませんでした。素晴らしい安全記録です！\n"
+        else:
+            report_md += "\n## 重大なインシデント (Urgency: CRITICAL / HIGH)\n\n"
+
+            rows = conn.execute(
+                "SELECT * FROM vigil_events WHERE created_at >= ? AND created_at < ?"
+                " ORDER BY timestamp_sec DESC",
+                (start_time.isoformat(), end_time.isoformat()),
+            ).fetchall()
+
+            for row in rows:
+                d = dict(row)
+                d["violations"] = json.loads(d.pop("violations_json", "[]"))
+                delib_str = d.pop("deliberation_json", None)
+                d["deliberation"] = json.loads(delib_str) if delib_str else None
+
+                delib = d.get("deliberation")
+                if delib and delib.get("urgency") in ("CRITICAL", "HIGH"):
+                    hyp = delib.get("best_hypothesis", {}).get("claim_ja", "不明な仮説")
+                    act = delib.get("action_ja", "")
+                    rule = (
+                        d["violations"][0].get("rule", "不明なルール")
+                        if d["violations"]
+                        else "不明"
+                    )
+                    time_fmt = datetime.fromisoformat(d["created_at"]).strftime("%H:%M:%S")
+
+                    report_md += f"### 🕒 {time_fmt} - {rule}\n"
+                    report_md += f"- **AIの推論 (System 2):** {hyp}\n"
+                    report_md += f"- **推奨アクション:** {act}\n"
+                    report_md += f"- **緊急度:** `{delib.get('urgency')}`\n"
+                    report_md += (
+                        f"- **ステータス:** "
+                        f"{'✅ 確認済み' if d.get('acknowledged_at') else '⚠️ 未確認'}\n\n"
+                    )
+
+    report_md += "\n---\n*このレポートは SOPilot Perception Engine によって自動生成されました。*\n"
+
+    out_path = output_dir / f"dossier_{date_str}.md"
+    out_path.write_text(report_md, encoding="utf-8")
+    return str(out_path)

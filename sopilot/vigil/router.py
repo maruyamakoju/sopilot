@@ -125,6 +125,7 @@ def _row_to_webhook(row: dict) -> WebhookResponse:
         url=row["url"],
         name=row["name"] or "",
         min_severity=row["min_severity"],
+        min_urgency=row.get("min_urgency", "LOW"),
         enabled=bool(row["enabled"]),
         created_at=row["created_at"],
         last_triggered_at=row.get("last_triggered_at"),
@@ -155,6 +156,7 @@ def _row_to_event(row: dict) -> ViolationEvent:
         timestamp_sec=row["timestamp_sec"],
         frame_number=row["frame_number"],
         violations=[ViolationDetail(**v) for v in row["violations"]],
+        deliberation=DeliberationDetail(**row["deliberation"]) if row.get("deliberation") else None,
         frame_url=(
             f"/vigil/events/{row['id']}/frame"
             if row.get("frame_path") and Path(row["frame_path"]).exists()
@@ -166,27 +168,27 @@ def _row_to_event(row: dict) -> ViolationEvent:
     )
 
 
-def _annotate_frame_with_bboxes(
+def _annotate_frame(
     frame_path: Path,
-    bbox_groups: list[tuple[list, str, str]],
+    violation_groups: list[dict],
 ) -> bytes:
-    """Draw bounding boxes on a JPEG frame and return annotated JPEG bytes.
+    """Draw bounding boxes and masks on a JPEG frame and return annotated JPEG bytes.
 
     Parameters
     ----------
     frame_path:
         Path to the source JPEG frame.
-    bbox_groups:
-        List of (bboxes, rule_text, severity) tuples.
-        bboxes: [[x1,y1,x2,y2], ...] in 0-1000 normalized scale.
+    violation_groups:
+        List of violation dicts containing 'bboxes', 'mask_128', 'rule', 'severity'.
     """
     from io import BytesIO
-
-    from PIL import Image, ImageDraw, ImageFont
+    import numpy as np
+    from PIL import Image, ImageDraw, ImageFont, ImageFilter
 
     img = Image.open(frame_path).convert("RGB")
     w, h = img.size
-    draw = ImageDraw.Draw(img, "RGBA")
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    draw = ImageDraw.Draw(overlay)
 
     _colors = {
         "critical": (220, 50, 50),
@@ -199,32 +201,73 @@ def _annotate_frame_with_bboxes(
     except (OSError, IOError):
         font = ImageFont.load_default()
 
-    for bboxes, rule_text, severity in bbox_groups:
+    for v in violation_groups:
+        severity = v.get("severity", "warning")
         rgb = _colors.get(severity, _colors["warning"])
-        fill_rgba = (*rgb, 45)
-        label = f"[{severity.upper()}] {rule_text[:28]}"
+        rule_text = v.get("rule", "")
+        
+        # ── 1. Draw Masks (if available) ───────────────────────────────────
+        if v.get("mask_128"):
+            try:
+                # Resize 128x128 mask back to full resolution
+                mask_np = np.array(v["mask_128"], dtype=np.uint8)
+                mask_img = Image.fromarray(mask_np * 255, mode="L").resize((w, h), resample=Image.NEAREST)
+                
+                # Tinted mask color
+                mask_rgba = (*rgb, 80)
+                colored_mask = Image.new("RGBA", (w, h), mask_rgba)
+                overlay.paste(colored_mask, (0, 0), mask=mask_img)
+            except Exception:
+                pass
 
-        for bbox in bboxes:
-            if len(bbox) != 4:
-                continue
-            x1, y1, x2, y2 = bbox
-            # Scale from 0-1000 to pixel coordinates
-            px1 = int(x1 / 1000 * w)
-            py1 = int(y1 / 1000 * h)
-            px2 = int(x2 / 1000 * w)
-            py2 = int(y2 / 1000 * h)
+        # ── 2. Draw Bounding Boxes ─────────────────────────────────────────
+        bboxes = v.get("bboxes", [])
+        if bboxes:
+            fill_rgba = (*rgb, 45)
+            label = f"[{severity.upper()}] {rule_text[:28]}"
 
-            draw.rectangle([px1, py1, px2, py2], fill=fill_rgba, outline=rgb, width=3)
+            for bbox in bboxes:
+                if len(bbox) != 4:
+                    continue
+                x1, y1, x2, y2 = bbox
+                # Scale from 0-1000 to pixel coordinates
+                px1 = int(x1 / 1000 * w)
+                py1 = int(y1 / 1000 * h)
+                px2 = int(x2 / 1000 * w)
+                py2 = int(y2 / 1000 * h)
 
-            # Label background + text
-            text_y = max(0, py1 - 18)
-            label_w = min(len(label) * 7, w - px1)
-            draw.rectangle([px1, text_y, px1 + label_w, text_y + 16], fill=(*rgb, 200))
-            draw.text((px1 + 2, text_y + 1), label, fill=(255, 255, 255), font=font)
+                draw.rectangle([px1, py1, px2, py2], fill=fill_rgba, outline=rgb, width=3)
 
+                # Label background + text
+                text_y = max(0, py1 - 18)
+                label_w = min(len(label) * 7, w - px1)
+                draw.rectangle([px1, text_y, px1 + label_w, text_y + 16], fill=(*rgb, 200))
+                draw.text((px1 + 2, text_y + 1), label, fill=(255, 255, 255), font=font)
+
+    # Composite the overlay onto the original image
+    img.paste(overlay, (0, 0), mask=overlay)
+    
     buf = BytesIO()
     img.save(buf, format="JPEG", quality=90)
     return buf.getvalue()
+
+
+def _annotate_frame_with_bboxes(
+    frame_path: "Path",
+    violation_groups: "list",
+) -> bytes:
+    """Backwards-compatible wrapper for _annotate_frame (Phase 51).
+
+    Accepts violation_groups as list of (bboxes, rule, severity) tuples OR dicts.
+    """
+    normalized = []
+    for vg in violation_groups:
+        if isinstance(vg, dict):
+            normalized.append(vg)
+        else:
+            bboxes, rule, severity = vg
+            normalized.append({"bboxes": bboxes, "rule": rule, "severity": severity})
+    return _annotate_frame(frame_path, normalized)
 
 
 def build_vigil_router() -> APIRouter:
@@ -658,6 +701,38 @@ def build_vigil_router() -> APIRouter:
             "acknowledged_by": body.acknowledged_by,
         }
 
+    @router.post(
+        "/events/{event_id}/feedback",
+        summary="AIの推論に対するフィードバックを記録",
+    )
+    async def record_event_feedback(
+        event_id: int,
+        body: FeedbackRequest,
+        request: Request,
+    ) -> dict:
+        """Record operator feedback (Correct/FP) for an event.
+
+        This feedback is used by the Metacognitive Monitor to auto-calibrate
+        thresholds and improve future perception accuracy.
+        """
+        repo = _get_repo(request)
+        pipeline = _get_pipeline(request)
+        
+        row = await run_in_threadpool(repo.get_event, event_id)
+        if row is None:
+            raise HTTPException(status_code=404, detail="Event not found")
+            
+        # Inform the VLM backend (specifically PerceptionVLMClient)
+        if hasattr(pipeline._vlm, "record_feedback"):
+            await run_in_threadpool(pipeline._vlm.record_feedback, body.confirmed)
+            logger.info("Feedback recorded for event %d: confirmed=%s", event_id, body.confirmed)
+            
+        return {
+            "event_id": event_id,
+            "feedback_recorded": True,
+            "confirmed": body.confirmed
+        }
+
     @router.get("/events/{event_id}/frame", summary="違反フレーム画像取得（bbox描画対応）")
     async def get_frame(
         event_id: int,
@@ -672,21 +747,17 @@ def build_vigil_router() -> APIRouter:
         if not frame_path or not Path(frame_path).exists():
             raise HTTPException(status_code=404, detail="Frame image not found")
 
-        # Draw bounding boxes if any violation has bbox data (Qwen3-VL backend)
+        # Draw bounding boxes and masks if any violation has annotation data
         if annotate:
-            bbox_groups = [
-                (v["bboxes"], v.get("rule", ""), v.get("severity", "warning"))
-                for v in row.get("violations", [])
-                if v.get("bboxes")
-            ]
-            if bbox_groups:
+            violations = row.get("violations", [])
+            if any(v.get("bboxes") or v.get("mask_128") for v in violations):
                 try:
                     annotated = await run_in_threadpool(
-                        _annotate_frame_with_bboxes, Path(frame_path), bbox_groups
+                        _annotate_frame, Path(frame_path), violations
                     )
                     return Response(content=annotated, media_type="image/jpeg")
                 except Exception:
-                    logger.exception("bbox annotation failed for event %d", event_id)
+                    logger.exception("frame annotation failed for event %d", event_id)
 
         return FileResponse(frame_path, media_type="image/jpeg")
 
@@ -737,8 +808,8 @@ def build_vigil_router() -> APIRouter:
         row = await run_in_threadpool(repo.get_session, session_id)
         if row is None:
             raise HTTPException(status_code=404, detail="Session not found")
-        await run_in_threadpool(repo.set_webhook, session_id, body.url, body.min_severity)
-        return {"session_id": session_id, "url": body.url, "min_severity": body.min_severity}
+        await run_in_threadpool(repo.set_webhook, session_id, body.url, body.min_severity, body.min_urgency)
+        return {"session_id": session_id, "url": body.url, "min_severity": body.min_severity, "min_urgency": body.min_urgency}
 
     @router.delete("/sessions/{session_id}/webhook", summary="Webhookを削除")
     async def clear_webhook(session_id: int, request: Request) -> dict:
@@ -758,8 +829,8 @@ def build_vigil_router() -> APIRouter:
         result = await run_in_threadpool(repo.get_webhook, session_id)
         if result is None:
             raise HTTPException(status_code=404, detail="No webhook configured")
-        url, min_severity = result
-        return {"session_id": session_id, "url": url, "min_severity": min_severity}
+        url, min_severity, min_urgency = result
+        return {"session_id": session_id, "url": url, "min_severity": min_severity, "min_urgency": min_urgency}
 
     # ── CSV report ────────────────────────────────────────────────────────────
 
@@ -874,7 +945,7 @@ def build_vigil_router() -> APIRouter:
             )
         wh_repo = _get_webhook_repo(request)
         row = await run_in_threadpool(
-            wh_repo.create, body.url, body.name, body.secret, body.min_severity
+            wh_repo.create, body.url, body.name, body.secret, body.min_severity, body.min_urgency
         )
         return _row_to_webhook(row)
 
@@ -962,5 +1033,20 @@ def build_vigil_router() -> APIRouter:
         repo = _get_repo(request)
         data = await run_in_threadpool(repo.get_analytics, days)
         return VigilAnalytics(**data)
+
+    @router.post(
+        "/dossier/generate",
+        summary="本日のAI日報(Dossier)を生成",
+    )
+    async def generate_daily_dossier_endpoint(request: Request) -> dict:
+        """Generate a daily shift report summarizing major incidents and VLM deliberations."""
+        repo = _get_repo(request)
+        try:
+            from sopilot.vigil.shift_report import generate_daily_dossier
+            out_path = await run_in_threadpool(generate_daily_dossier, repo)
+            return {"status": "ok", "report_path": out_path}
+        except Exception as e:
+            logger.exception("Failed to generate dossier")
+            raise HTTPException(status_code=500, detail=str(e))
 
     return router

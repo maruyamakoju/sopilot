@@ -82,12 +82,10 @@ class VLMClient:
         raise NotImplementedError
 
     def reset_session(self, session_id: str | None = None) -> None:
-        """Reset any internal state between analysis sessions.
+        """Reset any internal state between analysis sessions."""
 
-        Stateless backends (Claude, Qwen3) are no-ops.  Stateful backends
-        (PerceptionVLMClient) must clear tracker / world-model state so that
-        tracking identities from one video do not bleed into the next.
-        """
+    def record_feedback(self, confirmed: bool) -> None:
+        """Record operator feedback (True=correct, False=FP)."""
 
     def close(self) -> None:
         pass
@@ -419,6 +417,11 @@ class PerceptionVLMClient(VLMClient):
                 self._engine.set_session_id(str(session_id))
             logger.info("PerceptionVLMClient session reset (session_id=%s)", session_id)
 
+    def record_feedback(self, confirmed: bool) -> None:
+        """Record operator feedback into the underlying perception engine."""
+        with self._lock:
+            self._engine.record_feedback(confirmed)
+
     def analyze_frame(self, frame_path: Path, rules: list[str]) -> VLMResult:
         try:
             import cv2
@@ -465,11 +468,42 @@ class PerceptionVLMClient(VLMClient):
                     round(v.bbox.x2 * 1000, 1),
                     round(v.bbox.y2 * 1000, 1),
                 ]]
+            
+            # Capture downsampled mask for UI annotation (Phase 34)
+            if v.mask is not None:
+                try:
+                    # Downsample to 128x128 for database storage efficiency
+                    m_h, m_w = v.mask.shape
+                    small_mask = cv2.resize(v.mask.astype(np.uint8), (128, 128), interpolation=cv2.INTER_NEAREST)
+                    vdict["mask_128"] = small_mask.tolist()
+                except Exception:
+                    pass
+
             violations.append(vdict)
             raw_parts.append(
                 f"rule={v.rule!r} sev={v.severity.value} conf={v.confidence:.2f} "
                 f"src={v.source}"
             )
+
+        # Capture Deliberation results (System 2 reasoning)
+        deliberation_dict = None
+        if hasattr(result, "deliberations") and result.deliberations:
+            # Take the best (first) deliberation result
+            best_delib = result.deliberations[0]
+            deliberation_dict = {
+                "id": str(best_delib.id),
+                "action_ja": best_delib.action_ja,
+                "action_en": best_delib.action_en,
+                "urgency": best_delib.urgency.name,
+                "overall_confidence": best_delib.overall_confidence,
+            }
+            if best_delib.best_hypothesis:
+                deliberation_dict["best_hypothesis"] = {
+                    "claim_ja": best_delib.best_hypothesis.claim_ja,
+                    "claim_en": best_delib.best_hypothesis.claim_en,
+                    "belief": best_delib.best_hypothesis.belief,
+                    "plausibility": best_delib.best_hypothesis.plausibility,
+                }
 
         raw_text = (
             f"perception_engine: {len(violations)} violations, "
@@ -481,6 +515,7 @@ class PerceptionVLMClient(VLMClient):
         return VLMResult(
             has_violation=bool(violations),
             violations=violations,
+            deliberation=deliberation_dict,
             raw_text=raw_text,
         )
 

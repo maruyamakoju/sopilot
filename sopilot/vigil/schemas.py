@@ -42,12 +42,29 @@ class ViolationDetail(BaseModel):
     bboxes: list[list[float]] | None = None  # Qwen3-VL: [[x1,y1,x2,y2],...] 0-1000 scale
 
 
+class HypothesisDetail(BaseModel):
+    claim_ja: str
+    claim_en: str
+    belief: float
+    plausibility: float
+
+
+class DeliberationDetail(BaseModel):
+    id: str
+    best_hypothesis: HypothesisDetail | None = None
+    action_ja: str
+    action_en: str
+    urgency: str
+    overall_confidence: float
+
+
 class ViolationEvent(BaseModel):
     event_id: int
     session_id: int
     timestamp_sec: float
     frame_number: int
     violations: list[ViolationDetail]
+    deliberation: DeliberationDetail | None = None
     frame_url: str | None = None
     created_at: str
     acknowledged_at: str | None = None
@@ -110,6 +127,7 @@ class WebcamFrameResult(BaseModel):
 class WebhookRequest(BaseModel):
     url: str = Field(..., description="Webhook URL (https://...)")
     min_severity: str = Field(default="warning", pattern="^(info|warning|critical)$")
+    min_urgency: str = Field(default="LOW", pattern="^(LOW|MEDIUM|HIGH|CRITICAL)$")
 
 
 # ── Global webhook management schemas ──────────────────────────────────────
@@ -126,6 +144,11 @@ class WebhookCreate(BaseModel):
         pattern="^(info|warning|critical)$",
         description="Minimum violation severity that triggers this webhook",
     )
+    min_urgency: str = Field(
+        default="LOW",
+        pattern="^(LOW|MEDIUM|HIGH|CRITICAL)$",
+        description="Minimum urgency level that triggers this webhook",
+    )
 
 
 class WebhookResponse(BaseModel):
@@ -135,6 +158,7 @@ class WebhookResponse(BaseModel):
     url: str
     name: str
     min_severity: str
+    min_urgency: str
     enabled: bool
     created_at: str
     last_triggered_at: str | None
@@ -159,6 +183,11 @@ class AcknowledgeRequest(BaseModel):
     acknowledged_by: str = Field(default="operator", description="確認者IDまたは名前")
 
 
+class FeedbackRequest(BaseModel):
+    confirmed: bool = Field(..., description="True=正解, False=誤検知")
+    reason: str | None = Field(default=None, description="理由")
+
+
 class SessionTemplate(BaseModel):
     id: str
     name: str
@@ -174,6 +203,7 @@ class VLMResult(BaseModel):
     has_violation: bool
     violations: list[dict[str, Any]] = Field(default_factory=list)
     raw_text: str = ""
+    deliberation: dict[str, Any] | None = None  # Phase 51: System 2 reasoning output
 
 
 # ── Analytics schemas ───────────────────────────────────────────────────────

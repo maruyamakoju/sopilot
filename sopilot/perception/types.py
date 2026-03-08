@@ -137,6 +137,7 @@ class Detection:
     bbox: BBox
     label: str
     confidence: float
+    mask: np.ndarray | None = None  # segmentation mask (binary, 2D)
     embedding: np.ndarray | None = None  # visual feature for re-identification
     attributes: dict[str, Any] = field(default_factory=dict)
 
@@ -175,6 +176,7 @@ class Track:
     label: str
     state: TrackState = TrackState.TENTATIVE
     bbox: BBox | None = None
+    mask: np.ndarray | None = None  # segmentation mask (binary, 2D)
     velocity: tuple[float, float] = (0.0, 0.0)  # dx, dy per frame
     confidence: float = 0.0
     first_frame: int = 0
@@ -209,6 +211,8 @@ class SpatialRelation(enum.Enum):
     INSIDE = "inside"
     CONTAINS = "contains"
     OVERLAPS = "overlaps"
+    IN_FRONT_OF = "in_front_of" # e1 is closer than e2
+    BEHIND = "behind"           # e1 is further than e2
     WEARING = "wearing"  # person wearing safety equipment
     HOLDING = "holding"  # person holding object
     OPERATING = "operating"  # person operating machine
@@ -232,6 +236,8 @@ class SceneEntity:
     label: str
     bbox: BBox
     confidence: float
+    mask: np.ndarray | None = None  # segmentation mask (binary, 2D)
+    world_coords: tuple[float, float] | None = None  # (x, y) in meters on floor map
     attributes: dict[str, Any] = field(default_factory=dict)
     zone_ids: list[str] = field(default_factory=list)
 
@@ -360,6 +366,27 @@ class EntityEvent:
     confidence: float = 1.0
 
 
+@dataclass(frozen=True)
+class SOPStep:
+    """A single step in a Standard Operating Procedure (SOP)."""
+    step_id: str
+    name: str
+    description: str
+    required_entities: list[str]  # e.g. ["hand", "wrench", "bolt"]
+    target_state: str             # e.g. "tightened", "attached"
+    order: int
+
+
+@dataclass
+class SOPProgress:
+    """Current progress through an SOP session."""
+    current_step_id: str
+    completed_steps: list[str]
+    is_violation: bool = False
+    anomaly_score: float = 0.0
+    action_suggestion: str | None = None
+
+
 @dataclass
 class WorldState:
     """The current state of the observed world.
@@ -374,6 +401,7 @@ class WorldState:
     active_tracks: dict[int, Track]  # track_id → Track
     events: list[EntityEvent]  # events generated this frame
     zone_occupancy: dict[str, list[int]]  # zone_id → [entity_ids]
+    sop_progress: SOPProgress | None = None
     entity_count: int = 0
     person_count: int = 0
 
@@ -448,6 +476,7 @@ class FrameResult:
     world_state: WorldState
     violations: list[Violation]
     processing_time_ms: float
+    sop_progress: SOPProgress | None = None
     detections_count: int = 0
     tracks_count: int = 0
     vlm_called: bool = False  # whether VLM was consulted for any rule
@@ -550,7 +579,7 @@ class PerceptionConfig:
     cascade_stage2_threshold: float = 0.3     # Grounding DINO minimum to accept
 
     # Phase 34: SAM Segmenter
-    sam_enabled: bool = False                 # enable SAM precision segmentation
+    sam_enabled: bool = True                 # enable SAM precision segmentation
     sam_model_variant: str = "sam2_hiera_small"  # SAM 2 model variant
     sam_attention_guided: bool = True         # use DINOv2 attention maps as point prompts
 
@@ -570,13 +599,13 @@ class PerceptionConfig:
     video_foundation_buffer_size: int = 16        # frames in temporal buffer
 
     # Phase 38: LLaVA-NeXT VLM Client
-    llava_enabled: bool = False                   # enable LLaVA-NeXT for cascade Stage 3
+    llava_enabled: bool = True                   # enable LLaVA-NeXT for cascade Stage 3
     llava_model_id: str = "llava-hf/llava-v1.6-mistral-7b-hf"  # HuggingFace model ID
     llava_max_new_tokens: int = 256               # max tokens per VLM response
     llava_load_in_8bit: bool = True               # 8-bit quantization (~8 GB VRAM)
 
     # Phase 39: Grounding DINO 1.5
-    grounding_dino_15_enabled: bool = False       # enable Grounding DINO 1.5 for cascade Stage 2
+    grounding_dino_15_enabled: bool = True       # enable Grounding DINO 1.5 for cascade Stage 2
     grounding_dino_15_variant: str = "1.5-pro"   # "1.5-pro", "1.5-edge", "1.0"
     grounding_dino_box_threshold: float = 0.35   # box confidence threshold
     grounding_dino_text_threshold: float = 0.25  # text alignment threshold
@@ -598,9 +627,10 @@ class PerceptionConfig:
     edge_device_profile: str = "jetson_orin"      # "jetson_orin", "jetson_nano", "rpi5_coral", "x86_cpu"
 
     # Phase 43: Multi-Modal Video RAG
-    video_memory_enabled: bool = False            # enable VideoMemoryStore frame indexing
+    video_memory_enabled: bool = True            # enable VideoMemoryStore frame indexing
     video_memory_max_frames: int = 10_000         # rolling window size
-    rag_enabled: bool = False                     # enable RAGEngine for /query endpoint
+    video_memory_caption_interval: int = 30       # interval (frames) to generate full VLM caption
+    rag_enabled: bool = True                     # enable RAGEngine for /query endpoint
     rag_alpha: float = 0.6                        # visual weight in hybrid score [0=text-only, 1=visual-only]
 
     # Phase 44: Causal Chain Analysis
@@ -619,7 +649,7 @@ class PerceptionConfig:
     sla_detection_p95_threshold_ms: float = 80.0   # detection stage P95 SLO (ms)
 
     # Phase 46: Spatial Intelligence (2D Floor Map)
-    spatial_mapper_enabled: bool = False          # enable SpatialMapper + ZoneAnalyzer
+    spatial_mapper_enabled: bool = True          # enable SpatialMapper + ZoneAnalyzer
     spatial_floor_width_m: float = 20.0           # floor plan width in metres
     spatial_floor_height_m: float = 15.0          # floor plan height in metres
     spatial_max_age_seconds: float = 60.0         # point expiry window for occupancy grid
@@ -631,3 +661,8 @@ class PerceptionConfig:
     crowd_grid_rows: int = 15                      # density-grid rows
     crowd_congestion_threshold: float = 0.7        # normalised density for congestion alert
     crowd_history_frames: int = 10                 # frames kept for flow-vector computation
+
+    # Phase 51: Fine-grained SOP Analysis
+    sop_enabled: bool = True                      # enable SOPEngine state tracking
+    sop_definition_path: str = ""                  # path to JSON SOP definition
+

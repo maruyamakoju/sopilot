@@ -894,6 +894,14 @@ class VLMEscalator:
         if entity_labels:
             parts.append(f"検出済みオブジェクト: {', '.join(entity_labels)}")
 
+        relations = context.get("relations_text", [])
+        if relations:
+            parts.append(f"空間的・意味的関係性: {'; '.join(relations)}")
+
+        zones = context.get("zones_text", [])
+        if zones:
+            parts.append(f"エリア情報: {'; '.join(zones)}")
+
         reason = context.get("escalation_reason", "")
         if reason:
             parts.append(f"エスカレーション理由: {reason}")
@@ -1056,11 +1064,33 @@ class HybridReasoner:
     ) -> dict[str, Any]:
         """Build a context dict summarizing the current scene for VLM prompts."""
         entity_labels = list({e.label for e in scene_graph.entities})
+        
+        # Serialize relations into human-readable text for the VLM
+        relation_descriptions = []
+        for rel in scene_graph.relations:
+            sub = scene_graph.get_entity(rel.subject_id)
+            obj = scene_graph.get_entity(rel.object_id)
+            if sub and obj:
+                desc = f"{sub.label}(ID:{sub.entity_id}) は {obj.label}(ID:{obj.entity_id}) の {rel.predicate.value} の状態です。"
+                relation_descriptions.append(desc)
+
+        zone_descriptions = []
+        for zone_id, eids in world_state.zone_occupancy.items():
+            labels = []
+            for eid in eids:
+                e = scene_graph.get_entity(eid)
+                if e:
+                    labels.append(f"{e.label}(ID:{e.entity_id})")
+            if labels:
+                zone_descriptions.append(f"エリア '{zone_id}' 内: {', '.join(labels)}")
+
         return {
             "entity_count": scene_graph.entity_count,
             "person_count": scene_graph.person_count,
             "entity_labels": entity_labels,
             "relation_count": len(scene_graph.relations),
+            "relations_text": relation_descriptions,
+            "zones_text": zone_descriptions,
             "zone_occupancy": {
                 k: len(v) for k, v in world_state.zone_occupancy.items()
             },

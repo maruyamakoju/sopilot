@@ -146,6 +146,7 @@ class PerceptionEngine:
         narrator: Any | None = None,
         pose_estimator: Any | None = None,
         anomaly_explainer: Any | None = None,
+        sop_engine: Any | None = None,
         # Phase 5: Deliberative cognition
         episodic_memory: Any | None = None,
         goal_recognizer: Any | None = None,
@@ -208,6 +209,7 @@ class PerceptionEngine:
         self._causal_reasoner = causal_reasoner
         self._context_memory = context_memory
         self._narrator = narrator
+        self._sop_engine = sop_engine
 
         # Anomaly explainer (optional, VLM-based)
         self._anomaly_explainer = anomaly_explainer
@@ -333,6 +335,8 @@ class PerceptionEngine:
         # Frame counter
         self._frames_processed = 0
         self._total_processing_ms = 0.0
+        self._last_world_state: WorldState | None = None
+        self._last_attention_score: float = 0.0
 
         logger.info(
             "PerceptionEngine initialized: detector=%s, tracker=%s, "
@@ -400,7 +404,7 @@ class PerceptionEngine:
             # ── Stage 1b: Monocular depth estimation ──────────────
             if self._depth_estimator is not None and detections:
                 try:
-                    self._last_depth_estimates = self._depth_estimator.estimate(detections)
+                    self._last_depth_estimates = self._depth_estimator.estimate(detections, frame)
                 except Exception:
                     logger.debug("Depth estimation failed", exc_info=True)
                     self._last_depth_estimates = []
@@ -427,6 +431,16 @@ class PerceptionEngine:
             # ── Stage 3: Build scene graph ────────────────────────
             t_stage = time.perf_counter()
             frame_shape = (frame.shape[0], frame.shape[1]) if frame.ndim >= 2 else (0, 0)
+            
+            # Inject depth estimates into tracks
+            if self._last_depth_estimates:
+                depth_map = {d.entity_id: d for d in self._last_depth_estimates}
+                for t in tracks:
+                    if t.track_id in depth_map:
+                        t.attributes["depth_relative"] = depth_map[t.track_id].depth_relative
+                        if depth_map[t.track_id].depth_metric_m is not None:
+                            t.attributes["depth_metric_m"] = depth_map[t.track_id].depth_metric_m
+
             scene_graph = self._run_scene_graph(
                 tracks, frame_shape, timestamp, frame_number
             )
@@ -454,6 +468,14 @@ class PerceptionEngine:
             if activity_events:
                 world_state.events.extend(activity_events)
             timings["activity_ms"] = (time.perf_counter() - t_stage) * 1000
+
+            # ── Stage 4cx: SOP analysis (state machine) ────────────
+            t_stage = time.perf_counter()
+            sop_progress, sop_violations = self._run_sop_analysis(world_state)
+            world_state.sop_progress = sop_progress
+            if sop_violations:
+                violations.extend(sop_violations)
+            timings["sop_analysis_ms"] = (time.perf_counter() - t_stage) * 1000
 
             # ── Stage 4d: Attention scoring ────────────────────────
             t_stage = time.perf_counter()
@@ -609,8 +631,24 @@ class PerceptionEngine:
             if self._video_memory is not None and self._last_cls_features is not None:
                 try:
                     _cam = getattr(self, "_session_id", None) or "cam"
-                    _labels = [d.label for d in world_state.detections[:5]]
-                    _caption = "、".join(violations[:3] + _labels[:3]) or "通常状態"
+                    _labels = [e.label for e in world_state.scene_graph.entities[:5]]
+                    
+                    # Periodic rich captioning with LLaVA (Level 2/3)
+                    _use_llava = (
+                        self._llava_client is not None and
+                        (frame_number % self._config.video_memory_caption_interval == 0 
+                         or len(violations) > 0
+                         or getattr(self, "_last_attention_score", 0.0) > 0.6)
+                    )
+                    
+                    if _use_llava:
+                        # Full scene description in Japanese
+                        _res = self._llava_client.describe_scene(frame, language="ja")
+                        _caption = _res.get("description_ja", "通常状態")
+                    else:
+                        # Lightweight caption from labels/violations
+                        _caption = "、".join([v.rule_id for v in violations[:3]] + _labels[:3]) or "通常状態"
+                    
                     _inc_id = None
                     if self._incident_reporter is not None:
                         try:
@@ -624,6 +662,7 @@ class PerceptionEngine:
                         caption=_caption,
                         camera_id=_cam,
                         incident_id=_inc_id,
+                        timestamp=timestamp,
                     )
                 except Exception:
                     logger.debug("Video memory stage failed", exc_info=True)
@@ -641,6 +680,33 @@ class PerceptionEngine:
                             )
                 except Exception:
                     logger.debug("Causal analyzer stage failed", exc_info=True)
+
+            # ── Convert Hazards to Violations (Urgency integration) ──
+            if hasattr(self, "_last_hazards") and self._last_hazards:
+                for hazard in self._last_hazards:
+                    if hazard.severity in ("critical", "warning"):
+                        # Ensure highly urgent hazards are bubbled up
+                        violations.append(
+                            Violation(
+                                rule_index=-1,
+                                rule="Hazard Anticipation (Predictive Safety)",
+                                description_ja=hazard.description_ja,
+                                severity=ViolationSeverity.CRITICAL if hazard.severity == "critical" else ViolationSeverity.WARNING,
+                                confidence=hazard.probability,
+                                source="anticipation_engine",
+                            )
+                        )
+                        # We also trigger a Deliberation Event to generate Action
+                        if not any(e.entity_id == hazard.entity_id_a and e.event_type == EntityEventType.ANOMALY_DETECTED for e in world_state.events):
+                            world_state.events.append(
+                                EntityEvent(
+                                    entity_id=hazard.entity_id_a,
+                                    event_type=EntityEventType.ANOMALY_DETECTED,
+                                    timestamp=timestamp,
+                                    frame_number=frame_number,
+                                    details={"hazard": hazard.hazard_type, "desc": hazard.description_ja}
+                                )
+                            )
 
             # ── Stage 6b: VLM explanation for ANOMALY events ──────
             t_stage = time.perf_counter()
@@ -828,6 +894,7 @@ class PerceptionEngine:
                 frame_number=frame_number,
                 world_state=world_state,
                 violations=violations,
+                sop_progress=getattr(world_state, "sop_progress", None),
                 processing_time_ms=elapsed_ms,
                 detections_count=len(detections),
                 tracks_count=len(tracks),
@@ -1480,8 +1547,19 @@ class PerceptionEngine:
         self._cached_prompts = []
         self._frames_processed = 0
         self._total_processing_ms = 0.0
+        self._last_world_state = None
+        self._last_attention_score = 0.0
 
         logger.info("PerceptionEngine reset")
+
+    def record_feedback(self, confirmed: bool) -> None:
+        """Record operator feedback into metacognitive monitor (Stage 8 feedback)."""
+        if self._metacognitive_monitor is not None:
+            try:
+                self._metacognitive_monitor.record_feedback(confirmed)
+                logger.info("PerceptionEngine: feedback recorded (confirmed=%s)", confirmed)
+            except Exception:
+                logger.exception("Feedback recording failed")
 
     def close(self) -> None:
         """Release all resources held by the engine and its components."""
@@ -1599,6 +1677,22 @@ class PerceptionEngine:
             return []
         try:
             detections = self._detector.detect(frame, prompts)
+            
+            # --- SAM INTEGRATION ---
+            if getattr(self, "_sam_segmenter", None) is not None and getattr(self._config, "sam_enabled", False):
+                import dataclasses
+                try:
+                    seg_results = self._sam_segmenter.segment_frame(frame, detections)
+                    new_detections = []
+                    for det, seg in zip(detections, seg_results):
+                        if seg is not None:
+                            new_detections.append(dataclasses.replace(det, mask=seg.mask))
+                        else:
+                            new_detections.append(det)
+                    detections = new_detections
+                except Exception:
+                    logger.exception("SAM segmentation failed")
+
             # Enforce max detections limit
             if len(detections) > self._config.max_detections_per_frame:
                 # Keep highest-confidence detections
@@ -1633,7 +1727,9 @@ class PerceptionEngine:
         if self._scene_builder is not None:
             try:
                 return self._scene_builder.build(
-                    tracks, self._zones, frame_shape, timestamp, frame_number
+                    tracks, self._zones, frame_shape, timestamp, frame_number,
+                    spatial_mapper=getattr(self, "_spatial_mapper", None),
+                    camera_id=getattr(self, "_session_id", "cam")
                 )
             except Exception:
                 logger.exception(
@@ -1711,15 +1807,29 @@ class PerceptionEngine:
             logger.exception("Activity recognition failed at frame %d", frame_number)
             return []
 
+    def _run_sop_analysis(
+        self,
+        world_state: WorldState,
+    ) -> tuple[SOPProgress | None, list[Violation]]:
+        """Run fine-grained SOP state machine analysis (Phase 51)."""
+        if self._sop_engine is None:
+            return None, []
+        try:
+            return self._sop_engine.update(world_state.scene_graph)
+        except Exception:
+            logger.exception("SOP analysis failed")
+            return None, []
+
     def _run_attention_scoring(self, world_state: WorldState) -> None:
         """Score current scene attention and store for adaptive sampling."""
         if self._attention_scorer is None:
             return
         try:
             score = self._attention_scorer.score(
-                world_state, self._previous_world_state
+                world_state, getattr(self, "_previous_world_state", None)
             )
             self._previous_world_state = world_state
+            self._last_attention_score = score.total
             if logger.isEnabledFor(logging.DEBUG):
                 logger.debug(
                     "Attention score: %.3f (%s)", score.total, score.reason
@@ -1807,10 +1917,27 @@ class PerceptionEngine:
                                 episodes = self._episodic_memory.get_recent_episodes(5)
                             except Exception:
                                 pass
+                        
+                        video_clip = None
+                        if hasattr(self, "_frame_ring") and len(self._frame_ring) > 0:
+                            import cv2
+                            import numpy as np
+                            decoded = []
+                            # Get last 15 frames for reasoning
+                            recent = list(self._frame_ring)[-15:]
+                            for _, frame_bytes in recent:
+                                arr = np.frombuffer(frame_bytes, np.uint8)
+                                img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+                                if img is not None:
+                                    decoded.append(img)
+                            if decoded:
+                                video_clip = decoded
+
                         self._deliberative_reasoner.deliberate(
                             event, world_state,
                             goal_hypotheses=goal_hyps,
                             recent_episodes=episodes,
+                            video_clip=video_clip,
                         )
                         break  # one deliberation per frame to keep latency bounded
         except Exception:
@@ -1822,6 +1949,19 @@ class PerceptionEngine:
             return
         try:
             self._metacognitive_monitor.observe_frame(frame_result)
+            
+            # --- ACTIVE ATTENTION (Level 3) ---
+            # Dynamic reasoning strategy based on self-perceived quality
+            report = self._metacognitive_monitor.get_health_report()
+            if self._reasoner is not None:
+                if report.quality_grade in ('D', 'F'):
+                    # Low quality -> Lower threshold (escalate MORE to resolve ambiguity)
+                    current = getattr(self._reasoner, "_escalation_threshold", 0.7)
+                    self._reasoner._escalation_threshold = max(0.2, current - 0.02)
+                elif report.quality_grade == 'A':
+                    # High quality -> Raise threshold (escalate LESS, trust local reasoning)
+                    current = getattr(self._reasoner, "_escalation_threshold", 0.7)
+                    self._reasoner._escalation_threshold = min(self._config.vlm_escalation_threshold, current + 0.01)
         except Exception:
             logger.exception("Metacognition monitoring failed")
 
@@ -2659,7 +2799,7 @@ def build_perception_engine(
     deliberative_reasoner = None
     try:
         from sopilot.perception.deliberation import DeliberativeReasoner
-        deliberative_reasoner = DeliberativeReasoner()
+        deliberative_reasoner = DeliberativeReasoner(vlm_client=vlm_client)
         logger.info("DeliberativeReasoner initialized")
     except ImportError:
         logger.debug("Deliberation module not available")
@@ -2953,6 +3093,10 @@ def build_perception_engine(
                     llava_client=engine._llava_client if hasattr(engine, "_llava_client") else None,
                     alpha=config.rag_alpha,
                 )
+                # Level 3 Reasoning: inject RAG into DeliberativeReasoner
+                if engine._deliberative_reasoner is not None:
+                    engine._deliberative_reasoner._rag_engine = engine._rag_engine
+                    logger.info("RAG Engine connected to DeliberativeReasoner for Level 3 reasoning")
             logger.info(
                 "VideoMemoryStore initialized (max=%d, rag=%s)",
                 config.video_memory_max_frames,
@@ -3010,6 +3154,17 @@ def build_perception_engine(
                 floor_width_m=config.spatial_floor_width_m,
                 floor_height_m=config.spatial_floor_height_m,
                 max_age_seconds=config.spatial_max_age_seconds,
+            )
+            # Register default identity homography for the primary camera session
+            import numpy as np
+            engine._spatial_mapper.register_camera(
+                getattr(engine, "_session_id", "cam"),
+                np.array([
+                    [config.spatial_floor_width_m, 0, 0],
+                    [0, config.spatial_floor_height_m, 0],
+                    [0, 0, 1]
+                ], dtype=np.float64),
+                image_size=(1280, 720)
             )
             engine._zone_analyzer = ZoneAnalyzer(
                 dwell_alert_seconds=config.spatial_zone_dwell_alert_s,
@@ -3094,9 +3249,14 @@ def build_perception_engine(
 
     # ── Build Phase 8 components ──────────────────────────────────────
     try:
-        from sopilot.perception.depth import MonocularDepthEstimator
-        engine._depth_estimator = MonocularDepthEstimator()
-        logger.info("MonocularDepthEstimator initialized")
+        from sopilot.perception.depth import DepthAnythingV2Estimator, MonocularDepthEstimator
+        import torch
+        if torch.cuda.is_available():
+            engine._depth_estimator = DepthAnythingV2Estimator(device="cuda")
+            logger.info("DepthAnythingV2Estimator initialized (device=cuda)")
+        else:
+            engine._depth_estimator = MonocularDepthEstimator()
+            logger.info("MonocularDepthEstimator initialized")
     except ImportError:
         logger.debug("Depth estimation module not available")
     except Exception:
@@ -3235,5 +3395,22 @@ def build_perception_engine(
         logger.debug("HealthHistoryStore module not available")
     except Exception:
         logger.exception("Failed to initialize HealthHistoryStore")
+
+    # ── Phase 51: SOP Engine (optional) ──────────────────────────────
+    if config.sop_enabled:
+        try:
+            from sopilot.perception.sop_engine import SOPEngine, SOPStep
+            # Define some default steps if definition_path is empty
+            steps = [
+                SOPStep("step1", "部品Aのピックアップ", "部品Aを棚から取り出す", ["hand", "part_a"], "picked", 1),
+                SOPStep("step2", "工具Bの準備", "レンチBを手に取る", ["hand", "wrench_b"], "ready", 2),
+                SOPStep("step3", "部品Aの固定", "レンチBを使って部品Aを固定する", ["wrench_b", "part_a"], "tightened", 3),
+            ]
+            engine._sop_engine = SOPEngine(steps)
+            logger.info("SOPEngine initialized with %d steps", len(steps))
+        except ImportError:
+            logger.debug("SOPEngine module not available")
+        except Exception:
+            logger.exception("Failed to initialize SOPEngine")
 
     return engine

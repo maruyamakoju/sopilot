@@ -41,15 +41,16 @@ class WebhookRepository:
         name: str = "",
         secret: str = "",
         min_severity: str = "critical",
+        min_urgency: str = "LOW",
     ) -> dict:
         """Insert a new webhook registration and return the created row as a dict."""
         with self._connect() as conn:
             cur = conn.execute(
                 """
-                INSERT INTO vigil_webhooks (url, name, secret, min_severity, enabled)
-                VALUES (?, ?, ?, ?, 1)
+                INSERT INTO vigil_webhooks (url, name, secret, min_severity, min_urgency, enabled)
+                VALUES (?, ?, ?, ?, ?, 1)
                 """,
-                (url, name, secret, min_severity),
+                (url, name, secret, min_severity, min_urgency),
             )
             webhook_id = int(cur.lastrowid)  # type: ignore[arg-type]
             row = conn.execute(

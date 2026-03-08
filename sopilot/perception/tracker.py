@@ -304,6 +304,7 @@ class _InternalTrack:
         "state",
         "label_votes",
         "confidence",
+        "mask",
         "first_frame",
         "last_frame",
         "age",
@@ -326,6 +327,7 @@ class _InternalTrack:
         self.state = TrackState.TENTATIVE
         self.label_votes: Counter[str] = Counter({detection.label: 1})
         self.confidence = detection.confidence
+        self.mask = getattr(detection, "mask", None)
         self.first_frame = frame_id
         self.last_frame = frame_id
         self.age = 1
@@ -364,6 +366,7 @@ class _InternalTrack:
         self.kf.update(detection.bbox)
         self.label_votes[detection.label] += 1
         self.confidence = detection.confidence
+        self.mask = getattr(detection, "mask", None)
         self.last_frame = frame_id
         self.hits += 1
         self.misses = 0
@@ -387,6 +390,7 @@ class _InternalTrack:
             label=self.label,
             state=self.state,
             bbox=self.bbox,
+            mask=self.mask,
             velocity=self.velocity,
             confidence=self.confidence,
             first_frame=self.first_frame,

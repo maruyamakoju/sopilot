@@ -121,6 +121,7 @@ class VigilRepository:
         frame_number: int,
         violations: list[dict],
         frame_path: str | None = None,
+        deliberation: dict | None = None,
     ) -> int:
         now = datetime.now(UTC).isoformat()
         with self._connect() as conn:
@@ -128,8 +129,8 @@ class VigilRepository:
                 """
                 INSERT INTO vigil_events
                   (session_id, timestamp_sec, frame_number, violations_json,
-                   frame_path, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                   frame_path, deliberation_json, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 """,
                 (
                     session_id,
@@ -137,6 +138,7 @@ class VigilRepository:
                     frame_number,
                     json.dumps(violations, ensure_ascii=False),
                     frame_path,
+                    json.dumps(deliberation, ensure_ascii=False) if deliberation else None,
                     now,
                 ),
             )
@@ -152,6 +154,8 @@ class VigilRepository:
         for row in rows:
             d = dict(row)
             d["violations"] = json.loads(d.pop("violations_json"))
+            delib = d.pop("deliberation_json", None)
+            d["deliberation"] = json.loads(delib) if delib else None
             d.setdefault("acknowledged_at", None)
             d.setdefault("acknowledged_by", None)
             result.append(d)
@@ -166,6 +170,8 @@ class VigilRepository:
             return None
         d = dict(row)
         d["violations"] = json.loads(d.pop("violations_json"))
+        delib = d.pop("deliberation_json", None)
+        d["deliberation"] = json.loads(delib) if delib else None
         d.setdefault("acknowledged_at", None)
         d.setdefault("acknowledged_by", None)
         return d
@@ -190,17 +196,19 @@ class VigilRepository:
         for row in rows:
             d = dict(row)
             d["violations"] = json.loads(d.pop("violations_json"))
+            delib = d.pop("deliberation_json", None)
+            d["deliberation"] = json.loads(delib) if delib else None
             result.append(d)
         return result
 
     # ── Webhooks ───────────────────────────────────────────────────────────────
 
-    def set_webhook(self, session_id: int, url: str, min_severity: str = "warning") -> None:
+    def set_webhook(self, session_id: int, url: str, min_severity: str = "warning", min_urgency: str = "LOW") -> None:
         now = datetime.now(UTC).isoformat()
         with self._connect() as conn:
             conn.execute(
-                "UPDATE vigil_sessions SET webhook_url = ?, webhook_min_severity = ?, updated_at = ? WHERE id = ?",
-                (url, min_severity, now, session_id),
+                "UPDATE vigil_sessions SET webhook_url = ?, webhook_min_severity = ?, webhook_min_urgency = ?, updated_at = ? WHERE id = ?",
+                (url, min_severity, min_urgency, now, session_id),
             )
 
     def clear_webhook(self, session_id: int) -> None:
@@ -211,7 +219,7 @@ class VigilRepository:
                 (now, session_id),
             )
 
-    def get_webhook(self, session_id: int) -> tuple[str, str] | None:
+    def get_webhook(self, session_id: int) -> tuple[str, str, str] | None:
         row = self.get_session(session_id)
         if row is None:
             return None
@@ -219,7 +227,8 @@ class VigilRepository:
         if not url:
             return None
         min_sev = row.get("webhook_min_severity") or "warning"
-        return (url, min_sev)
+        min_urg = row.get("webhook_min_urgency") or "LOW"
+        return (url, min_sev, min_urg)
 
     # ── Analytics ──────────────────────────────────────────────────────────────
 

@@ -98,6 +98,55 @@ class ActivityResponse(BaseModel):
     confidence: float
     secondary_activity: str | None = None
     secondary_confidence: float = 0.0
+    features: dict[str, float] = Field(default_factory=dict)
+
+
+class SOPStepSchema(BaseModel):
+    step_id: str
+    name: str
+    description: str
+    order: int
+    is_completed: bool
+    is_current: bool
+
+
+class SOPStateResponse(BaseModel):
+    enabled: bool
+    current_step_id: str | None = None
+    percent_complete: float = 0.0
+    steps: list[SOPStepSchema] = Field(default_factory=list)
+    action_suggestion: str | None = None
+
+
+class FloorInfo(BaseModel):
+    width_m: float
+    height_m: float
+
+
+class MapPoint(BaseModel):
+    point_id: str
+    camera_id: str
+    person_id: str
+    label: str
+    world_x: float
+    world_y: float
+    timestamp: float
+    confidence: float
+    age_seconds: float
+
+
+class OccupancyGrid(BaseModel):
+    cols: int
+    rows: int
+    data: list[list[float]]
+
+
+class SpatialMapResponse(BaseModel):
+    floor: FloorInfo
+    cameras: list[str]
+    points: list[MapPoint]
+    occupancy_grid: OccupancyGrid
+    stats: dict[str, Any]
     features: dict[str, float]
 
 
@@ -624,6 +673,65 @@ def build_perception_router() -> APIRouter:
             current_zone=summary.current_zone,
             total_distance=summary.total_distance,
         )
+
+    # ── Spatial Mapping ────────────────────────────────────────────
+
+    @router.get("/spatial/map", response_model=SpatialMapResponse)
+    async def get_spatial_map(request: Request) -> SpatialMapResponse:
+        """2Dフロアマップの現状（物体位置、混雑度グリッド）を取得。"""
+        engine = _get_perception_engine(request)
+        mapper = _require_component(engine, "_spatial_mapper", "SpatialMapper")
+
+        def _get_map():
+            return mapper.to_map_data()
+
+        data = await run_in_threadpool(_get_map)
+        return SpatialMapResponse(**data)
+
+    # ── SOP Analysis ───────────────────────────────────────────────
+
+    @router.get("/sop/state", response_model=SOPStateResponse)
+    async def get_sop_state(request: Request) -> SOPStateResponse:
+        """現在のSOP進捗状態を取得。"""
+        engine = _get_perception_engine(request)
+        
+        if engine._sop_engine is None:
+            return SOPStateResponse(enabled=False, steps=[], action_suggestion=None)
+            
+        sop = engine._sop_engine
+        
+        def _get_state():
+            steps_schema = []
+            for s in sop._steps:
+                is_comp = s.step_id in sop._completed_steps
+                is_curr = False
+                if sop._current_step_idx < len(sop._steps):
+                    is_curr = sop._steps[sop._current_step_idx].step_id == s.step_id
+                
+                steps_schema.append(SOPStepSchema(
+                    step_id=s.step_id,
+                    name=s.name,
+                    description=s.description,
+                    order=s.order,
+                    is_completed=is_comp,
+                    is_current=is_curr
+                ))
+            
+            percent = (sop._current_step_idx / len(sop._steps)) * 100 if sop._steps else 0
+            curr_step_id = sop._steps[sop._current_step_idx].step_id if sop._current_step_idx < len(sop._steps) else "completed"
+            
+            # Simple suggestion logic
+            suggestion = f"次の手順: {sop._steps[sop._current_step_idx].name}" if sop._current_step_idx < len(sop._steps) else "全手順完了"
+            
+            return SOPStateResponse(
+                enabled=True,
+                current_step_id=curr_step_id,
+                percent_complete=percent,
+                steps=steps_schema,
+                action_suggestion=suggestion
+            )
+
+        return await run_in_threadpool(_get_state)
 
     # ── Activity Classification ────────────────────────────────────
 

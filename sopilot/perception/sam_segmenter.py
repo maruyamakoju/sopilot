@@ -279,7 +279,7 @@ class SAMSegmenter:
 
     def segment_frame(
         self, frame: np.ndarray, detections: list[Detection]
-    ) -> list[SegmentationMask]:
+    ) -> list[SegmentationMask | None]:
         """Segment all detections in a frame using box prompts.
 
         Parameters
@@ -291,9 +291,9 @@ class SAMSegmenter:
 
         Returns
         -------
-        list[SegmentationMask]
+        list[SegmentationMask | None]
             One mask per detection (in the same order).  Entries are
-            omitted for detections that fail to segment.
+            None for detections that fail to segment.
         """
         if frame.size == 0 or not detections:
             return []
@@ -308,17 +308,19 @@ class SAMSegmenter:
 
         results = self._run_sam(frame, box_prompts=box_prompts)
         if not results:
-            return []
+            return [None] * len(detections)
 
-        masks: list[SegmentationMask] = []
+        masks: list[SegmentationMask | None] = []
+        valid_count = 0
         for raw, det in zip(results, detections):
             seg = self._mask_to_segmentation(
                 raw, frame.shape, det.label, det.attributes
             )
+            masks.append(seg)
             if seg is not None:
-                masks.append(seg)
+                valid_count += 1
 
-        self._total_segments += len(masks)
+        self._total_segments += valid_count
         return masks
 
     # ── Public API: attention-guided segmentation ─────────────────────

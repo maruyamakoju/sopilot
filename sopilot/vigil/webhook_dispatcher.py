@@ -20,6 +20,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 SEVERITY_ORDER: dict[str, int] = {"info": 0, "warning": 1, "critical": 2}
+URGENCY_ORDER: dict[str, int] = {"LOW": 0, "MEDIUM": 1, "HIGH": 2, "CRITICAL": 3}
 
 _USER_AGENT = "SOPilot-Webhook/1.4"
 
@@ -41,25 +42,33 @@ class WebhookDispatcher:
         ----------
         violation_data:
             Serialisable dict describing the violation event.  Must include at
-            least a ``"severity"`` key with one of ``"info"``, ``"warning"``,
-            or ``"critical"``.
+            least a ``"severity"`` key and optionally ``"urgency"``.
         webhooks:
             All registered webhook rows from
             :meth:`~WebhookRepository.list_all`.  Disabled webhooks and those
-            whose ``min_severity`` is above the event severity are silently
-            skipped.
+            whose ``min_severity`` or ``min_urgency`` is above the event
+            levels are silently skipped.
         repo:
             Repository instance used to call
             :meth:`~WebhookRepository.update_triggered` on success.
         """
         ev_sev = SEVERITY_ORDER.get(violation_data.get("severity", "critical"), 0)
+        ev_urg = URGENCY_ORDER.get(violation_data.get("urgency", "LOW"), 0)
 
         for wh in webhooks:
             if not wh.get("enabled", True):
                 continue
+            
+            # Severity check
             wh_sev = SEVERITY_ORDER.get(wh.get("min_severity", "critical"), 2)
             if ev_sev < wh_sev:
-                continue  # event severity is below this webhook's threshold
+                continue
+            
+            # Urgency check (Action Rule Engine part)
+            wh_urg = URGENCY_ORDER.get(wh.get("min_urgency", "LOW"), 0)
+            if ev_urg < wh_urg:
+                continue
+
             threading.Thread(
                 target=self._send,
                 args=(wh, violation_data, repo),
@@ -115,6 +124,14 @@ class WebhookDispatcher:
             headers["X-SOPilot-Signature"] = f"sha256={sig}"
         try:
             r = httpx.post(wh["url"], content=body, headers=headers, timeout=10.0)
+            
+            # --- IOT ACTION LOGGING ---
+            if payload.get("iot_trigger"):
+                logger.warning(
+                    "IOT TRIGGER SENT to %s | Urgency: %s | Action: %s",
+                    wh["url"], payload.get("urgency"), payload.get("action_ja")
+                )
+            
             logger.info(
                 "Webhook %s → %s: HTTP %d", wh.get("id", "?"), wh["url"], r.status_code
             )

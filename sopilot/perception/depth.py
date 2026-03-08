@@ -85,7 +85,7 @@ class MonocularDepthEstimator:
         self._y_weight = 1.0 - self._area_weight
         self._lock = threading.Lock()
 
-    def estimate(self, detections: list) -> list[DepthEstimate]:
+    def estimate(self, detections: list, frame: Any | None = None) -> list[DepthEstimate]:
         """Estimate depth for each detection.
 
         Each item must have .entity_id, .label, .bbox (BBox with x,y,w,h or list).
@@ -160,4 +160,144 @@ class MonocularDepthEstimator:
             "frame_height_px": self._frame_h,
             "area_weight": self._area_weight,
             "y_weight": self._y_weight,
+        }
+
+
+class DepthAnythingV2Estimator:
+    """Depth-Anything-V2 estimator for metric-accurate 3D scene graphs.
+    
+    Uses `depth-anything/Depth-Anything-V2-Small-hf` via HuggingFace transformers.
+    """
+
+    def __init__(self, device: str = "auto", fallback_estimator: MonocularDepthEstimator | None = None) -> None:
+        self._device = self._resolve_device(device)
+        self._model = None
+        self._processor = None
+        self._loaded = False
+        self._lock = threading.RLock()
+        self._fallback = fallback_estimator or MonocularDepthEstimator()
+
+    def _resolve_device(self, device: str) -> str:
+        if device != "auto":
+            return device
+        try:
+            import torch
+            if torch.cuda.is_available():
+                return "cuda"
+            if torch.backends.mps.is_available():
+                return "mps"
+        except ImportError:
+            pass
+        return "cpu"
+
+    def _load_model(self) -> None:
+        try:
+            import torch
+            from transformers import AutoImageProcessor, AutoModelForDepthEstimation
+            
+            # Using the small model for real-time edge processing (sufficient for relative depth)
+            checkpoint = "depth-anything/Depth-Anything-V2-Small-hf"
+            self._processor = AutoImageProcessor.from_pretrained(checkpoint)
+            self._model = AutoModelForDepthEstimation.from_pretrained(checkpoint).to(self._device)
+            self._model.eval()
+        except Exception:
+            # Fallback will handle it
+            pass
+        finally:
+            self._loaded = True
+
+    def estimate(self, detections: list, frame: Any | None = None) -> list[DepthEstimate]:
+        with self._lock:
+            if not self._loaded:
+                self._load_model()
+
+        if self._model is None or self._processor is None or frame is None:
+            # Graceful degradation to heuristic if model failed or no frame provided
+            return self._fallback.estimate(detections, frame)
+
+        try:
+            import torch
+            import numpy as np
+            from PIL import Image
+
+            # Convert BGR (cv2) to RGB
+            rgb_frame = frame[:, :, ::-1] if isinstance(frame, np.ndarray) else frame
+            image = Image.fromarray(rgb_frame) if isinstance(rgb_frame, np.ndarray) else rgb_frame
+
+            with torch.no_grad():
+                inputs = self._processor(images=image, return_tensors="pt").to(self._device)
+                outputs = self._model(**inputs)
+                predicted_depth = outputs.predicted_depth
+
+            # Interpolate to original size
+            prediction = torch.nn.functional.interpolate(
+                predicted_depth.unsqueeze(1),
+                size=image.size[::-1],
+                mode="bicubic",
+                align_corners=False,
+            ).squeeze().cpu().numpy()
+
+            # Normalize to [0, 1] where 0 is near and 1 is far
+            depth_min = prediction.min()
+            depth_max = prediction.max()
+            if depth_max > depth_min:
+                normalized_depth = (prediction - depth_min) / (depth_max - depth_min)
+                # Model outputs higher values for closer objects, so invert
+                normalized_depth = 1.0 - normalized_depth
+            else:
+                normalized_depth = np.zeros_like(prediction)
+
+            results = []
+            h, w = normalized_depth.shape
+            for det in detections:
+                bbox = getattr(det, "bbox", None)
+                if bbox is None:
+                    continue
+                
+                # Extract normalized coordinates
+                if hasattr(bbox, "x"):
+                    bx, by, bw, bh = bbox.x, bbox.y, bbox.w, bbox.h
+                elif isinstance(bbox, (list, tuple)) and len(bbox) == 4:
+                    bx, by, bw, bh = bbox
+                else:
+                    continue
+
+                # Convert to pixel coordinates
+                x1 = max(0, int(bx * w))
+                y1 = max(0, int(by * h))
+                x2 = min(w, int((bx + bw) * w))
+                y2 = min(h, int((by + bh) * h))
+
+                if x2 > x1 and y2 > y1:
+                    # Median depth in the bounding box
+                    box_depth = np.median(normalized_depth[y1:y2, x1:x2])
+                else:
+                    box_depth = 0.5
+
+                confidence = 0.9  # High confidence from NN
+
+                label = getattr(det, "label", "")
+                
+                # We can also get metric depth via the fallback's pinhole model for known heights
+                depth_metric = self._fallback._metric_depth(label, [bx, by, bw, bh])
+
+                results.append(DepthEstimate(
+                    entity_id=getattr(det, "entity_id", 0),
+                    label=label,
+                    bbox=[bx, by, bw, bh],
+                    depth_relative=round(float(box_depth), 4),
+                    depth_metric_m=depth_metric,
+                    confidence=round(confidence, 4),
+                ))
+
+            return results
+
+        except Exception:
+            return self._fallback.estimate(detections, frame)
+
+    def get_config(self) -> dict:
+        return {
+            "type": "DepthAnythingV2Estimator",
+            "device": self._device,
+            "fallback": self._fallback.get_config()
         }

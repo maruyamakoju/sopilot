@@ -410,6 +410,56 @@ class LLaVAClient(VLMClient):
             logger.debug("LLaVA analyze_detections failed", exc_info=True)
             return uncertain  # return as-is on failure
 
+    def analyze_clip(
+        self,
+        frames: list[np.ndarray],
+        prompt_ja: str = "これらはビデオから抽出された一連のフレームです。この映像で何が起きたか、特に異常やルールの違反があれば詳細に説明してください。",
+    ) -> str:
+        """Analyze a video clip (sequence of frames) by creating a grid image."""
+        if not frames:
+            return "No frames provided."
+            
+        t0 = time.monotonic()
+        self._stats.total_calls += 1
+        
+        if not self._ensure_loaded():
+            self._stats.errors += 1
+            return "VLM not loaded."
+            
+        try:
+            import cv2
+            import math
+            
+            # Create a grid image from the frames
+            n = len(frames)
+            cols = math.ceil(math.sqrt(n))
+            rows = math.ceil(n / cols)
+            
+            h, w = frames[0].shape[:2]
+            target_w = 320
+            target_h = int(h * (target_w / w))
+            
+            grid_img = np.zeros((rows * target_h, cols * target_w, 3), dtype=np.uint8)
+            
+            for i, f in enumerate(frames):
+                r = i // cols
+                c = i % cols
+                resized = cv2.resize(f, (target_w, target_h))
+                grid_img[r*target_h:(r+1)*target_h, c*target_w:(c+1)*target_w] = resized
+                
+            image = self._frame_to_pil(grid_img)
+            result = self._generate(
+                image, f"[INST] <image>\n{prompt_ja}\n[/INST]"
+            )
+            
+            elapsed = (time.monotonic() - t0) * 1000
+            self._stats.total_latency_ms += elapsed
+            return result
+        except Exception:
+            self._stats.errors += 1
+            logger.debug("LLaVA analyze_clip failed", exc_info=True)
+            return "Failed to analyze clip."
+
     def describe_scene(
         self,
         frame: np.ndarray,

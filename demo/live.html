@@ -666,6 +666,58 @@
 
     <div class="section-sep"></div>
 
+    <!-- Section D2: Multi-Agent Coordination -->
+    <div id="multi-agent-section">
+      <div class="section-header">
+        <div class="section-title">
+          <div class="section-icon" style="font-size:0.8rem; background:rgba(251,191,36,0.15); color:#fbbf24;">🤝</div>
+          マルチエージェント協調 — クロスカメラ統合
+        </div>
+        <div class="section-meta">
+          エージェント: <strong id="ma-agent-count">--</strong> | エンティティ: <strong id="ma-entity-count">--</strong> | イベント: <strong id="ma-event-count">--</strong>
+        </div>
+      </div>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px;">
+        <!-- Active Agents -->
+        <div class="card" style="border-color:rgba(251,191,36,0.2); background:rgba(251,191,36,0.03);">
+          <div style="font-size:0.75rem; font-weight:700; color:#fbbf24; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">アクティブエージェント</div>
+          <div id="ma-agents-list" style="display:flex; flex-direction:column; gap:6px; max-height:140px; overflow-y:auto;">
+            <div style="font-size:0.75rem; color:var(--muted); text-align:center; padding:20px 0;">エージェントなし</div>
+          </div>
+        </div>
+        <!-- Global Entities -->
+        <div class="card" style="border-color:rgba(251,191,36,0.2); background:rgba(251,191,36,0.03);">
+          <div style="font-size:0.75rem; font-weight:700; color:#fbbf24; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">グローバルエンティティ</div>
+          <div id="ma-entities-list" style="display:flex; flex-direction:column; gap:4px; max-height:140px; overflow-y:auto;">
+            <div style="font-size:0.75rem; color:var(--muted); text-align:center; padding:20px 0;">エンティティなし</div>
+          </div>
+        </div>
+      </div>
+      <!-- Spatial Hotspots + Event Feed -->
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px;">
+        <div class="card" style="border-color:rgba(251,191,36,0.2); background:rgba(251,191,36,0.03);">
+          <div style="font-size:0.75rem; font-weight:700; color:#fbbf24; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">空間ホットスポット</div>
+          <canvas id="ma-hotspot-canvas" width="220" height="110" style="width:100%; height:auto; border-radius:6px; background:rgba(0,0,0,0.3);"></canvas>
+        </div>
+        <div class="card" style="border-color:rgba(251,191,36,0.2); background:rgba(251,191,36,0.03);">
+          <div style="font-size:0.75rem; font-weight:700; color:#fbbf24; margin-bottom:8px; text-transform:uppercase; letter-spacing:0.05em;">クロスカメライベント</div>
+          <div id="ma-events-feed" style="display:flex; flex-direction:column; gap:4px; max-height:110px; overflow-y:auto;">
+            <div style="font-size:0.75rem; color:var(--muted); text-align:center; padding:16px 0;">イベントなし</div>
+          </div>
+        </div>
+      </div>
+      <!-- Register Agent form -->
+      <div style="margin-top:12px; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+        <input id="ma-new-agent-id" type="text" placeholder="agent_id" style="flex:1; min-width:90px; font-size:0.75rem; padding:6px 8px; background:var(--bg3); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+        <input id="ma-new-camera-id" type="text" placeholder="camera_id" style="flex:1; min-width:90px; font-size:0.75rem; padding:6px 8px; background:var(--bg3); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+        <input id="ma-new-location" type="text" placeholder="location" style="flex:1; min-width:90px; font-size:0.75rem; padding:6px 8px; background:var(--bg3); border:1px solid var(--border); border-radius:6px; color:var(--text);">
+        <button onclick="maRegisterAgent()" style="font-size:0.72rem; padding:6px 12px; background:rgba(251,191,36,0.15); border:1px solid rgba(251,191,36,0.4); border-radius:6px; color:#fbbf24; cursor:pointer;">エージェント登録</button>
+        <button onclick="maResetCoordinator()" style="font-size:0.72rem; padding:6px 12px; background:rgba(239,68,68,0.12); border:1px solid rgba(239,68,68,0.3); border-radius:6px; color:#ef4444; cursor:pointer;">リセット</button>
+      </div>
+    </div>
+
+    <div class="section-sep"></div>
+
     <!-- Section D: SOP Analysis -->
     <div id="sop-analysis-section">
       <div class="section-header">
@@ -964,6 +1016,7 @@ async function loadAll() {
     loadVigilSessions(),
     loadScoreJobs(),
     loadTemplates(),
+    loadMultiAgent(),
   ]);
   const anyOk = results.some(r => r.status === 'fulfilled' && r.value !== false);
   updateConnectionStatus(anyOk ? 'connected' : 'error');
@@ -1819,6 +1872,133 @@ async function runPercQuery() {
   } catch(e) {
     answer.textContent = 'エラー: ' + e.message;
   }
+}
+
+// ── MULTI-AGENT COORDINATION ──────────────────────────────────────────────
+async function loadMultiAgent() {
+  try {
+    const [stateR, eventsR, hotspotsR] = await Promise.all([
+      fetch(`${SERVER}/vigil/perception/multi-agent/state`, {headers: headers(false)}),
+      fetch(`${SERVER}/vigil/perception/multi-agent/events?n=10`, {headers: headers(false)}),
+      fetch(`${SERVER}/vigil/perception/multi-agent/map/hotspots?top_n=8`, {headers: headers(false)}),
+    ]);
+    if (stateR.ok) {
+      const d = await stateR.json();
+      _renderMAState(d);
+    }
+    if (eventsR.ok) {
+      const d = await eventsR.json();
+      _renderMAEvents(d.events || []);
+    }
+    if (hotspotsR.ok) {
+      const d = await hotspotsR.json();
+      _renderMAHotspots(d.hotspots || [], d.map_stats || {});
+    }
+  } catch(e) { /* silent */ }
+}
+
+function _renderMAState(d) {
+  document.getElementById('ma-agent-count').textContent = d.active_agents ?? '--';
+  document.getElementById('ma-entity-count').textContent = d.total_global_entities ?? '--';
+  document.getElementById('ma-event-count').textContent = d.total_events_broadcast ?? '--';
+  // Agents list
+  const agList = document.getElementById('ma-agents-list');
+  const agents = d.agents || [];
+  if (!agents.length) {
+    agList.innerHTML = '<div style="font-size:0.75rem;color:var(--muted);text-align:center;padding:20px 0;">エージェントなし</div>';
+  } else {
+    agList.innerHTML = agents.map(a => {
+      const age = Math.round(Date.now()/1000 - a.last_seen_at);
+      const dot = age < 30 ? '#10b981' : (age < 90 ? '#fbbf24' : '#ef4444');
+      return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.72rem;padding:4px 6px;background:rgba(255,255,255,0.03);border-radius:4px;">
+        <span><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${dot};margin-right:5px;"></span>${a.agent_id}</span>
+        <span style="color:var(--muted);">${a.camera_id} | ${a.frame_count}f</span>
+      </div>`;
+    }).join('');
+  }
+  // Entities list
+  const entList = document.getElementById('ma-entities-list');
+  const entities = d.agents ? [] : [];  // entities come from separate fetch
+  // We'll update entities from the entities endpoint separately
+}
+
+function _renderMAEvents(events) {
+  const feed = document.getElementById('ma-events-feed');
+  if (!events.length) {
+    feed.innerHTML = '<div style="font-size:0.75rem;color:var(--muted);text-align:center;padding:16px 0;">イベントなし</div>';
+    return;
+  }
+  const sevColor = {critical:'#ef4444', warning:'#fbbf24', info:'#10b981'};
+  feed.innerHTML = [...events].reverse().map(ev => {
+    const sev = ev.severity || ev.type || 'info';
+    const col = sevColor[sev] || '#60a5fa';
+    return `<div style="font-size:0.72rem;padding:3px 6px;background:rgba(255,255,255,0.03);border-left:2px solid ${col};border-radius:0 4px 4px 0;">
+      <span style="color:${col};font-weight:600;">${ev.source_agent_id || '?'}</span>
+      <span style="color:var(--muted);"> — ${ev.type || ev.rule || 'event'}</span>
+    </div>`;
+  }).join('');
+}
+
+function _renderMAHotspots(hotspots, mapStats) {
+  const canvas = document.getElementById('ma-hotspot-canvas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+  ctx.fillStyle = '#0a0a0f';
+  ctx.fillRect(0, 0, W, H);
+  const gw = mapStats.grid_w || 8;
+  const gh = mapStats.grid_h || 6;
+  const cw = W / gw, ch = H / gh;
+  hotspots.forEach(hs => {
+    const x = hs.col * cw;
+    const y = hs.row * ch;
+    const alpha = Math.min(1, hs.value);
+    ctx.fillStyle = `rgba(251,191,36,${alpha * 0.85})`;
+    ctx.fillRect(x + 1, y + 1, cw - 2, ch - 2);
+    // Glow
+    if (alpha > 0.5) {
+      ctx.shadowBlur = 8;
+      ctx.shadowColor = '#fbbf24';
+      ctx.fillRect(x + 1, y + 1, cw - 2, ch - 2);
+      ctx.shadowBlur = 0;
+    }
+  });
+  // Grid overlay
+  ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+  ctx.lineWidth = 0.5;
+  for (let c = 0; c <= gw; c++) { ctx.beginPath(); ctx.moveTo(c*cw, 0); ctx.lineTo(c*cw, H); ctx.stroke(); }
+  for (let r = 0; r <= gh; r++) { ctx.beginPath(); ctx.moveTo(0, r*ch); ctx.lineTo(W, r*ch); ctx.stroke(); }
+}
+
+async function maRegisterAgent() {
+  const aid = document.getElementById('ma-new-agent-id').value.trim();
+  const cid = document.getElementById('ma-new-camera-id').value.trim();
+  const loc = document.getElementById('ma-new-location').value.trim();
+  if (!aid) { alert('agent_id を入力してください'); return; }
+  try {
+    const r = await fetch(`${SERVER}/vigil/perception/multi-agent/agents`, {
+      method: 'POST', headers: headers(true),
+      body: JSON.stringify({agent_id: aid, camera_id: cid, location: loc})
+    });
+    const d = await r.json();
+    if (d.agent_id) {
+      document.getElementById('ma-new-agent-id').value = '';
+      document.getElementById('ma-new-camera-id').value = '';
+      document.getElementById('ma-new-location').value = '';
+      loadMultiAgent();
+    } else {
+      alert('登録失敗: ' + JSON.stringify(d));
+    }
+  } catch(e) { alert('エラー: ' + e.message); }
+}
+
+async function maResetCoordinator() {
+  if (!confirm('マルチエージェントコーディネーターをリセットしますか？')) return;
+  try {
+    await fetch(`${SERVER}/vigil/perception/multi-agent/reset`, {method: 'POST', headers: headers(false)});
+    loadMultiAgent();
+  } catch(e) { alert('エラー: ' + e.message); }
 }
 
 // ── GENERATE DOSSIER ──────────────────────────────────────────────────────

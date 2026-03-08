@@ -273,6 +273,9 @@ class PerceptionEngine:
         # Phase 50: Crowd Flow Analytics
         self._crowd_analytics: Any | None = None
 
+        # Phase 52: Multi-Agent Coordinator
+        self._multi_agent_coordinator: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -680,6 +683,43 @@ class PerceptionEngine:
                             )
                 except Exception:
                     logger.debug("Causal analyzer stage failed", exc_info=True)
+
+            # ── Stage 6p: Multi-Agent Coordinator — submit entities + spatial ──
+            if self._multi_agent_coordinator is not None:
+                try:
+                    _cam = getattr(self, "_session_id", None) or "cam"
+                    # Submit detected entities
+                    _ents = [
+                        {
+                            "entity_id": int(e.entity_id) if str(e.entity_id).isdigit() else hash(e.entity_id) & 0xFFFF,
+                            "label": e.label,
+                            "cx": float(e.bbox[0] + e.bbox[2]) / 2.0 if e.bbox else 0.5,
+                            "cy": float(e.bbox[1] + e.bbox[3]) / 2.0 if e.bbox else 0.5,
+                        }
+                        for e in world_state.scene_graph.entities[:20]
+                    ]
+                    self._multi_agent_coordinator.submit_entities(_cam, _ents)
+                    # Submit spatial occupancy grid if available
+                    if self._spatial_mapper is not None:
+                        try:
+                            _map_data = self._spatial_mapper.to_map_data()
+                            _occ = _map_data.get("occupancy_grid", {}).get("cells")
+                            if _occ:
+                                self._multi_agent_coordinator.submit_spatial_update(_cam, _occ)
+                        except Exception:
+                            pass
+                    # Broadcast violations as events
+                    for v in violations:
+                        self._multi_agent_coordinator.broadcast_event(_cam, {
+                            "type": "violation",
+                            "rule": v.rule,
+                            "severity": v.severity.value if hasattr(v.severity, "value") else str(v.severity),
+                            "confidence": float(v.confidence),
+                        })
+                    # Heartbeat
+                    self._multi_agent_coordinator.heartbeat(_cam)
+                except Exception:
+                    logger.debug("Multi-agent stage failed", exc_info=True)
 
             # ── Convert Hazards to Violations (Urgency integration) ──
             if hasattr(self, "_last_hazards") and self._last_hazards:
@@ -1485,6 +1525,15 @@ class PerceptionEngine:
             return None
         try:
             return self._crowd_analytics.get_stats()
+        except Exception:
+            return None
+
+    def get_multi_agent_state(self) -> dict | None:
+        """Return multi-agent coordinator state (Phase 52)."""
+        if self._multi_agent_coordinator is None:
+            return None
+        try:
+            return self._multi_agent_coordinator.get_state_dict()
         except Exception:
             return None
 
@@ -3220,6 +3269,23 @@ def build_perception_engine(
             logger.debug("crowd_analytics module not available")
         except Exception:
             logger.exception("Failed to initialize CrowdAnalytics")
+
+    # ── Phase 52: Multi-Agent Coordinator (optional) ───────────────────────
+    if getattr(config, "multi_agent_enabled", False):
+        try:
+            from sopilot.perception.multi_agent import MultiAgentCoordinator
+            engine._multi_agent_coordinator = MultiAgentCoordinator(
+                max_agents=getattr(config, "multi_agent_max_agents", 16),
+                entity_merge_distance=getattr(config, "multi_agent_entity_merge_distance", 0.1),
+                agent_timeout_seconds=getattr(config, "multi_agent_agent_timeout_seconds", 30.0),
+                grid_w=getattr(config, "crowd_grid_cols", 20),
+                grid_h=getattr(config, "crowd_grid_rows", 15),
+            )
+            logger.info("MultiAgentCoordinator initialized (max_agents=%d)", config.multi_agent_max_agents)
+        except ImportError:
+            logger.debug("multi_agent module not available")
+        except Exception:
+            logger.exception("Failed to initialize MultiAgentCoordinator")
 
     # Apply Phase 6 components (set after construction to keep __init__ clean)
     engine._nl_task_manager = nl_task_manager

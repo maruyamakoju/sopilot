@@ -666,3 +666,9 @@ class PerceptionConfig:
     sop_enabled: bool = True                      # enable SOPEngine state tracking
     sop_definition_path: str = ""                  # path to JSON SOP definition
 
+    # Phase 52: Multi-Agent Coordination
+    multi_agent_enabled: bool = False              # enable MultiAgentCoordinator integration
+    multi_agent_max_agents: int = 16               # max concurrent camera agents
+    multi_agent_entity_merge_distance: float = 0.1  # spatial distance for cross-camera entity merge
+    multi_agent_agent_timeout_seconds: float = 30.0  # inactive agent timeout
+

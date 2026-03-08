@@ -2340,6 +2340,135 @@ def build_perception_router() -> APIRouter:
         except ImportError:
             return {"error": "multi_agent module not available"}
 
+    @router.get("/multi-agent/agents")
+    async def list_multi_agents(active_only: bool = False) -> dict:
+        """登録済みエージェント一覧。active_only=trueで活動中のみ。"""
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            coord = get_coordinator()
+            if active_only:
+                agents = coord.get_active_agents()
+            else:
+                agents = list(coord._agents.values())
+            return {"agents": [a.to_dict() for a in agents], "count": len(agents)}
+        except ImportError:
+            return {"agents": [], "count": 0}
+
+    @router.post("/multi-agent/agents/{agent_id}/heartbeat")
+    async def multi_agent_heartbeat(agent_id: str) -> dict:
+        """エージェントのハートビート更新。"""
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            ok = get_coordinator().heartbeat(agent_id)
+            return {"ok": ok, "agent_id": agent_id}
+        except ImportError:
+            return {"ok": False}
+
+    @router.delete("/multi-agent/agents/{agent_id}")
+    async def unregister_multi_agent(agent_id: str) -> dict:
+        """エージェントを登録解除。"""
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            ok = get_coordinator().unregister_agent(agent_id)
+            return {"ok": ok, "agent_id": agent_id}
+        except ImportError:
+            return {"ok": False}
+
+    @router.post("/multi-agent/agents/{agent_id}/spatial")
+    async def submit_agent_spatial(agent_id: str, request: Request) -> dict:
+        """エージェントの占有グリッドを共有マップに反映。"""
+        body = await request.json()
+        grid = body.get("occupancy_grid", [])
+        if not grid:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=422, detail="occupancy_grid required")
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            get_coordinator().submit_spatial_update(agent_id, grid)
+            return {"ok": True, "agent_id": agent_id, "grid_rows": len(grid)}
+        except ImportError:
+            return {"ok": False}
+
+    @router.post("/multi-agent/agents/{agent_id}/entities")
+    async def submit_agent_entities(agent_id: str, request: Request) -> dict:
+        """エージェントのローカルエンティティをグローバルIDに解決。"""
+        body = await request.json()
+        entities = body.get("entities", [])
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            global_ids = get_coordinator().submit_entities(agent_id, entities)
+            return {"agent_id": agent_id, "global_ids": global_ids, "count": len(global_ids)}
+        except ImportError:
+            return {"agent_id": agent_id, "global_ids": [], "count": 0}
+
+    @router.get("/multi-agent/entities")
+    async def list_global_entities() -> dict:
+        """グローバルエンティティ一覧 (クロスカメラ解決済み)。"""
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            entities = get_coordinator().get_global_entities()
+            return {"entities": [e.to_dict() for e in entities], "count": len(entities)}
+        except ImportError:
+            return {"entities": [], "count": 0}
+
+    @router.get("/multi-agent/entities/{global_id}")
+    async def get_global_entity(global_id: str) -> dict:
+        """特定グローバルエンティティの詳細。"""
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            e = get_coordinator().get_entity_by_global_id(global_id)
+            if e is None:
+                from fastapi import HTTPException
+                raise HTTPException(status_code=404, detail="entity not found")
+            return e.to_dict()
+        except ImportError:
+            from fastapi import HTTPException
+            raise HTTPException(status_code=503, detail="multi_agent module not available")
+
+    @router.post("/multi-agent/events")
+    async def broadcast_multi_agent_event(request: Request) -> dict:
+        """エージェントイベントをブロードキャスト。"""
+        body = await request.json()
+        agent_id = str(body.get("agent_id", "unknown"))
+        event = {k: v for k, v in body.items() if k != "agent_id"}
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            get_coordinator().broadcast_event(agent_id, event)
+            return {"ok": True, "agent_id": agent_id}
+        except ImportError:
+            return {"ok": False}
+
+    @router.get("/multi-agent/events")
+    async def get_multi_agent_events(n: int = 20) -> dict:
+        """最近のクロスカメライベント一覧。"""
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            events = get_coordinator().get_recent_events(n)
+            return {"events": events, "count": len(events)}
+        except ImportError:
+            return {"events": [], "count": 0}
+
+    @router.get("/multi-agent/map/hotspots")
+    async def get_multi_agent_hotspots(top_n: int = 10) -> dict:
+        """共有空間マップのホットスポット (高占有セル)。"""
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            hotspots = get_coordinator().get_shared_map().get_hotspots(top_n=top_n)
+            grid_state = get_coordinator().get_shared_map().get_state_dict()
+            return {"hotspots": hotspots, "map_stats": grid_state}
+        except ImportError:
+            return {"hotspots": [], "map_stats": {}}
+
+    @router.post("/multi-agent/reset")
+    async def reset_multi_agent_coordinator() -> dict:
+        """マルチエージェントコーディネーターをリセット。"""
+        try:
+            from sopilot.perception.multi_agent import get_coordinator
+            get_coordinator().reset()
+            return {"ok": True, "message": "coordinator reset"}
+        except ImportError:
+            return {"ok": False}
+
     # ── Phase 31: Model Orchestrator Status ────────────────────────────
 
     @router.get("/orchestrator/status")

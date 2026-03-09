@@ -1765,21 +1765,46 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           </div>
         </div>
 
-        <!-- Phase 44: Causal Chain Analysis -->
+        <!-- Phase 44+53: Causal Chain Analysis + Causal Inference Engine -->
         <div class="perc-card" id="percCausalCard" style="display:none">
-          <div class="perc-card-title">&#x1F9E0; 因果連鎖分析 (Phase 44)</div>
+          <div class="perc-card-title">&#x1F9E0; 因果連鎖 + 因果推論 (Phase 44/53)</div>
           <div style="font-size:11px">
-            <div style="display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-bottom:6px">
-              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
-                <div style="font-size:9px;color:var(--muted)">バッファ</div>
-                <div id="causalBufferEvents" style="font-weight:700;color:#f59e0b">0</div>
+            <!-- Stats row -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">バッファ</div>
+                <div id="causalBufferEvents" style="font-weight:700;color:#f59e0b;font-size:13px">0</div>
               </div>
-              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:4px;text-align:center">
-                <div style="font-size:9px;color:var(--muted)">チェーン数</div>
-                <div id="causalChainCount" style="font-weight:700;color:#f59e0b">0</div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">チェーン</div>
+                <div id="causalChainCount" style="font-weight:700;color:#f59e0b;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">因果エッジ</div>
+                <div id="causalEdgeCount" style="font-weight:700;color:#a78bfa;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">観測数</div>
+                <div id="causalObserved" style="font-weight:700;color:#a78bfa;font-size:13px">0</div>
               </div>
             </div>
-            <div id="causalLatestChain" style="font-size:9px;color:#94a3b8;line-height:1.4;border-left:2px solid #f59e0b;padding-left:6px;display:none"></div>
+            <!-- Causal graph canvas -->
+            <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:5px;margin-bottom:6px;position:relative">
+              <div style="font-size:9px;color:var(--muted);margin-bottom:3px">因果グラフ (Granger強度)</div>
+              <canvas id="causalGraphCanvas" width="240" height="100" style="width:100%;height:auto;display:block;border-radius:3px"></canvas>
+              <div id="causalGraphEmpty" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:9px;color:var(--muted)">イベントバッファ不足</div>
+            </div>
+            <!-- Top edges feed -->
+            <div id="causalEdgeFeed" style="display:flex;flex-direction:column;gap:2px;max-height:55px;overflow-y:auto;margin-bottom:6px"></div>
+            <!-- Intervention simulation -->
+            <details style="margin-top:4px">
+              <summary style="font-size:9px;color:var(--muted);cursor:pointer;user-select:none">介入シミュレーション ▶</summary>
+              <div style="margin-top:4px;display:flex;flex-direction:column;gap:4px">
+                <input id="causalInterventionEvent" placeholder="防止イベント (例: PPE未着用)" style="font-size:9px;padding:3px 5px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;width:100%;box-sizing:border-box">
+                <button onclick="_causalSimulateIntervention()" style="font-size:9px;padding:3px 8px;border-radius:3px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#f59e0b;cursor:pointer">シミュレート</button>
+                <div id="causalInterventionResult" style="font-size:9px;color:var(--muted);line-height:1.4"></div>
+              </div>
+            </details>
           </div>
         </div>
 
@@ -1848,6 +1873,55 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
                 <input id="crowdCapMax" type="number" min="1" value="20" placeholder="最大人数" style="font-size:9px;padding:3px 5px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;width:100%;box-sizing:border-box">
                 <button onclick="_crowdSetCapacity()" style="font-size:9px;padding:3px 8px;border-radius:3px;background:rgba(167,139,250,.15);border:1px solid rgba(167,139,250,.3);color:#a78bfa;cursor:pointer">設定</button>
                 <div id="crowdCapMsg" style="font-size:9px;color:var(--muted)"></div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- Phase 54: Long-Horizon Safety Planner -->
+        <div class="perc-card" id="percPlannerCard" style="display:none">
+          <div class="perc-card-title">&#x1F4CB; 安全プランナー (Phase 54)</div>
+          <div style="font-size:11px">
+            <!-- Stats row -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">実行中</div>
+                <div id="plannerRunning" style="font-weight:700;color:#34d399;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">完了</div>
+                <div id="plannerCompleted" style="font-weight:700;color:#22d3ee;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">タスク待機</div>
+                <div id="plannerPending" style="font-weight:700;color:#a78bfa;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">タスク実行</div>
+                <div id="plannerActive" style="font-weight:700;color:#fbbf24;font-size:13px">0</div>
+              </div>
+            </div>
+            <!-- Active plans feed -->
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">実行中プラン</div>
+            <div id="plannerPlanFeed" style="display:flex;flex-direction:column;gap:3px;max-height:80px;overflow-y:auto;margin-bottom:6px">
+              <div style="font-size:9px;color:var(--muted)">—</div>
+            </div>
+            <!-- Goal submission form -->
+            <details style="margin-top:4px">
+              <summary style="font-size:9px;color:var(--muted);cursor:pointer;user-select:none">安全目標を登録 ▶</summary>
+              <div style="margin-top:4px;display:flex;flex-direction:column;gap:4px">
+                <input id="plannerGoalDesc" placeholder="目標 (例: PPEコンプライアンスを確保)" style="font-size:9px;padding:3px 5px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;width:100%;box-sizing:border-box">
+                <div style="display:flex;gap:4px">
+                  <select id="plannerGoalPriority" style="font-size:9px;padding:2px 4px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;flex:1">
+                    <option value="1">低</option>
+                    <option value="2" selected>中</option>
+                    <option value="3">高</option>
+                    <option value="4">緊急</option>
+                  </select>
+                  <input id="plannerGoalHorizon" type="number" value="3600" min="60" placeholder="ホライゾン(秒)" style="font-size:9px;padding:2px 4px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;flex:1">
+                </div>
+                <button onclick="_plannerSubmitGoal()" style="font-size:9px;padding:3px 8px;border-radius:3px;background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3);color:#34d399;cursor:pointer">目標を登録</button>
+                <div id="plannerGoalMsg" style="font-size:9px;color:var(--muted)"></div>
               </div>
             </details>
           </div>
@@ -6446,7 +6520,7 @@ async function loadPerceptionData(sessionId){
   // Connect SSE for real-time events
   _sseConnect(String(sessionId));
   // Show Phase 31-39 orchestration panels (poll will hide if not enabled)
-  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard"].forEach(id=>{
+  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard","percPlannerCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="";
   });
@@ -6467,7 +6541,7 @@ function resetPerceptionPanels(){
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard","percPlannerCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -6486,7 +6560,7 @@ async function _percFetchAll(sessionId){
     $("perceptionStatusBar").classList.remove("active");
     $("percInactive").classList.add("show");
     $("perceptionPanels").classList.remove("show");
-    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard"].forEach(id=>{
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percPlannerCard"].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.style.display="none";
     });
@@ -8576,18 +8650,53 @@ async function _refreshOrchestrationPanels(){
         }
       }
     }
-    // Phase 44: Causal Chain Analysis
+    // Phase 44+53: Causal Chain Analysis + Causal Inference Engine
     const causalEl=document.getElementById("percCausalCard");
     if(causalEl&&causalEl.style.display!=="none"){
-      const r=await fetch("/vigil/perception/causal/stats").catch(()=>null);
-      if(r&&r.ok){
-        const d=await r.json();
+      // Phase 44 chain stats
+      const r44=await fetch("/vigil/perception/causal/stats").catch(()=>null);
+      let causalEnabled=false;
+      if(r44&&r44.ok){
+        const d=await r44.json();
         if(d.enabled===false){causalEl.style.display="none";}
         else{
+          causalEnabled=true;
           const be=document.getElementById("causalBufferEvents");
           if(be)be.textContent=d.buffer_events||0;
           const cc=document.getElementById("causalChainCount");
           if(cc)cc.textContent=d.chains_stored||0;
+        }
+      }
+      // Phase 53 inference stats + graph
+      const r53=await fetch("/vigil/perception/causal/inference/stats").catch(()=>null);
+      if(r53&&r53.ok){
+        const d53=await r53.json();
+        if(d53.enabled!==false){
+          causalEnabled=true;
+          const ec=document.getElementById("causalEdgeCount");
+          if(ec)ec.textContent=d53.causal_edges||0;
+          const ob=document.getElementById("causalObserved");
+          if(ob)ob.textContent=d53.total_observed||0;
+        }
+      }
+      if(causalEnabled){
+        // Fetch and draw causal graph edges
+        const rg=await fetch("/vigil/perception/causal/inference/graph").catch(()=>null);
+        if(rg&&rg.ok){
+          const dg=await rg.json();
+          const edges=dg.edges||[];
+          _causalDrawGraph(edges);
+          const feed=document.getElementById("causalEdgeFeed");
+          if(feed){
+            if(edges.length>0){
+              feed.innerHTML=edges.slice(0,5).map(e=>`<div style="display:flex;gap:4px;font-size:8px;align-items:center">
+                <span style="color:#f59e0b;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.cause}</span>
+                <span style="color:var(--muted);flex-shrink:0">→</span>
+                <span style="color:#a78bfa;min-width:0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.effect}</span>
+                <span style="color:#94a3b8;flex-shrink:0;min-width:28px;text-align:right">${(e.strength*100).toFixed(0)}%</span>
+              </div>`).join("");
+            }else{feed.innerHTML='<div style="font-size:9px;color:var(--muted)">エッジ未検出</div>';}
+          }
         }
       }
     }
@@ -8749,6 +8858,49 @@ async function _refreshOrchestrationPanels(){
         }else if(feed){feed.innerHTML='<div style="font-size:9px;color:var(--muted)">アラートなし</div>';}
       }
     }
+    // Phase 54: Long-Horizon Safety Planner
+    const plannerEl=document.getElementById("percPlannerCard");
+    if(plannerEl&&plannerEl.style.display!=="none"){
+      const rp=await fetch("/vigil/perception/planner/stats").catch(()=>null);
+      if(rp&&rp.ok){
+        const dp=await rp.json();
+        if(dp.enabled===false){plannerEl.style.display="none";}
+        else{
+          const pr=document.getElementById("plannerRunning");
+          if(pr)pr.textContent=dp.active_plans||0;
+          const pc=document.getElementById("plannerCompleted");
+          if(pc)pc.textContent=dp.completed_plans||0;
+          const pp=document.getElementById("plannerPendingTasks");
+          if(pp)pp.textContent=dp.pending_tasks||0;
+          const pa=document.getElementById("plannerActiveTasks");
+          if(pa)pa.textContent=dp.in_progress_tasks||0;
+        }
+      }
+      // Active plans feed
+      const rpl=await fetch("/vigil/perception/planner/plans").catch(()=>null);
+      if(rpl&&rpl.ok){
+        const dpl=await rpl.json();
+        const feed=document.getElementById("plannerPlanFeed");
+        if(feed){
+          const plans=(dpl.plans||[]).slice(0,4);
+          if(plans.length>0){
+            const _sc={running:"#4ade80",pending:"#fbbf24",completed:"#94a3b8",failed:"#f87171",cancelled:"#f87171"};
+            feed.innerHTML=plans.map(p=>{
+              const col=_sc[p.status]||"#94a3b8";
+              const tasks=(p.tasks||[]).length;
+              const done=(p.tasks||[]).filter(t=>t.status==="completed").length;
+              return `<div style="font-size:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+                <div style="display:flex;gap:4px;align-items:center">
+                  <span style="color:${col};font-weight:700;flex-shrink:0">[${p.status.toUpperCase()}]</span>
+                  <span style="color:#e2e8f0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${p.goal_description}</span>
+                  <span style="color:var(--muted);flex-shrink:0">${done}/${tasks}</span>
+                </div>
+              </div>`;
+            }).join("");
+          }else{feed.innerHTML='<div style="font-size:9px;color:var(--muted)">プランなし</div>';}
+        }
+      }
+    }
   }catch(e){console.debug("orch panels error",e);}
 }
 
@@ -8893,6 +9045,114 @@ async function _fmAddZone(){
     });
     const d=await r.json();
     if(msgEl)msgEl.textContent=d.success?`登録完了: ${d.zone_id||"ok"}`:`エラー: ${d.message||"unknown"}`;
+  }catch(e){if(msgEl)msgEl.textContent=`エラー: ${e.message}`;}
+}
+
+// Phase 53: Draw causal graph edges on canvas
+function _causalDrawGraph(edges){
+  const cv=document.getElementById("causalGraphCanvas");
+  if(!cv)return;
+  const ctx=cv.getContext("2d");
+  const W=cv.width,H=cv.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle="#0f172a";
+  ctx.fillRect(0,0,W,H);
+  if(!edges||edges.length===0){
+    ctx.fillStyle="rgba(148,163,184,0.5)";
+    ctx.font="9px monospace";
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    ctx.fillText("因果エッジ未検出",W/2,H/2);
+    return;
+  }
+  // Collect unique nodes
+  const nodeSet=new Set();
+  edges.forEach(e=>{nodeSet.add(e.cause);nodeSet.add(e.effect);});
+  const nodes=[...nodeSet];
+  const n=nodes.length;
+  // Place nodes in a circle
+  const cx=W/2,cy=H/2,r=Math.min(W,H)/2-18;
+  const pos={};
+  nodes.forEach((nd,i)=>{
+    const a=(2*Math.PI*i/n)-Math.PI/2;
+    pos[nd]={x:cx+r*Math.cos(a),y:cy+r*Math.sin(a)};
+  });
+  // Draw edges
+  edges.forEach(e=>{
+    const s=pos[e.cause],t=pos[e.effect];
+    if(!s||!t)return;
+    const alpha=0.3+e.strength*0.6;
+    ctx.strokeStyle=`rgba(245,158,11,${alpha})`;
+    ctx.lineWidth=1+e.strength*2;
+    ctx.beginPath();ctx.moveTo(s.x,s.y);ctx.lineTo(t.x,t.y);ctx.stroke();
+    // Arrowhead
+    const ang=Math.atan2(t.y-s.y,t.x-s.x);
+    const aLen=6;
+    ctx.fillStyle=`rgba(245,158,11,${alpha})`;
+    ctx.beginPath();
+    ctx.moveTo(t.x,t.y);
+    ctx.lineTo(t.x-aLen*Math.cos(ang-0.4),t.y-aLen*Math.sin(ang-0.4));
+    ctx.lineTo(t.x-aLen*Math.cos(ang+0.4),t.y-aLen*Math.sin(ang+0.4));
+    ctx.closePath();ctx.fill();
+  });
+  // Draw nodes
+  nodes.forEach(nd=>{
+    const p=pos[nd];
+    ctx.fillStyle="#1e293b";
+    ctx.strokeStyle="#a78bfa";
+    ctx.lineWidth=1;
+    ctx.beginPath();ctx.arc(p.x,p.y,5,0,Math.PI*2);ctx.fill();ctx.stroke();
+    ctx.fillStyle="#e2e8f0";
+    ctx.font="7px monospace";
+    ctx.textAlign="center";
+    ctx.textBaseline="middle";
+    const lbl=nd.length>10?nd.substring(0,9)+"…":nd;
+    // Place label outside node
+    const ang2=Math.atan2(p.y-cy,p.x-cx);
+    ctx.fillText(lbl,p.x+10*Math.cos(ang2),p.y+10*Math.sin(ang2));
+  });
+  ctx.textAlign="left";ctx.textBaseline="alphabetic";
+}
+
+// Phase 53: Simulate causal intervention
+async function _causalSimulateIntervention(){
+  const msgEl=document.getElementById("causalInterventionMsg");
+  const ev=document.getElementById("causalInterventionEvent")?.value.trim()||"";
+  if(!ev){if(msgEl)msgEl.textContent="イベント種別を入力してください";return;}
+  if(msgEl)msgEl.textContent="解析中...";
+  try{
+    const r=await fetch("/vigil/perception/causal/inference/intervention",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({prevent_event:ev})
+    });
+    const d=await r.json();
+    if(r.ok){
+      const prevented=(d.prevented_effects||[]).length;
+      if(msgEl)msgEl.textContent=`介入効果: ${prevented}件の連鎖を防止 — ${d.explanation_ja||d.explanation_en||""}`;
+    }else{if(msgEl)msgEl.textContent=`エラー: ${d.detail||"unknown"}`;}
+  }catch(e){if(msgEl)msgEl.textContent=`エラー: ${e.message}`;}
+}
+
+// Phase 54: Submit goal to Safety Planner
+async function _plannerSubmitGoal(){
+  const msgEl=document.getElementById("plannerGoalMsg");
+  const desc=document.getElementById("plannerGoalDesc")?.value.trim()||"";
+  const pri=parseInt(document.getElementById("plannerGoalPriority")?.value)||2;
+  const hz=parseFloat(document.getElementById("plannerGoalHorizon")?.value)||3600;
+  if(!desc){if(msgEl)msgEl.textContent="目標を入力してください";return;}
+  if(msgEl)msgEl.textContent="送信中...";
+  try{
+    const r=await fetch("/vigil/perception/planner/goals",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify({description:desc,priority:pri,horizon_seconds:hz})
+    });
+    const d=await r.json();
+    if(r.ok){
+      if(msgEl)msgEl.textContent=`プラン作成: ${d.plan_id?.substring(0,8)||"ok"} (${d.task_count||0}タスク)`;
+      if(document.getElementById("plannerGoalDesc"))document.getElementById("plannerGoalDesc").value="";
+    }else{if(msgEl)msgEl.textContent=`エラー: ${d.detail||"unknown"}`;}
   }catch(e){if(msgEl)msgEl.textContent=`エラー: ${e.message}`;}
 }
 

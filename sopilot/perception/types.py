@@ -683,3 +683,10 @@ class PerceptionConfig:
     safety_planner_horizon_seconds: float = 3600.0 # default planning horizon (1 hour)
     safety_planner_max_plans: int = 20             # maximum concurrent plans
 
+    # Phase 55: Self-Supervised Domain Adaptation
+    domain_adaptation_enabled: bool = False        # enable DomainAdapter
+    domain_adaptation_memory_size: int = 2000      # max feature buffer size per camera
+    domain_adaptation_bootstrap_frames: int = 50   # frames to collect before source stats
+    domain_adaptation_shift_threshold: float = 0.15  # MMD shift score threshold
+    domain_adaptation_auto_adapt_every: int = 100  # frames between auto-adaptation steps
+

@@ -282,6 +282,9 @@ class PerceptionEngine:
         # Phase 54: Long-Horizon Safety Planner
         self._safety_planner: Any | None = None
 
+        # Phase 55: Self-Supervised Domain Adaptation
+        self._domain_adapter: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -760,6 +763,18 @@ class PerceptionEngine:
                     self._safety_planner.tick(_obs)
                 except Exception:
                     logger.debug("Safety planner stage failed", exc_info=True)
+
+            # ── Stage 6s: Domain Adapter — observe CLS features ─────────
+            if self._domain_adapter is not None:
+                try:
+                    _da_feats = getattr(self, "_last_cls_features", None)
+                    if _da_feats is not None:
+                        _da_cam = getattr(self, "_session_id", None) or "cam"
+                        self._domain_adapter.observe_frame(
+                            _da_feats, camera_id=_da_cam, timestamp=frame_ts
+                        )
+                except Exception:
+                    logger.debug("Domain adapter stage failed", exc_info=True)
 
             # ── Convert Hazards to Violations (Urgency integration) ──
             if hasattr(self, "_last_hazards") and self._last_hazards:
@@ -1592,6 +1607,15 @@ class PerceptionEngine:
             return None
         try:
             return self._safety_planner.get_stats()
+        except Exception:
+            return None
+
+    def get_domain_adapter_state(self) -> dict | None:
+        """Return domain adapter stats (Phase 55)."""
+        if self._domain_adapter is None:
+            return None
+        try:
+            return self._domain_adapter.get_stats()
         except Exception:
             return None
 
@@ -3374,6 +3398,22 @@ def build_perception_engine(
             logger.debug("safety_planner module not available")
         except Exception:
             logger.exception("Failed to initialize SafetyPlanner")
+
+    # ── Phase 55: Domain Adapter (optional) ────────────────────────────────
+    if getattr(config, "domain_adaptation_enabled", False):
+        try:
+            from sopilot.perception.domain_adapter import DomainAdapter
+            engine._domain_adapter = DomainAdapter(
+                memory_size=getattr(config, "domain_adaptation_memory_size", 2000),
+                bootstrap_frames=getattr(config, "domain_adaptation_bootstrap_frames", 50),
+                shift_threshold=getattr(config, "domain_adaptation_shift_threshold", 0.15),
+                auto_adapt_every=getattr(config, "domain_adaptation_auto_adapt_every", 100),
+            )
+            logger.info("DomainAdapter initialized (bootstrap=%d)", config.domain_adaptation_bootstrap_frames)
+        except ImportError:
+            logger.debug("domain_adapter module not available")
+        except Exception:
+            logger.exception("Failed to initialize DomainAdapter")
 
     # Apply Phase 6 components (set after construction to keep __init__ clean)
     engine._nl_task_manager = nl_task_manager

@@ -3304,4 +3304,111 @@ def build_perception_router() -> APIRouter:
             return {"success": True, "zone_id": zone_id, "max_persons": max_persons}
         return await run_in_threadpool(_set)
 
+    # ── Phase 55: Self-Supervised Domain Adaptation ────────────────────────
+
+    @router.get("/domain/stats")
+    async def get_domain_stats(request: Request) -> dict:
+        """ドメイン適応全体統計 (Phase 55)。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_domain_adapter_state()
+        if state is None:
+            return {"enabled": False}
+        return state
+
+    @router.get("/domain/cameras")
+    async def get_domain_cameras(request: Request) -> dict:
+        """カメラ別ドメイン適応状態一覧。"""
+        engine = _get_perception_engine(request)
+        if engine._domain_adapter is None:
+            return {"enabled": False, "cameras": []}
+        def _get():
+            return {"enabled": True, "cameras": engine._domain_adapter.get_camera_states()}
+        return await run_in_threadpool(_get)
+
+    @router.get("/domain/shift")
+    async def get_domain_shift(request: Request, camera_id: str = "cam") -> dict:
+        """指定カメラの MMD ドメインシフトスコアを計算。"""
+        engine = _get_perception_engine(request)
+        if engine._domain_adapter is None:
+            return {"enabled": False, "camera_id": camera_id}
+        def _get():
+            return engine._domain_adapter.detect_domain_shift(camera_id)
+        return await run_in_threadpool(_get)
+
+    @router.get("/domain/shift/history")
+    async def get_domain_shift_history(request: Request, camera_id: str = "cam") -> dict:
+        """ドメインシフト学習曲線 (時系列)。"""
+        engine = _get_perception_engine(request)
+        if engine._domain_adapter is None:
+            return {"enabled": False, "camera_id": camera_id, "history": []}
+        def _get():
+            return {
+                "enabled": True,
+                "camera_id": camera_id,
+                "history": engine._domain_adapter.get_shift_history(camera_id),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.post("/domain/adapt")
+    async def trigger_domain_adapt(request: Request) -> dict:
+        """指定カメラのドメイン適応ステップを手動実行。"""
+        engine = _get_perception_engine(request)
+        if engine._domain_adapter is None:
+            return {"enabled": False, "adapted": False}
+        body = await request.json()
+        camera_id = body.get("camera_id", "cam")
+        def _adapt():
+            return engine._domain_adapter.adapt(camera_id)
+        return await run_in_threadpool(_adapt)
+
+    @router.post("/domain/observe")
+    async def domain_observe_frame(request: Request) -> dict:
+        """特徴ベクトル (base64 float32) をドメインバッファに追加。"""
+        engine = _get_perception_engine(request)
+        if engine._domain_adapter is None:
+            return {"success": False, "message": "DomainAdapter not initialized"}
+        body = await request.json()
+        camera_id = body.get("camera_id", "cam")
+        features_b64 = body.get("features_b64", "")
+        if not features_b64:
+            raise HTTPException(status_code=400, detail="features_b64 required")
+        import base64
+        features = np.frombuffer(base64.b64decode(features_b64), dtype=np.float32)
+        def _obs():
+            engine._domain_adapter.observe_frame(features, camera_id=camera_id)
+            return {"success": True, "camera_id": camera_id, "feature_dim": len(features)}
+        return await run_in_threadpool(_obs)
+
+    @router.post("/domain/label")
+    async def domain_apply_label(request: Request) -> dict:
+        """ラベル付きサンプルをドメイン適応に統合 (Phase 45 連携)。"""
+        engine = _get_perception_engine(request)
+        if engine._domain_adapter is None:
+            return {"success": False, "message": "DomainAdapter not initialized"}
+        body = await request.json()
+        camera_id = body.get("camera_id", "cam")
+        category = body.get("category", "")
+        features_b64 = body.get("features_b64", "")
+        if not category:
+            raise HTTPException(status_code=400, detail="category required")
+        if not features_b64:
+            raise HTTPException(status_code=400, detail="features_b64 required")
+        import base64
+        features = np.frombuffer(base64.b64decode(features_b64), dtype=np.float32)
+        def _label():
+            engine._domain_adapter.apply_label(features, category, camera_id=camera_id)
+            return {"success": True, "camera_id": camera_id, "category": category}
+        return await run_in_threadpool(_label)
+
+    @router.delete("/domain/reset")
+    async def reset_domain_adapter(request: Request, camera_id: str | None = None) -> dict:
+        """ドメインアダプタをリセット (全体または指定カメラ)。"""
+        engine = _get_perception_engine(request)
+        if engine._domain_adapter is None:
+            return {"success": False, "message": "DomainAdapter not initialized"}
+        def _reset():
+            engine._domain_adapter.reset(camera_id)
+            return {"success": True, "camera_id": camera_id}
+        return await run_in_threadpool(_reset)
+
     return router

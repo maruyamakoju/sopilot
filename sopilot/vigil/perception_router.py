@@ -3304,6 +3304,258 @@ def build_perception_router() -> APIRouter:
             return {"success": True, "zone_id": zone_id, "max_persons": max_persons}
         return await run_in_threadpool(_set)
 
+    # ── Phase 57: Predictive Maintenance ───────────────────────────────────
+
+    @router.get("/forecast/stats")
+    async def get_forecast_stats(request: Request) -> dict:
+        """予知保全フォーキャスター統計 (Phase 57)。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_anomaly_forecaster_state()
+        if state is None:
+            return {"enabled": False}
+        return state
+
+    @router.get("/forecast/cameras")
+    async def get_forecast_cameras(request: Request) -> dict:
+        """カメラ別予測状態一覧。"""
+        engine = _get_perception_engine(request)
+        if engine._anomaly_forecaster is None:
+            return {"enabled": False, "cameras": []}
+        def _get():
+            return {"enabled": True, "cameras": engine._anomaly_forecaster.get_camera_states()}
+        return await run_in_threadpool(_get)
+
+    @router.get("/forecast/predict")
+    async def get_forecast_predict(
+        request: Request,
+        camera_id: str = "cam",
+        horizon: int = 10,
+    ) -> dict:
+        """指定カメラの異常スコア予測 (Holt-Winters)。"""
+        engine = _get_perception_engine(request)
+        if engine._anomaly_forecaster is None:
+            return {"enabled": False}
+        def _predict():
+            r = engine._anomaly_forecaster.forecast(camera_id=camera_id, horizon_steps=horizon)
+            return {
+                "enabled": True,
+                "camera_id": r.camera_id,
+                "horizon_steps": r.horizon_steps,
+                "current_level": r.current_level,
+                "current_trend": r.current_trend,
+                "forecast_values": r.forecast_values,
+                "failure_probabilities": r.failure_probabilities,
+                "peak_failure_prob": r.peak_failure_prob,
+                "alert_level": r.alert_level,
+                "samples_used": r.samples_used,
+            }
+        return await run_in_threadpool(_predict)
+
+    @router.get("/forecast/trend")
+    async def get_forecast_trend(request: Request, camera_id: str = "cam") -> dict:
+        """指定カメラの異常スコアトレンド (上昇/下降/安定)。"""
+        engine = _get_perception_engine(request)
+        if engine._anomaly_forecaster is None:
+            return {"enabled": False}
+        def _trend():
+            t = engine._anomaly_forecaster.get_trend(camera_id)
+            return {
+                "enabled": True,
+                "camera_id": t.camera_id,
+                "direction": t.direction,
+                "trend_per_step": t.trend_per_step,
+                "current_score": t.current_score,
+                "smoothed_score": t.smoothed_score,
+            }
+        return await run_in_threadpool(_trend)
+
+    @router.get("/forecast/alerts")
+    async def get_forecast_alerts(request: Request, camera_id: str | None = None) -> dict:
+        """予知保全アラート一覧。"""
+        engine = _get_perception_engine(request)
+        if engine._anomaly_forecaster is None:
+            return {"enabled": False, "alerts": []}
+        def _get():
+            alerts = engine._anomaly_forecaster.get_maintenance_alerts(camera_id)
+            return {"enabled": True, "alerts": alerts}
+        return await run_in_threadpool(_get)
+
+    @router.post("/forecast/observe")
+    async def forecast_observe(request: Request) -> dict:
+        """異常スコアを手動登録 (テスト・外部センサー連携用)。
+
+        Body: { anomaly_score: float, violation_count: int, camera_id: str }
+        """
+        engine = _get_perception_engine(request)
+        if engine._anomaly_forecaster is None:
+            return {"success": False, "message": "AnomalyForecaster not initialized"}
+        body = await request.json()
+        score = float(body.get("anomaly_score", 0.0))
+        viols = int(body.get("violation_count", 0))
+        camera_id = body.get("camera_id", "cam")
+        def _obs():
+            engine._anomaly_forecaster.observe(score, viols, camera_id=camera_id)
+            return {"success": True, "camera_id": camera_id, "anomaly_score": score}
+        return await run_in_threadpool(_obs)
+
+    @router.delete("/forecast/reset")
+    async def reset_forecast(request: Request, camera_id: str | None = None) -> dict:
+        """フォーキャスターをリセット (全体または指定カメラ)。"""
+        engine = _get_perception_engine(request)
+        if engine._anomaly_forecaster is None:
+            return {"success": False, "message": "AnomalyForecaster not initialized"}
+        def _reset():
+            engine._anomaly_forecaster.reset(camera_id)
+            return {"success": True, "camera_id": camera_id}
+        return await run_in_threadpool(_reset)
+
+    # ── Phase 56: XAI Explainability ───────────────────────────────────────
+
+    @router.get("/explainability/stats")
+    async def get_explainability_stats(request: Request) -> dict:
+        """XAI エンジン統計 (Phase 56)。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_explainability_state()
+        if state is None:
+            return {"enabled": False}
+        return state
+
+    @router.get("/explainability/latest")
+    async def get_latest_saliency(request: Request) -> dict:
+        """最新フレームのサリエンシーマップを返す。"""
+        engine = _get_perception_engine(request)
+        if engine._explainability_engine is None:
+            return {"enabled": False}
+        sal = getattr(engine, "_last_saliency", None)
+        if sal is None:
+            return {"enabled": True, "available": False, "message": "まだフレームが処理されていません"}
+        def _serialize(s) -> dict:
+            return {
+                "enabled": True,
+                "available": True,
+                "heatmap_jpeg_b64": s.heatmap_jpeg_b64,
+                "peak_saliency": s.peak_saliency,
+                "explanation_ja": s.explanation_ja,
+                "explanation_en": s.explanation_en,
+                "frame_id": s.frame_id,
+                "processing_ms": s.processing_ms,
+                "region_count": len(s.region_scores),
+                "violation_count": len(s.violation_explanations),
+            }
+        return await run_in_threadpool(lambda: _serialize(sal))
+
+    @router.post("/explainability/saliency")
+    async def compute_saliency(request: Request) -> dict:
+        """JPEG フレーム (base64) + 検出リストからサリエンシーマップを計算。
+
+        Body: { frame_jpeg_b64: str, detections: list, violations: list }
+        """
+        engine = _get_perception_engine(request)
+        if engine._explainability_engine is None:
+            return {"enabled": False}
+        body = await request.json()
+        frame_b64 = body.get("frame_jpeg_b64", "")
+        raw_detections = body.get("detections", [])
+        raw_violations = body.get("violations", [])
+        import base64 as _b64mod
+
+        # Build lightweight proxy objects
+        class _Det:
+            def __init__(self, d):
+                from sopilot.perception.types import BBox
+                b = d.get("bbox", {})
+                self.bbox = BBox(b.get("x1", 0), b.get("y1", 0), b.get("x2", 1), b.get("y2", 1))
+                self.label = d.get("label", "")
+                self.confidence = float(d.get("confidence", 1.0))
+
+        class _Viol:
+            def __init__(self, v):
+                self.rule = v.get("rule", str(v))
+                self.confidence = float(v.get("confidence", 1.0))
+
+        dets = [_Det(d) for d in raw_detections]
+        viols = [_Viol(v) for v in raw_violations]
+        frame_bytes = _b64mod.b64decode(frame_b64) if frame_b64 else None
+
+        def _compute():
+            sal = engine._explainability_engine.compute_saliency(
+                frame_jpeg=frame_bytes,
+                detections=dets,
+                violations=viols,
+                frame_id="api_request",
+            )
+            return {
+                "enabled": True,
+                "heatmap_jpeg_b64": sal.heatmap_jpeg_b64,
+                "peak_saliency": sal.peak_saliency,
+                "explanation_ja": sal.explanation_ja,
+                "explanation_en": sal.explanation_en,
+                "processing_ms": sal.processing_ms,
+                "regions": [
+                    {
+                        "label": r.label, "score": r.score,
+                        "is_violation": r.is_violation,
+                        "x1": r.x1, "y1": r.y1, "x2": r.x2, "y2": r.y2,
+                    }
+                    for r in sal.region_scores
+                ],
+                "violation_explanations": [
+                    {
+                        "rule": e.rule, "confidence": e.confidence,
+                        "explanation_ja": e.explanation_ja,
+                        "explanation_en": e.explanation_en,
+                    }
+                    for e in sal.violation_explanations
+                ],
+            }
+        return await run_in_threadpool(_compute)
+
+    @router.post("/explainability/explain")
+    async def explain_violations(request: Request) -> dict:
+        """違反リストの自然言語説明を生成 (ヒートマップなし)。
+
+        Body: { violations: list[{rule: str, confidence: float}] }
+        """
+        engine = _get_perception_engine(request)
+        if engine._explainability_engine is None:
+            return {"enabled": False, "explanations": []}
+        body = await request.json()
+        raw_viols = body.get("violations", [])
+
+        class _Viol:
+            def __init__(self, v):
+                self.rule = v.get("rule", str(v))
+                self.confidence = float(v.get("confidence", 1.0))
+
+        viols = [_Viol(v) for v in raw_viols]
+
+        def _explain():
+            expls = engine._explainability_engine.explain_violations(viols)
+            return {
+                "enabled": True,
+                "explanations": [
+                    {
+                        "rule": e.rule, "confidence": e.confidence,
+                        "explanation_ja": e.explanation_ja,
+                        "explanation_en": e.explanation_en,
+                    }
+                    for e in expls
+                ],
+            }
+        return await run_in_threadpool(_explain)
+
+    @router.delete("/explainability/reset")
+    async def reset_explainability(request: Request) -> dict:
+        """XAI エンジン統計をリセット。"""
+        engine = _get_perception_engine(request)
+        if engine._explainability_engine is None:
+            return {"success": False, "message": "ExplainabilityEngine not initialized"}
+        def _reset():
+            engine._explainability_engine.reset()
+            engine._last_saliency = None
+            return {"success": True}
+        return await run_in_threadpool(_reset)
+
     # ── Phase 55: Self-Supervised Domain Adaptation ────────────────────────
 
     @router.get("/domain/stats")

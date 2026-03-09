@@ -683,6 +683,18 @@ class PerceptionConfig:
     safety_planner_horizon_seconds: float = 3600.0 # default planning horizon (1 hour)
     safety_planner_max_plans: int = 20             # maximum concurrent plans
 
+    # Phase 57: Predictive Maintenance
+    anomaly_forecaster_enabled: bool = False       # enable AnomalyForecaster
+    anomaly_forecaster_alpha: float = 0.3          # Holt-Winters level smoothing
+    anomaly_forecaster_beta: float = 0.1           # Holt-Winters trend smoothing
+    anomaly_forecaster_threshold: float = 0.6      # failure probability threshold
+    anomaly_forecaster_horizon: int = 10           # default forecast horizon (steps)
+
+    # Phase 56: XAI Explainability
+    explainability_enabled: bool = False           # enable ExplainabilityEngine
+    explainability_output_width: int = 320         # heatmap output width
+    explainability_output_height: int = 240        # heatmap output height
+
     # Phase 55: Self-Supervised Domain Adaptation
     domain_adaptation_enabled: bool = False        # enable DomainAdapter
     domain_adaptation_memory_size: int = 2000      # max feature buffer size per camera

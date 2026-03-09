@@ -282,6 +282,13 @@ class PerceptionEngine:
         # Phase 54: Long-Horizon Safety Planner
         self._safety_planner: Any | None = None
 
+        # Phase 57: Predictive Maintenance
+        self._anomaly_forecaster: Any | None = None
+
+        # Phase 56: XAI Explainability
+        self._explainability_engine: Any | None = None
+        self._last_saliency: Any | None = None  # cached SaliencyResult
+
         # Phase 55: Self-Supervised Domain Adaptation
         self._domain_adapter: Any | None = None
 
@@ -775,6 +782,36 @@ class PerceptionEngine:
                         )
                 except Exception:
                     logger.debug("Domain adapter stage failed", exc_info=True)
+
+            # ── Stage 6u: Anomaly Forecaster — observe score + violations ─
+            if self._anomaly_forecaster is not None:
+                try:
+                    _af_cam = getattr(self, "_session_id", None) or "cam"
+                    _af_score = float(getattr(self, "_last_attention_score", 0.0))
+                    _af_viols = len(violations)
+                    self._anomaly_forecaster.observe(
+                        anomaly_score=_af_score,
+                        violation_count=_af_viols,
+                        camera_id=_af_cam,
+                        timestamp=frame_ts,
+                    )
+                except Exception:
+                    logger.debug("Anomaly forecaster stage failed", exc_info=True)
+
+            # ── Stage 6t: XAI — compute proxy saliency for latest frame ──
+            if self._explainability_engine is not None:
+                try:
+                    _xai_jpeg = getattr(self, "_last_frame_jpeg", None)
+                    _xai_attn = getattr(self, "_last_attention_map", None)
+                    self._last_saliency = self._explainability_engine.compute_saliency(
+                        frame_jpeg=_xai_jpeg,
+                        detections=list(detections),
+                        violations=list(violations),
+                        attention_map=_xai_attn,
+                        frame_id=str(frame_number),
+                    )
+                except Exception:
+                    logger.debug("Explainability stage failed", exc_info=True)
 
             # ── Convert Hazards to Violations (Urgency integration) ──
             if hasattr(self, "_last_hazards") and self._last_hazards:
@@ -1607,6 +1644,24 @@ class PerceptionEngine:
             return None
         try:
             return self._safety_planner.get_stats()
+        except Exception:
+            return None
+
+    def get_anomaly_forecaster_state(self) -> dict | None:
+        """Return anomaly forecaster stats (Phase 57)."""
+        if self._anomaly_forecaster is None:
+            return None
+        try:
+            return self._anomaly_forecaster.get_stats()
+        except Exception:
+            return None
+
+    def get_explainability_state(self) -> dict | None:
+        """Return explainability engine stats (Phase 56)."""
+        if self._explainability_engine is None:
+            return None
+        try:
+            return self._explainability_engine.get_stats()
         except Exception:
             return None
 
@@ -3398,6 +3453,38 @@ def build_perception_engine(
             logger.debug("safety_planner module not available")
         except Exception:
             logger.exception("Failed to initialize SafetyPlanner")
+
+    # ── Phase 57: Anomaly Forecaster (optional) ────────────────────────────
+    if getattr(config, "anomaly_forecaster_enabled", False):
+        try:
+            from sopilot.perception.anomaly_forecaster import AnomalyForecaster
+            engine._anomaly_forecaster = AnomalyForecaster(
+                alpha=getattr(config, "anomaly_forecaster_alpha", 0.3),
+                beta=getattr(config, "anomaly_forecaster_beta", 0.1),
+                threshold=getattr(config, "anomaly_forecaster_threshold", 0.6),
+                default_horizon_steps=getattr(config, "anomaly_forecaster_horizon", 10),
+            )
+            logger.info("AnomalyForecaster initialized")
+        except ImportError:
+            logger.debug("anomaly_forecaster module not available")
+        except Exception:
+            logger.exception("Failed to initialize AnomalyForecaster")
+
+    # ── Phase 56: Explainability Engine (optional) ─────────────────────────
+    if getattr(config, "explainability_enabled", False):
+        try:
+            from sopilot.perception.explainability import ExplainabilityEngine
+            engine._explainability_engine = ExplainabilityEngine(
+                output_size=(
+                    getattr(config, "explainability_output_width", 320),
+                    getattr(config, "explainability_output_height", 240),
+                ),
+            )
+            logger.info("ExplainabilityEngine initialized")
+        except ImportError:
+            logger.debug("explainability module not available")
+        except Exception:
+            logger.exception("Failed to initialize ExplainabilityEngine")
 
     # ── Phase 55: Domain Adapter (optional) ────────────────────────────────
     if getattr(config, "domain_adaptation_enabled", False):

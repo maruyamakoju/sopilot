@@ -57,5 +57,9 @@ NUL
 
 # Artifacts (evaluation outputs — too large for git)
 artifacts/
+# …but track the source code so CI can import them
+!artifacts/__init__.py
+!artifacts/submission_utils.py
+!artifacts/verify_submission_bundle.py
 *.pt
 *.onnx

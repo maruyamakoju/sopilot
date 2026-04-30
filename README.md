@@ -1,11 +1,11 @@
-![Version](https://img.shields.io/badge/version-1.2.0-blue)
+![Version](https://img.shields.io/badge/version-6.5.0-blue)
 ![Python](https://img.shields.io/badge/python-3.11+-green)
-![Tests](https://img.shields.io/badge/tests-1036%20passed-brightgreen)
+![Tests](https://img.shields.io/badge/tests-5900%20passed-brightgreen)
 ![License](https://img.shields.io/badge/license-proprietary-red)
 
-# SOPilot / VigilPilot
+# SOPilot / VigilPilot / Perception Engine
 
-**On-premises SOP compliance scoring and surveillance violation detection** — SOP手順遵守スコアリング＆監視カメラAIサービス
+**On-prem SOP compliance + surveillance + agentic vision AI** — 手順遵守スコアリング・監視カメラAI・「カメラのOS」
 
 ---
 
@@ -18,6 +18,22 @@ Automatically evaluates whether a trainee's recorded work video follows the corr
 ### VigilPilot — Surveillance Camera Violation Detection
 
 Detects rule violations in any video footage or RTSP live stream without requiring gold reference videos. Operators define detection rules as plain natural-language text; the system samples frames at configurable fps and reports violations with severity levels, confidence scores, and annotated frame thumbnails. Powered by pluggable VLM backends.
+
+### Perception Engine — Agentic Vision AI ("カメラのOS")
+
+A 62-phase pipeline that turns any camera into a self-aware reasoner. It does not just *detect*: it **observes, orients, decides, acts, verifies, and remembers**. Every action it takes is checked 30 seconds later against the resulting world state; outcomes feed an episodic memory and a meta-learner that adjusts the agent's own decision thresholds. Deployed on a single RTX 4090 with 4-bit LLaVA-NeXT quantization. Ships with self-supervised domain adaptation, predictive maintenance, XAI saliency, federated Re-ID under (ε,δ)-DP, and a long-horizon safety planner.
+
+```
+   per frame (≤30 fps)                every ~5s or on critical event
+   ──────────────────                  ─────────────────────────────
+   YOLO → DINO → LLaVA cascade         OODA: observe → orient → decide → act
+   ↓                                   ↓
+   tracking · scene graph · world      schedule verification (T+30s)
+   ↓                                   ↓                  ↓
+   anomaly · forecasting · XAI         outcome record  →  episode memory
+                                       ↓                  ↓
+                                       meta-learner adjusts thresholds
+```
 
 ---
 
@@ -57,38 +73,39 @@ Additional VigilPilot capabilities:
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  Browser UI  (single-page HTML/JS, served at /)                 │
-│  SOPilot tabs + VigilPilot 監視タブ                               │
-└──────────────────────────┬──────────────────────────────────────┘
-                           │ HTTP
-┌──────────────────────────▼──────────────────────────────────────┐
-│  FastAPI application  (sopilot/main.py)                          │
-│  ├── Middleware: CorrelationID → CORS → APIKey → Rate            │
-│  ├── Routers: videos · scoring · analytics · admin  (/api/v1)   │
-│  └── VigilPilot router  (/vigil/*)                               │
-└────────┬─────────────────────────────┬──────────────────────────┘
-         │                             │
-┌────────▼──────────┐    ┌─────────────▼──────────────────────────┐
-│  Video Pipeline   │    │  VigilPilot Pipeline (sopilot/vigil/)  │
-│  ├── Quality Gate │    │  ├── Frame extractor (OpenCV, 1 fps)   │
-│  │   (5 checks)   │    │  ├── VLM client (Claude Vision API)    │
-│  ├── ColorMotion  │    │  ├── Severity filter + event store     │
-│  │   embedder     │    │  └── Background thread (daemon)        │
-│  └── Clip store   │    └────────────────┬───────────────────────┘
-└────────┬──────────┘                     │
-         │              ┌─────────────────▼─────────────────────┐
-         │              │  Scoring Pipeline                      │
-         │              │  ├── DTW alignment (Sakoe-Chiba)       │
-         │              │  ├── Step detection (cosine CP)        │
-         │              │  ├── Deviation scoring + comments      │
-         │              │  └── Ensemble / Bootstrap CI           │
-         │              └─────────────────┬─────────────────────┘
-         │                                │
-┌────────▼────────────────────────────────▼──────────────────────┐
-│  SQLite (WAL mode)  —  connection pool, atomic ops             │
-│  ./data/sopilot.db   (+ vigil_sessions / vigil_events tables)  │
-└────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│  Browser UI  (SPA, /)   SOPilot · VigilPilot · Perception cards     │
+└──────────────────────────────┬───────────────────────────────────────┘
+                               │ HTTP / SSE
+┌──────────────────────────────▼───────────────────────────────────────┐
+│  FastAPI  (sopilot/main.py)                                          │
+│  Middleware: CorrelationID → CORS → APIKey → RateLimit → Audit       │
+│  Routers:  /api/v1/*  ·  /vigil/*  ·  /vigil/perception/*  (174 ep) │
+└──┬─────────────────────────────┬─────────────────────┬───────────────┘
+   │                             │                     │
+┌──▼──────────────┐   ┌──────────▼──────────┐   ┌──────▼──────────────────┐
+│ SOPilot Pipeline│   │ VigilPilot Pipeline │   │ Perception Engine        │
+│ ─────────────── │   │ ─────────────────── │   │ ──────────────────────── │
+│ Quality gate    │   │ Frame sampler       │   │ Stage 1  detect cascade  │
+│ ColorMotion /   │   │ VLM (Claude/Qwen)   │   │ Stage 2  track + Re-ID   │
+│   V-JEPA2       │   │ Severity filter     │   │ Stage 3  scene graph     │
+│ DTW alignment   │   │ RTSP / file mode    │   │ Stage 4  world model     │
+│ Step detection  │   │ Bbox annotations    │   │ Stage 5  causal reason   │
+│ Deviation score │   │                     │   │ Stage 6  agent OODA loop │
+│ Bootstrap CI    │   │                     │   │ Stage 7  closed-loop ver │
+└──────────┬──────┘   └──────────┬──────────┘   │ Stage 8  metacognition   │
+           │                     │              └──┬──────────────────────┘
+           │                     │                 │
+           │                     │   ┌─────────────▼────────────────────────┐
+           │                     │   │ Models (orchestrator, VRAM-managed)  │
+           │                     │   │ DINOv2 · YOLO · Grounding-DINO 1.5   │
+           │                     │   │ LLaVA-NeXT (4-bit) · SAM 2 · V-JEPA2 │
+           │                     │   └──────────────────────────────────────┘
+           │                     │
+┌──────────▼─────────────────────▼─────────────────────────────────────┐
+│ Storage:  SQLite (WAL) · PostgreSQL (opt) · Episode memory (JSON)   │
+│ Telemetry: Prometheus · OpenTelemetry · SLA observatory             │
+└──────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -96,9 +113,15 @@ Additional VigilPilot capabilities:
 ## Quick Start
 
 ```bash
-cp .env.example .env          # set SOPILOT_API_KEY (and ANTHROPIC_API_KEY for VigilPilot)
-docker compose up -d          # build + start (~3 min first build)
-python scripts/smoke_test.py  # end-to-end verification: All checks passed (9/9)
+# CPU-only: SOPilot + VigilPilot (Claude or Qwen3-API VLM)
+cp .env.example .env                       # set SOPILOT_API_KEY (+ ANTHROPIC_API_KEY for VigilPilot)
+docker compose up -d                       # build + start (~3 min first build)
+python scripts/smoke_test.py               # end-to-end verification: 9/9 pass
+
+# GPU: full Perception Engine (RTX 4090 + 4-bit LLaVA)
+pip install -e ".[gpu,sam2]"
+python scripts/setup_models.py             # download YOLO + DINOv2 + Grounding DINO + LLaVA + SAM 2
+python scripts/demo_phase58.py             # end-to-end demo, prints VRAM / cascade stats / scene caption
 ```
 
 Open `http://localhost:8000` for the browser UI (SOP評価コンソール).
@@ -133,7 +156,45 @@ Full instructions, API walkthrough, and configuration reference: see **[QUICKSTA
 | Frame evidence | `GET /vigil/events/{id}/frame?annotate=true` — JPEG frame with optional bbox overlays |
 | Reports | `GET /vigil/sessions/{id}/report` — severity and rule breakdown aggregation |
 
+### Perception Engine (174 endpoints under `/vigil/perception/`)
+
+| Category | Endpoints |
+|---|---|
+| Cascade detection | `/cascade/stats`, `/sam/state`, `/temporal/state`, `/online-learner/{categories,exemplars}`, `/grounding-dino/state`, `/vlm/{state,describe,ask}` |
+| Re-ID & tracking | `/reid/*`, `/tracker/{sid}/*`, `/federated-reid/{stats,export,import}` |
+| Spatial intelligence | `/spatial/{stats,map,cameras,zones,zones/events,zones/dwell,zones/flow}`, `/crowd/{stats,state,flow,alerts,capacity}` |
+| Reasoning | `/causal/{narrative,inference/stats,inference/graph}`, `/planner/stats`, `/deliberation`, `/goals` |
+| Self-monitoring | `/health-score`, `/health-score/history`, `/daily-report`, `/sla/{stats,slos,stages}`, `/explainability/*` |
+| Domain adaptation | `/domain/{stats,cameras,shift,adapt,observe,label,reset}` (Phase 55) |
+| Predictive maintenance | `/forecast/{stats,cameras,predict,trend,alerts,observe}` (Phase 57) |
+| **Agentic OODA loop** | `/agent/{stats,decisions,events,actions,think,inject,reset}` (Phase 59) |
+| **Closed-loop verifier** | `/verifier/{stats,records,pending,meta,check,reset}` (Phase 60) |
+| **Agent reports** | `/agent/report`, `/agent/report/{summary,insights}` (Phase 61) |
+| **Episodic memory** | `/agent/memory/{stats,episodes,search,reset}` (Phase 62) |
+
 Full OpenAPI spec at `http://localhost:8000/docs` (Swagger UI) or `/redoc`.
+
+---
+
+## Perception Engine — Capability Map
+
+| Phase | Capability | Module |
+|---:|---|---|
+| 27–28 | Live RTSP + cross-camera Re-ID + SOP×Vigil rule generation | `stream_session.py`, `reid_*.py`, `rule_generator.py` |
+| 29–30 | Person tracking + behaviour anomalies + UI overlay | `person_tracker.py`, `behavior_detector.py` |
+| 31–36 | Orchestrator · DINOv2 backbone · YOLO/DINO/VLM cascade · SAM 2 · temporal fusion · online learning | `orchestrator.py`, `cascade_detector.py`, `sam_segmenter.py`, `temporal_fusion.py`, `online_learner.py` |
+| 37–39 | V-JEPA2 / InternVideo 2.5 · LLaVA-NeXT VQA · Grounding DINO 1.5 | `video_foundation.py`, `llava_client.py`, `grounding_dino.py` |
+| 40–42 | Incident webhooks (Slack/Teams) · federated Re-ID with (ε,δ)-DP · edge optimisation (Jetson, ONNX, INT8) | `incident_reporter.py`, `federated_reid.py`, `edge_optimizer.py` |
+| 43–45 | Video RAG · causal-chain analysis · active-learning loop | `video_memory.py`, `rag_engine.py`, `causal_analyzer.py`, `active_loop.py` |
+| 46–50 | Spatial mapping · floor map UI · SLA observatory · crowd flow | `spatial_mapper.py`, `crowd_analytics.py`, `sla_monitor.py` |
+| 51–52 | SOP-aware perception with depth · multi-agent coordination | `sop_engine.py`, multi-agent state |
+| 53–54 | Granger causal inference · long-horizon safety planner | `causal_inference.py`, `safety_planner.py` |
+| 55–57 | Self-supervised domain adaptation · XAI saliency · predictive maintenance | `domain_adapter.py`, `explainability.py`, `anomaly_forecaster.py` |
+| 58 | Real inference stack — RTX 4090 · LLaVA 4-bit nf4 quantization | `for_rtx4090()` config preset |
+| **59** | **Agentic OODA loop** — observe per frame, think every 5 s, 6 actions | `agent_loop.py` |
+| **60** | **Closed-loop verification** — schedule T+30 s outcome check, MetaLearner adjusts thresholds | `closed_loop_verifier.py` |
+| **61** | **Agent intelligence report** — JP/EN narrative covering decisions, outcomes, risk trends | `agent_report.py` |
+| **62** | **Episodic memory** — 6-dim fingerprint, cosine recall, episode→outcome linkage | `agent_episode_store.py` |
 
 ---
 
@@ -156,13 +217,15 @@ Thresholds are configurable per task profile (`PUT /task-profile`) and are LOSO-
 
 ## Resource Requirements
 
-| Resource | Minimum | Recommended |
-|---|---|---|
-| CPU | 2 cores | 4 cores |
-| RAM | 1 GB | 2 GB (8+ GB for V-JEPA2 backend) |
-| Disk | 10 GB | 100 GB (for video storage) |
-| GPU | Not required (color-motion backend) | Required for `vjepa2` / `qwen3` backends |
-| Docker | >= 24 (Linux containers) | — |
+Three deployment tiers, depending on which products you enable:
+
+| Tier | Use case | CPU | RAM | GPU | Disk |
+|---|---|---|---|---|---|
+| **SOPilot only** | SOP scoring with ColorMotion embedder | 2 cores | 1 GB | none | 10 GB |
+| **VigilPilot Cloud-VLM** | Surveillance with Claude/Qwen3-API VLM | 4 cores | 4 GB | none | 50 GB |
+| **Perception Engine (full)** | Agentic vision, OODA loop, all 62 phases | 8 cores | 32 GB | RTX 4090 (24 GB VRAM) | 200 GB |
+
+The full Perception Engine stack uses 4-bit nf4 quantization (`PerceptionConfig.for_rtx4090()`) so DINOv2 + LLaVA-NeXT + Grounding DINO 1.5 + SAM 2 fit on a single 24 GB card. Component VRAM budgets are managed by `ModelOrchestrator` with LRU eviction. Edge inference (Jetson Orin, RPi5+Coral) is supported via `EdgeOptimizer` with ONNX + INT8 export — see `scripts/export_edge_models.py`.
 
 ---
 
@@ -189,6 +252,17 @@ ANTHROPIC_API_KEY=sk-ant-your-key-here
 Add this to `.env` before starting the container. For the `qwen3-api` backend (GPU-free alternative), configure `VIGIL_QWEN3_API_BASE` and `VIGIL_QWEN3_API_KEY` instead. See `QUICKSTART.md §8` for full VigilPilot setup.
 
 ---
+
+## Demo Scripts
+
+| Script | What it shows |
+|---|---|
+| `scripts/demo_video.py` | End-to-end SOPilot scoring + VigilPilot violation detection on a sample video |
+| `scripts/demo_live.py` | RTSP live-mode VigilPilot with bbox annotation feed |
+| `scripts/demo_closed_loop.py` | Self-learning σ-tuner → review queue → early-warning → autonomous response (Phase 13–16) |
+| `scripts/demo_phase58.py` | Full RTX 4090 Perception Engine — cascade stats, DINOv2 features, LLaVA scene description, VRAM (`--mock` for CPU) |
+| **`scripts/demo_agentic_loop.py`** | **Killer narrative — OBSERVE → ORIENT → DECIDE → ACT → VERIFY → REMEMBER → ADAPT in 60 s** (Phase 59-62) |
+| `scripts/setup_models.py` | Dry-run model download CLI for the GPU stack (`yolo`, `dinov2`, `grounding_dino`, `llava`, `sam2`) |
 
 ## Documentation
 

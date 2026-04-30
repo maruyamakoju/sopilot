@@ -724,6 +724,12 @@ class PerceptionConfig:
     agent_loop_escalation_threshold: int = 3        # repeated violations before ESCALATE
     agent_loop_plan_threshold: int = 5              # repeated violations before PLAN
 
+    # Phase 63: Counterfactual Reasoning
+    counterfactual_enabled: bool = False                # enable post-decision counterfactual audit
+    counterfactual_min_episodes_per_action: int = 2     # min verified samples for an estimate
+    counterfactual_recall_top_k: int = 50               # similar episodes sampled per evaluation
+    counterfactual_recall_min_similarity: float = 0.6   # cosine threshold (looser than recall)
+
     # ── Phase 58: RTX 4090 production preset ──────────────────────────────
 
     @classmethod

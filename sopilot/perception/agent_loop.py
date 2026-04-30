@@ -143,6 +143,7 @@ class AgentLoop:
         anomaly_forecaster: Any | None = None,
         verifier: Any | None = None,
         episode_store: Any | None = None,
+        counterfactual_reasoner: Any | None = None,
     ) -> None:
         self._think_interval_s = think_interval_s
         self._critical_trigger = critical_trigger
@@ -162,6 +163,7 @@ class AgentLoop:
         self._anomaly_forecaster = anomaly_forecaster
         self._verifier = verifier          # ClosedLoopVerifier | None (Phase 60)
         self._episode_store = episode_store  # AgentEpisodeStore | None (Phase 62)
+        self._counterfactual_reasoner = counterfactual_reasoner  # Phase 63
 
         # State
         self._pending_events: deque[AgentEvent] = deque(maxlen=_MAX_EVENTS)
@@ -287,6 +289,24 @@ class AgentLoop:
                     decision.params["episode_id"] = _ep_id
                 except Exception:
                     logger.debug("Episode store failed", exc_info=True)
+
+            # Phase 63: COUNTERFACTUAL — observational audit of the chosen
+            # action against past episodes in similar situations. The store
+            # already contains the just-recorded decision so we audit
+            # against prior history (the new episode has reduction_ratio=None
+            # until the verifier fires, so it's excluded from estimates).
+            if self._counterfactual_reasoner is not None:
+                try:
+                    cf = self._counterfactual_reasoner.evaluate(
+                        chosen_action=action.value,
+                        risk_level=situation.risk_level,
+                        severity_counts=dict(situation.severity_counts),
+                        camera_violations=dict(situation.camera_violations),
+                        dominant_violation_type=situation.dominant_violation_type,
+                    )
+                    decision.params["counterfactual"] = cf.to_dict()
+                except Exception:
+                    logger.debug("Counterfactual evaluation failed", exc_info=True)
 
             # VERIFY — schedule closed-loop verification (Phase 60), pass episode_id (Phase 62)
             if self._verifier is not None and action != AgentAction.MONITOR:

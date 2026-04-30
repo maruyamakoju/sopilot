@@ -3897,4 +3897,76 @@ def build_perception_router() -> APIRouter:
             return {"success": True}
         return await run_in_threadpool(_reset)
 
+    # ── Phase 63: Counterfactual Reasoning ────────────────────────────────
+
+    @router.get("/agent/counterfactual/stats")
+    async def get_counterfactual_stats(request: Request) -> dict:
+        """反実仮想推論エンジン統計 (Phase 63)。"""
+        return _state_or_disabled(
+            _get_perception_engine(request).get_counterfactual_state()
+        )
+
+    @router.post("/agent/counterfactual/evaluate")
+    async def evaluate_counterfactual(request: Request) -> dict:
+        """指定状況に対する反実仮想評価を実行。
+
+        Body::
+
+            {
+              "chosen_action": "escalate",
+              "risk_level": "high",
+              "severity_counts": {"critical": 1, "warning": 0, "info": 0},
+              "camera_violations": {"cam-A": 1},
+              "dominant_violation_type": "ヘルメット未着用"
+            }
+        """
+        engine = _get_perception_engine(request)
+        if engine._counterfactual_reasoner is None:
+            return {"enabled": False, "message": "CounterfactualReasoner not initialized"}
+        body = await request.json()
+        chosen_action = body.get("chosen_action", "")
+        if not chosen_action:
+            raise HTTPException(status_code=422, detail="chosen_action required")
+
+        def _eval():
+            result = engine._counterfactual_reasoner.evaluate(
+                chosen_action=chosen_action,
+                risk_level=body.get("risk_level", "low"),
+                severity_counts=body.get("severity_counts", {}),
+                camera_violations=body.get("camera_violations", {}),
+                dominant_violation_type=body.get("dominant_violation_type", ""),
+            )
+            return {"enabled": True, **result.to_dict()}
+        return await run_in_threadpool(_eval)
+
+    @router.get("/agent/counterfactual/latest")
+    async def get_latest_counterfactual(request: Request) -> dict:
+        """最新エージェント決定の反実仮想評価を返す。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_loop is None:
+            return {"enabled": False, "message": "AgentLoop not initialized"}
+        decisions = engine._agent_loop._decision_history
+        if not decisions:
+            return {"enabled": True, "counterfactual": None,
+                    "message": "No decisions made yet"}
+        latest = decisions[-1]
+        cf = latest.params.get("counterfactual") if latest.params else None
+        return {
+            "enabled": True,
+            "decision_action": latest.action.value,
+            "decision_timestamp": latest.timestamp,
+            "counterfactual": cf,
+        }
+
+    @router.delete("/agent/counterfactual/reset")
+    async def reset_counterfactual(request: Request) -> dict:
+        """反実仮想エンジン統計をリセット。"""
+        engine = _get_perception_engine(request)
+        if engine._counterfactual_reasoner is None:
+            return {"success": False, "message": "CounterfactualReasoner not initialized"}
+        def _reset():
+            engine._counterfactual_reasoner.reset()
+            return {"success": True}
+        return await run_in_threadpool(_reset)
+
     return router

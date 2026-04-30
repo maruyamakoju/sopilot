@@ -304,6 +304,9 @@ class PerceptionEngine:
         # Phase 62: Agent Episodic Memory
         self._agent_episode_store: Any | None = None
 
+        # Phase 63: Counterfactual Reasoning
+        self._counterfactual_reasoner: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -1566,6 +1569,10 @@ class PerceptionEngine:
     def get_agent_episode_state(self) -> dict | None:
         """Return AgentEpisodeStore stats (Phase 62)."""
         return self._component_state("_agent_episode_store")
+
+    def get_counterfactual_state(self) -> dict | None:
+        """Return CounterfactualReasoner stats (Phase 63)."""
+        return self._component_state("_counterfactual_reasoner")
 
     def reset(self) -> None:
         """Reset all stateful components to their initial state.
@@ -3580,5 +3587,29 @@ def build_perception_engine(
             logger.debug("AgentReportGenerator module not available")
         except Exception:
             logger.exception("Failed to initialize AgentReportGenerator")
+
+    # ── Phase 63: Counterfactual Reasoning ───────────────────────────
+    if (
+        getattr(config, "counterfactual_enabled", False)
+        and _agent_episode_store is not None
+    ):
+        try:
+            from sopilot.perception.counterfactual import CounterfactualReasoner
+            engine._counterfactual_reasoner = CounterfactualReasoner(
+                episode_store=_agent_episode_store,
+                min_episodes_per_action=config.counterfactual_min_episodes_per_action,
+                recall_top_k=config.counterfactual_recall_top_k,
+                recall_min_similarity=config.counterfactual_recall_min_similarity,
+            )
+            # Wire into AgentLoop so think() attaches the audit to each decision.
+            if engine._agent_loop is not None:
+                engine._agent_loop._counterfactual_reasoner = (
+                    engine._counterfactual_reasoner
+                )
+            logger.info("CounterfactualReasoner (Phase 63) initialized")
+        except ImportError:
+            logger.debug("CounterfactualReasoner module not available")
+        except Exception:
+            logger.exception("Failed to initialize CounterfactualReasoner")
 
     return engine

@@ -171,6 +171,7 @@ Full instructions, API walkthrough, and configuration reference: see **[QUICKSTA
 | **Closed-loop verifier** | `/verifier/{stats,records,pending,meta,check,reset}` (Phase 60) |
 | **Agent reports** | `/agent/report`, `/agent/report/{summary,insights}` (Phase 61) |
 | **Episodic memory** | `/agent/memory/{stats,episodes,search,reset}` (Phase 62) |
+| **Counterfactual reasoning** | `/agent/counterfactual/{stats,evaluate,latest,reset}` (Phase 63) |
 
 Full OpenAPI spec at `http://localhost:8000/docs` (Swagger UI) or `/redoc`.
 
@@ -195,6 +196,7 @@ Full OpenAPI spec at `http://localhost:8000/docs` (Swagger UI) or `/redoc`.
 | **60** | **Closed-loop verification** — schedule T+30 s outcome check, MetaLearner adjusts thresholds | `closed_loop_verifier.py` |
 | **61** | **Agent intelligence report** — JP/EN narrative covering decisions, outcomes, risk trends | `agent_report.py` |
 | **62** | **Episodic memory** — 6-dim fingerprint, cosine recall, episode→outcome linkage | `agent_episode_store.py` |
+| **63** | **Counterfactual reasoning** — observational E[outcome \| action, situation], regret, narrative | `counterfactual.py` |
 
 ---
 

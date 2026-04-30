@@ -23,6 +23,7 @@ import time
 from sopilot.perception.agent_loop import AgentEvent, AgentLoop
 from sopilot.perception.agent_episode_store import AgentEpisodeStore
 from sopilot.perception.closed_loop_verifier import ClosedLoopVerifier
+from sopilot.perception.counterfactual import CounterfactualReasoner
 
 
 # ── Terminal colours ──────────────────────────────────────────────────────
@@ -113,6 +114,12 @@ def run(rounds: int, verify_after_s: float) -> None:
         original_plan=5,
         episode_store=episode_store,
     )
+    counterfactual = CounterfactualReasoner(
+        episode_store=episode_store,
+        min_episodes_per_action=1,      # demo: 1 verified sample is enough to plot
+        recall_top_k=50,
+        recall_min_similarity=0.5,
+    )
     agent = AgentLoop(
         think_interval_s=0.0,           # demo: always "due" to think
         critical_trigger=True,
@@ -123,6 +130,7 @@ def run(rounds: int, verify_after_s: float) -> None:
         plan_threshold=3,               # 3+ violations under high risk → PLAN (default: 5)
         verifier=verifier,
         episode_store=episode_store,
+        counterfactual_reasoner=counterfactual,
     )
 
     for round_idx in range(rounds):
@@ -161,6 +169,33 @@ def run(rounds: int, verify_after_s: float) -> None:
         ep_id = decision.params.get("episode_id")
         if ep_id:
             print(f"  {CYAN('REMEMBER')} episode_id={ep_id}  outcome=pending")
+
+        # Phase 63: counterfactual audit — visible once history accumulates
+        cf = decision.params.get("counterfactual") if decision.params else None
+        if cf and cf.get("has_data"):
+            chosen = cf.get("chosen_estimate") or {}
+            best = cf.get("best_alternative") or {}
+            chosen_e = chosen.get("expected_reduction")
+            best_e = best.get("expected_reduction")
+            line = f"  {CYAN('AUDIT')}    "
+            if cf["is_chosen_best"] and chosen_e is not None:
+                line += GREEN(f"chosen={chosen.get('action', '?').upper()} is dominant ")
+                line += DIM(f"(E={chosen_e:+.0%}, n={chosen.get('verified_size', 0)})")
+            elif chosen_e is not None and best_e is not None:
+                regret = cf.get("regret") or 0.0
+                line += YELLOW(f"better: {best.get('action', '?').upper()} ")
+                line += DIM(f"(E={best_e:+.0%} vs {chosen.get('action', '?').upper()}={chosen_e:+.0%}, regret={regret:+.0%})")
+            elif best_e is not None:
+                # Chosen action not seen in similar history — only best estimable
+                line += DIM(
+                    f"chosen={cf.get('chosen_action', '?').upper()} novel; "
+                    f"historical best in this state: {best.get('action', '?').upper()} "
+                    f"(E={best_e:+.0%}, n={best.get('verified_size', 0)})"
+                )
+            else:
+                line = ""
+            if line:
+                print(line)
 
         # Recalled episodes (Phase 62) — visible from round 2 onwards
         recalled = episode_store.recall(
@@ -217,6 +252,16 @@ def run(rounds: int, verify_after_s: float) -> None:
               f"{meta['suggested_escalation_threshold']} (was 3)")
         print(f"                    suggested plan_threshold="
               f"{meta['suggested_plan_threshold']} (was 5)")
+
+    cf_stats = counterfactual.get_stats()
+    if cf_stats["regret_observations"] > 0:
+        avg_regret = cf_stats.get("average_regret")
+        chosen_best = cf_stats.get("chosen_best_rate")
+        print(f"  counterfactual:   {cf_stats['regret_observations']} audited decisions")
+        if avg_regret is not None:
+            print(f"                    avg regret  = {avg_regret:+.1%}")
+        if chosen_best is not None:
+            print(f"                    chosen-best = {chosen_best:.1%}")
     print()
 
 

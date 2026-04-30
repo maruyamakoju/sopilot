@@ -2010,6 +2010,37 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
         </div>
 
         <!-- Phase 62: OODA Episodic Memory -->
+        <!-- Phase 63: Counterfactual Reasoning -->
+        <div class="perc-card" id="percCounterfactualCard" style="display:none">
+          <div class="perc-card-title">&#x1F501; 反実仮想推論 (Phase 63)</div>
+          <div style="font-size:11px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">評価回数</div>
+                <div id="cfEvalCount" style="font-weight:700;color:#22d3ee;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">データ有り</div>
+                <div id="cfWithData" style="font-weight:700;color:#34d399;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">平均後悔</div>
+                <div id="cfAvgRegret" style="font-weight:700;color:#fbbf24;font-size:13px">—</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">最適選択率</div>
+                <div id="cfChosenBest" style="font-weight:700;color:#a78bfa;font-size:13px">—</div>
+              </div>
+            </div>
+            <!-- Latest decision audit -->
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">最新意思決定の監査</div>
+            <div id="cfLatestAudit" style="font-size:9px;background:rgba(255,255,255,.04);border-radius:4px;padding:4px;margin-bottom:6px;color:var(--muted)">—</div>
+            <!-- Per-action ranking -->
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">アクション別 期待削減率 (E[reduction])</div>
+            <div id="cfRankBar" style="display:flex;flex-direction:column;gap:2px"></div>
+          </div>
+        </div>
+
         <div class="perc-card" id="percOODAEpisodeCard" style="display:none">
           <div class="perc-card-title">&#x1F9E0; OODAエピソード記憶 (Phase 62)</div>
           <div style="font-size:11px">
@@ -6670,7 +6701,7 @@ async function loadPerceptionData(sessionId){
   // Connect SSE for real-time events
   _sseConnect(String(sessionId));
   // Show Phase 31-39 orchestration panels (poll will hide if not enabled)
-  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard","percPlannerCard","percAgentCard","percVerifierCard","percAgentReportCard","percOODAEpisodeCard"].forEach(id=>{
+  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard","percPlannerCard","percAgentCard","percVerifierCard","percAgentReportCard","percOODAEpisodeCard","percCounterfactualCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="";
   });
@@ -6691,7 +6722,7 @@ function resetPerceptionPanels(){
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard","percPlannerCard","percAgentCard","percVerifierCard","percAgentReportCard","percOODAEpisodeCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard","percPlannerCard","percAgentCard","percVerifierCard","percAgentReportCard","percOODAEpisodeCard","percCounterfactualCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -9111,7 +9142,84 @@ async function _refreshOrchestrationPanels(){
     await _updateAgentReportCard();
     // Phase 62: OODA Episodic Memory
     await _updateOODAEpisodeCard();
+    // Phase 63: Counterfactual Reasoning
+    await _updateCounterfactualCard();
   }catch(e){console.debug("orch panels error",e);}
+}
+
+// Phase 63: Counterfactual Reasoning card update
+async function _updateCounterfactualCard(){
+  const card=document.getElementById("percCounterfactualCard");
+  if(!card||card.style.display==="none")return;
+  try{
+    const rs=await fetch("/vigil/perception/agent/counterfactual/stats").catch(()=>null);
+    if(!rs||!rs.ok)return;
+    const ds=await rs.json();
+    if(ds.enabled===false){card.style.display="none";return;}
+    const $t=id=>document.getElementById(id);
+    if($t("cfEvalCount"))$t("cfEvalCount").textContent=ds.evaluation_count??0;
+    if($t("cfWithData"))$t("cfWithData").textContent=ds.evaluations_with_data??0;
+    if($t("cfAvgRegret")){
+      const r=ds.average_regret;
+      $t("cfAvgRegret").textContent=r!=null?(r*100).toFixed(1)+"%":"—";
+    }
+    if($t("cfChosenBest")){
+      const cb=ds.chosen_best_rate;
+      $t("cfChosenBest").textContent=cb!=null?(cb*100).toFixed(0)+"%":"—";
+    }
+    // Latest decision audit
+    const re=await fetch("/vigil/perception/agent/counterfactual/latest").catch(()=>null);
+    if(re&&re.ok){
+      const dl=await re.json();
+      const auditEl=$t("cfLatestAudit");
+      if(auditEl){
+        const cf=dl.counterfactual;
+        if(!cf){auditEl.innerHTML='<span style="color:var(--muted)">未評価</span>';}
+        else{
+          const chosen=cf.chosen_estimate;
+          const best=cf.best_alternative;
+          if(cf.is_chosen_best&&chosen){
+            auditEl.innerHTML=`<span style="color:#34d399">&#x2713; ${(chosen.action||"").toUpperCase()}</span>
+              は過去類似 <b>${chosen.verified_size}</b>件で最良 (E=${(chosen.expected_reduction*100).toFixed(0)}%)`;
+          }else if(chosen&&best){
+            const regret=(cf.regret||0)*100;
+            auditEl.innerHTML=`選択 <span style="color:#fbbf24">${(chosen.action||"").toUpperCase()}</span>
+              (E=${(chosen.expected_reduction*100).toFixed(0)}%) より
+              <span style="color:#a78bfa">${(best.action||"").toUpperCase()}</span>
+              優位 (E=${(best.expected_reduction*100).toFixed(0)}%, 後悔=${regret.toFixed(0)}%)`;
+          }else if(best){
+            auditEl.innerHTML=`新規選択 <span style="color:#22d3ee">${(cf.chosen_action||"").toUpperCase()}</span>
+              ; 過去最良: <span style="color:#a78bfa">${(best.action||"").toUpperCase()}</span>
+              (E=${(best.expected_reduction*100).toFixed(0)}%)`;
+          }else{
+            auditEl.innerHTML='<span style="color:var(--muted)">類似履歴不足</span>';
+          }
+        }
+      }
+      // Per-action ranking bar
+      const barEl=$t("cfRankBar");
+      if(barEl&&dl.counterfactual&&dl.counterfactual.alternatives){
+        const alts=dl.counterfactual.alternatives.filter(a=>a.expected_reduction!=null);
+        if(alts.length===0){
+          barEl.innerHTML='<div style="font-size:9px;color:var(--muted)">推定可能なアクションなし</div>';
+        }else{
+          const max=Math.max(...alts.map(a=>Math.abs(a.expected_reduction)),0.01);
+          barEl.innerHTML=alts.map(a=>{
+            const pct=Math.round(Math.abs(a.expected_reduction)/max*100);
+            const isPos=a.expected_reduction>=0;
+            const color=a.rank===1?"#34d399":isPos?"#22d3ee":"#f87171";
+            return `<div style="display:flex;align-items:center;gap:4px">
+              <div style="font-size:8px;color:var(--muted);width:60px;text-align:right">${(a.action||"").toUpperCase()}</div>
+              <div style="flex:1;background:rgba(255,255,255,.06);border-radius:2px;height:6px">
+                <div style="width:${pct}%;background:${color};height:100%;border-radius:2px"></div>
+              </div>
+              <div style="font-size:8px;color:${color};width:48px">${(a.expected_reduction*100).toFixed(0)}% (n=${a.verified_size})</div>
+            </div>`;
+          }).join("");
+        }
+      }
+    }
+  }catch(e){console.debug("counterfactual card error",e);}
 }
 
 // Phase 60: Closed-Loop Verifier polling (called from inside _updateOrchestrationPanels)

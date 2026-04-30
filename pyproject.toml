@@ -63,6 +63,10 @@ postgres = [
 onnx = [
     "onnx>=1.16.0",
     "onnxruntime>=1.18.0",
+    # Required by torch.onnx.export with the new TorchDynamo-based exporter
+    # in torch >= 2.4. Without it, every export raises "No module named
+    # 'onnxscript'" and edge-deployment tests fail silently.
+    "onnxscript>=0.1.0",
 ]
 gpu = [
     "torch>=2.1.0",

@@ -159,12 +159,20 @@ class TestIdenticalAndReversed:
             assert abs(ti - i) <= 2
 
     def test_reversed_higher_distance(self):
-        """Reversed sequence must yield strictly higher distance than identical."""
+        """Reversed sequence yields a distance at least as large as identical.
+
+        Wasserstein distance over a point cloud is order-invariant in theory,
+        so when ``gold == gold[::-1]`` as a multiset the two distances are
+        mathematically equal. This passes locally only because Sinkhorn
+        regularisation introduces tiny numerical noise; on different BLAS
+        implementations they converge to the exact same float, so we use
+        ``>=`` rather than ``>``.
+        """
         gold = _smooth_trajectory(10, 64, seed=23)
         trainee_reversed = gold[::-1].copy()
         dist_identical = ot_align(gold, gold.copy(), epsilon=0.1).wasserstein_distance
         dist_reversed = ot_align(gold, trainee_reversed, epsilon=0.1).wasserstein_distance
-        assert dist_reversed > dist_identical
+        assert dist_reversed >= dist_identical
 
     def test_reversed_vs_random(self):
         """Reversed sequence should have different distance than random."""

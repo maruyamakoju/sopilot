@@ -61,6 +61,7 @@ postgres = [
     "psycopg2-binary>=2.9.9",
 ]
 onnx = [
+    "onnx>=1.16.0",
     "onnxruntime>=1.18.0",
 ]
 gpu = [

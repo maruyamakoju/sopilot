@@ -368,8 +368,12 @@ class PoseEstimator:
         hue[mask_b] = 60.0 * ((r[mask_b] - g[mask_b]) / delta[mask_b]) + 240.0
         hue_ocv = (hue / 2.0).astype(np.float32)  # [0, 179]
 
-        # Saturation [0, 255]
-        sat = np.where(cmax > 0, (delta / cmax) * 255.0, 0.0).astype(np.float32)
+        # Saturation [0, 255] — guard against cmax==0 (which implies delta==0
+        # too, so the result is 0; np.divide.where avoids the divide-by-zero
+        # warning that np.where would still trigger by evaluating both arms).
+        sat = np.zeros_like(cmax, dtype=np.float32)
+        np.divide(delta, cmax, out=sat, where=cmax > 0)
+        sat *= 255.0
 
         # Value [0, 255]
         val = (cmax * 255.0).astype(np.float32)

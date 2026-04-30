@@ -423,7 +423,11 @@ class EdgeOptimizer:
                 "error": "",
             }
         except Exception as exc:
-            logger.debug("ONNX export failed: %s", exc)
+            # WARN (not DEBUG): a silent ONNX export failure used to mean the
+            # caller had no signal beyond `success=False`, which is hard to
+            # diagnose in CI logs and on edge devices. The error string is
+            # also surfaced in the result dict so callers can react.
+            logger.warning("ONNX export failed: %s", exc)
             return {
                 "success": False,
                 "output_path": str(output_path),

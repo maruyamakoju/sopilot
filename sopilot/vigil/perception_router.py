@@ -542,6 +542,12 @@ def _require_component(engine, attr_name: str, component_name: str):
     return component
 
 
+def _state_or_disabled(state: dict | None) -> dict:
+    """Return the engine state dict, or ``{"enabled": False}`` if the
+    component is not initialised. Use for read-only "/X/stats" endpoints."""
+    return state if state is not None else {"enabled": False}
+
+
 # ── Router ─────────────────────────────────────────────────────────────────
 
 
@@ -3414,11 +3420,7 @@ def build_perception_router() -> APIRouter:
     @router.get("/explainability/stats")
     async def get_explainability_stats(request: Request) -> dict:
         """XAI エンジン統計 (Phase 56)。"""
-        engine = _get_perception_engine(request)
-        state = engine.get_explainability_state()
-        if state is None:
-            return {"enabled": False}
-        return state
+        return _state_or_disabled(_get_perception_engine(request).get_explainability_state())
 
     @router.get("/explainability/latest")
     async def get_latest_saliency(request: Request) -> dict:
@@ -3561,11 +3563,7 @@ def build_perception_router() -> APIRouter:
     @router.get("/domain/stats")
     async def get_domain_stats(request: Request) -> dict:
         """ドメイン適応全体統計 (Phase 55)。"""
-        engine = _get_perception_engine(request)
-        state = engine.get_domain_adapter_state()
-        if state is None:
-            return {"enabled": False}
-        return state
+        return _state_or_disabled(_get_perception_engine(request).get_domain_adapter_state())
 
     @router.get("/domain/cameras")
     async def get_domain_cameras(request: Request) -> dict:
@@ -3668,11 +3666,7 @@ def build_perception_router() -> APIRouter:
     @router.get("/agent/stats")
     async def get_agent_stats(request: Request) -> dict:
         """OODAエージェント統計 (Phase 59)。"""
-        engine = _get_perception_engine(request)
-        state = engine.get_agent_loop_state()
-        if state is None:
-            return {"enabled": False}
-        return state
+        return _state_or_disabled(_get_perception_engine(request).get_agent_loop_state())
 
     @router.get("/agent/decisions")
     async def get_agent_decisions(request: Request, limit: int = 10) -> dict:
@@ -3753,11 +3747,7 @@ def build_perception_router() -> APIRouter:
     @router.get("/verifier/stats")
     async def get_verifier_stats(request: Request) -> dict:
         """検証エンジン統計 (Phase 60)。"""
-        engine = _get_perception_engine(request)
-        state = engine.get_closed_loop_verifier_state()
-        if state is None:
-            return {"enabled": False}
-        return state
+        return _state_or_disabled(_get_perception_engine(request).get_closed_loop_verifier_state())
 
     @router.get("/verifier/records")
     async def get_verifier_records(request: Request, limit: int = 10) -> dict:
@@ -3865,11 +3855,7 @@ def build_perception_router() -> APIRouter:
     @router.get("/agent/memory/stats")
     async def get_episode_stats(request: Request) -> dict:
         """エピソードメモリ統計。"""
-        engine = _get_perception_engine(request)
-        state = engine.get_agent_episode_state()
-        if state is None:
-            return {"enabled": False}
-        return state
+        return _state_or_disabled(_get_perception_engine(request).get_agent_episode_state())
 
     @router.get("/agent/memory/episodes")
     async def get_recent_episodes(request: Request, limit: int = 10) -> dict:

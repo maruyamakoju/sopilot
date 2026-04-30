@@ -292,6 +292,18 @@ class PerceptionEngine:
         # Phase 55: Self-Supervised Domain Adaptation
         self._domain_adapter: Any | None = None
 
+        # Phase 59: Agentic Closed-Loop (OODA)
+        self._agent_loop: Any | None = None
+
+        # Phase 60: Closed-Loop Verification
+        self._closed_loop_verifier: Any | None = None
+
+        # Phase 61: Agent Intelligence Report
+        self._agent_report_generator: Any | None = None
+
+        # Phase 62: Agent Episodic Memory
+        self._agent_episode_store: Any | None = None
+
         # Phase 6: Real-time streaming + NL tasks + Re-ID + Long-term memory
         self._session_id: str | None = None
         self._nl_task_manager = None
@@ -1021,7 +1033,7 @@ class PerceptionEngine:
                     len(violations),
                 )
 
-            return FrameResult(
+            result = FrameResult(
                 timestamp=timestamp,
                 frame_number=frame_number,
                 world_state=world_state,
@@ -1034,6 +1046,23 @@ class PerceptionEngine:
                 vlm_latency_ms=self._reasoner._vlm_latency_this_frame,
                 pose_results=pose_results,
             )
+
+            # ── Stage 6v: Agent Loop (OODA) + Closed-Loop Verifier ────
+            _cam_6v = getattr(self, "_session_id", None) or "cam"
+            if self._agent_loop is not None:
+                try:
+                    force_think = self._agent_loop.observe(result, camera_id=_cam_6v)
+                    if force_think or self._agent_loop.should_think():
+                        self._agent_loop.think()
+                except Exception:
+                    logger.debug("Agent loop stage failed", exc_info=True)
+            if self._closed_loop_verifier is not None:
+                try:
+                    self._closed_loop_verifier.check_pending(result, camera_id=_cam_6v)
+                except Exception:
+                    logger.debug("Closed-loop verifier stage failed", exc_info=True)
+
+            return result
 
         except Exception:
             # Graceful degradation: if any stage fails, return empty result
@@ -1142,6 +1171,39 @@ class PerceptionEngine:
         self._zones = list(zones)
         logger.info("Zones updated: %d zones configured", len(self._zones))
 
+    # ── State accessor helpers (extracted from 40+ near-identical getters) ──
+    #
+    # The public ``get_X_state()`` methods below all follow the pattern
+    # "return None if the component is missing, else call its accessor and
+    # swallow exceptions". These two helpers centralise that pattern so each
+    # getter shrinks from ~7 lines to a single delegation.
+
+    def _component_state(
+        self, attr: str, accessor: str = "get_stats"
+    ) -> dict | None:
+        """Generic accessor: return ``component.<accessor>()`` or ``None``.
+
+        Returns ``None`` when the attribute is missing/None or when the call
+        raises. Used by the simple ``get_X_state`` getters.
+        """
+        component = getattr(self, attr, None)
+        if component is None:
+            return None
+        try:
+            return getattr(component, accessor)()
+        except Exception:
+            return None
+
+    def _safe_reset(self, attr: str, method: str = "reset") -> None:
+        """Best-effort component reset — used by ``reset()``."""
+        component = getattr(self, attr, None)
+        if component is None:
+            return
+        try:
+            getattr(component, method)()
+        except Exception:
+            pass
+
     def get_world_state(self) -> WorldState | None:
         """Return the latest world state, or None if no frames processed."""
         if self._world_model is None:
@@ -1165,21 +1227,11 @@ class PerceptionEngine:
 
     def get_deliberation_state(self) -> dict | None:
         """Return recent deliberation results for the API, or None if unavailable."""
-        if self._deliberative_reasoner is None:
-            return None
-        try:
-            return self._deliberative_reasoner.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_deliberative_reasoner", "get_state_dict")
 
     def get_goal_state(self) -> dict | None:
         """Return current goal hypothesis state for the API, or None if unavailable."""
-        if self._goal_recognizer is None:
-            return None
-        try:
-            return self._goal_recognizer.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_goal_recognizer", "get_state_dict")
 
     def get_metacognition_state(self) -> dict | None:
         """Return perception health report for the API, or None if unavailable."""
@@ -1222,28 +1274,13 @@ class PerceptionEngine:
             pass
 
     def get_nl_task_state(self) -> dict | None:
-        if self._nl_task_manager is None:
-            return None
-        try:
-            return self._nl_task_manager.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_nl_task_manager", "get_state_dict")
 
     def get_reid_state(self) -> dict | None:
-        if self._cross_camera_tracker is None:
-            return None
-        try:
-            return self._cross_camera_tracker.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_cross_camera_tracker", "get_state_dict")
 
     def get_ltm_state(self) -> dict | None:
-        if self._long_term_memory is None:
-            return None
-        try:
-            return self._long_term_memory.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_long_term_memory", "get_state_dict")
 
     def get_ltm_hourly(self, hour: int) -> list[dict]:
         if self._long_term_memory is None:
@@ -1256,21 +1293,11 @@ class PerceptionEngine:
 
     def get_action_state(self) -> dict | None:
         """Return action executor state dict, or None if not initialized."""
-        if self._action_executor is None:
-            return None
-        try:
-            return self._action_executor.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_action_executor", "get_state_dict")
 
     def get_fusion_state(self) -> dict | None:
         """Return multimodal fusion engine state dict, or None if not initialized."""
-        if self._fusion_engine is None:
-            return None
-        try:
-            return self._fusion_engine.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_fusion_engine", "get_state_dict")
 
     def get_depth_estimates(self) -> list:
         """Return depth estimates from the most recent frame."""
@@ -1278,21 +1305,11 @@ class PerceptionEngine:
 
     def get_spatial_state(self) -> dict | None:
         """Return spatial map state dict, or None if not initialized."""
-        if self._spatial_map is None:
-            return None
-        try:
-            return self._spatial_map.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_spatial_map", "get_state_dict")
 
     def get_adaptive_state(self) -> dict | None:
         """Return adaptive learner state dict, or None if not initialized."""
-        if self._adaptive_learner is None:
-            return None
-        try:
-            return self._adaptive_learner.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_adaptive_learner", "get_state_dict")
 
     def get_adaptive_learner_state(self) -> dict:
         """Return combined AdaptiveLearner + AnomalyTuner state (Phase 10)."""
@@ -1319,12 +1336,7 @@ class PerceptionEngine:
 
     def get_sigma_state(self) -> dict | None:
         """Return SigmaTuner state dict, or None if not initialized (Phase 12A)."""
-        if self._sigma_tuner is None:
-            return None
-        try:
-            return self._sigma_tuner.get_state()
-        except Exception:
-            return None
+        return self._component_state("_sigma_tuner", "get_state")
 
     def get_early_warning_state(
         self, tuner_stats: dict | None = None
@@ -1339,12 +1351,7 @@ class PerceptionEngine:
 
     def get_early_warning_responder_state(self) -> dict | None:
         """Return EarlyWarningResponder state dict, or None if not initialized (Phase 16)."""
-        if self._early_warning_responder is None:
-            return None
-        try:
-            return self._early_warning_responder.get_state()
-        except Exception:
-            return None
+        return self._component_state("_early_warning_responder", "get_state")
 
     def get_health_score(self, *, record: bool = True) -> dict:
         """Return composite Perception Engine health score (Phase 18).
@@ -1420,30 +1427,15 @@ class PerceptionEngine:
 
     def get_attention_state(self) -> dict | None:
         """Return attention broker state dict, or None if not initialized."""
-        if self._attention_broker is None:
-            return None
-        try:
-            return self._attention_broker.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_attention_broker", "get_state_dict")
 
     def get_scene_state(self) -> dict | None:
         """Return latest scene understanding state dict, or None if not initialized."""
-        if self._scene_understanding is None:
-            return None
-        try:
-            return self._scene_understanding.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_scene_understanding", "get_state_dict")
 
     def get_anticipation_state(self) -> dict | None:
         """Return anticipation engine state dict (hazard counts, history), or None."""
-        if self._anticipation_engine is None:
-            return None
-        try:
-            return self._anticipation_engine.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_anticipation_engine", "get_state_dict")
 
     def get_active_hazards(self) -> list:
         """Return active hazard assessments from last anticipation analysis."""
@@ -1456,129 +1448,59 @@ class PerceptionEngine:
 
     def get_clip_state(self) -> dict | None:
         """Return CLIP classifier state dict, or None if not initialized."""
-        if self._clip_classifier is None:
-            return None
-        try:
-            return self._clip_classifier.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_clip_classifier", "get_state_dict")
 
     def get_sam_state(self) -> dict | None:
         """Return SAM segmenter stats, or None if not initialized (Phase 34)."""
-        if self._sam_segmenter is None:
-            return None
-        try:
-            return self._sam_segmenter.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_sam_segmenter")
 
     def get_temporal_state(self) -> dict | None:
         """Return temporal fusion engine stats, or None if not initialized (Phase 35)."""
-        if self._temporal_fusion is None:
-            return None
-        try:
-            return self._temporal_fusion.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_temporal_fusion")
 
     def get_online_learner_state(self) -> dict | None:
         """Return online learner stats, or None if not initialized (Phase 36)."""
-        if self._online_learner is None:
-            return None
-        try:
-            return self._online_learner.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_online_learner")
 
     def get_video_foundation_state(self) -> dict | None:
         """Return video foundation model state (Phase 37)."""
-        if self._video_foundation is None:
-            return None
-        try:
-            return self._video_foundation.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_video_foundation")
 
     def get_llava_state(self) -> dict | None:
         """Return LLaVA-NeXT VLM client stats (Phase 38)."""
-        if self._llava_client is None:
-            return None
-        try:
-            return self._llava_client.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_llava_client")
 
     def get_grounding_dino_15_state(self) -> dict | None:
         """Return Grounding DINO 1.5 detector stats (Phase 39)."""
-        if self._grounding_dino_15 is None:
-            return None
-        try:
-            return self._grounding_dino_15.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_grounding_dino_15")
 
     def get_incident_reporter_state(self) -> dict | None:
         """Return incident reporter stats (Phase 40)."""
-        if self._incident_reporter is None:
-            return None
-        try:
-            return self._incident_reporter.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_incident_reporter")
 
     def get_federated_reid_state(self) -> dict | None:
         """Return federated Re-ID store stats (Phase 41)."""
-        if self._federated_reid is None:
-            return None
-        try:
-            return self._federated_reid.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_federated_reid")
 
     def get_edge_optimizer_state(self) -> dict | None:
         """Return edge optimizer stats (Phase 42)."""
-        if self._edge_optimizer is None:
-            return None
-        try:
-            return self._edge_optimizer.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_edge_optimizer")
 
     def get_video_memory_state(self) -> dict | None:
         """Return video memory store stats (Phase 43)."""
-        if self._video_memory is None:
-            return None
-        try:
-            return self._video_memory.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_video_memory")
 
     def get_rag_engine_state(self) -> dict | None:
         """Return RAG engine stats (Phase 43)."""
-        if self._rag_engine is None:
-            return None
-        try:
-            return self._rag_engine.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_rag_engine")
 
     def get_causal_analyzer_state(self) -> dict | None:
         """Return causal analyzer stats (Phase 44)."""
-        if self._causal_analyzer is None:
-            return None
-        try:
-            return self._causal_analyzer.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_causal_analyzer")
 
     def get_active_loop_state(self) -> dict | None:
         """Return active learning loop stats (Phase 45)."""
-        if self._active_loop is None:
-            return None
-        try:
-            return self._active_loop.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_active_loop")
 
     def get_sla_state(self) -> dict | None:
         """Return SLA monitor stats (Phase 48)."""
@@ -1595,140 +1517,77 @@ class PerceptionEngine:
 
     def get_spatial_mapper_state(self) -> dict | None:
         """Return spatial mapper stats (Phase 46)."""
-        if self._spatial_mapper is None:
-            return None
-        try:
-            return self._spatial_mapper.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_spatial_mapper")
 
     def get_zone_analyzer_state(self) -> dict | None:
         """Return zone analyzer stats (Phase 46)."""
-        if self._zone_analyzer is None:
-            return None
-        try:
-            return self._zone_analyzer.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_zone_analyzer")
 
     def get_crowd_analytics_state(self) -> dict | None:
         """Return crowd analytics stats (Phase 50)."""
-        if self._crowd_analytics is None:
-            return None
-        try:
-            return self._crowd_analytics.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_crowd_analytics")
 
     def get_multi_agent_state(self) -> dict | None:
         """Return multi-agent coordinator state (Phase 52)."""
-        if self._multi_agent_coordinator is None:
-            return None
-        try:
-            return self._multi_agent_coordinator.get_state_dict()
-        except Exception:
-            return None
+        return self._component_state("_multi_agent_coordinator", "get_state_dict")
 
     def get_causal_inference_state(self) -> dict | None:
         """Return causal inference engine stats (Phase 53)."""
-        if self._causal_inference_engine is None:
-            return None
-        try:
-            return self._causal_inference_engine.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_causal_inference_engine")
 
     def get_safety_planner_state(self) -> dict | None:
         """Return safety planner stats (Phase 54)."""
-        if self._safety_planner is None:
-            return None
-        try:
-            return self._safety_planner.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_safety_planner")
 
     def get_anomaly_forecaster_state(self) -> dict | None:
         """Return anomaly forecaster stats (Phase 57)."""
-        if self._anomaly_forecaster is None:
-            return None
-        try:
-            return self._anomaly_forecaster.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_anomaly_forecaster")
 
     def get_explainability_state(self) -> dict | None:
         """Return explainability engine stats (Phase 56)."""
-        if self._explainability_engine is None:
-            return None
-        try:
-            return self._explainability_engine.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_explainability_engine")
 
     def get_domain_adapter_state(self) -> dict | None:
         """Return domain adapter stats (Phase 55)."""
-        if self._domain_adapter is None:
-            return None
-        try:
-            return self._domain_adapter.get_stats()
-        except Exception:
-            return None
+        return self._component_state("_domain_adapter")
+
+    def get_agent_loop_state(self) -> dict | None:
+        """Return agent loop stats (Phase 59)."""
+        return self._component_state("_agent_loop")
+
+    def get_closed_loop_verifier_state(self) -> dict | None:
+        """Return closed-loop verifier stats (Phase 60)."""
+        return self._component_state("_closed_loop_verifier")
+
+    def get_agent_report_state(self) -> dict | None:
+        """Return agent report generator stats (Phase 61)."""
+        return self._component_state("_agent_report_generator")
+
+    def get_agent_episode_state(self) -> dict | None:
+        """Return AgentEpisodeStore stats (Phase 62)."""
+        return self._component_state("_agent_episode_store")
 
     def reset(self) -> None:
         """Reset all stateful components to their initial state.
 
         Call this between videos or when restarting analysis.
         """
-        if self._tracker is not None:
-            try:
-                self._tracker.reset()
-            except (AttributeError, Exception):
-                pass
-        if self._world_model is not None:
-            try:
-                self._world_model.reset()
-            except (AttributeError, Exception):
-                pass
+        for attr in (
+            "_tracker", "_world_model",          # core
+            "_causal_reasoner", "_context_memory",  # Phase 3
+            "_episodic_memory", "_goal_recognizer", # Phase 5
+            "_nl_task_manager",                   # Phase 6
+        ):
+            self._safe_reset(attr)
 
-        # Reset Phase 2 components
+        # Phase 2: ActivityMonitor exposes its previous-activity cache directly
         if self._activity_monitor is not None:
             try:
                 self._activity_monitor._previous_activities.clear()
             except (AttributeError, Exception):
                 pass
+
         self._previous_world_state = None
-
-        # Reset Phase 3 components
-        if self._causal_reasoner is not None:
-            try:
-                self._causal_reasoner.reset()
-            except (AttributeError, Exception):
-                pass
-        if self._context_memory is not None:
-            try:
-                self._context_memory.reset()
-            except (AttributeError, Exception):
-                pass
-
-        # Reset Phase 5 components
-        if self._episodic_memory is not None:
-            try:
-                self._episodic_memory.reset()
-            except (AttributeError, Exception):
-                pass
-        if self._goal_recognizer is not None:
-            try:
-                self._goal_recognizer.reset()
-            except (AttributeError, Exception):
-                pass
-
-        # Reset Phase 6 components
-        if self._nl_task_manager is not None:
-            try:
-                self._nl_task_manager.reset()
-            except (AttributeError, Exception):
-                pass
-
         self._cached_rules_key = None
         self._cached_prompts = []
         self._frames_processed = 0
@@ -1749,77 +1608,24 @@ class PerceptionEngine:
 
     def close(self) -> None:
         """Release all resources held by the engine and its components."""
-        if self._detector is not None:
-            try:
-                self._detector.close()
-            except (AttributeError, Exception):
-                pass
-        if self._vlm_client is not None:
-            try:
-                self._vlm_client.close()
-            except (AttributeError, Exception):
-                pass
-        if self._pose_estimator is not None:
-            try:
-                self._pose_estimator.close()
-            except (AttributeError, Exception):
-                pass
+        # Components that own external resources (GPU, network) — call close()
+        for attr in (
+            "_detector", "_vlm_client", "_pose_estimator",
+            "_sam_segmenter",        # Phase 34
+            "_llava_client",         # Phase 38
+            "_grounding_dino_15",    # Phase 39
+        ):
+            self._safe_reset(attr, method="close")
 
-        # Phase 34: SAM segmenter
-        if self._sam_segmenter is not None:
-            try:
-                self._sam_segmenter.close()
-            except (AttributeError, Exception):
-                pass
-
-        # Phase 36: Online learner persistence
-        if self._online_learner is not None:
-            try:
-                self._online_learner.save()
-            except (AttributeError, Exception):
-                pass
-
-        # Phase 38: LLaVA-NeXT client
-        if self._llava_client is not None:
-            try:
-                self._llava_client.close()
-            except (AttributeError, Exception):
-                pass
-
-        # Phase 39: Grounding DINO 1.5
-        if self._grounding_dino_15 is not None:
-            try:
-                self._grounding_dino_15.close()
-            except (AttributeError, Exception):
-                pass
-
-        # Phase 40: Incident reporter (flush persisted log)
-        if self._incident_reporter is not None:
-            try:
-                self._incident_reporter._save()
-            except (AttributeError, Exception):
-                pass
-
-        # Phase 43: Video Memory (flush to disk)
-        if self._video_memory is not None:
-            try:
-                self._video_memory._save()
-            except (AttributeError, Exception):
-                pass
-
-        # Phase 44: Causal Analyzer (flush chains)
-        if self._causal_analyzer is not None:
-            try:
-                self._causal_analyzer._save()
-            except (AttributeError, Exception):
-                pass
-
-        # Phase 45: Active Loop (flush labels)
-        if self._active_loop is not None:
-            try:
-                self._active_loop._save()
-            except (AttributeError, Exception):
-                pass
+        # Components with persistence — flush to disk on shutdown
+        self._safe_reset("_online_learner", method="save")           # Phase 36
+        for attr in (
+            "_incident_reporter",    # Phase 40
+            "_video_memory",         # Phase 43
+            "_causal_analyzer",      # Phase 44
+            "_active_loop",          # Phase 45
+        ):
+            self._safe_reset(attr, method="_save")
 
         logger.info(
             "PerceptionEngine closed after %d frames (avg %.1f ms/frame)",
@@ -3147,6 +2953,8 @@ def build_perception_engine(
                 device=config.device,
                 max_new_tokens=config.llava_max_new_tokens,
                 backend="auto",
+                load_in_8bit=config.llava_load_in_8bit,
+                load_in_4bit=config.llava_load_in_4bit,
             )
             engine._llava_client = llava_client
             # Inject into cascade Stage 3 if cascade detector is active
@@ -3693,5 +3501,84 @@ def build_perception_engine(
             logger.debug("SOPEngine module not available")
         except Exception:
             logger.exception("Failed to initialize SOPEngine")
+
+    # ── Phase 62: Agent Episodic Memory (init before Phase 60 + 59) ──
+    _agent_episode_store = None
+    if getattr(config, "episode_store_enabled", False):
+        try:
+            from sopilot.perception.agent_episode_store import AgentEpisodeStore
+            _agent_episode_store = AgentEpisodeStore(
+                max_episodes=config.episode_store_max_episodes,
+                recall_min_similarity=config.episode_store_recall_min_similarity,
+            )
+            engine._agent_episode_store = _agent_episode_store
+            logger.info("AgentEpisodeStore (Phase 62) initialized")
+        except ImportError:
+            logger.debug("AgentEpisodeStore module not available")
+        except Exception:
+            logger.exception("Failed to initialize AgentEpisodeStore")
+
+    # ── Phase 60: Closed-Loop Verifier (must init before AgentLoop) ──
+    _closed_loop_verifier = None
+    if getattr(config, "closed_loop_enabled", False):
+        try:
+            from sopilot.perception.closed_loop_verifier import ClosedLoopVerifier
+            _closed_loop_verifier = ClosedLoopVerifier(
+                verify_after_s=config.closed_loop_verify_after_s,
+                success_threshold=config.closed_loop_success_threshold,
+                meta_learning_enabled=config.closed_loop_meta_learning_enabled,
+                history_size=config.closed_loop_history_size,
+                original_escalation=config.agent_loop_escalation_threshold,
+                original_plan=config.agent_loop_plan_threshold,
+                episode_store=_agent_episode_store,
+            )
+            engine._closed_loop_verifier = _closed_loop_verifier
+            logger.info("ClosedLoopVerifier (Phase 60) initialized")
+        except ImportError:
+            logger.debug("ClosedLoopVerifier module not available")
+        except Exception:
+            logger.exception("Failed to initialize ClosedLoopVerifier")
+
+    # ── Phase 59: Agentic Closed-Loop (OODA) ─────────────────────────
+    if getattr(config, "agent_loop_enabled", False):
+        try:
+            from sopilot.perception.agent_loop import AgentLoop
+            engine._agent_loop = AgentLoop(
+                think_interval_s=config.agent_loop_think_interval_s,
+                critical_trigger=config.agent_loop_critical_trigger,
+                use_llava_orient=config.agent_loop_use_llava_orient,
+                use_rag_orient=config.agent_loop_use_rag_orient,
+                escalation_threshold=config.agent_loop_escalation_threshold,
+                plan_threshold=config.agent_loop_plan_threshold,
+                safety_planner=engine._safety_planner,
+                causal_inference=engine._causal_inference_engine,
+                incident_reporter=engine._incident_reporter,
+                rag_engine=engine._rag_engine,
+                llava_client=getattr(engine, "_llava_client", None),
+                online_learner=engine._online_learner,
+                early_warning_responder=getattr(engine, "_early_warning_responder", None),
+                anomaly_forecaster=engine._anomaly_forecaster,
+                verifier=_closed_loop_verifier,
+                episode_store=_agent_episode_store,
+            )
+            logger.info("AgentLoop (Phase 59) initialized")
+        except ImportError:
+            logger.debug("AgentLoop module not available")
+        except Exception:
+            logger.exception("Failed to initialize AgentLoop")
+
+    # ── Phase 61: Agent Intelligence Report ──────────────────────────
+    if engine._agent_loop is not None or engine._closed_loop_verifier is not None:
+        try:
+            from sopilot.perception.agent_report import AgentReportGenerator
+            engine._agent_report_generator = AgentReportGenerator(
+                agent_loop=engine._agent_loop,
+                verifier=engine._closed_loop_verifier,
+            )
+            logger.info("AgentReportGenerator (Phase 61) initialized")
+        except ImportError:
+            logger.debug("AgentReportGenerator module not available")
+        except Exception:
+            logger.exception("Failed to initialize AgentReportGenerator")
 
     return engine

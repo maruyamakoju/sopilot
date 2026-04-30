@@ -603,6 +603,7 @@ class PerceptionConfig:
     llava_model_id: str = "llava-hf/llava-v1.6-mistral-7b-hf"  # HuggingFace model ID
     llava_max_new_tokens: int = 256               # max tokens per VLM response
     llava_load_in_8bit: bool = True               # 8-bit quantization (~8 GB VRAM)
+    llava_load_in_4bit: bool = False              # 4-bit quantization (~4.5 GB VRAM, Phase 58)
 
     # Phase 39: Grounding DINO 1.5
     grounding_dino_15_enabled: bool = True       # enable Grounding DINO 1.5 for cascade Stage 2
@@ -702,3 +703,70 @@ class PerceptionConfig:
     domain_adaptation_shift_threshold: float = 0.15  # MMD shift score threshold
     domain_adaptation_auto_adapt_every: int = 100  # frames between auto-adaptation steps
 
+    # Phase 60: Closed-Loop Verification
+    closed_loop_enabled: bool = False              # enable ClosedLoopVerifier
+    closed_loop_verify_after_s: float = 30.0       # seconds after ACT to re-observe
+    closed_loop_success_threshold: float = 0.5     # violation reduction ratio for SUCCESS
+    closed_loop_meta_learning_enabled: bool = True # adjust thresholds via EMA success rates
+    closed_loop_history_size: int = 200            # max verification records kept
+
+    # Phase 62: Agent Episodic Memory
+    episode_store_enabled: bool = False            # enable AgentEpisodeStore
+    episode_store_max_episodes: int = 1000         # rolling buffer size
+    episode_store_recall_min_similarity: float = 0.7  # cosine similarity threshold for recall
+
+    # Phase 59: Agentic Closed-Loop (OODA)
+    agent_loop_enabled: bool = False               # enable AgentLoop OODA cycle
+    agent_loop_think_interval_s: float = 5.0       # seconds between think() invocations
+    agent_loop_critical_trigger: bool = True        # force think() on critical events
+    agent_loop_use_llava_orient: bool = False       # use LLaVA for ORIENT phase summary
+    agent_loop_use_rag_orient: bool = True          # use RAG for ORIENT phase context
+    agent_loop_escalation_threshold: int = 3        # repeated violations before ESCALATE
+    agent_loop_plan_threshold: int = 5              # repeated violations before PLAN
+
+    # ── Phase 58: RTX 4090 production preset ──────────────────────────────
+
+    @classmethod
+    def for_rtx4090(cls) -> "PerceptionConfig":
+        """Optimal config for RTX 4090 (24 GB VRAM, ~22 GB usable).
+
+        VRAM budget (concurrent max ~14.35 GB):
+            YOLO v8 World           1.5 GB  (priority=9, always resident)
+            DINOv2 ViT-B/14         0.35 GB (priority=9, always resident)
+            Grounding DINO 1.5-edge 1.5 GB  (priority=6, on-demand)
+            LLaVA-NeXT 7B 4-bit     4.5 GB  (priority=3, on-demand)
+            SAM 2.1 small           2.5 GB  (priority=5, on-demand)
+            V-JEPA 2 (ViT-L)        4.0 GB  (priority=4, on-demand)
+        """
+        return cls(
+            device="cuda",
+            # Orchestrator
+            orchestrator_enabled=True,
+            orchestrator_vram_budget_gb=22.0,
+            # Cascade detector
+            detector_backend="cascade",
+            # DINOv2
+            dinov2_enabled=True,
+            dinov2_variant="dinov2_vitb14",
+            # Grounding DINO 1.5-edge
+            grounding_dino_15_enabled=True,
+            grounding_dino_15_variant="1.5-edge",
+            # LLaVA-NeXT 4-bit (saves VRAM vs 8-bit)
+            llava_enabled=True,
+            llava_load_in_8bit=False,
+            llava_load_in_4bit=True,
+            llava_model_id="llava-hf/llava-v1.6-mistral-7b-hf",
+            # SAM 2 small
+            sam_enabled=True,
+            sam_model_variant="sam2_hiera_small",
+            # Temporal + Online learning
+            temporal_fusion_enabled=True,
+            online_learning_enabled=True,
+            # Video foundation (V-JEPA 2)
+            video_foundation_enabled=True,
+            video_foundation_backend="vjepa",
+            # Observability
+            sla_monitor_enabled=True,
+            crowd_analytics_enabled=True,
+            spatial_mapper_enabled=True,
+        )

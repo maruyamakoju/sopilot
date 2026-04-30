@@ -3663,4 +3663,252 @@ def build_perception_router() -> APIRouter:
             return {"success": True, "camera_id": camera_id}
         return await run_in_threadpool(_reset)
 
+    # ── Phase 59: Agentic Closed-Loop (OODA) ─────────────────────────────
+
+    @router.get("/agent/stats")
+    async def get_agent_stats(request: Request) -> dict:
+        """OODAエージェント統計 (Phase 59)。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_agent_loop_state()
+        if state is None:
+            return {"enabled": False}
+        return state
+
+    @router.get("/agent/decisions")
+    async def get_agent_decisions(request: Request, limit: int = 10) -> dict:
+        """意思決定履歴。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_loop is None:
+            return {"enabled": False, "decisions": []}
+        def _get():
+            return {"enabled": True, "decisions": engine._agent_loop.get_recent_decisions(limit)}
+        return await run_in_threadpool(_get)
+
+    @router.get("/agent/events")
+    async def get_agent_events(request: Request) -> dict:
+        """保留イベントバッファ。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_loop is None:
+            return {"enabled": False, "events": []}
+        def _get():
+            return {"enabled": True, "events": engine._agent_loop.get_pending_events()}
+        return await run_in_threadpool(_get)
+
+    @router.post("/agent/think")
+    async def trigger_agent_think(request: Request) -> dict:
+        """手動think()実行。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_loop is None:
+            return {"enabled": False, "decision": None}
+        def _think():
+            decision = engine._agent_loop.think()
+            return {
+                "enabled": True,
+                "decision": decision.to_dict() if decision else None,
+            }
+        return await run_in_threadpool(_think)
+
+    @router.post("/agent/inject")
+    async def inject_agent_event(request: Request) -> dict:
+        """テスト用イベント注入。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_loop is None:
+            return {"success": False, "message": "AgentLoop not initialized"}
+        body = await request.json()
+        from sopilot.perception.agent_loop import AgentEvent
+        ev = AgentEvent(
+            event_type=body.get("event_type", "violation"),
+            camera_id=body.get("camera_id", "cam"),
+            severity=body.get("severity", "info"),
+            violation_rule=body.get("violation_rule", ""),
+        )
+        import time as _time
+        ev.timestamp = _time.time()
+        def _inject():
+            engine._agent_loop.inject_event(ev)
+            return {"success": True, "pending_events": len(engine._agent_loop._pending_events)}
+        return await run_in_threadpool(_inject)
+
+    @router.get("/agent/actions")
+    async def get_agent_actions(request: Request) -> dict:
+        """アクション別カウント。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_loop is None:
+            return {"enabled": False, "action_counts": {}}
+        return {"enabled": True, "action_counts": engine._agent_loop._action_counts}
+
+    @router.delete("/agent/reset")
+    async def reset_agent_loop(request: Request) -> dict:
+        """エージェントループリセット。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_loop is None:
+            return {"success": False, "message": "AgentLoop not initialized"}
+        def _reset():
+            engine._agent_loop.reset()
+            return {"success": True}
+        return await run_in_threadpool(_reset)
+
+    # ── Phase 60: Closed-Loop Verification ───────────────────────────────
+
+    @router.get("/verifier/stats")
+    async def get_verifier_stats(request: Request) -> dict:
+        """検証エンジン統計 (Phase 60)。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_closed_loop_verifier_state()
+        if state is None:
+            return {"enabled": False}
+        return state
+
+    @router.get("/verifier/records")
+    async def get_verifier_records(request: Request, limit: int = 10) -> dict:
+        """最近の検証結果一覧。"""
+        engine = _get_perception_engine(request)
+        if engine._closed_loop_verifier is None:
+            return {"enabled": False, "records": []}
+        def _get():
+            return {
+                "enabled": True,
+                "records": engine._closed_loop_verifier.get_recent_records(limit),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.get("/verifier/pending")
+    async def get_verifier_pending(request: Request) -> dict:
+        """保留中の検証タスク一覧。"""
+        engine = _get_perception_engine(request)
+        if engine._closed_loop_verifier is None:
+            return {"enabled": False, "tasks": []}
+        def _get():
+            return {
+                "enabled": True,
+                "tasks": engine._closed_loop_verifier.get_pending_tasks(),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.get("/verifier/meta")
+    async def get_verifier_meta(request: Request) -> dict:
+        """メタ学習状態 (閾値調整・成功率)。"""
+        engine = _get_perception_engine(request)
+        if engine._closed_loop_verifier is None:
+            return {"enabled": False}
+        def _get():
+            return {"enabled": True, **engine._closed_loop_verifier.get_meta_state()}
+        return await run_in_threadpool(_get)
+
+    @router.post("/verifier/check")
+    async def trigger_verifier_check(request: Request) -> dict:
+        """指定カメラの保留タスクを手動で検証実行。"""
+        engine = _get_perception_engine(request)
+        if engine._closed_loop_verifier is None:
+            return {"enabled": False, "completed": 0}
+        body = await request.json()
+        camera_id = body.get("camera_id", "cam")
+        violation_count = body.get("violation_count", 0)
+
+        class _MockResult:
+            violations = [None] * violation_count
+
+        def _check():
+            completed = engine._closed_loop_verifier.check_pending(_MockResult(), camera_id)
+            return {"enabled": True, "completed": len(completed),
+                    "records": [r.to_dict() for r in completed]}
+        return await run_in_threadpool(_check)
+
+    # ── Phase 61: Agent Intelligence Report ─────────────────────────────
+
+    @router.get("/agent/report")
+    async def get_agent_report(request: Request, window_hours: float = 24.0) -> dict:
+        """AIエージェント活動レポートを生成 (Phase 61)。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_report_generator is None:
+            return {"enabled": False}
+        def _generate():
+            report = engine._agent_report_generator.generate(window_hours=window_hours)
+            return {"enabled": True, **report.to_dict()}
+        return await run_in_threadpool(_generate)
+
+    @router.get("/agent/report/summary")
+    async def get_agent_report_summary(request: Request, window_hours: float = 24.0) -> dict:
+        """軽量サマリー (think回数・成功率・トレンド)。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_report_generator is None:
+            return {"enabled": False}
+        def _get():
+            return {"enabled": True,
+                    **engine._agent_report_generator.get_summary(window_hours)}
+        return await run_in_threadpool(_get)
+
+    @router.get("/agent/report/insights")
+    async def get_agent_report_insights(request: Request, window_hours: float = 24.0) -> dict:
+        """パターン検出インサイト一覧。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_report_generator is None:
+            return {"enabled": False, "insights": []}
+        def _get():
+            return {"enabled": True,
+                    "insights": engine._agent_report_generator.get_insights(window_hours)}
+        return await run_in_threadpool(_get)
+
+    @router.delete("/verifier/reset")
+    async def reset_verifier(request: Request) -> dict:
+        """検証エンジンリセット。"""
+        engine = _get_perception_engine(request)
+        if engine._closed_loop_verifier is None:
+            return {"success": False, "message": "ClosedLoopVerifier not initialized"}
+        def _reset():
+            engine._closed_loop_verifier.reset()
+            return {"success": True}
+        return await run_in_threadpool(_reset)
+
+    # ── Phase 62: Agent Episodic Memory ───────────────────────────────────
+
+    @router.get("/agent/memory/stats")
+    async def get_episode_stats(request: Request) -> dict:
+        """エピソードメモリ統計。"""
+        engine = _get_perception_engine(request)
+        state = engine.get_agent_episode_state()
+        if state is None:
+            return {"enabled": False}
+        return state
+
+    @router.get("/agent/memory/episodes")
+    async def get_recent_episodes(request: Request, limit: int = 10) -> dict:
+        """最近のエピソード一覧。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_episode_store is None:
+            return {"enabled": False, "episodes": []}
+        def _get():
+            return {
+                "enabled": True,
+                "episodes": engine._agent_episode_store.get_recent_episodes(limit),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.get("/agent/memory/search")
+    async def search_episodes_by_action(
+        request: Request, action: str = "escalate", limit: int = 10
+    ) -> dict:
+        """アクション別エピソード検索。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_episode_store is None:
+            return {"enabled": False, "episodes": []}
+        def _get():
+            return {
+                "enabled": True,
+                "action": action,
+                "episodes": engine._agent_episode_store.search_by_action(action, limit),
+            }
+        return await run_in_threadpool(_get)
+
+    @router.delete("/agent/memory/reset")
+    async def reset_episode_store(request: Request) -> dict:
+        """エピソードメモリリセット。"""
+        engine = _get_perception_engine(request)
+        if engine._agent_episode_store is None:
+            return {"success": False, "message": "AgentEpisodeStore not initialized"}
+        def _reset():
+            engine._agent_episode_store.reset()
+            return {"success": True}
+        return await run_in_threadpool(_reset)
+
     return router

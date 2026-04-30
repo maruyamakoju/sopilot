@@ -1927,6 +1927,156 @@ textarea:focus{border-color:var(--accent-b);box-shadow:0 0 0 3px rgba(13,148,136
           </div>
         </div>
 
+        <!-- Phase 59: Agentic OODA Loop -->
+        <div class="perc-card" id="percAgentCard" style="display:none">
+          <div class="perc-card-title">&#x1F916; OODA エージェント (Phase 59)</div>
+          <div style="font-size:11px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">Think回数</div>
+                <div id="agentThinkCount" style="font-weight:700;color:#34d399;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">保留イベント</div>
+                <div id="agentPendingEvents" style="font-weight:700;color:#fbbf24;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">決定数</div>
+                <div id="agentDecisionCount" style="font-weight:700;color:#22d3ee;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">ステータス</div>
+                <div id="agentStatus" style="font-weight:700;color:#a78bfa;font-size:13px">idle</div>
+              </div>
+            </div>
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">意思決定履歴</div>
+            <div id="agentDecisionFeed" style="display:flex;flex-direction:column;gap:3px;max-height:100px;overflow-y:auto;margin-bottom:6px">
+              <div style="font-size:9px;color:var(--muted)">--</div>
+            </div>
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">アクション分布</div>
+            <div id="agentActionDist" style="display:flex;gap:2px;height:14px;margin-bottom:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.04)"></div>
+            <details style="margin-top:4px">
+              <summary style="font-size:9px;color:var(--muted);cursor:pointer;user-select:none">手動制御 &#x25B6;</summary>
+              <div style="margin-top:4px;display:flex;flex-direction:column;gap:4px">
+                <button onclick="_agentForceThink()" style="font-size:9px;padding:3px 8px;border-radius:3px;background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3);color:#34d399;cursor:pointer">&#x1F9E0; 強制Think実行</button>
+                <div id="agentThinkMsg" style="font-size:9px;color:var(--muted)"></div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- Phase 61: Agent Intelligence Report -->
+        <div class="perc-card" id="percAgentReportCard" style="display:none">
+          <div class="perc-card-title">&#x1F4DD; AI活動レポート (Phase 61)</div>
+          <div style="font-size:11px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">判断数</div>
+                <div id="reportDecisions" style="font-weight:700;color:#34d399;font-size:13px">—</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">有効率</div>
+                <div id="reportSuccessRate" style="font-weight:700;color:#22d3ee;font-size:13px">—</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">トレンド</div>
+                <div id="reportTrend" style="font-weight:700;color:#a78bfa;font-size:13px">—</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">主要違反</div>
+                <div id="reportTopViolation" style="font-weight:700;color:#fbbf24;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">—</div>
+              </div>
+            </div>
+            <!-- Summary -->
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">概要</div>
+            <div id="reportSummaryJa" style="font-size:9px;color:#e2e8f0;line-height:1.5;margin-bottom:6px;padding:4px;background:rgba(255,255,255,.03);border-radius:3px">—</div>
+            <!-- Insights -->
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">インサイト</div>
+            <div id="reportInsightsFeed" style="display:flex;flex-direction:column;gap:2px;max-height:80px;overflow-y:auto;margin-bottom:6px">
+              <div style="font-size:9px;color:var(--muted)">—</div>
+            </div>
+            <details style="margin-top:4px">
+              <summary style="font-size:9px;color:var(--muted);cursor:pointer;user-select:none">レポート生成 &#x25B6;</summary>
+              <div style="margin-top:4px;display:flex;flex-direction:column;gap:4px">
+                <div style="display:flex;gap:4px;align-items:center">
+                  <label style="font-size:9px;color:var(--muted)">ウィンドウ(h):</label>
+                  <input id="reportWindowHours" type="number" value="24" min="1" style="font-size:9px;padding:2px 4px;border-radius:3px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);color:#e2e8f0;width:50px">
+                  <button onclick="_agentGenerateReport()" style="font-size:9px;padding:3px 8px;border-radius:3px;background:rgba(52,211,153,.15);border:1px solid rgba(52,211,153,.3);color:#34d399;cursor:pointer">&#x1F4C4; 生成</button>
+                </div>
+                <div id="reportGenMsg" style="font-size:9px;color:var(--muted)"></div>
+              </div>
+            </details>
+          </div>
+        </div>
+
+        <!-- Phase 62: OODA Episodic Memory -->
+        <div class="perc-card" id="percOODAEpisodeCard" style="display:none">
+          <div class="perc-card-title">&#x1F9E0; OODAエピソード記憶 (Phase 62)</div>
+          <div style="font-size:11px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">エピソード数</div>
+                <div id="oodaEpTotal" style="font-weight:700;color:#34d399;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">結果判明</div>
+                <div id="oodaEpWithOutcome" style="font-weight:700;color:#22d3ee;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">リコール数</div>
+                <div id="oodaEpRecalls" style="font-weight:700;color:#a78bfa;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">類似度閾値</div>
+                <div id="oodaEpSim" style="font-weight:700;color:#fbbf24;font-size:13px">—</div>
+              </div>
+            </div>
+            <!-- Action distribution -->
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">アクション分布</div>
+            <div id="oodaEpActionBar" style="display:flex;flex-direction:column;gap:2px;margin-bottom:6px"></div>
+            <!-- Episode feed -->
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">最近のエピソード</div>
+            <div id="oodaEpFeed" style="display:flex;flex-direction:column;gap:2px;max-height:100px;overflow-y:auto">
+              <div style="font-size:9px;color:var(--muted)">—</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Phase 60: Closed-Loop Verification -->
+        <div class="perc-card" id="percVerifierCard" style="display:none">
+          <div class="perc-card-title">&#x2705; 検証ループ (Phase 60)</div>
+          <div style="font-size:11px">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:3px;margin-bottom:6px">
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">検証済み</div>
+                <div id="verifierCompleted" style="font-weight:700;color:#34d399;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">保留中</div>
+                <div id="verifierPending" style="font-weight:700;color:#fbbf24;font-size:13px">0</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">成功率</div>
+                <div id="verifierSuccessRate" style="font-weight:700;color:#22d3ee;font-size:13px">—</div>
+              </div>
+              <div style="background:rgba(255,255,255,.04);border-radius:4px;padding:3px;text-align:center">
+                <div style="font-size:8px;color:var(--muted)">閾値調整</div>
+                <div id="verifierThresholdAdj" style="font-weight:700;color:#a78bfa;font-size:13px">0</div>
+              </div>
+            </div>
+            <!-- Outcome distribution bar -->
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">結果分布</div>
+            <div id="verifierOutcomeDist" style="display:flex;gap:2px;height:14px;margin-bottom:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,.04)"></div>
+            <!-- Recent records feed -->
+            <div style="font-size:9px;font-weight:600;color:var(--muted);margin-bottom:3px">検証履歴</div>
+            <div id="verifierRecordFeed" style="display:flex;flex-direction:column;gap:3px;max-height:90px;overflow-y:auto;margin-bottom:6px">
+              <div style="font-size:9px;color:var(--muted)">—</div>
+            </div>
+            <!-- Meta-learning stats -->
+            <div id="verifierMetaStats" style="font-size:9px;color:var(--muted)"></div>
+          </div>
+        </div>
+
         <!-- Phase 48: SLA Observatory -->
         <div class="perc-card" id="percSLACard" style="display:none">
           <div class="perc-card-title">&#x1F4CA; SLA Observatory (Phase 48)</div>
@@ -6520,7 +6670,7 @@ async function loadPerceptionData(sessionId){
   // Connect SSE for real-time events
   _sseConnect(String(sessionId));
   // Show Phase 31-39 orchestration panels (poll will hide if not enabled)
-  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard","percPlannerCard"].forEach(id=>{
+  ["percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard","percPlannerCard","percAgentCard","percVerifierCard","percAgentReportCard","percOODAEpisodeCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="";
   });
@@ -6541,7 +6691,7 @@ function resetPerceptionPanels(){
   $("perceptionStatusBar").classList.remove("active");
   $("perceptionPanels").classList.remove("show");
   $("percInactive").classList.remove("show");
-  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard","percPlannerCard"].forEach(id=>{
+  ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percCrowdCard","percPlannerCard","percAgentCard","percVerifierCard","percAgentReportCard","percOODAEpisodeCard"].forEach(id=>{
     const el=document.getElementById(id);
     if(el)el.style.display="none";
   });
@@ -6560,7 +6710,7 @@ async function _percFetchAll(sessionId){
     $("perceptionStatusBar").classList.remove("active");
     $("percInactive").classList.add("show");
     $("perceptionPanels").classList.remove("show");
-    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percPlannerCard"].forEach(id=>{
+    ["percNarrationCard","percActivityCard","percPredCard","percQueryCard","percAnomalyCard","percCognitionCard","percEpisodeCard","percNLTaskCard","percLTMCard","percActionCard","percMultimodalCard","percSceneCard","percSpatialCard","percAdaptiveCard","percAttentionCard","percAnticipationCard","percCLIPCard","percMultiAgentCard","percEarlyWarningCard","percOrchestratorCard","percCascadeCard","percTemporalCard","percOnlineLearnerCard","percVLMCard","percGroundingDINOCard","percIncidentCard","percFederatedReIDCard","percEdgeCard","percRAGCard","percCausalCard","percActiveLoopCard","percFloorMapCard","percSLACard","percPlannerCard","percAgentCard"].forEach(id=>{
       const el=document.getElementById(id);
       if(el)el.style.display="none";
     });
@@ -8901,7 +9051,274 @@ async function _refreshOrchestrationPanels(){
         }
       }
     }
+    // Phase 59: Agent OODA Loop
+    const agentEl=document.getElementById("percAgentCard");
+    if(agentEl&&agentEl.style.display!=="none"){
+      const ra=await fetch("/vigil/perception/agent/stats").catch(()=>null);
+      if(ra&&ra.ok){
+        const da=await ra.json();
+        if(da.enabled===false){agentEl.style.display="none";}
+        else{
+          const tc=document.getElementById("agentThinkCount");
+          if(tc)tc.textContent=da.think_count||0;
+          const pe=document.getElementById("agentPendingEvents");
+          if(pe)pe.textContent=da.pending_events||0;
+          const dc=document.getElementById("agentDecisionCount");
+          if(dc)dc.textContent=da.decision_count||0;
+          const st=document.getElementById("agentStatus");
+          if(st)st.textContent=da.status||"idle";
+          // Action distribution bar
+          const dist=document.getElementById("agentActionDist");
+          if(dist&&da.action_counts){
+            const total=Object.values(da.action_counts).reduce((a,b)=>a+b,0);
+            if(total>0){
+              const _ac={"monitor":"#94a3b8","escalate":"#f87171","plan":"#a78bfa","adapt":"#34d399","query":"#22d3ee","respond":"#fbbf24"};
+              dist.innerHTML=Object.entries(da.action_counts).filter(([,v])=>v>0).map(([k,v])=>{
+                const pct=Math.round(v/total*100);
+                const col=_ac[k]||"#94a3b8";
+                return `<div style="width:${pct}%;background:${col};min-width:2px" title="${k}: ${v} (${pct}%)"></div>`;
+              }).join("");
+            }else{dist.innerHTML="";}
+          }
+        }
+      }
+      // Recent decisions feed
+      const rd=await fetch("/vigil/perception/agent/decisions?limit=5").catch(()=>null);
+      if(rd&&rd.ok){
+        const dd=await rd.json();
+        const feed=document.getElementById("agentDecisionFeed");
+        if(feed){
+          const decs=(dd.decisions||[]).slice(0,5);
+          if(decs.length>0){
+            const _ac2={"monitor":"#94a3b8","escalate":"#f87171","plan":"#a78bfa","adapt":"#34d399","query":"#22d3ee","respond":"#fbbf24"};
+            feed.innerHTML=decs.map(d=>{
+              const col=_ac2[d.action]||"#94a3b8";
+              return `<div style="font-size:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+                <div style="display:flex;gap:4px;align-items:center">
+                  <span style="color:${col};font-weight:700;flex-shrink:0">[${(d.action||"").toUpperCase()}]</span>
+                  <span style="color:#e2e8f0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${d.reasoning_ja||""}</span>
+                  <span style="color:var(--muted);flex-shrink:0">${d.latency_ms?d.latency_ms.toFixed(1)+"ms":""}</span>
+                </div>
+              </div>`;
+            }).join("");
+          }else{feed.innerHTML='<div style="font-size:9px;color:var(--muted)">決定なし</div>';}
+        }
+      }
+    }
+    // Phase 60: Closed-Loop Verifier
+    await _updateVerifierCard();
+    // Phase 61: Agent Intelligence Report
+    await _updateAgentReportCard();
+    // Phase 62: OODA Episodic Memory
+    await _updateOODAEpisodeCard();
   }catch(e){console.debug("orch panels error",e);}
+}
+
+// Phase 60: Closed-Loop Verifier polling (called from inside _updateOrchestrationPanels)
+async function _updateVerifierCard(){
+  const vEl=document.getElementById("percVerifierCard");
+  if(!vEl||vEl.style.display==="none")return;
+  try{
+    const rv=await fetch("/vigil/perception/verifier/stats").catch(()=>null);
+    if(rv&&rv.ok){
+      const dv=await rv.json();
+      if(dv.enabled===false){vEl.style.display="none";return;}
+      const vc=document.getElementById("verifierCompleted");
+      if(vc)vc.textContent=dv.completed_records||0;
+      const vp=document.getElementById("verifierPending");
+      if(vp)vp.textContent=dv.pending_tasks||0;
+      // Success rate from meta
+      const meta=dv.meta||{};
+      const sr=meta.success_rates||{};
+      const esc_sr=sr["escalate"],pl_sr=sr["plan"];
+      const allSR=Object.values(sr);
+      const avgSR=allSR.length>0?allSR.reduce((a,b)=>a+b,0)/allSR.length:null;
+      const vs=document.getElementById("verifierSuccessRate");
+      if(vs)vs.textContent=avgSR!=null?(Math.round(avgSR*100)+"%"):"—";
+      // Threshold adjustment
+      const adj=(meta.escalation_threshold_adj||0)+(meta.plan_threshold_adj||0);
+      const vt=document.getElementById("verifierThresholdAdj");
+      if(vt){vt.textContent=(adj>0?"+":"")+adj;vt.style.color=adj>0?"#f87171":adj<0?"#34d399":"#a78bfa";}
+      // Outcome distribution bar
+      const dist=document.getElementById("verifierOutcomeDist");
+      if(dist&&dv.outcome_counts){
+        const total=Object.values(dv.outcome_counts).reduce((a,b)=>a+b,0);
+        if(total>0){
+          const _oc={"success":"#34d399","partial":"#fbbf24","failure":"#f87171","unknown":"#94a3b8"};
+          dist.innerHTML=Object.entries(dv.outcome_counts).filter(([,v])=>v>0).map(([k,v])=>{
+            const pct=Math.round(v/total*100);
+            return `<div style="width:${pct}%;background:${_oc[k]||"#94a3b8"};min-width:2px" title="${k}: ${v} (${pct}%)"></div>`;
+          }).join("");
+        }else{dist.innerHTML="";}
+      }
+      // Meta stats line
+      const ms=document.getElementById("verifierMetaStats");
+      if(ms&&meta.suggested_escalation_threshold!=null){
+        ms.textContent=`推奨閾値: エスカレーション=${meta.suggested_escalation_threshold}, プラン=${meta.suggested_plan_threshold}`;
+      }
+    }
+    // Recent records feed
+    const rr=await fetch("/vigil/perception/verifier/records?limit=5").catch(()=>null);
+    if(rr&&rr.ok){
+      const dr=await rr.json();
+      const feed=document.getElementById("verifierRecordFeed");
+      if(feed){
+        const recs=(dr.records||[]).slice(0,5);
+        if(recs.length>0){
+          const _oc2={"success":"#34d399","partial":"#fbbf24","failure":"#f87171","unknown":"#94a3b8"};
+          feed.innerHTML=recs.map(r=>{
+            const col=_oc2[r.outcome]||"#94a3b8";
+            const red=r.reduction_ratio>=0?`↓${Math.round(r.reduction_ratio*100)}%`:`↑${Math.abs(Math.round(r.reduction_ratio*100))}%`;
+            return `<div style="font-size:8px;padding:3px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+              <div style="display:flex;gap:4px;align-items:center">
+                <span style="color:${col};font-weight:700;flex-shrink:0">[${(r.outcome||"").toUpperCase()}]</span>
+                <span style="color:#e2e8f0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${r.decision_action||""} @ ${r.camera_id||""}</span>
+                <span style="color:var(--muted);flex-shrink:0">${red}</span>
+              </div>
+            </div>`;
+          }).join("");
+        }else{feed.innerHTML='<div style="font-size:9px;color:var(--muted)">検証なし</div>';}
+      }
+    }
+  }catch(e){console.debug("verifier card error",e);}
+}
+
+// Phase 61: Agent Intelligence Report card update
+async function _updateAgentReportCard(){
+  const rEl=document.getElementById("percAgentReportCard");
+  if(!rEl||rEl.style.display==="none")return;
+  try{
+    const rs=await fetch("/vigil/perception/agent/report/summary").catch(()=>null);
+    if(rs&&rs.ok){
+      const ds=await rs.json();
+      if(ds.enabled===false){rEl.style.display="none";return;}
+      const rd=document.getElementById("reportDecisions");
+      if(rd)rd.textContent=ds.total_decisions!=null?ds.total_decisions:"—";
+      const rsr=document.getElementById("reportSuccessRate");
+      if(rsr)rsr.textContent=ds.success_rate!=null?(Math.round(ds.success_rate*100)+"%"):"—";
+      const rt=document.getElementById("reportTrend");
+      if(rt){
+        const _tc={"improving":"#34d399","stable":"#a78bfa","worsening":"#f87171"};
+        const _tj={"improving":"改善","stable":"安定","worsening":"悪化"};
+        rt.textContent=_tj[ds.risk_trend]||ds.risk_trend||"—";
+        rt.style.color=_tc[ds.risk_trend]||"#a78bfa";
+      }
+      const rv=document.getElementById("reportTopViolation");
+      if(rv)rv.textContent=ds.top_violation_type||"—";
+    }
+    const ri=await fetch("/vigil/perception/agent/report/insights").catch(()=>null);
+    if(ri&&ri.ok){
+      const di=await ri.json();
+      const feed=document.getElementById("reportInsightsFeed");
+      const inslist=di.insights||[];
+      if(feed){
+        if(inslist.length>0){
+          const _sc={"info":"#94a3b8","warning":"#fbbf24","critical":"#f87171"};
+          feed.innerHTML=inslist.map(i=>`<div style="font-size:8px;padding:2px 0;display:flex;gap:4px;align-items:flex-start">
+            <span style="color:${_sc[i.severity]||"#94a3b8"};flex-shrink:0">●</span>
+            <span style="color:#e2e8f0">${i.message_ja||""}</span>
+          </div>`).join("");
+        }else{feed.innerHTML='<div style="font-size:9px;color:var(--muted)">インサイトなし</div>';}
+      }
+      // Show summary if available
+      if(inslist.length===0){
+        // Fetch full summary text via full report if summary shows data
+      }
+    }
+  }catch(e){console.debug("agent report card error",e);}
+}
+
+// Phase 61: Generate full report on demand
+async function _agentGenerateReport(){
+  const msgEl=document.getElementById("reportGenMsg");
+  const hours=parseFloat(document.getElementById("reportWindowHours")?.value)||24;
+  if(msgEl)msgEl.textContent="生成中...";
+  try{
+    const r=await fetch(`/vigil/perception/agent/report?window_hours=${hours}`);
+    const d=await r.json();
+    if(r.ok&&d.enabled!==false){
+      const sj=document.getElementById("reportSummaryJa");
+      if(sj)sj.textContent=d.summary_ja||"—";
+      const rd=document.getElementById("reportDecisions");
+      if(rd)rd.textContent=(d.decisions&&d.decisions.total!=null)?d.decisions.total:"—";
+      const rsr=document.getElementById("reportSuccessRate");
+      const sr=d.outcomes&&d.outcomes.success_rate!=null?d.outcomes.success_rate:null;
+      if(rsr)rsr.textContent=sr!=null?(Math.round(sr*100)+"%"):"—";
+      if(msgEl)msgEl.textContent=`生成完了 (${d.decisions?.total||0}件判断, ${d.outcomes?.total_verified||0}件検証)`;
+    }else{if(msgEl)msgEl.textContent="レポート生成エラー";}
+  }catch(e){if(msgEl)msgEl.textContent="通信エラー";}
+}
+
+// Phase 62: OODA Episodic Memory card update
+async function _updateOODAEpisodeCard(){
+  const card=document.getElementById("percOODAEpisodeCard");
+  if(!card||card.style.display==="none")return;
+  try{
+    const rs=await fetch("/vigil/perception/agent/memory/stats").catch(()=>null);
+    if(!rs||!rs.ok)return;
+    const ds=await rs.json();
+    if(ds.enabled===false){card.style.display="none";return;}
+    const $t=id=>document.getElementById(id);
+    if($t("oodaEpTotal"))$t("oodaEpTotal").textContent=ds.total_episodes??0;
+    if($t("oodaEpWithOutcome"))$t("oodaEpWithOutcome").textContent=ds.with_outcome??0;
+    if($t("oodaEpRecalls"))$t("oodaEpRecalls").textContent=ds.recall_count??0;
+    if($t("oodaEpSim"))$t("oodaEpSim").textContent=ds.recall_min_similarity!=null?(ds.recall_min_similarity.toFixed(2)):"—";
+    // Action distribution bar
+    const barEl=$t("oodaEpActionBar");
+    if(barEl){
+      const dist=ds.action_distribution||{};
+      const total=Object.values(dist).reduce((a,b)=>a+b,0)||1;
+      const _ac={"escalate":"#f87171","plan":"#fbbf24","adapt":"#34d399","query":"#22d3ee","respond":"#a78bfa","monitor":"#94a3b8"};
+      barEl.innerHTML=Object.entries(dist).map(([k,v])=>{
+        const pct=Math.round(v/total*100);
+        return `<div style="display:flex;align-items:center;gap:4px">
+          <div style="font-size:8px;color:var(--muted);width:50px;text-align:right">${k}</div>
+          <div style="flex:1;background:rgba(255,255,255,.06);border-radius:2px;height:6px">
+            <div style="width:${pct}%;background:${_ac[k]||"#94a3b8"};height:100%;border-radius:2px"></div>
+          </div>
+          <div style="font-size:8px;color:var(--muted);width:24px">${v}</div>
+        </div>`;
+      }).join("")||"<div style='font-size:9px;color:var(--muted)'>データなし</div>";
+    }
+    // Episode feed
+    const re=await fetch("/vigil/perception/agent/memory/episodes?limit=5").catch(()=>null);
+    if(re&&re.ok){
+      const de=await re.json();
+      const feedEl=$t("oodaEpFeed");
+      const eps=de.episodes||[];
+      if(feedEl){
+        if(eps.length===0){feedEl.innerHTML='<div style="font-size:9px;color:var(--muted)">エピソードなし</div>';}
+        else{
+          const _oc={"success":"#34d399","partial":"#fbbf24","failure":"#f87171"};
+          feedEl.innerHTML=eps.map(ep=>{
+            const outcomeStr=ep.outcome?`<span style="color:${_oc[ep.outcome]||"#94a3b8"};font-size:8px"> [${ep.outcome}]</span>`:"";
+            const simStr=ep.similarity!=null?`<span style="color:#22d3ee;font-size:8px"> ${(ep.similarity*100).toFixed(0)}%</span>`:"";
+            return `<div style="font-size:8px;padding:2px 0;border-bottom:1px solid rgba(255,255,255,.04)">
+              <span style="color:#a78bfa;font-weight:600">${(ep.decision_action||"").toUpperCase()}</span>${outcomeStr}${simStr}
+              <span style="color:var(--muted)"> • ${ep.risk_level||""} • ${ep.dominant_violation_type?ep.dominant_violation_type.slice(0,20):""}</span>
+            </div>`;
+          }).join("");
+        }
+      }
+    }
+  }catch(e){console.debug("ooda episode card error",e);}
+}
+
+// Phase 59: Force think
+async function _agentForceThink(){
+  const msgEl=document.getElementById("agentThinkMsg");
+  if(msgEl)msgEl.textContent="実行中...";
+  try{
+    const r=await fetch("/vigil/perception/agent/think",{method:"POST",headers:{"Content-Type":"application/json"}});
+    const d=await r.json();
+    if(r.ok){
+      if(d.decision){
+        if(msgEl)msgEl.textContent=`[${(d.decision.action||"").toUpperCase()}] ${d.decision.reasoning_ja||""}`;
+      }else{
+        if(msgEl)msgEl.textContent="イベントなし (think不要)";
+      }
+    }else{if(msgEl)msgEl.textContent="エラー";}
+  }catch(e){if(msgEl)msgEl.textContent="通信エラー";}
 }
 
 // Phase 49: Floor Map canvas renderer

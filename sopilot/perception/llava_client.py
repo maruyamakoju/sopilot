@@ -219,12 +219,15 @@ class LLaVAClient(VLMClient):
         device: str = "auto",
         max_new_tokens: int = 256,
         load_in_8bit: bool = True,
+        load_in_4bit: bool = False,
     ) -> None:
         self._model_id = model_id
         self._orchestrator = orchestrator
         self._device = device
         self._max_new_tokens = max_new_tokens
-        self._load_in_8bit = load_in_8bit
+        # 4-bit takes priority over 8-bit when both are set
+        self._load_in_4bit = load_in_4bit
+        self._load_in_8bit = load_in_8bit and not load_in_4bit
         self._stats = LLaVAStats()
 
         # Lazy-loaded components
@@ -250,10 +253,11 @@ class LLaVAClient(VLMClient):
             except Exception:
                 logger.debug("Failed to register LLaVA with orchestrator", exc_info=True)
 
+        quant_mode = "4bit" if self._load_in_4bit else ("8bit" if self._load_in_8bit else "fp16")
         logger.info(
-            "LLaVAClient created (model_id=%s, 8bit=%s, max_tokens=%d)",
+            "LLaVAClient created (model_id=%s, quant=%s, max_tokens=%d)",
             model_id,
-            load_in_8bit,
+            quant_mode,
             max_new_tokens,
         )
 
@@ -265,14 +269,26 @@ class LLaVAClient(VLMClient):
             return
 
         import torch
-        from transformers import LlavaNextForConditionalGeneration, LlavaNextProcessor
+        from transformers import (
+            BitsAndBytesConfig,
+            LlavaNextForConditionalGeneration,
+            LlavaNextProcessor,
+        )
 
         logger.info("Loading LLaVA model %s ...", self._model_id)
 
         self._processor = LlavaNextProcessor.from_pretrained(self._model_id)
 
         load_kwargs: dict[str, Any] = {"device_map": "auto"}
-        if self._load_in_8bit:
+        if self._load_in_4bit:
+            bnb_config = BitsAndBytesConfig(
+                load_in_4bit=True,
+                bnb_4bit_compute_dtype=torch.float16,
+                bnb_4bit_use_double_quant=True,
+                bnb_4bit_quant_type="nf4",
+            )
+            load_kwargs["quantization_config"] = bnb_config
+        elif self._load_in_8bit:
             load_kwargs["load_in_8bit"] = True
         else:
             load_kwargs["torch_dtype"] = torch.float16
@@ -284,7 +300,8 @@ class LLaVAClient(VLMClient):
         self._model.eval()
 
         self._loaded = True
-        logger.info("LLaVA model loaded successfully on %s", self._device)
+        quant_mode = "4bit" if self._load_in_4bit else ("8bit" if self._load_in_8bit else "fp16")
+        logger.info("LLaVA model loaded successfully (quant=%s)", quant_mode)
 
     def _ensure_loaded(self) -> bool:
         """Ensure model is loaded. Returns True if ready."""
@@ -553,6 +570,7 @@ class LLaVAClient(VLMClient):
             "model_id": self._model_id,
             "loaded": self._loaded,
             "load_in_8bit": self._load_in_8bit,
+            "load_in_4bit": self._load_in_4bit,
             "max_new_tokens": self._max_new_tokens,
             **self._stats.to_dict(),
         }
@@ -703,6 +721,8 @@ def build_llava_client(
     device: str = "auto",
     max_new_tokens: int = 256,
     backend: str = "auto",
+    load_in_8bit: bool = True,
+    load_in_4bit: bool = False,
 ) -> VLMClient:
     """Build a LLaVA VLM client.
 
@@ -720,6 +740,10 @@ def build_llava_client(
         ``"llava"`` — real LLaVA-NeXT model.
         ``"mock"`` — MockLLaVAClient (no GPU required).
         ``"auto"`` — tries LLaVA, falls back to mock if CUDA unavailable.
+    load_in_8bit:
+        8-bit quantization (~8 GB VRAM). Ignored when load_in_4bit=True.
+    load_in_4bit:
+        4-bit quantization (~4.5 GB VRAM, Phase 58). Takes priority over 8-bit.
 
     Returns
     -------
@@ -746,4 +770,6 @@ def build_llava_client(
         orchestrator=orchestrator,
         device=device,
         max_new_tokens=max_new_tokens,
+        load_in_8bit=load_in_8bit,
+        load_in_4bit=load_in_4bit,
     )

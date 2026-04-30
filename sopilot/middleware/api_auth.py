@@ -98,7 +98,7 @@ def build_api_key_middleware(api_key: str | None) -> type | None:
 
     # Create a subclass with the key baked in
     class _ConfiguredAPIKeyMiddleware(APIKeyMiddleware):
-        def __init__(self, app_inner):
-            super().__init__(app_inner, api_key=api_key)
+        def __init__(self, app):
+            super().__init__(app, api_key=api_key)
 
     return _ConfiguredAPIKeyMiddleware

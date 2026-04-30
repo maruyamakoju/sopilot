@@ -165,7 +165,7 @@ def build_rate_limiter(
         app.add_middleware(build_rate_limiter(max_requests=60, window_seconds=60))
     """
     class _ConfiguredRateLimitMiddleware(RateLimitMiddleware):
-        def __init__(self, app_inner):
-            super().__init__(app_inner, max_requests=max_requests, window_seconds=window_seconds)
+        def __init__(self, app):
+            super().__init__(app, max_requests=max_requests, window_seconds=window_seconds)
 
     return _ConfiguredRateLimitMiddleware
